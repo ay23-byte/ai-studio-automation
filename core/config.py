@@ -22,7 +22,7 @@ VOICE_HINDI   = os.getenv("VOICE_HINDI",   "hi-IN-MadhurNeural")
 VOICE_ENGLISH = os.getenv("VOICE_ENGLISH", "en-IN-PrabhatNeural")
 VOICE_FEMALE  = os.getenv("VOICE_FEMALE",  "hi-IN-SwaraNeural")
 
-CHANNEL_NAME   = os.getenv("CHANNEL_NAME", "Power Codex")
+CHANNEL_NAME   = os.getenv("CHANNEL_NAME", "Engineering Physics")
 PRIVACY        = os.getenv("PRIVACY", "private")
 PUBLISH_AT_IST = os.getenv("PUBLISH_AT_IST", "")
 
