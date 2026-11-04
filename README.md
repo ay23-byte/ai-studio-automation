@@ -1,12 +1,12 @@
 # AI Studio - YouTube Video Creator
 
-Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-form videos (16:9)**. It generates scripts with Gemini, creates visuals, synthesizes narration with Edge TTS, renders videos with FFmpeg, and can upload them to YouTube.
+Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-form videos (16:9)**. It generates scripts with Gemini, creates visuals, synthesizes narration with Chatterbox (with Edge TTS fallback when selected), renders videos with FFmpeg, and can upload them to YouTube.
 
 ## Features
 
 - Create Shorts and long-form videos from a topic.
 - Run a demo build without API keys.
-- Generate narration with Microsoft Edge TTS.
+- Generate narration with Chatterbox TTS, with automatic Edge TTS fallback when `TTS_ENGINE=chatterbox`.
 - Generate images through Cloudflare when configured, with Pollinations as a fallback.
 - Search Pixabay for optional stock-video clips.
 - Add captions, transitions, background music, and finance-education disclaimers.
@@ -15,7 +15,7 @@ Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-
 
 ## Requirements
 
-- Python 3.10 or newer (GitHub Actions uses Python 3.12).
+- Python 3.11 or newer (GitHub Actions uses Python 3.11).
 - **FFmpeg and FFprobe** installed and available on your system PATH.
 - Internet connection for TTS, image generation, Gemini, Pixabay, and YouTube API calls.
 
@@ -133,6 +133,8 @@ All API providers have their own quotas and terms; free-tier availability and li
 
 The repository includes:
 
+- `.github/workflows/validate.yml` — Python syntax validation on pushes and pull requests.
+
 - `.github/workflows/make_shorts.yml` — manual Shorts generation and a daily scheduled run.
 - `.github/workflows/make_longform.yml` — manual long-form generation.
 
@@ -148,7 +150,7 @@ To enable cloud builds, open **GitHub → repository → Settings → Secrets an
 - `TELEGRAM_BOT_TOKEN` (optional)
 - `TELEGRAM_CHAT_ID` (optional)
 
-The Shorts workflow runs daily at 09:00 IST. Its scheduled upload step is enabled by the workflow configuration and currently sets `PRIVACY=private`. Review the workflow before changing publishing privacy or schedule. Long-form runs are manually triggered.
+The Shorts workflow runs daily at 09:00 IST. Both workflows currently set `PRIVACY=public` for uploads; change this to `private` while testing if you do not want videos immediately visible. Long-form runs are manually triggered. The upload step selects only completed, unuploaded videos matching that workflow's format.
 
 ## Project structure
 
