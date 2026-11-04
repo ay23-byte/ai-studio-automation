@@ -78,9 +78,10 @@ def upload_latest(video_format=None):
                                  contains_synthetic=True)
                     update_video(row["id"], youtube_id=vid, status="uploaded")
                     state = wait_processed(vid)
-                    if state == "failed":
-                        send(f"❌ YouTube processing failed for: {title}")
-                        return
+                    if state != "ok":
+                        update_video(row["id"], status=f"youtube_{state}")
+                        send(f"❌ YouTube processing did not complete ({state}) for: {title}")
+                        raise RuntimeError(f"YouTube processing did not complete: {state}")
                     playlist = {
                         "finance": "Finance Explained | Engineering Physics",
                         "markets": "Share Market | Engineering Physics",
