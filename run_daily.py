@@ -55,7 +55,8 @@ def upload_latest(video_format=None):
     for row in rows:
         if (row.get("video_path") and not row.get("youtube_id")
                 and row.get("status") == "done"
-                and (not video_format or row.get("format") == video_format)):
+                and (not video_format or row.get("format") == video_format
+                 or (video_format == "long" and row.get("format") == "longform"))):
             vpath = Path(row["video_path"])
             if vpath.exists():
                 from core.uploader import upload, add_to_playlist, post_comment, wait_processed
