@@ -50,10 +50,12 @@ def mark_done(topics, t, youtube_id=None):
     save_topics(topics)
 
 
-def upload_latest():
-    rows = list_videos(limit=5)
+def upload_latest(video_format=None):
+    rows = list_videos(limit=50)
     for row in rows:
-        if row.get("video_path") and not row.get("youtube_id"):
+        if (row.get("video_path") and not row.get("youtube_id")
+                and row.get("status") == "done"
+                and (not video_format or row.get("format") == video_format)):
             vpath = Path(row["video_path"])
             if vpath.exists():
                 from core.uploader import upload, add_to_playlist, post_comment, wait_processed
@@ -102,17 +104,18 @@ def upload_latest():
                     send(f"❌ Upload failed: {str(e)[:200]}")
                     raise
                 return
-    print("No built-but-unuploaded video found.")
+    raise RuntimeError(f"No completed, unuploaded {video_format or ''} video was found in the database.")
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     p.add_argument("--upload-latest", action="store_true")
+    p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     args = p.parse_args()
 
     if args.upload_latest:
-        upload_latest()
+        upload_latest(args.format)
         return
 
     # Build the next topic
