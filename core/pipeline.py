@@ -110,12 +110,16 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     bd = build_dir or (cfg.BUILD_DIR / f"job_{job_id}")
     bd.mkdir(parents=True, exist_ok=True)
     scenes = script.get("scenes", [])
+    if not scenes:
+        raise ValueError("Shorts script must contain at least one scene.")
+    if any(not str(sc.get("say", "")).strip() for sc in scenes):
+        raise ValueError("Every Shorts scene must contain non-empty narration in its say field.")
     cat = script.get("category", "")
     disclaimer = cat in ("finance", "markets", "money")
 
     # Voice
     full_text = " ".join(sc.get("say","") for sc in scenes)
-    voice_path, timings = synthesise(full_text, bd, language="hindi", gender="male")
+    voice_path, timings = synthesise(full_text, bd, language=language, gender="male")
     total = float(subprocess.check_output(
         ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",str(voice_path)]
     ).strip())
@@ -169,19 +173,23 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     return out
 
 
-def build_longform(script: dict, job_id: int, build_dir: Path = None) -> Path:
+def build_longform(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi") -> Path:
     """Build a 16:9 long-form video from a section-based script."""
     from core.editor_longform import render as lf_render
     import subprocess
     bd = build_dir or (cfg.BUILD_DIR / f"job_{job_id}")
     bd.mkdir(parents=True, exist_ok=True)
     sections = script.get("sections", [])
+    if not sections:
+        raise ValueError("Long-form script must contain at least one section.")
+    if any(not str(sec.get("narration", "")).strip() for sec in sections):
+        raise ValueError("Every long-form section must contain non-empty narration.")
     cat = script.get("category","")
     disclaimer = cat in ("finance","markets","money")
 
     # Build full narration
     full_narration = " ".join(sec.get("narration","") for sec in sections)
-    voice_path, timings = synthesise(full_narration, bd, language="hindi", gender="male")
+    voice_path, timings = synthesise(full_narration, bd, language=language, gender="male")
     total = float(subprocess.check_output(
         ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",str(voice_path)]
     ).strip())
