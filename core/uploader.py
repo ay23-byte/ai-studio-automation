@@ -8,10 +8,28 @@ from google.auth.transport.requests import Request
 from core.config import (YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY, PUBLISH_AT_IST)
 
 def _creds():
+    # Fail early with an actionable message instead of sending an empty
+    # refresh_token to Google's OAuth endpoint.
+    missing = [
+        name for name, value in (
+            ("YT_CLIENT_ID", YT_CLIENT_ID),
+            ("YT_CLIENT_SECRET", YT_CLIENT_SECRET),
+            ("YT_REFRESH_TOKEN", YT_REFRESH_TOKEN),
+        ) if not value or not value.strip()
+    ]
+    if missing:
+        raise RuntimeError(
+            "YouTube upload is not configured. Missing GitHub Actions secret(s): "
+            + ", ".join(missing)
+            + ". Add them under Settings > Secrets and variables > Actions, "
+              "then rerun the workflow. Never put these values in source code."
+        )
+
     c = Credentials(None, refresh_token=YT_REFRESH_TOKEN,
                     token_uri="https://oauth2.googleapis.com/token",
                     client_id=YT_CLIENT_ID, client_secret=YT_CLIENT_SECRET)
-    c.refresh(Request()); return c
+    c.refresh(Request())
+    return c
 
 def _publish_time():
     if not PUBLISH_AT_IST: return None
