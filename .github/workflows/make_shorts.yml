@@ -54,6 +54,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Validate Python syntax
+        run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
+
       - name: Build Shorts video
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
