@@ -17,7 +17,7 @@ def pick_voice(language="hindi", gender="male"):
     return VOICE_HINDI
 
 def _sentences(text):
-    return [s.strip() for s in re.split(r"(?<=[।.!?])\\s+", text.strip()) if s.strip()]
+    return [s.strip() for s in re.split(r"(?<=[।.!?])\s+", text.strip()) if s.strip()]
 
 def _prosody(i, n, sentence):
     rate, pitch = "+3%", "+0Hz"
