@@ -33,3 +33,9 @@ db/*.db
 Thumbs.db
 .vscode/
 .idea/
+
+# Google OAuth credentials (never commit)
+client_secret.json
+client_secret*.json
+oauth_token*.json
+token.json
