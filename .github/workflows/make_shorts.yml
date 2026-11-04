@@ -95,7 +95,8 @@ jobs:
         run: |
           git config user.name "studio-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add db/studio.sqlite topics.json 2>/dev/null || true
+          git add -f db/studio.sqlite 2>/dev/null || true
+git add topics.json 2>/dev/null || true
           git diff --cached --quiet || (git commit -m "bot: update studio db" && git pull --rebase && git push)
 
       - name: Alert on failure
