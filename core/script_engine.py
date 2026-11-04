@@ -1,5 +1,6 @@
 import json, re, requests, time
 from core.config import GEMINI_API_KEY, GEMINI_MODEL
+from core.config import GEMINI_FALLBACK_MODEL
 
 SHORTS_PROMPT = """Write ONE Shorts script for a Hindi/Hinglish YouTube channel about: "{topic}" (category: {category})
 
@@ -30,21 +31,87 @@ Sound like a real person speaking, not an essay.
 Return ONLY valid JSON:
 {{"title":"...","description":"100 word SEO description","tags":["..."],"hook":"...","category":"{category}","format":"longform","sections":[{{"title":"...","narration":"...","visuals":["..."],"image":"...","keywords":["..."]}}]}}"""
 
+
+def _ask_model(prompt: str, model: str, attempts: int = 4):
+    """Call Gemini with exponential backoff for transient API/network failures."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 4096},
+    }
+    last_error = None
+
+    for attempt in range(attempts):
+        try:
+            response = requests.post(
+                url,
+                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                json=payload,
+                timeout=120,
+            )
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt == attempts - 1:
+                break
+            delay = min(8 * (2 ** attempt), 45)
+            print(f"Gemini network error on {model}; retrying in {delay}s ({attempt + 1}/{attempts})")
+            time.sleep(delay)
+            continue
+
+        if response.status_code == 200:
+            data = response.json()
+            candidates = data.get("candidates") or []
+            if not candidates:
+                raise RuntimeError(f"Gemini returned no candidates for {model}: {data.get('promptFeedback', data)}")
+            parts = candidates[0].get("content", {}).get("parts", [])
+            generated = "".join(part.get("text", "") for part in parts if part.get("text"))
+            if not generated.strip():
+                raise RuntimeError(f"Gemini returned an empty response for {model}")
+            return generated
+
+        last_error = f"HTTP {response.status_code}: {response.text[:1000]}"
+        retryable = response.status_code in (429, 500, 502, 503, 504)
+        if not retryable or attempt == attempts - 1:
+            break
+
+        retry_after = response.headers.get("Retry-After")
+        try:
+            delay = float(retry_after) if retry_after else min(8 * (2 ** attempt), 45)
+        except ValueError:
+            delay = min(8 * (2 ** attempt), 45)
+        delay = max(1, min(delay, 60))
+        print(
+            f"Gemini {response.status_code} from {model}; "
+            f"retrying in {int(delay)}s ({attempt + 1}/{attempts})"
+        )
+        time.sleep(delay)
+
+    raise RuntimeError(f"Gemini request failed for model {model} after {attempts} attempts: {last_error}")
+
+
 def _ask_gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY not set. Get a free key at aistudio.google.com")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-    for attempt in range(3):
-        r = requests.post(url,
-            headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": prompt}]}],
-                  "generationConfig": {"temperature": 0.85, "maxOutputTokens": 4096}},
-            timeout=120)
-        if r.status_code == 429:
-            time.sleep(30 * (attempt + 1)); continue
-        r.raise_for_status()
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-    raise RuntimeError("Gemini rate-limited after 3 tries")
+
+    try:
+        return _ask_model(prompt, GEMINI_MODEL)
+    except RuntimeError as primary_error:
+        # 503/5xx capacity incidents can affect one model more than another.
+        # Try the configured lightweight stable model as a fallback.
+        if GEMINI_FALLBACK_MODEL and GEMINI_FALLBACK_MODEL != GEMINI_MODEL:
+            print(
+                f"Primary Gemini model {GEMINI_MODEL} is unavailable. "
+                f"Trying fallback model {GEMINI_FALLBACK_MODEL}."
+            )
+            try:
+                return _ask_model(prompt, GEMINI_FALLBACK_MODEL, attempts=3)
+            except RuntimeError as fallback_error:
+                raise RuntimeError(
+                    f"Gemini generation failed on both models. "
+                    f"Primary: {primary_error}. Fallback: {fallback_error}"
+                ) from fallback_error
+        raise
+
 
 def _parse(text: str) -> dict:
     text = text.strip()
@@ -52,8 +119,10 @@ def _parse(text: str) -> dict:
     if a == -1: raise ValueError("No JSON in response")
     return json.loads(text[a:b+1])
 
+
 def generate_shorts_script(topic: str, category: str = "finance") -> dict:
     return _parse(_ask_gemini(SHORTS_PROMPT.format(topic=topic, category=category)))
+
 
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish") -> dict:
@@ -62,6 +131,7 @@ def generate_longform_script(topic: str, category: str = "finance",
         duration_min=duration_min, duration_max=duration_max, language=language)))
     s["format"] = "longform"
     return s
+
 
 def generate_seo(script: dict) -> dict:
     title = script.get("title", "")
