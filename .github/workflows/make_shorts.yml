@@ -82,7 +82,7 @@ jobs:
           fi
 
       - name: Upload to YouTube
-        if: ${{ inputs.upload == 'true' || github.event_name == 'schedule' }}
+        if: ${{ inputs.upload || github.event_name == 'schedule' }}
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
