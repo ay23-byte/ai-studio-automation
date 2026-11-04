@@ -82,7 +82,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "private"
+          PRIVACY: "public"
         run: python run_daily.py --upload-latest
 
       - uses: actions/upload-artifact@v4
