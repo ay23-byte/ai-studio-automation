@@ -74,7 +74,7 @@ jobs:
             --minutes ${{ inputs.minutes }}
 
       - name: Upload to YouTube
-        if: ${{ inputs.upload == 'true' }}
+        if: ${{ inputs.upload }}
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
