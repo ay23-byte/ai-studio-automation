@@ -1,0 +1,103 @@
+name: make-longform
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Video topic"
+        required: true
+      category:
+        description: "Category"
+        type: choice
+        options: [finance, markets, money, power, human]
+        default: finance
+      minutes:
+        description: "Target length in minutes"
+        type: choice
+        options: ["5", "7", "10", "12"]
+        default: "7"
+      upload:
+        description: "Upload to YouTube after building?"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: studio-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build long-form video
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHANNEL_NAME: "Power Codex"
+          PRIVACY: "private"
+        run: |
+          python run.py long "${{ inputs.topic }}" \
+            --category "${{ inputs.category }}" \
+            --minutes ${{ inputs.minutes }}
+
+      - name: Upload to YouTube
+        if: ${{ inputs.upload == 'true' }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CHANNEL_NAME: "Power Codex"
+          PRIVACY: "private"
+        run: python run_daily.py --upload-latest
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: longform-video
+          path: output/*.mp4
+          if-no-files-found: ignore
+
+      - name: Save database
+        if: always()
+        run: |
+          git config user.name "studio-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add db/studio.sqlite 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "bot: update studio db" && git pull --rebase && git push)
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" \
+              -d text="❌ AI Studio make-longform failed. Check GitHub Actions." > /dev/null
+          fi
