@@ -1,0 +1,35 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# Generated media and temporary renders
+output/*
+!output/.gitkeep
+build/*
+!build/.gitkeep
+assets/music/*
+!assets/music/.gitkeep
+assets/clips/*
+!assets/clips/.gitkeep
+
+# Local database (GitHub Actions explicitly force-adds its state database)
+db/*.sqlite
+db/*.sqlite3
+db/*.db
+
+# Logs and OS/editor files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
