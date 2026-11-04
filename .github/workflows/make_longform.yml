@@ -84,7 +84,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "public"
-        run: python run_daily.py --upload-latest
+        run: python run_daily.py --upload-latest --format long
 
       - uses: actions/upload-artifact@v4
         if: always()
