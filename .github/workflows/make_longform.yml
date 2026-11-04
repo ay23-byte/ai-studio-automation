@@ -18,7 +18,7 @@ on:
       upload:
         description: "Upload to YouTube after building?"
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
@@ -58,7 +58,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "private"
+          PRIVACY: "public"
         run: |
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
@@ -74,7 +74,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "private"
+          PRIVACY: "public"
         run: python run_daily.py --upload-latest
 
       - uses: actions/upload-artifact@v4
