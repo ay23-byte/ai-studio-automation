@@ -111,7 +111,6 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     p.add_argument("--upload-latest", action="store_true")
-    p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     args = p.parse_args()
 
     if args.upload_latest:
@@ -144,9 +143,9 @@ def main():
                         vid_id = save_video(script.get("title", topic_title),
                                             args.format, "hindi", category, script)
                         if args.format == "shorts":
-                            out = build_shorts(script, vid_id, language=t.get("language", "hindi"))
+                            out = build_shorts(script, vid_id, language="hindi")
                         else:
-                            out = build_longform(script, vid_id, language=t.get("language", "hindi"))
+                            out = build_longform(script, vid_id, language="hindi")
                         print(f"Built auto-generated video: {out}")
                         return
                     except Exception as e:
@@ -176,9 +175,9 @@ def main():
         vid_id = save_video(script.get("title", ""), args.format,
                             t.get("language","hindi"), t.get("category","finance"), script)
         if args.format == "shorts":
-            out = build_shorts(script, vid_id)
+            out = build_shorts(script, vid_id, language=t.get("language", "hindi"))
         else:
-            out = build_longform(script, vid_id)
+            out = build_longform(script, vid_id, language=t.get("language", "hindi"))
 
         mark_done(topics, t)
         print(f"Built: {out}")
