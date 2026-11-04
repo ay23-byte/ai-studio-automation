@@ -63,7 +63,7 @@ def upload_latest():
                 title = row["title"]
                 if row.get("format") == "shorts":
                     title = title[:88] + " #Shorts"
-                desc = script.get("description", "Power Codex - roz ek naya concept.")
+                desc = script.get("description", "Engineering Physics - learn one concept every day.")
                 cat = row.get("category", "")
                 if cat in ("finance", "markets", "money"):
                     desc += ("\n\nयह वीडियो सिर्फ़ शैक्षणिक जानकारी के लिए है।"
@@ -79,12 +79,12 @@ def upload_latest():
                         send(f"❌ YouTube processing failed for: {title}")
                         return
                     playlist = {
-                        "finance": "Finance Explained | Power Codex",
-                        "markets": "Share Market | Power Codex",
-                        "money": "Paise ki Samajh | Power Codex",
-                        "power": "पावर के नियम | Power Codex",
-                        "human": "इंसानी व्यवहार | Power Codex",
-                    }.get(cat, "Power Codex")
+                        "finance": "Finance Explained | Engineering Physics",
+                        "markets": "Share Market | Engineering Physics",
+                        "money": "Paise ki Samajh | Engineering Physics",
+                        "power": "पावर के नियम | Engineering Physics",
+                        "human": "इंसानी व्यवहार | Engineering Physics",
+                    }.get(cat, "Engineering Physics")
                     try:
                         add_to_playlist(vid, playlist)
                     except Exception as e:
