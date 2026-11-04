@@ -50,6 +50,7 @@ jobs:
       - name: Build Shorts video
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: "gemini-3.8-flash"
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -96,7 +97,7 @@ jobs:
           git config user.name "studio-bot"
           git config user.email "bot@users.noreply.github.com"
           git add -f db/studio.sqlite 2>/dev/null || true
-git add topics.json 2>/dev/null || true
+          git add topics.json 2>/dev/null || true
           git diff --cached --quiet || (git commit -m "bot: update studio db" && git pull --rebase && git push)
 
       - name: Alert on failure
