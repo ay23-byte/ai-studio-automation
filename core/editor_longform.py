@@ -1,0 +1,73 @@
+import subprocess
+from pathlib import Path
+
+W, H = 1920, 1080
+FADE = 0.4
+ENC = ["-c:v","libx264","-preset","fast","-crf","20","-profile:v","high",
+       "-level","4.1","-pix_fmt","yuv420p","-r","30","-video_track_timescale","15360"]
+TRANSITIONS = ["fade","smoothleft","fade","circlecrop","fade"]
+
+def _run(cmd): subprocess.run(cmd, check=True)
+
+def _seg(src, idx, dur, is_image, bd):
+    out = bd / f"lseg{idx}.mp4"
+    if is_image:
+        frames = max(int(dur*30),2)
+        z = f"1+0.05*on/{frames}" if idx%2==0 else f"1.05-0.05*on/{frames}"
+        pos = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        vf = (f"scale={W*2}:{H*2}:force_original_aspect_ratio=increase:flags=lanczos,"
+              f"crop={W*2}:{H*2},zoompan=z='{z}':{pos}:d=1:s={W}x{H}:fps=30,"
+              "eq=brightness=-0.03:saturation=1.05,format=yuv420p")
+        _run(["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30",
+              "-t",f"{dur:.3f}","-i",str(src),"-vf",vf,"-an",*ENC,str(out)])
+    else:
+        vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
+              f"crop={W}:{H},fps=30,setsar=1,eq=brightness=-0.05:saturation=0.9,format=yuv420p")
+        _run(["ffmpeg","-y","-loglevel","error","-stream_loop","-1",
+              "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
+    return out
+
+def render(sections, voice, ass, total, out, music=None, music_vol=0.35):
+    T = total + 1.5; bd = out.parent
+    valid = []
+    for i, sec in enumerate(sections):
+        m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
+        if src and src.exists():
+            d = sec.get("_dur",10.0)+FADE
+            valid.append((i, _seg(src, i, d, m.get("type")=="image", bd), sec.get("_dur",10.0)))
+    if not valid: raise RuntimeError("No visual segments")
+    if len(valid)==1:
+        _, p, _ = valid[0]
+        filt = f"subtitles={ass}[vout];"; inputs=["-i",str(p),"-i",str(voice)]
+    else:
+        offsets, acc = [], 0.0
+        for j in range(len(valid)-1):
+            acc += valid[j][2]; offsets.append(acc)
+        chain, prev = [], "[0:v]"
+        for k, (off, (_, p2, _)) in enumerate(zip(offsets, valid[1:])):
+            lab = f"[x{k}]"; tr = TRANSITIONS[k%len(TRANSITIONS)]
+            chain.append(f"{prev}[{k+1}:v]xfade=transition={tr}:duration={FADE}:offset={off:.3f}{lab}")
+            prev = lab
+        filt = ";".join(chain+[f"{prev}subtitles={ass}[vout]"])+";"
+        inputs = []
+        for _, p2, _ in valid: inputs += ["-i",str(p2)]
+        inputs += ["-i",str(voice)]
+    n = len(valid); norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
+    afilt = [f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va]"]
+    mix_in = ["[va]"]; idx = n+1
+    if music and Path(music).exists():
+        inputs += ["-stream_loop","-1","-t",f"{T+1:.2f}","-i",str(music)]
+        afilt[0] = f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
+        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
+                     f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.5[mu]")
+        afilt.append("[mu]asplit=2[mu1][mu2];[mu1][key]"
+                     "sidechaincompress=threshold=0.03:ratio=5:attack=15:release=600:makeup=1[duck]")
+        mix_in = ["[va]","[duck]"]
+    fade = f"afade=t=out:st={max(T-2.0,0):.3f}:d=2.0"
+    afilt.append("".join(mix_in)+f"amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
+                 f"normalize=0,alimiter=limit=0.95,{fade}[aout]")
+    filt += ";".join(afilt)
+    _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
+          "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
+          "-c:a","aac","-b:a","192k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
+    return out
