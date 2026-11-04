@@ -60,7 +60,7 @@ jobs:
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          CHANNEL_NAME: "Power Codex"
+          CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "private"
           # PUBLISH_AT_IST: "19:00"
         run: |
@@ -81,7 +81,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CHANNEL_NAME: "Power Codex"
+          CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "private"
         run: python run_daily.py --upload-latest
 
