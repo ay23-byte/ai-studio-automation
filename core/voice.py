@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import os
 import re
 import subprocess
@@ -30,7 +31,25 @@ def _prosody(i, n, sentence):
     return rate, pitch
 
 async def _synth_edge(text, voice, rate, pitch, path):
-    await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(path))
+    # Edge TTS occasionally returns NoAudioReceived during transient service/network
+    # failures. Retry before giving up so one temporary response does not kill a build.
+    last_error = None
+    for attempt in range(3):
+        try:
+            await edge_tts.Communicate(
+                text, voice, rate=rate, pitch=pitch
+            ).save(str(path))
+            if path.exists() and path.stat().st_size > 0:
+                return
+            raise RuntimeError("Edge TTS returned an empty audio file.")
+        except Exception as exc:
+            last_error = exc
+            path.unlink(missing_ok=True)
+            if attempt < 2:
+                await asyncio.sleep(2 ** (attempt + 1))
+    raise RuntimeError(
+        f"Edge TTS failed after 3 attempts for voice {voice}: {last_error}"
+    ) from last_error
 
 def _to_wav(mp3, wav):
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3),
@@ -60,9 +79,18 @@ def _get_chatterbox():
         import torch
         from chatterbox.mtl_tts import ChatterboxMultilingualTTS
         torch.set_num_threads(max(1, int(os.getenv("CHATTERBOX_TORCH_THREADS", "2"))))
-        _CHATTERBOX_MODEL = ChatterboxMultilingualTTS.from_pretrained(
-            device="cpu", t3_model="v3"
-        )
+        # PyPI releases of chatterbox-tts may not expose the newer t3_model
+        # parameter. Pass it only when the installed version supports it.
+        loader = ChatterboxMultilingualTTS.from_pretrained
+        loader_params = inspect.signature(loader).parameters
+        if "t3_model" in loader_params:
+            _CHATTERBOX_MODEL = loader(device="cpu", t3_model="v3")
+        else:
+            print(
+                "Installed Chatterbox version does not support t3_model; "
+                "loading its default multilingual checkpoint."
+            )
+            _CHATTERBOX_MODEL = loader(device="cpu")
     return _CHATTERBOX_MODEL
 
 def _synth_chatterbox(text, language, path):
