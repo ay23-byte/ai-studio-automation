@@ -141,9 +141,9 @@ def main():
                         vid_id = save_video(script.get("title", topic_title),
                                             args.format, "hindi", category, script)
                         if args.format == "shorts":
-                            out = build_shorts(script, vid_id)
+                            out = build_shorts(script, vid_id, language=t.get("language", "hindi"))
                         else:
-                            out = build_longform(script, vid_id)
+                            out = build_longform(script, vid_id, language=t.get("language", "hindi"))
                         print(f"Built auto-generated video: {out}")
                         return
                     except Exception as e:
