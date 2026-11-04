@@ -83,7 +83,7 @@ def cmd_shorts(args):
     print(f"Script: {script.get('title')}")
     vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script)
     print(f"Building video (job #{vid_id})...")
-    out = build_shorts(script, vid_id)
+    out = build_shorts(script, vid_id, language=args.language)
     print(f"Done: {out}")
     send(f"✅ Shorts built: {script.get('title')}\n{out}")
 
@@ -98,7 +98,7 @@ def cmd_long(args):
     print(f"Script: {script.get('title')} ({len(script.get('sections',[]))} sections)")
     vid_id = save_video(script.get("title",""), "longform", args.language, args.category, script)
     print(f"Building long-form video (job #{vid_id})...")
-    out = build_longform(script, vid_id)
+    out = build_longform(script, vid_id, language=args.language)
     print(f"Done: {out}")
     send(f"✅ Long-form built: {script.get('title')}\n{out}")
 
