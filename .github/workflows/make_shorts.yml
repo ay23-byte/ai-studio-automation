@@ -33,16 +33,23 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core
+
+      - name: Cache Chatterbox model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: chatterbox-v3-${{ runner.os }}-v1
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
@@ -60,6 +67,8 @@ jobs:
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TTS_ENGINE: "chatterbox"
+          CHATTERBOX_TORCH_THREADS: "2"
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "public"
           # PUBLISH_AT_IST: "19:00"
