@@ -19,7 +19,7 @@ on:
       upload:
         description: "Upload to YouTube after building?"
         type: boolean
-        default: false
+        default: true
   schedule:
     - cron: "30 3 * * *"   # 9:00 AM IST daily
 
@@ -61,7 +61,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "private"
+          PRIVACY: "public"
           # PUBLISH_AT_IST: "19:00"
         run: |
           if [ -n "${{ inputs.topic }}" ]; then
