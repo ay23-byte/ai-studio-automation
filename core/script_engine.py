@@ -114,7 +114,25 @@ def _ask_model(prompt: str, model: str, attempts: int = 4):
                     model, f"Gemini returned no candidates for {model}: "
                     f"{data.get('promptFeedback', data)}",
                     status_code=200, retryable=False)
-            parts = candidates[0].get("content", {}).get("parts", [])
+            candidate = candidates[0]
+            finish_reason = str(candidate.get("finishReason") or "").upper()
+            if finish_reason == "MAX_TOKENS":
+                raise GeminiRequestError(
+                    model,
+                    f"Gemini stopped generation at the output-token limit for {model}; "
+                    "the storyboard may be incomplete. Trying another configured model.",
+                    status_code=200,
+                    retryable=True,
+                )
+            if finish_reason in {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT"}:
+                raise GeminiRequestError(
+                    model,
+                    f"Gemini blocked the response for {model} (finishReason={finish_reason}). "
+                    "Review the topic and prompt.",
+                    status_code=200,
+                    retryable=False,
+                )
+            parts = candidate.get("content", {}).get("parts", [])
             generated = "".join(part.get("text", "") for part in parts if part.get("text"))
             if not generated.strip():
                 raise GeminiRequestError(model, f"Gemini returned an empty response for {model}.",
