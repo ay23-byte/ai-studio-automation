@@ -1,5 +1,5 @@
 """Main pipeline: takes a script dict, builds a video, returns output path."""
-import random, re
+import random, re, subprocess
 from pathlib import Path
 from core import config as cfg
 from core.voice import synthesise
