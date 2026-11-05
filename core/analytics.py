@@ -80,3 +80,17 @@ def get_top_videos(start_date: date, end_date: date, limit: int = 10):
         maxResults=max(1, min(int(limit), 25)),
     ).execute()
     return result.get("rows", []), result.get("columnHeaders", [])
+
+
+def get_video_titles(video_ids):
+    """Fetch public titles for video IDs returned by the authorized channel analytics report."""
+    ids = [str(value) for value in (video_ids or []) if value]
+    if not ids:
+        return {}
+    youtube, _ = _services()
+    titles = {}
+    for start in range(0, len(ids), 50):
+        response = youtube.videos().list(part="snippet", id=",".join(ids[start:start + 50])).execute()
+        for item in response.get("items", []):
+            titles[item["id"]] = item.get("snippet", {}).get("title", item["id"])
+    return titles
