@@ -23,6 +23,7 @@ VOICE_ENGLISH = os.getenv("VOICE_ENGLISH", "en-IN-PrabhatNeural")
 VOICE_FEMALE  = os.getenv("VOICE_FEMALE",  "hi-IN-SwaraNeural")
 
 CHANNEL_NAME   = os.getenv("CHANNEL_NAME", "Engineering Physics")
+SUBTITLE_PRESET = os.getenv("SUBTITLE_PRESET", "bold").strip().lower()
 PRIVACY        = os.getenv("PRIVACY", "private")
 PUBLISH_AT_IST = os.getenv("PUBLISH_AT_IST", "")
 
