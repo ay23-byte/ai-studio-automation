@@ -21,7 +21,7 @@ class SchedulerTests(unittest.TestCase):
     def test_skips_too_soon_and_already_scheduled(self):
         now = datetime(2030, 1, 1, 12, tzinfo=timezone.utc)
         rows = [
-            {"id": 1, "approved": 1, "youtube_id": "abc", "planned_publish_at": "2030-01-01T18:00:00+05:30"},
+            {"id": 1, "approved": 1, "youtube_id": "abc", "planned_publish_at": "2030-01-01T17:30:00+05:30"},
             {"id": 2, "approved": 1, "youtube_id": "def", "planned_publish_at": "2030-01-02T18:00:00+05:30", "scheduled_at": "2030-01-02T18:00:00+05:30"},
         ]
         result = apply_planned_schedules(rows, lambda *a: None, lambda *a, **k: None, now=now)
