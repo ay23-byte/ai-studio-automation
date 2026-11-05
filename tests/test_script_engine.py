@@ -65,9 +65,7 @@ class GeminiFailoverTests(unittest.TestCase):
                 "content": {"parts": [{"text": "{\\\"title\\\":"}]}
             }]
         }
-        with patch.object(script_engine, "GEMINI_API_KEY", "test-key"), \\
-             patch.object(script_engine.requests, "post", return_value=response), \\
-             patch.object(script_engine.time, "sleep"):
+        with patch.object(script_engine, "GEMINI_API_KEY", "test-key"), patch.object(script_engine.requests, "post", return_value=response), patch.object(script_engine.time, "sleep"):
             with self.assertRaisesRegex(script_engine.GeminiRequestError, "output-token limit"):
                 script_engine._ask_model("prompt", "model", attempts=1)
     def test_http_503_retries_then_returns_success(self):
