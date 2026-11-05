@@ -6,13 +6,13 @@ import subprocess
 from pathlib import Path
 
 import edge_tts
-from core.config import VOICE_HINDI, VOICE_ENGLISH, VOICE_FEMALE
+from core.config import VOICE_HINDI, VOICE_ENGLISH, VOICE_FEMALE, VOICE_ENGLISH_FEMALE
 
 _CHATTERBOX_MODEL = None
 
 def pick_voice(language="hindi", gender="male"):
     if language == "english":
-        return VOICE_ENGLISH
+        return VOICE_ENGLISH_FEMALE if gender == "female" else VOICE_ENGLISH
     if gender == "female":
         return VOICE_FEMALE
     return VOICE_HINDI
