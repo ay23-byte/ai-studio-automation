@@ -85,7 +85,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
             cursor += duration
     if cta:
         lines.append(f"Dialogue: 1,{_ts(max(total-1.4,0))},{_ts(T)},End,,0,0,0,,{{\\fad(300,200)}}{_clean(cta)}")
-    path.write_text(header + "\\n".join(lines) + "\\n", encoding="utf-8")
+    path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _make_ass_longform(timings, sections, total, path, disclaimer):
@@ -126,7 +126,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
             duration = span * weight / total_weight
             lines.append(f"Dialogue: 0,{_ts(cursor)},{_ts(cursor+duration)},Cap,,0,0,0,,{part}")
             cursor += duration
-    path.write_text(header + "\\n".join(lines) + "\\n", encoding="utf-8")
+    path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
 def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
