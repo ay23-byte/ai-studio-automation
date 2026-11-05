@@ -236,6 +236,65 @@ def validate_longform_storyboard(script: dict) -> dict:
             search_from = position + len(anchor)
     return script
 
+def _repair_longform_visual_anchors(script: dict) -> dict:
+    """Repair model-generated anchor typos/order mistakes using exact narration spans.
+
+    Visual prompts remain untouched. When a model fails to copy its anchors
+    verbatim, choose a short exact phrase from each chronological narration
+    segment so rendering can continue and shot timing remains deterministic.
+    """
+    import re
+
+    for section_index, section in enumerate(script.get("sections") or [], start=1):
+        narration = str(section.get("narration") or "").strip()
+        visuals = section.get("visuals")
+        if not narration or not isinstance(visuals, list) or not visuals:
+            continue
+
+        # Split into word spans, then partition the narration into ordered,
+        # approximately equal regions (one region per visual beat).
+        words = list(re.finditer(r"\\S+", narration))
+        if not words:
+            continue
+        count = len(visuals)
+        repaired = False
+        for beat_index, beat in enumerate(visuals):
+            if not isinstance(beat, dict):
+                continue
+            anchor = str(beat.get("narration_anchor") or "").strip()
+            prompt = str(beat.get("visual_prompt") or "").strip()
+            keywords = beat.get("keywords")
+            if not prompt or not isinstance(keywords, list) or not any(str(k).strip() for k in keywords):
+                continue
+
+            # Accept punctuation/whitespace differences before replacing a phrase.
+            def compact(value):
+                return re.sub(r"[^\\w]+", " ", value.casefold(), flags=re.UNICODE).strip()
+
+            norm_text = compact(narration)
+            norm_anchor = compact(anchor)
+            if norm_anchor and norm_anchor in norm_text:
+                continue
+
+            lo = round(beat_index * len(words) / count)
+            hi = round((beat_index + 1) * len(words) / count)
+            hi = max(lo + 1, min(hi, len(words)))
+            # Keep a concise, exact phrase from this beat's own narration region.
+            start = lo + max(0, (hi - lo - min(8, hi - lo)) // 2)
+            end = min(hi, start + min(8, hi - lo))
+            replacement = narration[words[start].start():words[end - 1].end()].strip(" ,;:—-")
+            if replacement:
+                beat["narration_anchor"] = replacement
+                repaired = True
+
+        if repaired:
+            print(
+                f"WARNING: Chapter {section_index} had inaccurate/out-of-order visual anchors. "
+                "Replaced them with exact chronological narration excerpts; review visual relevance."
+            )
+    return script
+
+
 def generate_shorts_script(topic: str, category: str = "finance",
                            channel_name: str = "", audience: str = "",
                            brand_voice: str = "") -> dict:
@@ -258,6 +317,7 @@ def generate_longform_script(topic: str, category: str = "finance",
     script = _parse(_ask_gemini(prompt))
     script["format"] = "longform"
     script["category"] = category
+    script = _repair_longform_visual_anchors(script)
     return validate_longform_storyboard(script)
 
 
