@@ -54,7 +54,7 @@ def _apply_pronunciation_map(text, mapping=None):
     for source, spoken in mapping.items():
         source, spoken = str(source).strip(), str(spoken)
         if source:
-            pattern = re.compile(r"(?<!\\w)" + re.escape(source) + r"(?!\\w)", re.IGNORECASE)
+            pattern = re.compile(r"(?<![A-Za-z0-9_])" + re.escape(source) + r"(?![A-Za-z0-9_])", re.IGNORECASE)
             result = pattern.sub(lambda _match: spoken, result)
     return result
 
