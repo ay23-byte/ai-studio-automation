@@ -33,6 +33,15 @@
 
 Create a photorealistic, original fictional adult Indian male documentary presenter, mid-chest-up, facing camera with a calm and confident neutral expression. He wears a well-fitted charcoal or deep-navy formal blazer over a simple light neutral shirt. Place him in a professional dark documentary studio with a subtle charcoal background, soft cinematic key light on the face and a restrained rim light. Natural Indian facial features, realistic skin texture, sharp eyes, natural proportions, clean professional grooming, premium factual-documentary visual language. Keep the framing symmetrical with shoulders visible and generous safe margins. No microphone blocking the face, no text, no logos, no watermark, no other people, no exaggerated smile, no artificial plastic skin. The result must look like a consistent real studio portrait, not an illustration.
 
+## Implementation status
+
+- [x] CPU-only FFmpeg scene renderer added at `core/presenter_scene.py`.
+- [x] Long-form pipeline integration added for `PRESENTER_MODE=still_cpu`.
+- [x] Automated tests cover disabled mode, missing image, invalid/small image, and command/duration handling.
+- [x] Environment example and README document the no-GPU path.
+- [ ] Add and approve the actual master portrait at `assets/presenter/presenter_master.png`.
+- [ ] Run and visually review a complete sample render on a CPU-only environment.
+
 ## CPU-first implementation plan
 
 The channel has no GPU available. Therefore the default presenter path must not depend on SadTalker, Wav2Lip, CUDA, a hosted GPU runner or a paid avatar API.
