@@ -70,7 +70,7 @@ jobs:
           TTS_ENGINE: "chatterbox"
           CHATTERBOX_TORCH_THREADS: "2"
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "public"
+          PRIVACY: "unlisted"
         run: |
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
@@ -86,7 +86,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "public"
+          PRIVACY: "unlisted"
         run: python run_daily.py --upload-latest --format long
 
       - uses: actions/upload-artifact@v4
