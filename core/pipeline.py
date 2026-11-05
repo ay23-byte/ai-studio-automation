@@ -173,6 +173,23 @@ def _visual_beat_durations(narration, beats, section_duration):
     return durations
 
 
+def _quality_check(job_id, video_path, subtitle_path, build_dir):
+    """Run free local post-render checks without discarding a usable export."""
+    try:
+        from core.quality import inspect_video, write_report
+        report = inspect_video(video_path, subtitle_path=subtitle_path)
+        report_path = write_report(report, Path(build_dir) / "quality_report.json")
+        update_video(job_id, quality_report_path=str(report_path),
+                     quality_score=report["score"], quality_status=report["status"])
+        print(f"Video quality check: {report['status']} ({report['score']}/100)")
+        for warning in report.get("warnings", []):
+            print(f"QUALITY WARNING: {warning}")
+        for issue in report.get("issues", []):
+            print(f"QUALITY ERROR: {issue}")
+    except Exception as exc:
+        print(f"Video quality inspection could not complete: {exc}")
+
+
 def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
     """Build a 9:16 Shorts video from a scene-based script."""
     from core.editor_shorts import render as shorts_render
@@ -238,6 +255,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"shorts_{job_id}.mp4"
     shorts_render(media, lens, cuts, voice_path, ass, total, out, music)
+    _quality_check(job_id, out, ass, bd)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
         from core.thumbnail import generate_topic_variants
@@ -323,6 +341,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
     lf_render(shot_timeline, voice_path, ass, total, out, music)
+    _quality_check(job_id, out, ass, bd)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
         from core.thumbnail import generate_topic_variants
