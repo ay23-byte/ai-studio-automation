@@ -154,6 +154,14 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
               for i in range(len(sentences) - 1)] + [0.0]
 
     engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
+    # Chatterbox loads a large PyTorch model and can be terminated by hosted CI
+    # runners (limited CPU/RAM/time). Use lightweight Edge TTS on CI by default.
+    # Set ALLOW_CHATTERBOX_ON_CI=true only on a runner with sufficient resources.
+    is_ci = os.getenv("CI", "").strip().lower() == "true" or os.getenv("GITHUB_ACTIONS", "").strip().lower() == "true"
+    allow_chatterbox_ci = os.getenv("ALLOW_CHATTERBOX_ON_CI", "").strip().lower() == "true"
+    if engine == "chatterbox" and is_ci and not allow_chatterbox_ci:
+        print("Hosted CI detected: using Edge TTS instead of Chatterbox to avoid runner cancellation.")
+        engine = "edge"
     if engine == "chatterbox":
         try:
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
