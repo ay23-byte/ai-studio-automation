@@ -198,7 +198,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     return out
 
 
-def build_longform(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi") -> Path:
+def build_longform(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
     """Build a 16:9 long-form video from a section-based script."""
     from core.editor_longform import render as lf_render
     import subprocess
