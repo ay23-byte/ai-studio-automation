@@ -317,13 +317,36 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # Optional SadTalker chapter intros use the exact narration audio segment.
     shot_timeline = []
     missing_visuals = []
-    presenter_enabled = __import__("os").getenv("PRESENTER_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    import os
+    presenter_mode = os.getenv("PRESENTER_MODE", "still_cpu").strip().lower()
+    presenter_enabled = os.getenv("PRESENTER_ENABLED", "1").strip().lower() in {"1", "true", "yes"}
+    presenter_image = os.getenv("PRESENTER_IMAGE", "assets/presenter/presenter_master.png")
     for i, sec in enumerate(sections):
         narration = str(sec.get("narration", ""))
         beats = _visual_beats_for_section(sec)
         durations = _visual_beat_durations(narration, beats, sec["_dur"])
         shot_cursor = sec["_start"]
-        if presenter_enabled:
+        if presenter_enabled and presenter_mode == "still_cpu":
+            from core.presenter_scene import render_presenter_scene
+            presenter_duration = min(5.0, max(2.5, sec["_dur"] * 0.16))
+            presenter_clip = render_presenter_scene(
+                i + 1, presenter_duration, bd, image_path=presenter_image
+            )
+            if presenter_clip:
+                actual_duration = float(subprocess.check_output(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
+                ).strip())
+                presenter_shot = dict(sec)
+                presenter_shot["title"] = sec.get("title", "")
+                presenter_shot["_start"] = shot_cursor
+                presenter_shot["_dur"] = actual_duration
+                presenter_shot["_media"] = {"type": "video", "path": str(presenter_clip)}
+                shot_timeline.append(presenter_shot)
+                shot_cursor += actual_duration
+                remaining = max(sec["_dur"] - actual_duration, 0.0)
+                scale = remaining / max(sum(durations), 0.001)
+                durations = [value * scale for value in durations]
+        elif presenter_enabled and presenter_mode == "sadtalker":
             from core.presenter import generate_section_presenter
             presenter_duration = min(6.0, max(2.0, sec["_dur"] * 0.22))
             presenter_clip = generate_section_presenter(voice_path, sec["_start"], presenter_duration, i + 1, bd)
@@ -341,6 +364,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 remaining = max(sec["_dur"] - actual_duration, 0.0)
                 scale = remaining / max(sum(durations), 0.001)
                 durations = [value * scale for value in durations]
+        elif presenter_enabled and presenter_mode not in {"still_cpu", "off", "none"}:
+            raise ValueError(f"Unsupported PRESENTER_MODE: {presenter_mode}. Use still_cpu, sadtalker, or off.")
         for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""
