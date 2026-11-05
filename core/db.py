@@ -36,6 +36,9 @@ def init_db():
         "scheduled_at": "TEXT",
         "privacy_status": "TEXT DEFAULT 'unlisted'",
         "channel_profile_id": "INTEGER",
+        "quality_report_path": "TEXT",
+        "quality_score": "INTEGER",
+        "quality_status": "TEXT",
     }
     for name, definition in migrations.items():
         if name not in columns:
@@ -57,7 +60,8 @@ def update_video(vid_id, **kw):
     if not kw:
         return
     allowed = {"title", "status", "video_path", "thumb_path", "youtube_id",
-               "notes", "approved", "scheduled_at", "privacy_status", "channel_profile_id"}
+               "notes", "approved", "scheduled_at", "privacy_status", "channel_profile_id",
+               "quality_report_path", "quality_score", "quality_status"}
     unknown = set(kw) - allowed
     if unknown:
         raise ValueError(f"Unsupported video fields: {', '.join(sorted(unknown))}")
