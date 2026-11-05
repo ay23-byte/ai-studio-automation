@@ -5,6 +5,9 @@ Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-
 ## Features
 
 - Create Shorts and long-form videos from a topic.
+- Generate three 1280×720 thumbnail designs (Bold, Cinematic, Minimal), select one, and upload it to YouTube from the local dashboard.
+- Select male or female narration with `--voice-gender`.
+- Choose `bold`, `clean`, or `karaoke` subtitle presets with `SUBTITLE_PRESET` in `.env`.
 - Run a demo build without API keys.
 - Generate narration with Chatterbox TTS, with automatic Edge TTS fallback when `TTS_ENGINE=chatterbox`.
 - Generate images through Cloudflare when configured, with Pollinations as a fallback.
@@ -98,12 +101,12 @@ The demo still needs FFmpeg/FFprobe and working access to the configured visual/
 
 Create a Short:
 ```bash
-python run.py shorts "Inflation kya hai" --category finance
+python run.py shorts "Inflation kya hai" --category finance --voice-gender female
 ```
 
 Create a long-form video:
 ```bash
-python run.py long "Mutual Fund explained" --category finance --minutes 7
+python run.py long "Mutual Fund explained" --category finance --minutes 7 --voice-gender male
 ```
 
 List generated video jobs:
@@ -125,7 +128,7 @@ python -m pip install -r requirements.txt
 streamlit run dashboard.py
 ```
 
-The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, and schedules uploaded videos for public release using India Standard Time. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
+The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, generates three thumbnail options, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
 
 ## API keys and when they are needed
 
