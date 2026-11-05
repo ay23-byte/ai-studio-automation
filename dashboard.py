@@ -410,45 +410,6 @@ with monitor_tab:
     st.caption("The event log is local to the machine/container running this dashboard. GitHub Actions runner logs and local dashboard logs are separate; they are not automatically synchronized.")
     
 
-with monitor_tab:
-    st.subheader("Cost & Failure Monitor")
-    from core.monitoring import summarize_events, resource_snapshot, configured_cost_estimate
-    report = summarize_events()
-    snapshot = resource_snapshot()
-    a, b, c, d = st.columns(4)
-    a.metric("Events", report["total_events"])
-    b.metric("Successes", report["successes"])
-    c.metric("Failures", report["failures"])
-    d.metric("Warnings", report["warnings"])
-    left, right = st.columns(2)
-    with left:
-        st.markdown("#### Local storage")
-        st.metric("Output folder", f"{snapshot['output_bytes'] / 1024**3:.2f} GB")
-        st.metric("Build folder", f"{snapshot['build_bytes'] / 1024**3:.2f} GB")
-        st.metric("Free disk", f"{snapshot['disk_free_bytes'] / 1024**3:.2f} GB")
-    with right:
-        st.markdown("#### Cost visibility")
-        cost = configured_cost_estimate()
-        st.info(cost["reason"])
-        if cost["configured_unit_rates"]:
-            st.write(cost["configured_unit_rates"])
-    st.markdown("#### Failures by component")
-    if report["failure_components"]:
-        st.bar_chart(report["failure_components"])
-    else:
-        st.success("No failures recorded in this local event log.")
-    st.markdown("#### Recent failures")
-    st.dataframe([{"Time": e.get("timestamp"), "Component": e.get("component"),
-                   "Action": e.get("action"), "Error": e.get("error")}
-                  for e in report["recent_failures"]], use_container_width=True, hide_index=True)
-    with st.expander("Recent operation history"):
-        st.dataframe([{"Time": e.get("timestamp"), "Component": e.get("component"),
-                       "Action": e.get("action"), "Status": e.get("status"),
-                       "Duration (s)": e.get("duration_seconds")}
-                      for e in report["events"][-100:][::-1]],
-                     use_container_width=True, hide_index=True)
-    st.caption("Local dashboard events are separate from GitHub Actions runner logs. No prompts or credentials are stored.")
-    
 with setup_tab:
     st.markdown("""
     **Start the dashboard in Windows PowerShell:**
