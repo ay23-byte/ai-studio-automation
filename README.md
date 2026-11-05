@@ -116,6 +116,17 @@ Upload a completed job (keep `PRIVACY=private` while testing):
 python run.py upload --id 1
 ```
 
+## Local creator dashboard
+
+Install dependencies and launch the review dashboard:
+
+```powershell
+python -m pip install -r requirements.txt
+streamlit run dashboard.py
+```
+
+The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, and schedules uploaded videos for public release using India Standard Time. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
+
 ## API keys and when they are needed
 
 | Variable | Purpose | Required when |
