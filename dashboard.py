@@ -26,7 +26,7 @@ m2.metric("Awaiting approval", total - approved)
 m3.metric("Approved", approved)
 m4.metric("Uploaded", uploaded)
 
-review_tab, approved_tab, calendar_tab, content_tab, analytics_tab, channels_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "🧠 Content lab", "📊 YouTube analytics", "📺 Channels", "Setup"])
+review_tab, approved_tab, calendar_tab, content_tab, analytics_tab, channels_tab, monitor_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "🧠 Content lab", "📊 YouTube analytics", "📺 Channels", "🛠️ Cost & failures", "Setup"])
 
 with review_tab:
     if not rows:
@@ -361,6 +361,54 @@ with channels_tab:
         st.info("Create your first channel workspace to organize video jobs.")
     st.warning("These profiles organize content only. Uploading and analytics still use the single Google account configured by YT_CLIENT_ID, YT_CLIENT_SECRET and YT_REFRESH_TOKEN. Separate YouTube OAuth accounts are not connected yet.")
 
+
+with monitor_tab:
+    st.subheader("🛠️ Cost & Failure Monitor")
+    st.caption("Local telemetry from instrumented app operations. Events are recorded without prompts, API keys or tokens.")
+    from core.monitoring import summarize_events, resource_snapshot, configured_cost_estimate, read_events
+    report = summarize_events()
+    snap = resource_snapshot()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Recorded events", report["total_events"])
+    c2.metric("Successful operations", report["successes"])
+    c3.metric("Failures", report["failures"])
+    c4.metric("Warnings", report["warnings"])
+    left, right = st.columns(2)
+    with left:
+        st.markdown("#### Resource usage")
+        st.metric("Output folder", f"{snap['output_bytes'] / (1024**3):.2f} GB")
+        st.metric("Build folder", f"{snap['build_bytes'] / (1024**3):.2f} GB")
+        st.metric("Free disk space", f"{snap['disk_free_bytes'] / (1024**3):.2f} GB")
+    with right:
+        st.markdown("#### Cost visibility")
+        cost = configured_cost_estimate()
+        st.info(cost["reason"])
+        if cost["configured_unit_rates"]:
+            st.write("Configured unit rates:", cost["configured_unit_rates"])
+        else:
+            st.caption("No unit rates configured. Monetary cost is not estimated.")
+    st.markdown("#### Failures by component")
+    if report["failure_components"]:
+        st.bar_chart(report["failure_components"])
+    else:
+        st.success("No recorded failures in the available local event log.")
+    st.markdown("#### Recent failures")
+    if report["recent_failures"]:
+        st.dataframe([{
+            "Time": e.get("timestamp"), "Component": e.get("component"),
+            "Action": e.get("action"), "Error type": e.get("error_type"),
+            "Message": e.get("error")
+        } for e in report["recent_failures"]], use_container_width=True, hide_index=True)
+    else:
+        st.caption("No failures recorded yet.")
+    with st.expander("Recent operation events"):
+        st.dataframe([{
+            "Time": e.get("timestamp"), "Component": e.get("component"),
+            "Action": e.get("action"), "Status": e.get("status"),
+            "Duration (s)": e.get("duration_seconds")
+        } for e in report["events"][-100:][::-1]], use_container_width=True, hide_index=True)
+    st.caption("The event log is local to the machine/container running this dashboard. GitHub Actions runner logs and local dashboard logs are separate; they are not automatically synchronized.")
+    
 with setup_tab:
     st.markdown("""
     **Start the dashboard in Windows PowerShell:**
