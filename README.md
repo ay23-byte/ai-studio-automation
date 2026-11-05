@@ -247,3 +247,10 @@ ai-studio-automation/
 - Add only music and footage that you have permission to use. YouTube Audio Library and appropriately licensed stock sources are good starting points.
 - Finance videos include an educational-information disclaimer; this is not financial advice.
 - YouTube OAuth credentials are tied to the Google account/channel authorization. Verify the target channel before uploading.
+
+
+## Step 4: YouTube SEO Studio
+
+Open **🔎 YouTube SEO Studio** in the dashboard, select a saved script/video job, and generate a metadata package using the existing Gemini API configuration. Review and edit title options, description, tags, up to three hashtags, pinned comment, thumbnail text, and chapter lines, then save the package to the job's `script_json`. Uploading an approved video uses the saved SEO description and tags when present. Titles are limited to 100 characters, descriptions to 5,000 characters, tags to 30 items / 500 characters, and the pinned comment to 1,000 characters. Long-form chapter starts are estimates based on section narration word counts and the script's estimated runtime—not measured from the final MP4—so verify every timestamp against the rendered video. Shorts do not receive chapters. Keyword suggestions are AI-generated; this feature does not claim live search volume, rankings or trend data. No additional paid service is introduced; Gemini API quota still applies.
+
+Run `python -m unittest discover -s tests -v` to test metadata limits and chapter ordering.
