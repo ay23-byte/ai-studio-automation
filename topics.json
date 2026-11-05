@@ -6,14 +6,59 @@
     "format": "shorts",
     "language": "hindi",
     "scenes": [
-      {"say":"क्या आपने कभी सोचा है कि पाँच साल पहले सौ रुपये में जो मिलता था, आज वो उतने में क्यों नहीं मिलता?","caption":"Kya 5 saal pehle 100 rupaye mein jo milta tha, aaj wo kyun nahi milta?","label":"Inflation","image":"a shopping basket that has become smaller while the same stack of coins sits beside it","keywords":["grocery","shopping"]},
-      {"say":"इसी को इन्फ्लेशन कहते हैं। यानी समय के साथ चीज़ों के दाम धीरे धीरे बढ़ते जाना।","caption":"Isi ko inflation kehte hain. Samay ke saath cheezon ke daam badhte jaate hain.","label":"Daam badhte hain","image":"price tags rising like steps of a golden staircase","keywords":["market","vegetables"]},
-      {"say":"मान लो आज एक समोसा दस रुपये का है। कुछ साल बाद वही समोसा पंद्रह रुपये का हो सकता है। ये बस एक उदाहरण है।","caption":"Maan lo aaj ek samosa 10 rupaye ka hai. Kuch saal baad wahi samosa 15 rupaye ka ho sakta hai. Ye bas ek example hai.","label":"Ek example","image":"a single snack on a plate with a price tag that keeps growing larger","keywords":["street food","snack"]},
-      {"say":"इसलिए सिर्फ़ पैसे रखना काफ़ी नहीं। ये भी सोचना ज़रूरी है कि महँगाई के सामने आपकी बचत टिक पा रही है या नहीं।","caption":"Isiliye sirf paise rakhna kaafi nahi. Ye bhi sochna zaroori hai ki mehngai ke saamne aapki bachat tik pa rahi hai ya nahi.","label":"Bachat vs mehngai","image":"a small plant standing firm beside a rising wave of water","keywords":["wave","plant"]},
-      {"say":"ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।","caption":"Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.","label":"","image":"a glowing lightbulb above a neat stack of coins on a dark background","keywords":["lightbulb","coins"]}
+      {
+        "say": "क्या आपने कभी सोचा है कि पाँच साल पहले सौ रुपये में जो मिलता था, आज वो उतने में क्यों नहीं मिलता?",
+        "caption": "Kya 5 saal pehle 100 rupaye mein jo milta tha, aaj wo kyun nahi milta?",
+        "label": "Inflation",
+        "image": "a shopping basket that has become smaller while the same stack of coins sits beside it",
+        "keywords": [
+          "grocery",
+          "shopping"
+        ]
+      },
+      {
+        "say": "इसी को इन्फ्लेशन कहते हैं। यानी समय के साथ चीज़ों के दाम धीरे धीरे बढ़ते जाना।",
+        "caption": "Isi ko inflation kehte hain. Samay ke saath cheezon ke daam badhte jaate hain.",
+        "label": "Daam badhte hain",
+        "image": "price tags rising like steps of a golden staircase",
+        "keywords": [
+          "market",
+          "vegetables"
+        ]
+      },
+      {
+        "say": "मान लो आज एक समोसा दस रुपये का है। कुछ साल बाद वही समोसा पंद्रह रुपये का हो सकता है। ये बस एक उदाहरण है।",
+        "caption": "Maan lo aaj ek samosa 10 rupaye ka hai. Kuch saal baad wahi samosa 15 rupaye ka ho sakta hai. Ye bas ek example hai.",
+        "label": "Ek example",
+        "image": "a single snack on a plate with a price tag that keeps growing larger",
+        "keywords": [
+          "street food",
+          "snack"
+        ]
+      },
+      {
+        "say": "इसलिए सिर्फ़ पैसे रखना काफ़ी नहीं। ये भी सोचना ज़रूरी है कि महँगाई के सामने आपकी बचत टिक पा रही है या नहीं।",
+        "caption": "Isiliye sirf paise rakhna kaafi nahi. Ye bhi sochna zaroori hai ki mehngai ke saamne aapki bachat tik pa rahi hai ya nahi.",
+        "label": "Bachat vs mehngai",
+        "image": "a small plant standing firm beside a rising wave of water",
+        "keywords": [
+          "wave",
+          "plant"
+        ]
+      },
+      {
+        "say": "ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।",
+        "caption": "Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.",
+        "label": "",
+        "image": "a glowing lightbulb above a neat stack of coins on a dark background",
+        "keywords": [
+          "lightbulb",
+          "coins"
+        ]
+      }
     ],
     "hook": "Aapke paise ki value chupchap ghat rahi hai",
-    "done": false
+    "done": true
   },
   {
     "title": "Sensex aur Nifty kya hain? Bazaar ka thermometer",
@@ -22,11 +67,55 @@
     "format": "shorts",
     "language": "hindi",
     "scenes": [
-      {"say":"आपने न्यूज़ में सुना होगा कि सेंसेक्स ऊपर गया या निफ्टी नीचे आया। लेकिन ये है क्या?","caption":"Aapne news mein suna hoga ki Sensex upar gaya ya Nifty neeche aaya. Lekin ye hai kya?","label":"Sensex aur Nifty","image":"a glowing television screen in a dark room showing abstract flowing lines of light","keywords":["news","television"]},
-      {"say":"सोचो एक क्लास में पचास बच्चे हैं। आप सिर्फ़ कुछ ख़ास बच्चों के नंबर देखकर पूरी क्लास का हाल समझ लेते हो।","caption":"Socho ek class mein 50 bachche hain. Aap sirf kuch khaas bachchon ke number dekhkar poori class ka haal samajh lete ho.","label":"Index kya hai","image":"a large group of tiny stylized figures with a spotlight on a small group of them","keywords":["classroom","crowd"]},
-      {"say":"उसी तरह सेंसेक्स में बीएसई की तीस बड़ी कंपनियाँ आती हैं और निफ्टी में एनएसई की पचास।","caption":"Usi tarah Sensex mein BSE ki 30 badi companies aati hain aur Nifty mein NSE ki 50.","label":"Badi companies","image":"two glass towers filled with glowing cubes representing companies side by side","keywords":["skyscraper","city skyline"]},
-      {"say":"जब इन कंपनियों के शेयर के दाम औसतन बढ़ते हैं, तो इंडेक्स ऊपर जाता है। और जब घटते हैं, तो नीचे।","caption":"Jab in companies ke share ke daam ausatan badhte hain, to index upar jaata hai. Aur jab ghatte hain, to neeche.","label":"Upar ya neeche","image":"a glowing thermometer beside a city skyline with the mercury rising","keywords":["thermometer","skyline"]},
-      {"say":"ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।","caption":"Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.","label":"","image":"a compass glowing gold on a dark background pointing north","keywords":["compass"]}
+      {
+        "say": "आपने न्यूज़ में सुना होगा कि सेंसेक्स ऊपर गया या निफ्टी नीचे आया। लेकिन ये है क्या?",
+        "caption": "Aapne news mein suna hoga ki Sensex upar gaya ya Nifty neeche aaya. Lekin ye hai kya?",
+        "label": "Sensex aur Nifty",
+        "image": "a glowing television screen in a dark room showing abstract flowing lines of light",
+        "keywords": [
+          "news",
+          "television"
+        ]
+      },
+      {
+        "say": "सोचो एक क्लास में पचास बच्चे हैं। आप सिर्फ़ कुछ ख़ास बच्चों के नंबर देखकर पूरी क्लास का हाल समझ लेते हो।",
+        "caption": "Socho ek class mein 50 bachche hain. Aap sirf kuch khaas bachchon ke number dekhkar poori class ka haal samajh lete ho.",
+        "label": "Index kya hai",
+        "image": "a large group of tiny stylized figures with a spotlight on a small group of them",
+        "keywords": [
+          "classroom",
+          "crowd"
+        ]
+      },
+      {
+        "say": "उसी तरह सेंसेक्स में बीएसई की तीस बड़ी कंपनियाँ आती हैं और निफ्टी में एनएसई की पचास।",
+        "caption": "Usi tarah Sensex mein BSE ki 30 badi companies aati hain aur Nifty mein NSE ki 50.",
+        "label": "Badi companies",
+        "image": "two glass towers filled with glowing cubes representing companies side by side",
+        "keywords": [
+          "skyscraper",
+          "city skyline"
+        ]
+      },
+      {
+        "say": "जब इन कंपनियों के शेयर के दाम औसतन बढ़ते हैं, तो इंडेक्स ऊपर जाता है। और जब घटते हैं, तो नीचे।",
+        "caption": "Jab in companies ke share ke daam ausatan badhte hain, to index upar jaata hai. Aur jab ghatte hain, to neeche.",
+        "label": "Upar ya neeche",
+        "image": "a glowing thermometer beside a city skyline with the mercury rising",
+        "keywords": [
+          "thermometer",
+          "skyline"
+        ]
+      },
+      {
+        "say": "ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।",
+        "caption": "Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.",
+        "label": "",
+        "image": "a compass glowing gold on a dark background pointing north",
+        "keywords": [
+          "compass"
+        ]
+      }
     ],
     "hook": "Sensex aur Nifty ka matlab kya hota hai?",
     "done": false
@@ -38,11 +127,56 @@
     "format": "shorts",
     "language": "hindi",
     "scenes": [
-      {"say":"मान लो एक कंपनी की कीमत दस लाख रुपये है, और उसे दस बराबर हिस्सों में बाँट दिया जाए।","caption":"Maan lo ek company ki keemat 10 lakh rupaye hai, aur use 10 barabar hisson mein baant diya jaaye.","label":"Company ka hissa","image":"a small stylized shop model splitting into ten equal glowing pieces on a dark surface","keywords":["shop","building"]},
-      {"say":"इनमें से हर हिस्से को शेयर कहते हैं। जो एक हिस्सा खरीदता है, वो उस कंपनी का छोटा सा मालिक बन जाता है।","caption":"Inme se har hisse ko share kehte hain. Jo ek hissa khareedta hai, wo us company ka chhota sa maalik ban jaata hai.","label":"Share = hissa","image":"a stylized figure holding a small glowing piece of a building in outstretched hands","keywords":["office","building"]},
-      {"say":"जब कंपनी का काम अच्छा चलता है, तो लोग उसके शेयर में दिलचस्पी लेते हैं और दाम बढ़ सकता है।","caption":"Jab company ka kaam achha chalta hai, to log uske share mein dilchaspi lete hain aur daam badh sakta hai.","label":"Daam kyun badhta hai","image":"a seesaw with a glowing building on one side and golden coins rising on the other","keywords":["seesaw","balance"]},
-      {"say":"याद रखो, शेयर बाज़ार में फ़ायदा भी हो सकता है और नुकसान भी। इसीलिए पहले समझना ज़रूरी है।","caption":"Yaad rakho, share bazaar mein faayda bhi ho sakta hai aur nuksaan bhi. Isiliye pehle samajhna zaroori hai.","label":"Risk hota hai","image":"a tightrope stretched over a canyon with a glowing coin balancing on it","keywords":["tightrope","balance"]},
-      {"say":"ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।","caption":"Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.","label":"","image":"a golden key resting on an open book with soft warm light","keywords":["book","key"]}
+      {
+        "say": "मान लो एक कंपनी की कीमत दस लाख रुपये है, और उसे दस बराबर हिस्सों में बाँट दिया जाए।",
+        "caption": "Maan lo ek company ki keemat 10 lakh rupaye hai, aur use 10 barabar hisson mein baant diya jaaye.",
+        "label": "Company ka hissa",
+        "image": "a small stylized shop model splitting into ten equal glowing pieces on a dark surface",
+        "keywords": [
+          "shop",
+          "building"
+        ]
+      },
+      {
+        "say": "इनमें से हर हिस्से को शेयर कहते हैं। जो एक हिस्सा खरीदता है, वो उस कंपनी का छोटा सा मालिक बन जाता है।",
+        "caption": "Inme se har hisse ko share kehte hain. Jo ek hissa khareedta hai, wo us company ka chhota sa maalik ban jaata hai.",
+        "label": "Share = hissa",
+        "image": "a stylized figure holding a small glowing piece of a building in outstretched hands",
+        "keywords": [
+          "office",
+          "building"
+        ]
+      },
+      {
+        "say": "जब कंपनी का काम अच्छा चलता है, तो लोग उसके शेयर में दिलचस्पी लेते हैं और दाम बढ़ सकता है।",
+        "caption": "Jab company ka kaam achha chalta hai, to log uske share mein dilchaspi lete hain aur daam badh sakta hai.",
+        "label": "Daam kyun badhta hai",
+        "image": "a seesaw with a glowing building on one side and golden coins rising on the other",
+        "keywords": [
+          "seesaw",
+          "balance"
+        ]
+      },
+      {
+        "say": "याद रखो, शेयर बाज़ार में फ़ायदा भी हो सकता है और नुकसान भी। इसीलिए पहले समझना ज़रूरी है।",
+        "caption": "Yaad rakho, share bazaar mein faayda bhi ho sakta hai aur nuksaan bhi. Isiliye pehle samajhna zaroori hai.",
+        "label": "Risk hota hai",
+        "image": "a tightrope stretched over a canyon with a glowing coin balancing on it",
+        "keywords": [
+          "tightrope",
+          "balance"
+        ]
+      },
+      {
+        "say": "ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।",
+        "caption": "Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.",
+        "label": "",
+        "image": "a golden key resting on an open book with soft warm light",
+        "keywords": [
+          "book",
+          "key"
+        ]
+      }
     ],
     "hook": "Share khareedna matlab kya hota hai?",
     "done": false
@@ -54,11 +188,55 @@
     "format": "shorts",
     "language": "hindi",
     "scenes": [
-      {"say":"एसआईपी यानी सिस्टमैटिक इन्वेस्टमेंट प्लान। नाम भारी है, लेकिन बात बहुत आसान है।","caption":"SIP yaani Systematic Investment Plan. Naam bhaari hai, lekin baat bahut aasaan hai.","label":"SIP","image":"a heavy golden door opening easily with a single finger touch","keywords":["door","opening"]},
-      {"say":"इसमें आप एक साथ बड़ी रकम लगाने की जगह, हर महीने एक तय रकम लगाते हो।","caption":"Ismein aap ek saath badi rakam lagane ki jagah, har mahine ek tay rakam lagate ho.","label":"Har mahine thoda","image":"a calendar page turning while a coin drops into a glass jar on a wooden table","keywords":["calendar","jar"]},
-      {"say":"जब दाम ऊपर होते हैं तो उसी रकम में कम यूनिट्स मिलते हैं, और जब नीचे होते हैं तो ज़्यादा। इस तरह औसत लागत बीच में आ जाती है।","caption":"Jab daam upar hote hain to kam units milte hain, aur jab neeche hote hain to zyada. Is tarah average laagat beech mein aa jaati hai.","label":"Average ka khel","image":"the same handful of coins buying few glowing tokens on a high platform and many on a low platform","keywords":["coins","tokens"]},
-      {"say":"लेकिन एसआईपी भी जोखिम से मुक्त नहीं है। पैसा बढ़ भी सकता है और घट भी सकता है। कोई गारंटी नहीं होती।","caption":"Lekin SIP bhi jokhim se mukt nahi hai. Paisa badh bhi sakta hai aur ghat bhi. Koi guarantee nahi hoti.","label":"Guarantee nahi","image":"a balance scale held perfectly level between two glowing orbs in soft light","keywords":["balance scale"]},
-      {"say":"ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।","caption":"Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.","label":"","image":"a small seedling sprouting from a golden coin on dark soil","keywords":["seedling","plant"]}
+      {
+        "say": "एसआईपी यानी सिस्टमैटिक इन्वेस्टमेंट प्लान। नाम भारी है, लेकिन बात बहुत आसान है।",
+        "caption": "SIP yaani Systematic Investment Plan. Naam bhaari hai, lekin baat bahut aasaan hai.",
+        "label": "SIP",
+        "image": "a heavy golden door opening easily with a single finger touch",
+        "keywords": [
+          "door",
+          "opening"
+        ]
+      },
+      {
+        "say": "इसमें आप एक साथ बड़ी रकम लगाने की जगह, हर महीने एक तय रकम लगाते हो।",
+        "caption": "Ismein aap ek saath badi rakam lagane ki jagah, har mahine ek tay rakam lagate ho.",
+        "label": "Har mahine thoda",
+        "image": "a calendar page turning while a coin drops into a glass jar on a wooden table",
+        "keywords": [
+          "calendar",
+          "jar"
+        ]
+      },
+      {
+        "say": "जब दाम ऊपर होते हैं तो उसी रकम में कम यूनिट्स मिलते हैं, और जब नीचे होते हैं तो ज़्यादा। इस तरह औसत लागत बीच में आ जाती है।",
+        "caption": "Jab daam upar hote hain to kam units milte hain, aur jab neeche hote hain to zyada. Is tarah average laagat beech mein aa jaati hai.",
+        "label": "Average ka khel",
+        "image": "the same handful of coins buying few glowing tokens on a high platform and many on a low platform",
+        "keywords": [
+          "coins",
+          "tokens"
+        ]
+      },
+      {
+        "say": "लेकिन एसआईपी भी जोखिम से मुक्त नहीं है। पैसा बढ़ भी सकता है और घट भी सकता है। कोई गारंटी नहीं होती।",
+        "caption": "Lekin SIP bhi jokhim se mukt nahi hai. Paisa badh bhi sakta hai aur ghat bhi. Koi guarantee nahi hoti.",
+        "label": "Guarantee nahi",
+        "image": "a balance scale held perfectly level between two glowing orbs in soft light",
+        "keywords": [
+          "balance scale"
+        ]
+      },
+      {
+        "say": "ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।",
+        "caption": "Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.",
+        "label": "",
+        "image": "a small seedling sprouting from a golden coin on dark soil",
+        "keywords": [
+          "seedling",
+          "plant"
+        ]
+      }
     ],
     "hook": "SIP ka matlab kya hota hai?",
     "done": false
@@ -70,11 +248,55 @@
     "format": "shorts",
     "language": "hindi",
     "scenes": [
-      {"say":"एक सवाल। अगर कल आपकी आमदनी बंद हो जाए, तो आपके पास कितने महीने का खर्च है?","caption":"Ek sawaal. Agar kal aapki aamdani band ho jaaye, to aapke paas kitne mahine ka kharch hai?","label":"Ek sawaal","image":"an umbrella in heavy rain with golden coins resting safely underneath it","keywords":["umbrella","rain"]},
-      {"say":"इमरजेंसी फंड वो पैसा है जो मुसीबत में आपको किसी के सामने हाथ फैलाने से बचाता है।","caption":"Emergency fund wo paisa hai jo musibat mein aapko kisi ke saamne haath phailaane se bachaata hai.","label":"Safety net","image":"a glowing safety net stretched below a tightrope against a dark background","keywords":["safety net"]},
-      {"say":"हर महीने थोड़ा थोड़ा अलग रखो, जब तक तीन से छह महीने का खर्च जमा ना हो जाए।","caption":"Har mahine thoda thoda alag rakho, jab tak teen se chhe mahine ka kharch jama na ho jaaye.","label":"Kitna chahiye","image":"a glass jar slowly filling with golden coins month by month in warm light","keywords":["piggy bank","savings"]},
-      {"say":"ये पैसा किसी ऐसी जगह रखो जहाँ से ज़रूरत पड़ने पर जल्दी निकाल सको।","caption":"Ye paisa kisi aisi jagah rakho jahan se zaroorat padne par jaldi nikal sako.","label":"Kahan rakhein","image":"a glowing vault with a door that opens easily with a key","keywords":["vault","key"]},
-      {"say":"ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।","caption":"Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.","label":"","image":"a glowing shield protecting a small house model on a dark surface","keywords":["shield","house"]}
+      {
+        "say": "एक सवाल। अगर कल आपकी आमदनी बंद हो जाए, तो आपके पास कितने महीने का खर्च है?",
+        "caption": "Ek sawaal. Agar kal aapki aamdani band ho jaaye, to aapke paas kitne mahine ka kharch hai?",
+        "label": "Ek sawaal",
+        "image": "an umbrella in heavy rain with golden coins resting safely underneath it",
+        "keywords": [
+          "umbrella",
+          "rain"
+        ]
+      },
+      {
+        "say": "इमरजेंसी फंड वो पैसा है जो मुसीबत में आपको किसी के सामने हाथ फैलाने से बचाता है।",
+        "caption": "Emergency fund wo paisa hai jo musibat mein aapko kisi ke saamne haath phailaane se bachaata hai.",
+        "label": "Safety net",
+        "image": "a glowing safety net stretched below a tightrope against a dark background",
+        "keywords": [
+          "safety net"
+        ]
+      },
+      {
+        "say": "हर महीने थोड़ा थोड़ा अलग रखो, जब तक तीन से छह महीने का खर्च जमा ना हो जाए।",
+        "caption": "Har mahine thoda thoda alag rakho, jab tak teen se chhe mahine ka kharch jama na ho jaaye.",
+        "label": "Kitna chahiye",
+        "image": "a glass jar slowly filling with golden coins month by month in warm light",
+        "keywords": [
+          "piggy bank",
+          "savings"
+        ]
+      },
+      {
+        "say": "ये पैसा किसी ऐसी जगह रखो जहाँ से ज़रूरत पड़ने पर जल्दी निकाल सको।",
+        "caption": "Ye paisa kisi aisi jagah rakho jahan se zaroorat padne par jaldi nikal sako.",
+        "label": "Kahan rakhein",
+        "image": "a glowing vault with a door that opens easily with a key",
+        "keywords": [
+          "vault",
+          "key"
+        ]
+      },
+      {
+        "say": "ये सिर्फ़ शैक्षणिक जानकारी है, निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।",
+        "caption": "Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.",
+        "label": "",
+        "image": "a glowing shield protecting a small house model on a dark surface",
+        "keywords": [
+          "shield",
+          "house"
+        ]
+      }
     ],
     "hook": "Agar kal income band ho jaaye to?",
     "done": false
