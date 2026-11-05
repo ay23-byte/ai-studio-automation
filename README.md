@@ -131,6 +131,10 @@ streamlit run dashboard.py
 
 The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, automatically generates three topic-based thumbnail options after rendering, can regenerate them from the title and script without a local MP4, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
 
+## Multi-channel workspaces (Phase 5)
+
+Use the **📺 Channels** dashboard tab to create and edit channel workspaces with a name, handle, niche, default language/category and brand voice. Existing SQLite databases are migrated automatically; existing video records are preserved. These profiles organize editorial workflows only: upload and analytics still use the single YouTube OAuth account configured in environment secrets. Separate OAuth accounts are not connected yet.
+
 ## YouTube analytics (Phase 4)\n\nOpen the dashboard and select **📊 YouTube analytics**. Choose a date range to view channel lifetime totals, daily views, watch time, average view duration, subscribers gained, likes, comments, and top videos. This is read-only and does not publish or modify videos. Analytics reports can be delayed by YouTube.\n\nThe YouTube OAuth refresh token must include `https://www.googleapis.com/auth/yt-analytics.readonly` and `https://www.googleapis.com/auth/youtube.readonly`. Regenerate the token with the updated `get_refresh_tokens.py` flow, then replace the `YT_REFRESH_TOKEN` GitHub Actions secret (and local `.env` value if used). Never commit credentials.\n\n## Content Lab (Phase 3)
 
 Open the local dashboard and select **🧠 Content lab**.
