@@ -9,6 +9,7 @@ Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-
 - Select male or female narration with `--voice-gender`.
 - Choose `bold`, `clean`, or `karaoke` subtitle presets with `SUBTITLE_PRESET` in `.env`.
 - Run a demo build without API keys.
+- Use the Content Lab to generate topic research plans, improve scripts, audit claims against supplied source material, and convert long-form scripts into standalone Shorts.
 - Generate narration with Chatterbox TTS, with automatic Edge TTS fallback when `TTS_ENGINE=chatterbox`.
 - Generate images through Cloudflare when configured, with Pollinations as a fallback.
 - Search Pixabay for optional stock-video clips.
@@ -129,6 +130,17 @@ streamlit run dashboard.py
 ```
 
 The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, automatically generates three topic-based thumbnail options after rendering, can regenerate them from the title and script without a local MP4, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
+
+## Content Lab (Phase 3)
+
+Open the local dashboard and select **🧠 Content lab**.
+
+- **Topic research:** generate video ideas, viewer questions, hooks, angles, key points, and search queries. These are AI-generated research plans, not live trend or search-volume data.
+- **Script improvement:** select a saved script or paste script JSON to receive an editorial score, strengths, prioritized issues, and an improved script.
+- **Claim audit:** optionally paste source excerpts or URLs. The tool marks claims as supported by supplied material, contradicted by supplied material, or needing verification. Without source material, it does not claim that facts have been externally verified.
+- **Long-form to Shorts:** choose a saved long-form script and generate up to eight independent Shorts scripts. Download the result as JSON.
+
+Generated Content Lab results are also saved locally under `output/content_lab/`. Gemini API access is required for these AI features.
 
 ## API keys and when they are needed
 
