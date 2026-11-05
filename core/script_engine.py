@@ -67,7 +67,7 @@ def _ask_model(prompt: str, model: str, attempts: int = 4):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 4096},
+        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 8192},
     }
     last_error = None
 
