@@ -1,5 +1,5 @@
 import unittest
-from core.script_engine import validate_longform_storyboard
+from core.script_engine import validate_longform_storyboard, _repair_longform_visual_anchors
 
 class StoryboardValidationTests(unittest.TestCase):
     def setUp(self):
@@ -25,6 +25,21 @@ class StoryboardValidationTests(unittest.TestCase):
         visuals[0]["narration_anchor"], visuals[2]["narration_anchor"] = visuals[2]["narration_anchor"], visuals[0]["narration_anchor"]
         with self.assertRaisesRegex(ValueError, "anchor is absent or out of order"):
             validate_longform_storyboard(self.script)
+
+    def test_repairs_missing_and_out_of_order_model_anchors(self):
+        import copy
+        script = copy.deepcopy(self.script)
+        visuals = script["sections"][0]["visuals"]
+        visuals[1]["narration_anchor"] = "not copied exactly"
+        visuals[2]["narration_anchor"] = "The star collapses"
+        repaired = _repair_longform_visual_anchors(script)
+        self.assertIs(validate_longform_storyboard(repaired), repaired)
+        narration = repaired["sections"][0]["narration"]
+        cursor = 0
+        for beat in repaired["sections"][0]["visuals"]:
+            position = narration.casefold().find(beat["narration_anchor"].casefold(), cursor)
+            self.assertGreaterEqual(position, 0)
+            cursor = position + len(beat["narration_anchor"])
 
     def test_rejects_missing_visual_prompt(self):
         self.script["sections"][0]["visuals"][0]["visual_prompt"] = ""
