@@ -370,19 +370,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     update_video(job_id, video_path=str(out), status="done")
     return out
 
-import subprocess
 
-
-# Instrument public build entry points without changing the render implementation.
+# Record one event per complete render operation.
 from core.monitoring import monitored as _monitored
-_build_shorts_unmonitored = build_shorts
-_build_longform_unmonitored = build_longform
-build_shorts = _monitored("pipeline", "build_shorts", _build_shorts_unmonitored)
-build_longform = _monitored("pipeline", "build_longform", _build_longform_unmonitored)
-
-
-from core.monitoring import monitored as _monitored
-_build_shorts_raw = build_shorts
-_build_longform_raw = build_longform
-build_shorts = _monitored("pipeline", "build_shorts", _build_shorts_raw)
-build_longform = _monitored("pipeline", "build_longform", _build_longform_raw)
+build_shorts = _monitored("pipeline", "build_shorts", build_shorts)
+build_longform = _monitored("pipeline", "build_longform", build_longform)
