@@ -194,6 +194,80 @@ with calendar_tab:
             st.write(f"{row.get('scheduled_at')} — {row.get('title')}")
 
 
+
+with analytics_tab:
+    st.subheader("📊 Performance-based content improvement")
+    st.caption("Uses your authorized YouTube Analytics data. Recommendations describe correlations and test ideas; they do not claim to know why viewers behaved a certain way.")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        analytics_end = st.date_input("End date", value=date.today() - timedelta(days=2), key="perf_end")
+    with col_b:
+        analytics_start = st.date_input("Start date", value=date.today() - timedelta(days=31), key="perf_start")
+    if analytics_start > analytics_end:
+        st.error("Start date must be on or before end date.")
+    elif st.button("🔄 Analyze channel performance", type="primary"):
+        try:
+            from core.analytics import get_channel_overview, get_daily_analytics, get_top_videos, get_video_titles
+            from core.performance import rows_as_dicts, summarize_video_performance, build_content_recommendations
+            with st.spinner("Reading your YouTube Analytics reports..."):
+                overview = get_channel_overview()
+                daily_rows, daily_headers = get_daily_analytics(analytics_start, analytics_end)
+                video_rows, video_headers = get_top_videos(analytics_start, analytics_end, limit=25)
+                daily = rows_as_dicts(daily_rows, daily_headers)
+                videos = rows_as_dicts(video_rows, video_headers)
+                video_ids = [str(x.get("video") or "") for x in videos if x.get("video")]
+                titles = get_video_titles(video_ids)
+                for item in videos:
+                    item["title"] = titles.get(str(item.get("video") or ""), str(item.get("video") or "YouTube video"))
+                summary = summarize_video_performance(videos)
+                recommendations = build_content_recommendations(summary)
+            st.session_state["performance_report"] = {
+                "overview": overview, "daily": daily, "summary": summary,
+                "recommendations": recommendations,
+                "start": analytics_start.isoformat(), "end": analytics_end.isoformat()
+            }
+        except Exception as exc:
+            st.error(f"Analytics request failed: {exc}")
+            st.info("Check that your OAuth refresh token includes youtube.readonly and yt-analytics.readonly, and that YouTube Analytics API is enabled.")
+    report = st.session_state.get("performance_report")
+    if report:
+        st.caption(f"Reporting period: {report['start']} to {report['end']}")
+        overview = report["overview"]
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Channel views", f"{overview['views']:,}")
+        k2.metric("Subscribers", f"{overview['subscribers']:,}")
+        k3.metric("Channel videos", f"{overview['videos']:,}")
+        k4.metric("Top videos analyzed", len(report["summary"]["videos"]))
+        daily = report["daily"]
+        if daily:
+            st.markdown("#### Daily views")
+            try:
+                import pandas as pd
+                chart_data = pd.DataFrame([{"Date": x.get("day"), "Views": int(x.get("views", 0) or 0)} for x in daily])
+                st.line_chart(chart_data.set_index("Date"))
+            except Exception:
+                st.dataframe(daily, use_container_width=True)
+        summary = report["summary"]
+        st.markdown("#### What the data says")
+        for insight in summary["insights"]:
+            st.write("• " + insight)
+        if summary["videos"]:
+            st.markdown("#### Top video performance")
+            table = [{
+                "Video": x.get("title") or x.get("video"),
+                "Views": x["views"],
+                "Avg view duration (sec)": round(x["average_view_duration_seconds"], 1),
+                "Likes": x["likes"], "Comments": x["comments"], "Shares": x["shares"],
+                "Engagement / view (%)": round(x["engagement_per_view_pct"], 2)
+            } for x in summary["videos"]]
+            st.dataframe(table, use_container_width=True, hide_index=True)
+        st.markdown("#### Recommended experiments for upcoming videos")
+        for recommendation in report["recommendations"]:
+            st.write("• " + recommendation)
+        st.caption("Metrics are limited to the selected date range and returned top 25 videos. Average view duration is not audience-retention percentage. Compare similar formats and durations; do not infer causation from a single report.")
+    else:
+        st.info("Choose a date range and click Analyze channel performance. No analytics are fetched until you request them.")
+
 with channels_tab:
     st.subheader("📺 Channel workspaces")
     st.caption("Organize content by channel brand, niche, language and editorial voice.")
