@@ -142,6 +142,14 @@ Long-form scripts now use a documentary-style structure with a cold open, clear 
 
 The render pipeline turns those visual beats into separate shots instead of holding one image for an entire chapter. Long-form exports use a slower H.264 encode preset at CRF 18, 256 kbps AAC audio, varied transitions, gentle image motion, and quieter background music to protect narration clarity. More generated shots can increase render time and image-provider usage. Actual output quality still depends on the source script, generated assets, TTS voice, available provider quotas, and the machine/runner used for rendering; no automatic 4K footage or factual verification is implied.
 
+## Step 1: Automatic video quality inspector
+
+Every newly rendered Short and long-form export receives a local FFmpeg/FFprobe quality scan. The report is saved beside the job build files as `quality_report.json` and linked from the local review dashboard.
+
+Checks include video/audio stream presence, resolution, detected black intervals, long near-silent intervals, repeated sampled frames, and subtitle-file presence/event timing. Reports show a score, warnings and issues. This diagnostic does not claim to judge factual accuracy, visual-to-narration semantic matching, or audience retention. A failed optional scan is logged without deleting the rendered video.
+
+The checks use FFmpeg/FFprobe and the existing Pillow dependency; no paid API is required. Run `python -m unittest discover -s tests -v` to run the regression suite.
+
 ## Content Lab (Phase 3)
 
 Open the local dashboard and select **🧠 Content lab**.
