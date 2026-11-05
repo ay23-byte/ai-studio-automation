@@ -371,3 +371,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     return out
 
 import subprocess
+
+
+# Instrument public build entry points without changing the render implementation.
+from core.monitoring import monitored as _monitored
+_build_shorts_unmonitored = build_shorts
+_build_longform_unmonitored = build_longform
+build_shorts = _monitored("pipeline", "build_shorts", _build_shorts_unmonitored)
+build_longform = _monitored("pipeline", "build_longform", _build_longform_unmonitored)
