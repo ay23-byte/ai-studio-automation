@@ -5,6 +5,7 @@ Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-
 ## Features
 
 - Create Shorts and long-form videos from a topic.
+- Gemini script generation retries temporary service/network errors and rotates through the configured fallback models; permanent API-key or model-access errors stop early with a clear message.
 - Automatically generate three topic-based 1280×720 AI thumbnail designs after each video renders (no MP4 download required); select one and upload it to YouTube from the local dashboard.
 - Select male or female narration with `--voice-gender`.
 - Choose `bold`, `clean`, or `karaoke` subtitle presets with `SUBTITLE_PRESET` in `.env`.
@@ -157,6 +158,7 @@ Generated Content Lab results are also saved locally under `output/content_lab/`
 | Variable | Purpose | Required when |
 |---|---|---|
 | `GEMINI_API_KEY` | Generate scripts and SEO text; get it at [Google AI Studio](https://aistudio.google.com/) | Creating a new AI script (not the built-in demo) |
+| `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS` | Primary model and comma-separated fallback model IDs | Optional; defaults are provided. Temporary 503 outages can still affect all providers/models simultaneously. |
 | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Cloudflare Workers AI image generation | Using Cloudflare image generation; optional if fallback works |
 | `PIXABAY_API_KEY` | Search for stock video clips at [Pixabay API](https://pixabay.com/api/docs/) | Optional stock-footage source |
 | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | YouTube Data API OAuth credentials | Uploading to YouTube |
