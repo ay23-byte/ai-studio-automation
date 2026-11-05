@@ -128,3 +128,15 @@ def wait_processed(vid: str, max_wait: int = 600) -> str:
             return us
         time.sleep(20)
     return "timeout"
+
+
+def set_video_thumbnail(vid: str, image_path: Path):
+    """Set a custom thumbnail on an existing YouTube video."""
+    image_path = Path(image_path)
+    if not image_path.is_file():
+        raise FileNotFoundError(f"Thumbnail file not found: {image_path}")
+    yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
+    yt.thumbnails().set(
+        videoId=vid,
+        media_body=MediaFileUpload(str(image_path), mimetype="image/jpeg")
+    ).execute()
