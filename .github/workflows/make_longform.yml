@@ -79,8 +79,8 @@ jobs:
         run: |
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
-            --minutes ${{ inputs.minutes }} \\
-            --language hinglish \\
+            --minutes ${{ inputs.minutes }} \
+            --language hinglish \
             --voice-gender "${{ inputs.voice_gender }}"
 
       - name: Upload to YouTube
