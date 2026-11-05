@@ -123,11 +123,13 @@ def _synth_all_edge(sentences, language, gender, build_dir):
 def synthesise(text, build_dir, language="hindi", gender="male"):
     build_dir = Path(build_dir)
     build_dir.mkdir(parents=True, exist_ok=True)
-    sentences = _sentences(text)
+    sentences = _speech_chunks(text)
     if not sentences:
         raise ValueError("No narration text was provided.")
-    pauses = [0.45 if i == 0 else
-              (0.5 if sentences[i].rstrip().endswith("?") else 0.28)
+    # Short natural phrase breaks; avoid the long, robotic gaps caused by
+    # generating every sentence as a separate audio clip.
+    pauses = [0.55 if i == 0 else
+              (0.38 if sentences[i].rstrip().endswith(("?", "؟")) else 0.18)
               for i in range(len(sentences) - 1)] + [0.0]
 
     engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
