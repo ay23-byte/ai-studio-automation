@@ -56,3 +56,14 @@ A genuine presenter feature needs a separate, tested talking-head/lip-sync model
 - [ ] Audio and full video reviewed end-to-end
 - [ ] Thumbnail/title accurately represent the episode
 - [ ] Human approval recorded before upload
+
+
+### Optional SadTalker configuration
+
+```dotenv
+PRESENTER_ENABLED=0
+SADTALKER_DIR=
+PRESENTER_IMAGE=
+```
+
+Only enable after installing SadTalker and its required checkpoints on a GPU-capable machine/runner. Use a portrait you own or have permission to animate. The adapter creates short chapter-opening presenter shots; the rest of each chapter remains matched documentary B-roll.
