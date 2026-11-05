@@ -78,7 +78,13 @@ jobs:
           "$SADTALKER_VENV/bin/python" -m pip install --upgrade pip setuptools wheel
           "$SADTALKER_VENV/bin/python" -m pip install torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cpu
           "$SADTALKER_VENV/bin/python" -m pip install -r "$SADTALKER_DIR/requirements.txt"
-          bash "$SADTALKER_DIR/scripts/download_models.sh"
+          # The upstream download script writes to ./checkpoints relative to
+          # the current directory. Run it from SadTalker itself so inference.py
+          # can find checkpoints/ and the downloaded safetensors weights.
+          cd "$SADTALKER_DIR"
+          bash scripts/download_models.sh
+          test -s checkpoints/SadTalker_V0.0.2_256.safetensors
+          test -s checkpoints/mapping_00229-model.pth.tar
 
       - name: Restore project Python version
         uses: actions/setup-python@v5
