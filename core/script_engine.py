@@ -1,6 +1,13 @@
-import json, re, requests, time
-from core.config import GEMINI_API_KEY, GEMINI_MODEL
-from core.config import GEMINI_FALLBACK_MODEL
+import json, re, requests, time, random
+from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS
+
+class GeminiRequestError(RuntimeError):
+    """Gemini API failure with metadata for safe model failover."""
+    def __init__(self, model, message, status_code=None, retryable=False):
+        super().__init__(message)
+        self.model = model
+        self.status_code = status_code
+        self.retryable = retryable
 
 SHORTS_PROMPT = """Write ONE Shorts script for a Hindi/Hinglish YouTube channel about: "{topic}" (category: {category})
 
@@ -63,84 +70,106 @@ No markdown fences or commentary. Ensure the JSON parses."""
 
 
 def _ask_model(prompt: str, model: str, attempts: int = 4):
-    """Call Gemini with exponential backoff for transient API/network failures."""
+    """Call Gemini with bounded exponential backoff for transient failures."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.85, "maxOutputTokens": 8192},
     }
-    last_error = None
-
     for attempt in range(attempts):
         try:
             response = requests.post(
                 url,
                 headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
                 json=payload,
-                timeout=120,
+                timeout=180,
             )
         except requests.RequestException as exc:
-            last_error = exc
             if attempt == attempts - 1:
-                break
-            delay = min(8 * (2 ** attempt), 45)
-            print(f"Gemini network error on {model}; retrying in {delay}s ({attempt + 1}/{attempts})")
+                raise GeminiRequestError(model, f"Network failure calling {model}: {exc}",
+                                         retryable=True) from exc
+            delay = min(10 * (2 ** attempt), 60) + random.uniform(0, 2)
+            print(f"Gemini network error on {model}; retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
             time.sleep(delay)
             continue
 
         if response.status_code == 200:
-            data = response.json()
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise GeminiRequestError(model, f"Gemini returned invalid JSON for {model}.",
+                                         status_code=200, retryable=True) from exc
             candidates = data.get("candidates") or []
             if not candidates:
-                raise RuntimeError(f"Gemini returned no candidates for {model}: {data.get('promptFeedback', data)}")
+                raise GeminiRequestError(
+                    model, f"Gemini returned no candidates for {model}: "
+                    f"{data.get('promptFeedback', data)}",
+                    status_code=200, retryable=False)
             parts = candidates[0].get("content", {}).get("parts", [])
             generated = "".join(part.get("text", "") for part in parts if part.get("text"))
             if not generated.strip():
-                raise RuntimeError(f"Gemini returned an empty response for {model}")
+                raise GeminiRequestError(model, f"Gemini returned an empty response for {model}.",
+                                         status_code=200, retryable=True)
             return generated
 
         last_error = f"HTTP {response.status_code}: {response.text[:1000]}"
-        retryable = response.status_code in (429, 500, 502, 503, 504)
-        if not retryable or attempt == attempts - 1:
-            break
+        retryable = response.status_code in (408, 409, 425, 429, 500, 502, 503, 504)
+        if not retryable:
+            raise GeminiRequestError(
+                model,
+                f"Gemini rejected model {model}: {last_error}. "
+                "Check the model name, API key, and Google AI Studio project access.",
+                status_code=response.status_code, retryable=False)
+
+        if attempt == attempts - 1:
+            raise GeminiRequestError(
+                model, f"Gemini request failed for {model} after {attempts} attempts: {last_error}",
+                status_code=response.status_code, retryable=True)
 
         retry_after = response.headers.get("Retry-After")
         try:
-            delay = float(retry_after) if retry_after else min(8 * (2 ** attempt), 45)
-        except ValueError:
-            delay = min(8 * (2 ** attempt), 45)
-        delay = max(1, min(delay, 60))
-        print(
-            f"Gemini {response.status_code} from {model}; "
-            f"retrying in {int(delay)}s ({attempt + 1}/{attempts})"
-        )
+            delay = float(retry_after) if retry_after else min(10 * (2 ** attempt), 60)
+        except (TypeError, ValueError):
+            delay = min(10 * (2 ** attempt), 60)
+        delay = max(1, min(delay, 90)) + random.uniform(0, 2)
+        print(f"Gemini HTTP {response.status_code} from {model}; "
+              f"retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
         time.sleep(delay)
 
-    raise RuntimeError(f"Gemini request failed for model {model} after {attempts} attempts: {last_error}")
+    raise GeminiRequestError(model, f"Gemini request failed for {model}.", retryable=True)
 
 
 def _ask_gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY not set. Get a free key at aistudio.google.com")
+        raise RuntimeError("GEMINI_API_KEY is not set. Add it to GitHub Actions secrets.")
 
-    try:
-        return _ask_model(prompt, GEMINI_MODEL)
-    except RuntimeError as primary_error:
-        # 503/5xx capacity incidents can affect one model more than another.
-        # Try the configured lightweight stable model as a fallback.
-        if GEMINI_FALLBACK_MODEL and GEMINI_FALLBACK_MODEL != GEMINI_MODEL:
-            print(
-                f"Primary Gemini model {GEMINI_MODEL} is unavailable. "
-                f"Trying fallback model {GEMINI_FALLBACK_MODEL}."
-            )
-            try:
-                return _ask_model(prompt, GEMINI_FALLBACK_MODEL, attempts=3)
-            except RuntimeError as fallback_error:
-                raise RuntimeError(
-                    f"Gemini generation failed on both models. "
-                    f"Primary: {primary_error}. Fallback: {fallback_error}"
-                ) from fallback_error
-        raise
+    models = []
+    for model in [GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]:
+        model = str(model or "").strip()
+        if model and model not in models:
+            models.append(model)
+    if not models:
+        raise RuntimeError("No Gemini model is configured. Set GEMINI_MODEL.")
+
+    failures = []
+    for index, model in enumerate(models):
+        try:
+            print(f"Requesting script from Gemini model: {model}")
+            return _ask_model(prompt, model, attempts=4)
+        except GeminiRequestError as exc:
+            failures.append(f"{model}: {exc}")
+            if not exc.retryable:
+                raise RuntimeError(str(exc)) from exc
+            if index < len(models) - 1:
+                print(f"Model {model} is temporarily unavailable. Trying next fallback.")
+
+    details = "\n".join(f"- {item}" for item in failures)
+    raise RuntimeError(
+        "Gemini is temporarily unavailable across all configured models. "
+        "No video was built. Wait a few minutes and start a NEW workflow run. "
+        "If this continues, check Google AI Studio service status and API quota.\n"
+        + details
+    )
 
 
 def _parse(text: str) -> dict:
