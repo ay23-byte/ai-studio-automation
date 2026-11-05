@@ -3,9 +3,9 @@ from pathlib import Path
 
 W, H = 1920, 1080
 FADE = 0.4
-ENC = ["-c:v","libx264","-preset","fast","-crf","20","-profile:v","high",
+ENC = ["-c:v","libx264","-preset","slow","-crf","18","-profile:v","high",
        "-level","4.1","-pix_fmt","yuv420p","-r","30","-video_track_timescale","15360"]
-TRANSITIONS = ["fade","smoothleft","fade","circlecrop","fade"]
+TRANSITIONS = ["fade","smoothleft","fade","circlecrop","fade","wipeleft"]
 
 def _run(cmd): subprocess.run(cmd, check=True)
 
@@ -27,7 +27,7 @@ def _seg(src, idx, dur, is_image, bd):
               "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out
 
-def render(sections, voice, ass, total, out, music=None, music_vol=0.35):
+def render(sections, voice, ass, total, out, music=None, music_vol=0.18):
     T = total + 1.5; bd = out.parent
     valid = []
     for i, sec in enumerate(sections):
@@ -69,5 +69,5 @@ def render(sections, voice, ass, total, out, music=None, music_vol=0.35):
     filt += ";".join(afilt)
     _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
-          "-c:a","aac","-b:a","192k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
+          "-c:a","aac","-b:a","256k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
     return out
