@@ -61,7 +61,7 @@ def update_video(vid_id, **kw):
         return
     allowed = {"title", "status", "video_path", "thumb_path", "youtube_id",
                "notes", "approved", "scheduled_at", "privacy_status", "channel_profile_id",
-               "quality_report_path", "quality_score", "quality_status"}
+               "quality_report_path", "quality_score", "quality_status", "script_json"}
     unknown = set(kw) - allowed
     if unknown:
         raise ValueError(f"Unsupported video fields: {', '.join(sorted(unknown))}")
