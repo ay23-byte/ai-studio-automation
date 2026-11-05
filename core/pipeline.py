@@ -218,7 +218,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     cuts = [k * T / n for k in range(1, n)]
 
     # Visuals
-    media, local = [], _local_clips()
+    media = []
     for i, sc in enumerate(scenes):
         img_p = bd / f"img{i}.jpg"
         if generate_image(sc.get("image","cinematic abstract"), img_p):
@@ -301,8 +301,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         t_cursor += sec["_dur"]
 
     # Build a multi-shot visual timeline from each section's visual beat list.
-    local = _local_clips()
     shot_timeline = []
+    missing_visuals = []
     for i, sec in enumerate(sections):
         narration = str(sec.get("narration", ""))
         beats = _visual_beats_for_section(sec)
