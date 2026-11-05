@@ -194,8 +194,8 @@ def _parse(text: str) -> dict:
         raise ValueError("Gemini returned an empty script response.")
     cleaned = text.strip()
     # Remove optional Markdown fences even though the prompt requests raw JSON.
-    cleaned = re.sub(r"^\`\`\`(?:json)?\\s*", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\\s*\`\`\`$", "", cleaned)
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
     start = cleaned.find("{")
     if start < 0:
         raise ValueError("Gemini response did not contain a JSON object.")
@@ -205,7 +205,7 @@ def _parse(text: str) -> dict:
     except json.JSONDecodeError as first_error:
         # Some model responses contain harmless trailing commas. Normalize only
         # commas immediately before a closing brace/bracket, then parse again.
-        candidate = re.sub(r",\\s*([}\\]])", r"\\1", cleaned[start:])
+        candidate = re.sub(r",\s*([}\\]])", r"\1", cleaned[start:])
         try:
             parsed, end = decoder.raw_decode(candidate)
         except json.JSONDecodeError as final_error:
