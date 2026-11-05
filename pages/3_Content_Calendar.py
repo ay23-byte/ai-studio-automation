@@ -92,9 +92,7 @@ for item in planned:
     state = "Published/scheduled on YouTube" if item.get("scheduled_at") else ("Ready to schedule" if item.get("approved") and item.get("youtube_id") else "Planned — awaiting approval/upload")
     with st.container(border=True):
         left, right = st.columns([3, 1])
-        left.markdown(f"**{display_time}**  
-{item.get('title') or 'Untitled'} · Job #{item['id']}  
-{state}")
+        left.markdown(f"**{display_time}**  \\n{item.get('title') or 'Untitled'} · Job #{item['id']}  \\n{state}")
         if not item.get("scheduled_at") and right.button("Remove slot", key=f"remove_{item['id']}"):
             update_video(item["id"], planned_publish_at=None)
             st.rerun()
