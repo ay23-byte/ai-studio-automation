@@ -16,3 +16,5 @@ jobs:
           python-version: "3.11"
       - name: Compile all Python modules
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py dashboard.py
+      - name: Run automated unit tests
+        run: python -m unittest discover -s tests -v
