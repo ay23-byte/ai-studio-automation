@@ -46,6 +46,16 @@ class GeminiFailoverTests(unittest.TestCase):
         self.assertIn('"sections"', prompt)
         self.assertIn("How Black Holes Bend Space and Time", prompt)
 
+    def test_parser_accepts_json_fence_and_trailing_commas(self):
+        result = script_engine._parse('''```json
+{"title":"Test","sections":[{"narration":"Hello","visuals":[],}],}
+```''')
+        self.assertEqual(result["title"], "Test")
+
+    def test_parser_reports_malformed_or_truncated_json_clearly(self):
+        with self.assertRaisesRegex(ValueError, "malformed or truncated JSON"):
+            script_engine._parse('{"title":"unfinished"')
+
     def test_http_503_retries_then_returns_success(self):
         first = Mock(status_code=503, text='temporarily unavailable', headers={})
         second = Mock(status_code=200, text='', headers={})
