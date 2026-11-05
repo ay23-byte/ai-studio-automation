@@ -238,28 +238,45 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         sec["_dur"] = total * word_counts[i] / total_words
         t_cursor += sec["_dur"]
 
-    # Visuals per section
+    # Build a multi-shot visual timeline from each section's visual beat list.
     local = _local_clips()
+    shot_timeline = []
     for i, sec in enumerate(sections):
-        img_p = bd / f"limg{i}.jpg"
-        if generate_image(sec.get("image","cinematic abstract scene"), img_p):
-            sec["_media"] = {"type":"image","path":str(img_p)}
-        else:
-            clip_p = bd / f"lraw{i}.mp4"
-            kws = sec.get("keywords",["city"])
-            if fetch_clip(kws, clip_p, used_ids):
-                sec["_media"] = {"type":"video","path":str(clip_p)}
-            elif local:
-                sec["_media"] = {"type":"video","path":str(local[i%len(local)])}
+        visual_beats = sec.get("visuals") or [sec.get("image", "cinematic establishing shot")]
+        visual_beats = [str(v).strip() for v in visual_beats if str(v).strip()][:5]
+        if not visual_beats:
+            visual_beats = [sec.get("image", "cinematic establishing shot")]
+        shot_dur = sec["_dur"] / len(visual_beats)
+        for j, beat in enumerate(visual_beats):
+            shot = dict(sec)
+            shot["title"] = sec.get("title", "") if j == 0 else ""
+            shot["_dur"] = shot_dur
+            img_p = bd / f"limg{i}_{j}.jpg"
+            prompt = ("Cinematic 16:9 documentary B-roll, photorealistic premium production, "
+                      "clear focal subject, realistic lighting, atmospheric depth, no text, "
+                      "no watermark or logos. Shot: " + beat)
+            if generate_image(prompt, img_p):
+                shot["_media"] = {"type": "image", "path": str(img_p)}
             else:
-                sec["_media"] = {"type":"video","path":str(local[0])} if local else {}
+                clip_p = bd / f"lraw{i}_{j}.mp4"
+                kws = sec.get("keywords", ["documentary"])
+                if fetch_clip(kws, clip_p, used_ids):
+                    shot["_media"] = {"type": "video", "path": str(clip_p)}
+                elif local:
+                    shot["_media"] = {"type": "video", "path": str(local[(i+j) % len(local)])}
+                else:
+                    shot["_media"] = {}
+            shot_timeline.append(shot)
+
+    if not any(item.get("_media", {}).get("path") for item in shot_timeline):
+        raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
 
     ass = bd / "subs.ass"
-    _make_ass_longform(timings, sections, total, ass, disclaimer)
+    _make_ass_longform(timings, shot_timeline, total, ass, disclaimer)
 
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
-    lf_render(sections, voice_path, ass, total, out, music)
+    lf_render(shot_timeline, voice_path, ass, total, out, music)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
         from core.thumbnail import generate_topic_variants
