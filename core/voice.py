@@ -210,3 +210,8 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         timings.append((current, current + duration, sentence))
         current += duration + pause
     return out, timings
+
+
+from core.monitoring import monitored as _monitored
+_synthesise_raw = synthesise
+synthesise = _monitored("tts", "synthesise", _synthesise_raw)
