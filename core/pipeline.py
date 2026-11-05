@@ -314,13 +314,33 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         t_cursor += sec["_dur"]
 
     # Build a multi-shot visual timeline from each section's visual beat list.
+    # Optional SadTalker chapter intros use the exact narration audio segment.
     shot_timeline = []
     missing_visuals = []
+    presenter_enabled = __import__("os").getenv("PRESENTER_ENABLED", "").strip().lower() in {"1", "true", "yes"}
     for i, sec in enumerate(sections):
         narration = str(sec.get("narration", ""))
         beats = _visual_beats_for_section(sec)
         durations = _visual_beat_durations(narration, beats, sec["_dur"])
         shot_cursor = sec["_start"]
+        if presenter_enabled:
+            from core.presenter import generate_section_presenter
+            presenter_duration = min(6.0, max(2.0, sec["_dur"] * 0.22))
+            presenter_clip = generate_section_presenter(voice_path, sec["_start"], presenter_duration, i + 1, bd)
+            if presenter_clip:
+                actual_duration = float(subprocess.check_output(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
+                ).strip())
+                presenter_shot = dict(sec)
+                presenter_shot["title"] = sec.get("title", "")
+                presenter_shot["_start"] = shot_cursor
+                presenter_shot["_dur"] = actual_duration
+                presenter_shot["_media"] = {"type": "video", "path": str(presenter_clip)}
+                shot_timeline.append(presenter_shot)
+                shot_cursor += actual_duration
+                remaining = max(sec["_dur"] - actual_duration, 0.0)
+                scale = remaining / max(sum(durations), 0.001)
+                durations = [value * scale for value in durations]
         for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""
