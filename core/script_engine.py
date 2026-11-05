@@ -253,11 +253,12 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
 
         # Split into word spans, then partition the narration into ordered,
         # approximately equal regions (one region per visual beat).
-        words = list(re.finditer(r"\\S+", narration))
+        words = list(re.finditer(r"\S+", narration))
         if not words:
             continue
         count = len(visuals)
         repaired = False
+        normalized_search_from = 0
         for beat_index, beat in enumerate(visuals):
             if not isinstance(beat, dict):
                 continue
@@ -269,11 +270,17 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
 
             # Accept punctuation/whitespace differences before replacing a phrase.
             def compact(value):
-                return re.sub(r"[^\\w]+", " ", value.casefold(), flags=re.UNICODE).strip()
+                return re.sub(r"[^\w]+", " ", value.casefold(), flags=re.UNICODE).strip()
 
             norm_text = compact(narration)
             norm_anchor = compact(anchor)
-            if norm_anchor and norm_anchor in norm_text:
+            # Require every accepted anchor to occur after the previous one.
+            if norm_anchor:
+                found_at = norm_text.find(norm_anchor, normalized_search_from)
+            else:
+                found_at = -1
+            if found_at >= 0:
+                normalized_search_from = found_at + len(norm_anchor)
                 continue
 
             lo = round(beat_index * len(words) / count)
