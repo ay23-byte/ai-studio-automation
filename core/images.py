@@ -90,3 +90,11 @@ def fetch_clip(keywords, path, used):
                     used.add(h.get("id")); print(f"  clip ok (pixabay '{q}')"); return True
             except Exception as e: print(f"  clip download: {e}")
     return False
+
+
+# Record scene-image provider outcomes without storing prompts or credentials.
+from core.monitoring import monitored as _monitored
+_generate_image_unmonitored = generate_image
+generate_image = _monitored("image", "generate_image", _generate_image_unmonitored)
+_fetch_clip_unmonitored = fetch_clip
+fetch_clip = _monitored("stock_video", "fetch_clip", _fetch_clip_unmonitored)
