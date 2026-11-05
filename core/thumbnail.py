@@ -94,3 +94,45 @@ def generate_variants(source_path, title, output_dir, channel="AI Studio"):
         _render(base, title, channel, output_dir / f"thumbnail_{style}.jpg", style)
         for style in ("bold", "cinematic", "minimal")
     ]
+
+
+def generate_topic_variants(title, script, output_dir, channel="AI Studio"):
+    """Generate three topic-based AI backgrounds and compose readable thumbnails.
+
+    Does not require a rendered or downloaded MP4. Uses the project's configured
+    image provider and falls back to a clean graphic background if unavailable.
+    """
+    from core.images import generate_image
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    scenes = script.get("scenes") or script.get("sections") or []
+    visual_hint = ""
+    if scenes:
+        visual_hint = str(scenes[0].get("image") or scenes[0].get("title") or "")[:300]
+    variants = {
+        "bold": "dramatic high contrast hero composition, strong subject on right, dark negative space on left",
+        "cinematic": "cinematic atmospheric wide composition, dramatic lighting, depth and premium color grading",
+        "minimal": "minimal elegant editorial composition, one clear symbolic object, uncluttered background",
+    }
+    outputs = []
+    for style, direction in variants.items():
+        background = output_dir / f"background_{style}.jpg"
+        prompt = (
+            "Create a premium YouTube thumbnail background, landscape 16:9. "
+            f"Topic: {title}. Visual idea: {visual_hint}. Art direction: {direction}. "
+            "Use a clear central subject and polished cinematic lighting. "
+            "Do not include any text, letters, numbers, logos, watermark, or typography."
+        )
+        generated = generate_image(prompt, background)
+        if generated:
+            with Image.open(background) as opened:
+                base = ImageOps.fit(opened.convert("RGB"), SIZE, method=Image.Resampling.LANCZOS)
+        else:
+            # Reliable fallback: a designed gradient-like canvas, still independent of the MP4.
+            base = Image.new("RGB", SIZE, (9, 18, 38))
+            draw = ImageDraw.Draw(base)
+            draw.ellipse((700, -180, 1450, 650), fill=(25, 70, 105))
+            draw.ellipse((850, 120, 1320, 720), fill=(24, 42, 75))
+        outputs.append(_render(base, title, channel, output_dir / f"thumbnail_{style}.jpg", style))
+    return outputs
