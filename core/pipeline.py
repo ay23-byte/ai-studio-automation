@@ -149,7 +149,7 @@ def _visual_beats_for_section(section):
 
 def _visual_beat_durations(narration, beats, section_duration):
     import re
-    words = list(re.finditer(r"\\S+", narration or ""))
+    words = list(re.finditer(r"\S+", narration or ""))
     count = len(words)
     if not count or len(beats) == 1:
         return [section_duration / len(beats)] * len(beats)
