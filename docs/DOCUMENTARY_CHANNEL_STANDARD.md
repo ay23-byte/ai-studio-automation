@@ -40,11 +40,19 @@
 - Avoid repetitive stock clips, unrelated visuals and fake archival footage.
 - Use a consistent dark-neutral documentary palette with one accent color, restrained lower thirds and a readable Devanagari-compatible font.
 
-## AI presenter reality check
+## AI presenter integration
 
-The current repository can generate scripts, narration, scene-matched visual prompts, stock-footage searches, subtitles, thumbnails and FFmpeg-edited videos. It does **not** currently create a photorealistic talking-head avatar or lip-sync a face to narration. Do not label a still image, looping clip or ordinary TTS as an AI presenter.
+The repository includes an **opt-in SadTalker adapter** in `core/presenter.py`. When enabled, it extracts the opening narration segment for each chapter, passes that audio and an owned/licensed portrait to an existing SadTalker installation, and inserts the generated talking-head clip before that chapter's B-roll.
 
-A genuine presenter feature needs a separate, tested talking-head/lip-sync model or a user-supplied licensed presenter video. Many hosted avatar services are paid; free local models may require a capable GPU and have setup/licensing constraints. Until a provider is selected and validated, use documentary voiceover plus relevant visuals and keep presenter shots as an optional manually supplied asset.
+Configuration:
+
+```dotenv
+PRESENTER_ENABLED=1
+SADTALKER_DIR=/path/to/SadTalker
+PRESENTER_IMAGE=/path/to/your-licensed-presenter-portrait.png
+```
+
+**Deployment limitation:** ordinary GitHub-hosted Actions runners do not provide a supported NVIDIA GPU. The adapter is intended for a GPU workstation or self-hosted GPU Actions runner with SadTalker and its checkpoints already installed. It is disabled by default and is not an instant cloud-avatar service. SadTalker code is open source, but check the current upstream code, model-weight and portrait licensing before commercial use. If no GPU runner is available, keep the video voiceover-led rather than using a fake or unrelated presenter shot.
 
 ## Minimum release gate
 
