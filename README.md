@@ -254,3 +254,10 @@ ai-studio-automation/
 Open **YouTube SEO Studio** from the Streamlit dashboard sidebar, select a saved script/video job, and generate a metadata package using the existing Gemini API configuration. Review and edit title options, description, tags, up to three hashtags, pinned comment, thumbnail text, and chapter lines, then save the package to the job's `script_json`. Uploading an approved video uses the saved SEO description and tags when present. Titles are limited to 100 characters, descriptions to 5,000 characters, tags to 30 items / 500 characters, and the pinned comment to 1,000 characters. Long-form chapter starts are estimates based on section narration word counts and the script's estimated runtime—not measured from the final MP4—so verify every timestamp against the rendered video. Shorts do not receive chapters. Keyword suggestions are AI-generated; this feature does not claim live search volume, rankings or trend data. No additional paid service is introduced; Gemini API quota still applies.
 
 Run `python -m unittest discover -s tests -v` to test metadata limits and chapter ordering.
+
+
+## Step 6: Performance-Based Content Improvement
+
+Open **📊 YouTube analytics** in the local dashboard, choose a reporting window, and click **Analyze channel performance**. The dashboard reads channel totals, daily views, and up to 25 top videos from the YouTube Analytics API; it fetches public titles for those video IDs and calculates engagement per view (likes + comments + shares divided by views), median comparisons, average view duration and descriptive recommendations for future experiments. These metrics are period-specific, not lifetime performance. Average view duration is not audience-retention percentage, and the tool does not claim causal explanations or private competitor analytics. It does not automatically rewrite or publish scripts. Your OAuth token must include `youtube.readonly` and `yt-analytics.readonly`; no new paid API is introduced.
+
+Run `python -m unittest discover -s tests -v` to test metric calculations and empty-data handling.
