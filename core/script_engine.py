@@ -57,7 +57,7 @@ VISUAL STORYBOARD:
 - "image" is a fallback key visual prompt. "keywords" contains 2-4 stock-footage search terms.
 
 Return ONLY valid JSON:
-{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"fact_check_notes":["Claims requiring verification, or empty array"],"sections":[{"title":"Chapter title","narration":"Complete spoken narration in natural paragraphs","visuals":["Detailed visual shot one","Detailed visual shot two","Detailed visual shot three"],"image":"Fallback key visual prompt","keywords":["search term one","search term two"]}]}
+{{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"fact_check_notes":["Claims requiring verification, or empty array"],"sections":[{{"title":"Chapter title","narration":"Complete spoken narration in natural paragraphs","visuals":["Detailed visual shot one","Detailed visual shot two","Detailed visual shot three"],"image":"Fallback key visual prompt","keywords":["search term one","search term two"]}}]}}
 
 No markdown fences or commentary. Ensure the JSON parses."""
 
