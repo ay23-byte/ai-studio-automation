@@ -172,7 +172,7 @@ def main():
     elif args.cmd == "upload": cmd_upload(args)
     elif args.cmd == "list": cmd_list(args)
     elif args.cmd == "demo":
-        class A: topic="demo"; category="finance"; language="hindi"; demo=True
+        class A: topic="demo"; category="finance"; language="hindi"; voice_gender="male"; demo=True
         a = A()
         if args.format == "shorts": a.minutes = None; cmd_shorts(a)
         else: a.minutes = 7; cmd_long(a)
