@@ -129,6 +129,50 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _visual_beats_for_section(section):
+    raw = section.get("visuals") or [section.get("image", "documentary establishing shot")]
+    beats = []
+    for item in raw[:6]:
+        if isinstance(item, dict):
+            prompt = str(item.get("visual_prompt") or item.get("prompt") or item.get("description") or "").strip()
+            anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
+            keywords = item.get("keywords") or section.get("keywords") or []
+        else:
+            prompt, anchor, keywords = str(item).strip(), "", section.get("keywords") or []
+        if prompt:
+            if isinstance(keywords, str): keywords = [keywords]
+            beats.append({"prompt":prompt,"anchor":anchor,
+                          "keywords":[str(k).strip() for k in keywords if str(k).strip()][:5]})
+    return beats or [{"prompt":str(section.get("image") or section.get("title") or "documentary establishing shot"),
+                      "anchor":"","keywords":section.get("keywords") or ["documentary"]}]
+
+
+def _visual_beat_durations(narration, beats, section_duration):
+    import re
+    words = list(re.finditer(r"\\S+", narration or ""))
+    count = len(words)
+    if not count or len(beats) == 1:
+        return [section_duration / len(beats)] * len(beats)
+    positions, search_from = [], 0
+    for beat in beats:
+        anchor = beat.get("anchor", "").strip()
+        pos = (narration or "").casefold().find(anchor.casefold(), search_from) if anchor else -1
+        if pos < 0: positions.append(None)
+        else:
+            positions.append(min(sum(1 for match in words if match.start() < pos), count - 1))
+            search_from = pos + len(anchor)
+    if any(pos is None for pos in positions) or positions != sorted(positions):
+        positions = [round(i * count / len(beats)) for i in range(len(beats))]
+    else: positions[0] = 0
+    positions = [max(0, min(int(pos), count - 1)) for pos in positions]
+    durations = []
+    for i, start in enumerate(positions):
+        end = positions[i + 1] if i + 1 < len(positions) else count
+        durations.append(section_duration * max(1, end-start) / count)
+    durations[-1] += section_duration - sum(durations)
+    return durations
+
+
 def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
     """Build a 9:16 Shorts video from a scene-based script."""
     from core.editor_shorts import render as shorts_render
@@ -242,24 +286,26 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     local = _local_clips()
     shot_timeline = []
     for i, sec in enumerate(sections):
-        visual_beats = sec.get("visuals") or [sec.get("image", "cinematic establishing shot")]
-        visual_beats = [str(v).strip() for v in visual_beats if str(v).strip()][:5]
-        if not visual_beats:
-            visual_beats = [sec.get("image", "cinematic establishing shot")]
-        shot_dur = sec["_dur"] / len(visual_beats)
-        for j, beat in enumerate(visual_beats):
+        narration = str(sec.get("narration", ""))
+        beats = _visual_beats_for_section(sec)
+        durations = _visual_beat_durations(narration, beats, sec["_dur"])
+        shot_cursor = sec["_start"]
+        for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""
+            shot["_start"] = shot_cursor
             shot["_dur"] = shot_dur
+            shot_cursor += shot_dur
             img_p = bd / f"limg{i}_{j}.jpg"
-            prompt = ("Cinematic 16:9 documentary B-roll, photorealistic premium production, "
-                      "clear focal subject, realistic lighting, atmospheric depth, no text, "
-                      "no watermark or logos. Shot: " + beat)
+            prompt = ("Create a specific documentary shot illustrating ONLY this narration moment. "
+                      "Keep subject, action, era and setting faithful to the description. "
+                      "Photorealistic premium 16:9 B-roll, clear focal subject, realistic lighting, "
+                      "no text, labels, watermarks or logos. Shot: " + beat["prompt"])
             if generate_image(prompt, img_p):
                 shot["_media"] = {"type": "image", "path": str(img_p)}
             else:
                 clip_p = bd / f"lraw{i}_{j}.mp4"
-                kws = sec.get("keywords", ["documentary"])
+                kws = beat["keywords"] or sec.get("keywords", ["documentary"])
                 if fetch_clip(kws, clip_p, used_ids):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                 elif local:
