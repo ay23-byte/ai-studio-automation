@@ -104,7 +104,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
             t2 += d
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
-def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi") -> Path:
+def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
     """Build a 9:16 Shorts video from a scene-based script."""
     from core.editor_shorts import render as shorts_render
     bd = build_dir or (cfg.BUILD_DIR / f"job_{job_id}")
@@ -119,7 +119,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
 
     # Voice
     full_text = " ".join(sc.get("say","") for sc in scenes)
-    voice_path, timings = synthesise(full_text, bd, language=language, gender="male")
+    voice_path, timings = synthesise(full_text, bd, language=language, gender=voice_gender)
     total = float(subprocess.check_output(
         ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",str(voice_path)]
     ).strip())
