@@ -8,17 +8,22 @@ on:
       category:
         description: "Category"
         type: choice
-        options: [finance, markets, money, power, human]
-        default: finance
+        options: [geopolitics, history, science, technology, economics, india, mystery, education, finance, markets, money, power, human]
+        default: geopolitics
       minutes:
         description: "Target length in minutes"
         type: choice
-        options: ["5", "7", "10", "12"]
-        default: "7"
+        options: ["10", "12", "15"]
+        default: "12"
       upload:
-        description: "Upload to YouTube after building?"
+        description: "Upload to YouTube after building? (approval recommended)"
         type: boolean
-        default: true
+        default: false
+      voice_gender:
+        description: "Narration voice"
+        type: choice
+        options: [male, female]
+        default: male
 
 permissions:
   contents: write
@@ -74,7 +79,9 @@ jobs:
         run: |
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
-            --minutes ${{ inputs.minutes }}
+            --minutes ${{ inputs.minutes }} \\
+            --language hinglish \\
+            --voice-gender "${{ inputs.voice_gender }}"
 
       - name: Upload to YouTube
         if: ${{ inputs.upload }}
