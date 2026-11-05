@@ -64,8 +64,19 @@ def fetch_clip(keywords, path, used):
         time.sleep(1.2)
         hits = _search_pixabay(q)
         fresh = [h for h in hits if h.get("id") not in used and (h.get("duration") or 0) >= 3]
-        random.shuffle(fresh)
-        for h in (fresh or hits)[:3]:
+        # Pixabay already filters by the query. Prefer usable, higher-resolution,
+        # longer clips instead of randomising the result set.
+        candidates = fresh or [h for h in hits if (h.get("duration") or 0) >= 3]
+        candidates.sort(
+            key=lambda h: (
+                max((v.get("width") or 0) * (v.get("height") or 0)
+                    for v in (h.get("videos") or {}).values()),
+                min(h.get("duration") or 0, 60),
+                h.get("views") or 0,
+            ),
+            reverse=True,
+        )
+        for h in candidates[:5]:
             url = None
             for s in ("small","medium","tiny"):
                 v = h.get("videos",{}).get(s,{})
