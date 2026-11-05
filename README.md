@@ -150,7 +150,7 @@ To enable cloud builds, open **GitHub → repository → Settings → Secrets an
 - `TELEGRAM_BOT_TOKEN` (optional)
 - `TELEGRAM_CHAT_ID` (optional)
 
-The Shorts workflow runs daily at 09:00 IST. Both workflows currently set `PRIVACY=public` for uploads; change this to `private` while testing if you do not want videos immediately visible. Long-form runs are manually triggered. The upload step selects only completed, unuploaded videos matching that workflow's format.
+The Shorts workflow runs daily at 09:00 IST. Both workflows upload videos as `unlisted` by default, so they will not appear publicly on your channel. Review each video in YouTube Studio and publish or schedule it when ready. If `PUBLISH_AT_IST` is set, the uploader uses YouTube's scheduled-publication flow, which requires the video to be private until its scheduled time. Long-form runs are manually triggered. The upload step selects only completed, unuploaded videos matching that workflow's format.
 
 ## Project structure
 
