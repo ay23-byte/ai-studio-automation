@@ -4,6 +4,9 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from core.db import list_videos, update_video
 
