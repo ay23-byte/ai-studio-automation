@@ -77,7 +77,13 @@ def _ask_model(prompt: str, model: str, attempts: int = 4):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 8192},
+        # Ask Gemini for JSON-only output and allow enough room for a full
+        # multi-chapter storyboard (narration plus visual prompts).
+        "generationConfig": {
+            "temperature": 0.65,
+            "maxOutputTokens": 16384,
+            "responseMimeType": "application/json",
+        },
     }
     for attempt in range(attempts):
         try:
@@ -183,10 +189,36 @@ def _ask_gemini(prompt: str) -> str:
 
 
 def _parse(text: str) -> dict:
-    text = text.strip()
-    a, b = text.find("{"), text.rfind("}")
-    if a == -1: raise ValueError("No JSON in response")
-    return json.loads(text[a:b+1])
+    """Parse Gemini JSON defensively without silently accepting incomplete scripts."""
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Gemini returned an empty script response.")
+    cleaned = text.strip()
+    # Remove optional Markdown fences even though the prompt requests raw JSON.
+    cleaned = re.sub(r"^\`\`\`(?:json)?\\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\\s*\`\`\`$", "", cleaned)
+    start = cleaned.find("{")
+    if start < 0:
+        raise ValueError("Gemini response did not contain a JSON object.")
+    decoder = json.JSONDecoder()
+    try:
+        parsed, end = decoder.raw_decode(cleaned[start:])
+    except json.JSONDecodeError as first_error:
+        # Some model responses contain harmless trailing commas. Normalize only
+        # commas immediately before a closing brace/bracket, then parse again.
+        candidate = re.sub(r",\\s*([}\\]])", r"\\1", cleaned[start:])
+        try:
+            parsed, end = decoder.raw_decode(candidate)
+        except json.JSONDecodeError as final_error:
+            excerpt = candidate[max(0, final_error.pos - 120):final_error.pos + 120]
+            raise ValueError(
+                "Gemini returned malformed or truncated JSON; the script was not "
+                "passed to rendering. Retry generation after the API quota recovers. "
+                f"Parser location: line {final_error.lineno}, column {final_error.colno}. "
+                f"Response excerpt: {excerpt!r}"
+            ) from first_error
+    if not isinstance(parsed, dict):
+        raise ValueError("Gemini script response must be a JSON object.")
+    return parsed
 
 
 def _apply_channel_voice(prompt: str, channel_name: str = "",
