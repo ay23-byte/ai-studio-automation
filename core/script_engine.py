@@ -57,14 +57,17 @@ NARRATION:
 - Finance: education only, no personalized advice, guarantees or buy/sell recommendations.
 
 VISUAL STORYBOARD:
-- Every chapter must contain 3-5 distinct "visuals" entries in chronological order.
-- Each is a standalone 16:9 documentary B-roll shot description: subject, action, environment, composition, camera movement and lighting.
-- Visuals must illustrate the narration beat, not generic filler. Vary wide shots, close-ups, macro details, diagrams without labels, environments and visual metaphors.
+- Every chapter must contain 3-5 distinct "visuals" objects in chronological order, each tied to the exact spoken narration.
+- Each visual object must contain "narration_anchor" (an exact short phrase copied verbatim from this chapter's narration), "visual_prompt" (a standalone 16:9 documentary shot description), and "keywords" (2-4 precise stock-footage search terms for that exact moment).
+- The narration_anchor phrases must appear verbatim in the narration, in the same order, and be spread across the chapter from beginning to end.
+- The visual_prompt must depict the specific subject, action, concept, place or process explained at that anchor. Do not use generic space, city, technology or people footage unless the narration is actually about those things.
+- For scientific explanations, depict the actual object/process being discussed; if literal depiction is difficult, use a clearly relevant scientific visualization or physical analogy, never unrelated cinematic filler.
+- Vary wide shots, close-ups, macro details, accurate unlabeled diagrams and relevant environments.
 - No readable text, captions, logos, watermarks or recognizable real-person likenesses.
-- "image" is a fallback key visual prompt. "keywords" contains 2-4 stock-footage search terms.
+- "image" is a fallback key visual prompt. "keywords" contains 2-4 chapter-level backup terms.
 
 Return ONLY valid JSON:
-{{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"fact_check_notes":["Claims requiring verification, or empty array"],"sections":[{{"title":"Chapter title","narration":"Complete spoken narration in natural paragraphs","visuals":["Detailed visual shot one","Detailed visual shot two","Detailed visual shot three"],"image":"Fallback key visual prompt","keywords":["search term one","search term two"]}}]}}
+{{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"fact_check_notes":["Claims requiring verification, or empty array"],"sections":[{{"title":"Chapter title","narration":"Complete spoken narration in natural paragraphs","visuals":[{{"narration_anchor":"Exact short phrase copied verbatim from this narration","visual_prompt":"Specific 16:9 visual that illustrates the exact narration at this phrase","keywords":["precise stock search term one","precise stock search term two"]}},{{"narration_anchor":"Another exact later phrase copied from this narration","visual_prompt":"A different visual accurately illustrating that later narration moment","keywords":["specific search term"]}},{{"narration_anchor":"A third exact phrase from later in the narration","visual_prompt":"A third specific matching visual","keywords":["specific search term"]}}],"image":"Fallback key visual prompt","keywords":["chapter backup term one","chapter backup term two"]}}]}}
 
 No markdown fences or commentary. Ensure the JSON parses."""
 
