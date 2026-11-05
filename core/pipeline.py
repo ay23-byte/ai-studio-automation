@@ -221,7 +221,14 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     media = []
     for i, sc in enumerate(scenes):
         img_p = bd / f"img{i}.jpg"
-        if generate_image(sc.get("image","cinematic abstract"), img_p):
+        scene_prompt = (
+            "Create a visual that directly illustrates this exact spoken narration. "
+            "Do not use unrelated generic filler. Spoken line: "
+            + str(sc.get("say", "")) + ". Visual direction: "
+            + str(sc.get("image") or sc.get("say", ""))
+            + ". 9:16 cinematic documentary image, accurate subject and action, no text or logos."
+        )
+        if generate_image(scene_prompt, img_p):
             media.append({"type":"image","path":img_p})
         else:
             clip_p = bd / f"raw{i}.mp4"
@@ -280,6 +287,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         raise ValueError("Long-form script must contain at least one section.")
     if any(not str(sec.get("narration", "")).strip() for sec in sections):
         raise ValueError("Every long-form section must contain non-empty narration.")
+    # Validate new structured storyboards before generating any media.
+    if any(any(isinstance(item, dict) for item in (sec.get("visuals") or [])) for sec in sections):
+        from core.script_engine import validate_longform_storyboard
+        validate_longform_storyboard(script)
     cat = script.get("category","")
     disclaimer = cat in ("finance","markets","money")
 
