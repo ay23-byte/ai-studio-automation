@@ -73,7 +73,7 @@ jobs:
           TTS_ENGINE: "chatterbox"
           CHATTERBOX_TORCH_THREADS: "2"
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "public"
+          PRIVACY: "unlisted"
           # PUBLISH_AT_IST: "19:00"
         run: |
           if [ -n "${{ inputs.topic }}" ]; then
@@ -94,7 +94,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "public"
+          PRIVACY: "unlisted"
         run: python run_daily.py --upload-latest --format shorts
 
       - uses: actions/upload-artifact@v4
