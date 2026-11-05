@@ -1,4 +1,4 @@
-# Run in VS Code terminal:
+# Run locally in a terminal only when regenerating YouTube OAuth credentials:
 #   python get_refresh_tokens.py
 #
 # Keep client_secret.json in the same folder.
@@ -15,7 +15,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube",
-    "https://www.googleapis.com/auth/youtube.force-ssl",
+    "https://www.googleapis.com/auth/youtube.force-ssl",\n    "https://www.googleapis.com/auth/yt-analytics.readonly",\n    "https://www.googleapis.com/auth/youtube.readonly",
 ]
 
 CLIENT_FILE = Path(__file__).resolve().parent / "client_secret.json"
