@@ -32,7 +32,7 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
     candidates = sorted(result_dir.rglob("*.mp4"), key=lambda item: item.stat().st_mtime, reverse=True)
     if not candidates:
         raise RuntimeError("SadTalker completed but did not produce an MP4 presenter clip.")
-    output = out_dir / "presenter.mp4
+    output = out_dir / "presenter.mp4"
     shutil.copy2(candidates[0], output)
     measured = float(subprocess.check_output([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(output)]).strip())
     if measured < 1.0 or measured > duration + 2.5:
