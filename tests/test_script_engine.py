@@ -56,6 +56,19 @@ class GeminiFailoverTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "malformed or truncated JSON"):
             script_engine._parse('{"title":"unfinished"')
 
+    def test_max_tokens_response_triggers_model_failover(self):
+        response = Mock(status_code=200, text="", headers={})
+        response.json.return_value = {
+            "candidates": [{
+                "finishReason": "MAX_TOKENS",
+                "content": {"parts": [{"text": "{\\\"title\\\":"}]}
+            }]
+        }
+        with patch.object(script_engine, "GEMINI_API_KEY", "test-key"), \\
+             patch.object(script_engine.requests, "post", return_value=response), \\
+             patch.object(script_engine.time, "sleep"):
+            with self.assertRaisesRegex(script_engine.GeminiRequestError, "output-token limit"):
+                script_engine._ask_model("prompt", "model", attempts=1)
     def test_http_503_retries_then_returns_success(self):
         first = Mock(status_code=503, text='temporarily unavailable', headers={})
         second = Mock(status_code=200, text='', headers={})
