@@ -35,6 +35,6 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
     output = out_dir / "presenter.mp4"
     shutil.copy2(candidates[0], output)
     measured = float(subprocess.check_output([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(output)]).strip())
-    if measured < 1.0 or measured > duration + 2.5:
+    if measured < duration - 0.75 or measured > duration + 0.75:
         raise RuntimeError(f"Presenter clip duration {measured:.2f}s does not match requested {duration:.2f}s narration segment.")
     return output
