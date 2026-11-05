@@ -28,7 +28,7 @@ on:
         description: "Presenter animation (SadTalker creates real audio-driven mouth movement; CPU is slower)"
         type: choice
         options: [sadtalker, still_cpu, off]
-        default: sadtalker
+        default: still_cpu
 
 permissions:
   contents: write
