@@ -28,7 +28,15 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
     subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-ss", f"{float(section_start):.3f}", "-t", f"{duration:.3f}", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "16000", str(audio_segment)], check=True)
     result_dir = out_dir / "sadtalker_results"
     result_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run([os.getenv("PYTHON", "python"), str(inference), "--driven_audio", str(audio_segment), "--source_image", str(portrait), "--result_dir", str(result_dir), "--preprocess", "crop", "--still"], cwd=str(repo), check=True)
+    runner_python = os.getenv("SADTALKER_PYTHON") or os.getenv("PYTHON", "python")
+    subprocess.run([
+        runner_python, str(inference),
+        "--driven_audio", str(audio_segment),
+        "--source_image", str(portrait),
+        "--result_dir", str(result_dir),
+        "--preprocess", "crop", "--still", "--cpu",
+        "--size", "256", "--batch_size", "1",
+    ], cwd=str(repo), check=True)
     candidates = sorted(result_dir.rglob("*.mp4"), key=lambda item: item.stat().st_mtime, reverse=True)
     if not candidates:
         raise RuntimeError("SadTalker completed but did not produce an MP4 presenter clip.")
