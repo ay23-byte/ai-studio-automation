@@ -26,7 +26,7 @@ m2.metric("Awaiting approval", total - approved)
 m3.metric("Approved", approved)
 m4.metric("Uploaded", uploaded)
 
-review_tab, calendar_tab, setup_tab = st.tabs(["Video library & review", "Publishing calendar", "Setup"])
+review_tab, approved_tab, calendar_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "Setup"])
 
 with review_tab:
     if not rows:
@@ -61,7 +61,7 @@ with review_tab:
                 st.json(script)
             with st.expander("🖼️ Thumbnail studio", expanded=False):
                 if not path.is_file():
-                    st.info("Download the video artifact to this PC before creating a thumbnail.")
+                    st.info("This video is not stored on this PC. Open GitHub → Actions → the workflow run that created this video → Artifacts, download the ZIP, extract the MP4, then update the video file path in your local job or copy the MP4 into its build folder before creating a thumbnail.")
                 else:
                     thumb_dir = path.parent / "thumbnails" / str(job_id)
                     if st.button("Generate 3 thumbnail designs", key=f"thumb_gen_{job_id}"):
