@@ -214,7 +214,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     # Build full narration
     full_narration = " ".join(sec.get("narration","") for sec in sections)
-    voice_path, timings = synthesise(full_narration, bd, language=language, gender="male")
+    voice_path, timings = synthesise(full_narration, bd, language=language, gender=voice_gender)
     total = float(subprocess.check_output(
         ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",str(voice_path)]
     ).strip())
