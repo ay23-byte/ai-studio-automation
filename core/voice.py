@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import json
 import os
 import re
 import subprocess
@@ -23,27 +24,42 @@ def _sentences(text):
     return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if s.strip()]
 
 
-def _speech_chunks(text, max_chars=220):
-    """Group short sentences into natural TTS phrases instead of synthesizing every sentence alone."""
-    sentences = _sentences(text)
-    chunks, current = [], ""
-    for sentence in sentences:
-        candidate = f"{current} {sentence}".strip()
-        if current and len(candidate) > max_chars:
-            chunks.append(current)
-            current = sentence
-        else:
-            current = candidate
-    if current:
-        chunks.append(current)
-    return chunks
+def _apply_pronunciation_map(text, mapping=None):
+    """Apply optional user-defined word/phrase pronunciation substitutions."""
+    if mapping is None:
+        try:
+            mapping = json.loads(os.getenv("TTS_PRONUNCIATION_MAP", "{}"))
+        except (TypeError, ValueError):
+            print("TTS_PRONUNCIATION_MAP is invalid JSON; ignoring pronunciation overrides.")
+            mapping = {}
+    if not isinstance(mapping, dict):
+        return str(text or "")
+    result = str(text or "")
+    for source, spoken in mapping.items():
+        source, spoken = str(source).strip(), str(spoken)
+        if source:
+            pattern = re.compile(r"(?<!\\w)" + re.escape(source) + r"(?!\\w)", re.IGNORECASE)
+            result = pattern.sub(lambda _match: spoken, result)
+    return result
+
+
+def _pause_after(chunk):
+    """Natural pause after a phrase, based on its ending punctuation."""
+    ending = (chunk or "").rstrip()[-1:] 
+    if ending in ("?", "؟", "!"):
+        return 0.62
+    if ending in (".", "।", "…"):
+        return 0.46
+    if ending in (",", ";", ":", "،"):
+        return 0.28
+    return 0.20
 
 
 def _prosody(i, n, sentence):
-    # Slightly slower delivery improves intelligibility for educational narration.
-    rate, pitch = "-5%", "+0Hz"
+    # Keep one voice across the video; make openings and sentence endings clearer.
+    rate, pitch = os.getenv("TTS_RATE", "-5%"), os.getenv("TTS_PITCH", "+0Hz")
     if i == 0:
-        rate, pitch = "-7%", "-1Hz"
+        rate = "-7%"
     if sentence.rstrip().endswith(("?", "؟")):
         pitch = "+2Hz"
     if i == n - 1:
@@ -144,14 +160,11 @@ def _synth_all_edge(sentences, language, gender, build_dir):
 def synthesise(text, build_dir, language="hindi", gender="male"):
     build_dir = Path(build_dir)
     build_dir.mkdir(parents=True, exist_ok=True)
-    sentences = _speech_chunks(text)
+    sentences = _speech_chunks(_apply_pronunciation_map(text))
     if not sentences:
         raise ValueError("No narration text was provided.")
-    # Short natural phrase breaks; avoid the long, robotic gaps caused by
-    # generating every sentence as a separate audio clip.
-    pauses = [0.55 if i == 0 else
-              (0.38 if sentences[i].rstrip().endswith(("?", "؟")) else 0.18)
-              for i in range(len(sentences) - 1)] + [0.0]
+    # Pause after the phrase that was just spoken (not the next phrase).
+    pauses = [_pause_after(chunk) for chunk in sentences[:-1]] + [0.0]
 
     engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
     # Chatterbox loads a large PyTorch model and can be terminated by hosted CI
