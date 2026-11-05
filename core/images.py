@@ -98,3 +98,10 @@ _generate_image_unmonitored = generate_image
 generate_image = _monitored("image", "generate_image", _generate_image_unmonitored)
 _fetch_clip_unmonitored = fetch_clip
 fetch_clip = _monitored("stock_video", "fetch_clip", _fetch_clip_unmonitored)
+
+
+from core.monitoring import monitored as _monitored
+_generate_image_raw = generate_image
+_fetch_clip_raw = fetch_clip
+generate_image = _monitored("image", "generate_image", _generate_image_raw)
+fetch_clip = _monitored("stock_video", "fetch_clip", _fetch_clip_raw)
