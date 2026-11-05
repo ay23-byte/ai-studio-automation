@@ -18,17 +18,38 @@ def pick_voice(language="hindi", gender="male"):
     return VOICE_HINDI
 
 def _sentences(text):
-    return [s.strip() for s in re.split(r"(?<=[।.!?])\s+", text.strip()) if s.strip()]
+    """Split narration at sentence boundaries, including Hindi danda punctuation."""
+    clean = re.sub(r"\\s+", " ", str(text or "")).strip()
+    return [s.strip() for s in re.split(r"(?<=[।!?])\\s+|(?<=[.!?])\\s+", clean) if s.strip()]
+
+
+def _speech_chunks(text, max_chars=220):
+    """Group short sentences into natural TTS phrases instead of synthesizing every sentence alone."""
+    sentences = _sentences(text)
+    chunks, current = [], ""
+    for sentence in sentences:
+        candidate = f"{current} {sentence}".strip()
+        if current and len(candidate) > max_chars:
+            chunks.append(current)
+            current = sentence
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
 
 def _prosody(i, n, sentence):
-    rate, pitch = "+3%", "+0Hz"
+    # Slightly slower delivery improves intelligibility for educational narration.
+    rate, pitch = "-5%", "+0Hz"
     if i == 0:
-        rate, pitch = "-2%", "-2Hz"
-    if sentence.rstrip().endswith("?"):
-        pitch = "+3Hz"
+        rate, pitch = "-7%", "-1Hz"
+    if sentence.rstrip().endswith(("?", "؟")):
+        pitch = "+2Hz"
     if i == n - 1:
-        rate = "+0%"
+        rate = "-4%"
     return rate, pitch
+
 
 async def _synth_edge(text, voice, rate, pitch, path):
     # Edge TTS occasionally returns NoAudioReceived during transient service/network
