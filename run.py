@@ -153,9 +153,9 @@ def main():
     pl = sub.add_parser("long", help="Create a long-form video")
     pl.add_argument("topic", nargs="?", default="Share Market explained")
     pl.add_argument("--category", default="finance")
-    pl.add_argument("--language", default="hindi")
+    pl.add_argument("--language", default="hinglish")
     pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
-    pl.add_argument("--minutes", type=int, default=7)
+    pl.add_argument("--minutes", type=int, choices=range(10, 16), default=12, help="Target runtime in minutes (10-15)")
     pl.add_argument("--demo", action="store_true")
 
     pu = sub.add_parser("upload", help="Upload a built video to YouTube")
@@ -175,7 +175,7 @@ def main():
         class A: topic="demo"; category="finance"; language="hindi"; voice_gender="male"; demo=True
         a = A()
         if args.format == "shorts": a.minutes = None; cmd_shorts(a)
-        else: a.minutes = 7; cmd_long(a)
+        else: a.minutes = 12; cmd_long(a)
     else:
         p.print_help()
 
