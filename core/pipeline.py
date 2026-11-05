@@ -25,13 +25,27 @@ def _ts(s):
 
 def _clean(s): return s.replace("{","(").replace("}",")")
 
+def _caption_style(preset, is_shorts):
+    if is_shorts:
+        styles = {
+            "clean": "Style: Cap,Noto Sans Devanagari,82,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,4,1,2,70,70,620,1",
+            "karaoke": "Style: Cap,Noto Sans Devanagari,104,&H0000FFFF,&H000000FF,&H00000000,&H90000000,1,0,0,0,100,100,0,0,1,10,4,2,70,70,640,1",
+            "bold": "Style: Cap,Noto Sans Devanagari,96,&H0000FFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,9,3,2,70,70,640,1",
+        }
+    else:
+        styles = {
+            "clean": "Style: Cap,Noto Sans Devanagari,52,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,1,2,120,120,60,1",
+            "karaoke": "Style: Cap,Noto Sans Devanagari,66,&H0000FFFF,&H000000FF,&H00000000,&HC0000000,1,0,0,0,100,100,0,0,1,7,3,2,120,120,60,1",
+            "bold": "Style: Cap,Noto Sans Devanagari,58,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,5,2,2,120,120,60,1",
+        }
+    return styles.get(preset, styles["bold"])
+
+
 def _make_ass_shorts(items, hook, cta, total, labels, path, disclaimer):
     T = total + TAIL
-    lines = []
     ch_name = cfg.CHANNEL_NAME
-    preset = cfg.SUBTITLE_PRESET
-    cap_style = (\n        "Style: Cap,Noto Sans Devanagari,82,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,4,1,2,70,70,620,1" if preset == "clean" else\n        "Style: Cap,Noto Sans Devanagari,104,&H0000FFFF,&H000000FF,&H00000000,&H90000000,1,0,0,0,100,100,0,0,1,10,4,2,70,70,640,1" if preset == "karaoke" else\n        "{cap_style}"\n    )\n    preset = cfg.SUBTITLE_PRESET
-    cap_style = (\n        "Style: Cap,Noto Sans Devanagari,52,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,1,2,120,120,60,1" if preset == "clean" else\n        "Style: Cap,Noto Sans Devanagari,66,&H0000FFFF,&H000000FF,&H00000000,&HC0000000,1,0,0,0,100,100,0,0,1,7,3,2,120,120,60,1" if preset == "karaoke" else\n        "{cap_style}"\n    )\n    header = f"""[Script Info]
+    cap_style = _caption_style(cfg.SUBTITLE_PRESET, True)
+    header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W_S}
 PlayResY: {H_S}
@@ -39,7 +53,7 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Cap,Noto Sans Devanagari,96,&H0000FFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,9,3,2,70,70,640,1
+{cap_style}
 Style: Hook,Noto Sans Devanagari,88,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,8,3,8,90,90,300,1
 Style: Label,Noto Sans,52,&H0000D7FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,3,0,1,6,2,8,80,80,175,1
 Style: End,Noto Sans Devanagari,68,&H0000A5FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,7,3,2,80,80,1000,1
@@ -49,7 +63,7 @@ Style: Disc,Noto Sans,32,&H99FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 """
-    lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Mark,,0,0,0,,{ch_name}")
+    lines = [f"Dialogue: 0,{_ts(0)},{_ts(T)},Mark,,0,0,0,,{ch_name}"]
     if disclaimer:
         lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,Sirf educational jaankari  |  Investment advice nahi")
     if hook:
@@ -59,19 +73,24 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
         if lbl:
             lines.append(f"Dialogue: 1,{_ts(st+0.1)},{_ts(en-0.1)},Label,,0,0,0,,{{\\fad(220,220)}}{lbl}")
     for st, en, text in items:
-        words = _clean(text).split(); chunks = [" ".join(words[i:i+2]) for i in range(0,len(words),2)]
-        weights = [max(len(c),1) for c in chunks]; tot = sum(weights); t2 = st
+        words = _clean(text).split()
+        chunks = [" ".join(words[i:i+2]) for i in range(0, len(words), 2)]
+        weights = [max(len(part), 1) for part in chunks]
+        total_weight = sum(weights)
+        cursor = st
         span = max(en-st, 0.2)
-        for c, w in zip(chunks, weights):
-            d = span*w/tot
-            lines.append(f"Dialogue: 0,{_ts(t2)},{_ts(t2+d)},Cap,,0,0,0,,{{\\fscx85\\fscy85\\t(0,110,\\fscx100\\fscy100)}}{c}")
-            t2 += d
+        for part, weight in zip(chunks, weights):
+            duration = span * weight / total_weight
+            lines.append(f"Dialogue: 0,{_ts(cursor)},{_ts(cursor+duration)},Cap,,0,0,0,,{{\\fscx85\\fscy85\\t(0,110,\\fscx100\\fscy100)}}{part}")
+            cursor += duration
     if cta:
         lines.append(f"Dialogue: 1,{_ts(max(total-1.4,0))},{_ts(T)},End,,0,0,0,,{{\\fad(300,200)}}{_clean(cta)}")
-    path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
+    path.write_text(header + "\\n".join(lines) + "\\n", encoding="utf-8")
+
 
 def _make_ass_longform(timings, sections, total, path, disclaimer):
     T = total + 1.5
+    cap_style = _caption_style(cfg.SUBTITLE_PRESET, False)
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W_L}
@@ -80,7 +99,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Cap,Noto Sans Devanagari,58,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,5,2,2,120,120,60,1
+{cap_style}
 Style: Lower,Noto Sans,46,&H00FFFFFF,&H000000FF,&H000000FF,&HC0000014,1,0,0,0,100,100,2,0,1,3,2,7,80,80,80,1
 Style: Mark,Noto Sans,30,&H66FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,7,40,40,40,1
 Style: Disc,Noto Sans,32,&H99FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,9,80,80,40,1
@@ -93,18 +112,22 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
         lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,Sirf educational jaankari  |  Investment advice nahi")
     for sec in sections:
         st = sec.get("_start", 0)
-        lbl = sec.get("title","")[:40]
-        if lbl:
-            lines.append(f"Dialogue: 1,{_ts(st+0.2)},{_ts(st+3.5)},Lower,,0,0,0,,{{\\fad(300,400)}}{lbl}")
+        label = sec.get("title", "")[:40]
+        if label:
+            lines.append(f"Dialogue: 1,{_ts(st+0.2)},{_ts(st+3.5)},Lower,,0,0,0,,{{\\fad(300,400)}}{label}")
     for st, en, text in timings:
-        words = _clean(text).split(); chunks = [" ".join(words[i:i+3]) for i in range(0,len(words),3)]
-        weights = [max(len(c),1) for c in chunks]; tot = sum(weights); t2 = st
+        words = _clean(text).split()
+        chunks = [" ".join(words[i:i+3]) for i in range(0, len(words), 3)]
+        weights = [max(len(part), 1) for part in chunks]
+        total_weight = sum(weights)
+        cursor = st
         span = max(en-st, 0.2)
-        for c, w in zip(chunks, weights):
-            d = span*w/tot
-            lines.append(f"Dialogue: 0,{_ts(t2)},{_ts(t2+d)},Cap,,0,0,0,,{c}")
-            t2 += d
-    path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
+        for part, weight in zip(chunks, weights):
+            duration = span * weight / total_weight
+            lines.append(f"Dialogue: 0,{_ts(cursor)},{_ts(cursor+duration)},Cap,,0,0,0,,{part}")
+            cursor += duration
+    path.write_text(header + "\\n".join(lines) + "\\n", encoding="utf-8")
+
 
 def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
     """Build a 9:16 Shorts video from a scene-based script."""
