@@ -161,6 +161,13 @@ def _ask_gemini(prompt: str) -> str:
             return _ask_model(prompt, model, attempts=4)
         except GeminiRequestError as exc:
             failures.append(f"{model}: {exc}")
+            # A 404 generally means this model ID is retired, unavailable to this
+            # API project, or not exposed to this account. Try the next configured
+            # model instead of aborting the entire script-generation workflow.
+            if exc.status_code == 404:
+                if index < len(models) - 1:
+                    print(f"Model {model} is not available (HTTP 404). Skipping to next fallback.")
+                continue
             if not exc.retryable:
                 raise RuntimeError(str(exc)) from exc
             if index < len(models) - 1:
