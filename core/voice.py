@@ -24,6 +24,22 @@ def _sentences(text):
     return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if s.strip()]
 
 
+def _speech_chunks(text, max_chars=220):
+    """Group short sentences into natural TTS phrases without splitting sentences."""
+    sentences = _sentences(text)
+    chunks, current = [], ""
+    for sentence in sentences:
+        candidate = f"{current} {sentence}".strip()
+        if current and len(candidate) > max_chars:
+            chunks.append(current)
+            current = sentence
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _apply_pronunciation_map(text, mapping=None):
     """Apply optional user-defined word/phrase pronunciation substitutions."""
     if mapping is None:
