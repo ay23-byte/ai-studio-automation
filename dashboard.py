@@ -50,6 +50,17 @@ with review_tab:
                 st.write(f"**Language:** {row.get('language') or '—'}")
                 st.write(f"**Category:** {row.get('category') or '—'}")
                 st.write(f"**Approval:** {'Approved' if row.get('approved') else 'Needs review'}")
+                profiles_for_job = list_channel_profiles(active_only=True)
+                if profiles_for_job:
+                    choices = ["Unassigned"] + [f"{p['name']} (#{p['id']})" for p in profiles_for_job]
+                    current_id = row.get("channel_profile_id")
+                    selected_index = next((i + 1 for i, p in enumerate(profiles_for_job) if p["id"] == current_id), 0)
+                    chosen_profile = st.selectbox("Channel workspace", choices, index=selected_index, key=f"channel_assign_{job_id}")
+                    if st.button("Save channel assignment", key=f"channel_save_{job_id}"):
+                        chosen_id = None if chosen_profile == "Unassigned" else profiles_for_job[choices.index(chosen_profile) - 1]["id"]
+                        update_video(job_id, channel_profile_id=chosen_id)
+                        st.success("Channel assignment saved.")
+                        st.rerun()
                 if youtube_id:
                     st.markdown(f"[Open YouTube video](https://youtu.be/{youtube_id})")
                     st.link_button("Open in YouTube Studio", f"https://studio.youtube.com/video/{youtube_id}/edit")
