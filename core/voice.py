@@ -19,8 +19,8 @@ def pick_voice(language="hindi", gender="male"):
 
 def _sentences(text):
     """Split narration at sentence boundaries, including Hindi danda punctuation."""
-    clean = re.sub(r"\\s+", " ", str(text or "")).strip()
-    return [s.strip() for s in re.split(r"(?<=[।!?])\\s+|(?<=[.!?])\\s+", clean) if s.strip()]
+    clean = re.sub(r"\s+", " ", str(text or "")).strip()
+    return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if s.strip()]
 
 
 def _speech_chunks(text, max_chars=220):
