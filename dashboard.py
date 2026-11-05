@@ -56,6 +56,51 @@ with review_tab:
                 script = {}
             with st.expander("View generated script and metadata"):
                 st.json(script)
+            with st.expander("🖼️ Thumbnail studio", expanded=False):
+                if not path.is_file():
+                    st.info("Download the video artifact to this PC before creating a thumbnail.")
+                else:
+                    thumb_dir = path.parent / "thumbnails" / str(job_id)
+                    if st.button("Generate 3 thumbnail designs", key=f"thumb_gen_{job_id}"):
+                        try:
+                            from core.thumbnail import generate_variants
+                            generate_variants(path, row.get("title") or "New video", thumb_dir,
+                                              channel="AI Studio")
+                            st.success("Created Bold, Cinematic and Minimal options.")
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"Thumbnail generation failed: {exc}")
+                    options = {
+                        "Bold": thumb_dir / "thumbnail_bold.jpg",
+                        "Cinematic": thumb_dir / "thumbnail_cinematic.jpg",
+                        "Minimal": thumb_dir / "thumbnail_minimal.jpg",
+                    }
+                    available = {name: file for name, file in options.items() if file.is_file()}
+                    if available:
+                        names = list(available)
+                        saved = Path(row.get("thumb_path") or "")
+                        default = next((name for name, file in available.items() if file == saved), names[0])
+                        chosen = st.selectbox("Choose a design", names, index=names.index(default),
+                                              key=f"thumb_choice_{job_id}")
+                        chosen_path = available[chosen]
+                        st.image(str(chosen_path), caption=f"{chosen} thumbnail · 1280 × 720",
+                                 use_container_width=True)
+                        if st.button("Save selected thumbnail", key=f"thumb_save_{job_id}"):
+                            update_video(job_id, thumb_path=str(chosen_path))
+                            st.success("Thumbnail selection saved.")
+                            st.rerun()
+                        if youtube_id and st.button("Upload thumbnail to YouTube", key=f"thumb_upload_{job_id}"):
+                            try:
+                                from core.uploader import set_video_thumbnail
+                                set_video_thumbnail(youtube_id, chosen_path)
+                                update_video(job_id, thumb_path=str(chosen_path))
+                                st.success("YouTube thumbnail updated.")
+                            except Exception as exc:
+                                st.error(f"Thumbnail upload failed: {exc}")
+                    elif row.get("thumb_path") and Path(row["thumb_path"]).is_file():
+                        st.image(row["thumb_path"], caption="Saved thumbnail", use_container_width=True)
+                    else:
+                        st.caption("Generate the three designs to compare them here.")
             a, b = st.columns(2)
             with a:
                 if row.get("approved"):
