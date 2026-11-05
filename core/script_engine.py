@@ -22,11 +22,19 @@ Category: {category}, Target: {duration_min}-{duration_max} minutes, Language: {
 
 Structure: Hook (30s) > Intro (1min) > 3-5 Main Sections (2-3min each) > Summary (1min) > CTA (30s)
 
-Each section needs: "title", "narration" (natural spoken Hinglish), "visuals" (3-5 descriptions),
+Each section needs: "title", "narration" (natural spoken Hindi in Devanagari script), "visuals" (3-5 descriptions),
 "image" (AI image prompt, no text/faces/logos), "keywords" (2-3 stock footage words)
 
+VOICE CLARITY RULES (important):
+- The narration is read aloud by a Hindi neural voice. Write the spoken narration in Devanagari Hindi, not Roman Hinglish.
+- Use short, natural spoken sentences. Prefer one clear idea per sentence.
+- Write numbers in Hindi words. Avoid abbreviations, slash-heavy text, symbols, and long bracketed phrases.
+- If an English technical term is necessary, use a familiar Hindi explanation first; write the term in Devanagari pronunciation (for example, "कंपाउंड इंटरेस्ट"), not Roman letters.
+- Add natural punctuation and paragraph breaks. Do not use headings, bullet points, markdown, or stage directions inside narration.
+- Avoid unnatural literal translations. Speak directly to the viewer using simple everyday Hindi.
+- Sound like a patient human teacher explaining clearly, not an essay or a fast newsreader.
+
 Finance: education only, no investment advice, no company names, no promised returns.
-Sound like a real person speaking, not an essay.
 
 Return ONLY valid JSON:
 {{"title":"...","description":"100 word SEO description","tags":["..."],"hook":"...","category":"{category}","format":"longform","sections":[{{"title":"...","narration":"...","visuals":["..."],"image":"...","keywords":["..."]}}]}}"""
