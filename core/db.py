@@ -43,11 +43,11 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_video(title, fmt, lang, category, script):
+def save_video(title, fmt, lang, category, script, channel_profile_id=None):
     conn = get_conn()
     cur = conn.execute(
-        "INSERT INTO videos (title,format,language,category,script_json) VALUES (?,?,?,?,?)",
-        (title, fmt, lang, category, json.dumps(script, ensure_ascii=False)))
+        "INSERT INTO videos (title,format,language,category,script_json,channel_profile_id,status) VALUES (?,?,?,?,?,?,?)",
+        (title, fmt, lang, category, json.dumps(script, ensure_ascii=False), channel_profile_id, "script_ready"))
     vid_id = cur.lastrowid
     conn.commit()
     conn.close()
