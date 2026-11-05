@@ -202,6 +202,33 @@ Additional channel rules:
 """
 
 
+def validate_longform_storyboard(script: dict) -> dict:
+    """Reject long-form storyboards whose visual anchors do not map to narration."""
+    sections = script.get("sections")
+    if not isinstance(sections, list) or not sections:
+        raise ValueError("Long-form script must contain a non-empty sections list.")
+    for section_index, section in enumerate(sections, start=1):
+        narration = str(section.get("narration") or "").strip()
+        visuals = section.get("visuals")
+        if not narration:
+            raise ValueError(f"Chapter {section_index} has no narration.")
+        if not isinstance(visuals, list) or len(visuals) < 3:
+            raise ValueError(f"Chapter {section_index} needs at least 3 narration-linked visual beats.")
+        search_from = 0
+        for beat_index, beat in enumerate(visuals, start=1):
+            if not isinstance(beat, dict):
+                raise ValueError(f"Chapter {section_index}, visual {beat_index} must be a structured object.")
+            anchor = str(beat.get("narration_anchor") or "").strip()
+            visual_prompt = str(beat.get("visual_prompt") or "").strip()
+            keywords = beat.get("keywords")
+            if not anchor or not visual_prompt or not isinstance(keywords, list) or not any(str(k).strip() for k in keywords):
+                raise ValueError(f"Chapter {section_index}, visual {beat_index} is missing anchor, visual prompt or stock keywords.")
+            position = narration.casefold().find(anchor.casefold(), search_from)
+            if position < 0:
+                raise ValueError(f"Chapter {section_index}, visual {beat_index} anchor is absent or out of order. Regenerate with exact copied phrases.")
+            search_from = position + len(anchor)
+    return script
+
 def generate_shorts_script(topic: str, category: str = "finance",
                            channel_name: str = "", audience: str = "",
                            brand_voice: str = "") -> dict:
@@ -224,7 +251,7 @@ def generate_longform_script(topic: str, category: str = "finance",
     script = _parse(_ask_gemini(prompt))
     script["format"] = "longform"
     script["category"] = category
-    return script
+    return validate_longform_storyboard(script)
 
 
 def generate_seo(script: dict) -> dict:
