@@ -132,7 +132,9 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 def _visual_beats_for_section(section):
     raw = section.get("visuals") or [section.get("image", "documentary establishing shot")]
     beats = []
-    for item in raw[:6]:
+    for item in raw:
+        if len(beats) >= 6:
+            break
         if isinstance(item, dict):
             prompt = str(item.get("visual_prompt") or item.get("prompt") or item.get("description") or "").strip()
             anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
