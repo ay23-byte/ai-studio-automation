@@ -9,7 +9,10 @@ class GeminiFailoverTests(unittest.TestCase):
         outage = script_engine.GeminiRequestError(
             "primary", "HTTP 503 unavailable", status_code=503, retryable=True
         )
-        with patch.object(script_engine, "GEMINI_API_KEY", "test-key"), patch.object(script_engine.requests, "post", return_value=response), patch.object(script_engine.time, "sleep"):
+        with patch.object(script_engine, "GEMINI_API_KEY", "test-key"), \
+             patch.object(script_engine, "GEMINI_MODEL", "primary"), \
+             patch.object(script_engine, "GEMINI_FALLBACK_MODELS", ["fallback-a"]), \
+             patch.object(script_engine.time, "sleep"), \
              patch.object(script_engine, "_ask_model", side_effect=[outage, "valid response"]) as call:
             result = script_engine._ask_gemini("prompt")
         self.assertEqual(result, "valid response")
