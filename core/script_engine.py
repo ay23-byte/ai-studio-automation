@@ -205,7 +205,9 @@ def _parse(text: str) -> dict:
     except json.JSONDecodeError as first_error:
         # Some model responses contain harmless trailing commas. Normalize only
         # commas immediately before a closing brace/bracket, then parse again.
-        candidate = re.sub(r",\s*([}\\]])", r"\1", cleaned[start:])
+        candidate = cleaned[start:]
+        candidate = re.sub(r",\s*}", "}", candidate)
+        candidate = re.sub(r",\s*]", "]", candidate)
         try:
             parsed, end = decoder.raw_decode(candidate)
         except json.JSONDecodeError as final_error:
