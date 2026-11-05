@@ -6,6 +6,7 @@ reported as unavailable rather than guessed.
 """
 import json
 import os
+import re
 import shutil
 import time
 from collections import Counter
@@ -30,7 +31,13 @@ def record_event(component, action, status, duration_seconds=None, error=None, m
         # Exception messages may contain provider response details; keep a short,
         # sanitized summary and never serialize request payloads or credentials.
         event["error_type"] = type(error).__name__ if isinstance(error, BaseException) else "Error"
-        event["error"] = str(error)[:300].replace("\n", " ")
+        message = str(error)[:300].replace("\n", " ")
+        message = re.sub(
+            r"(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization)\s*[:=]\s*[^\s,;]+",
+            r"\1=[REDACTED]", message,
+        )
+        message = re.sub(r"(?i)bearer\s+[A-Za-z0-9._~+/-]+=*", "Bearer [REDACTED]", message)
+        event["error"] = message
     if metadata and isinstance(metadata, dict):
         safe = {}
         for key in ("job_id", "format", "provider", "model", "attempt", "output_bytes"):
