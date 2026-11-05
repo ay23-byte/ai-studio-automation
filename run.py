@@ -83,7 +83,7 @@ def cmd_shorts(args):
     print(f"Script: {script.get('title')}")
     vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script)
     print(f"Building video (job #{vid_id})...")
-    out = build_shorts(script, vid_id, language=args.language)
+    out = build_shorts(script, vid_id, language=args.language, voice_gender=args.voice_gender)
     print(f"Done: {out}")
     send(f"✅ Shorts built: {script.get('title')}\n{out}")
 
@@ -98,7 +98,7 @@ def cmd_long(args):
     print(f"Script: {script.get('title')} ({len(script.get('sections',[]))} sections)")
     vid_id = save_video(script.get("title",""), "longform", args.language, args.category, script)
     print(f"Building long-form video (job #{vid_id})...")
-    out = build_longform(script, vid_id, language=args.language)
+    out = build_longform(script, vid_id, language=args.language, voice_gender=args.voice_gender)
     print(f"Done: {out}")
     send(f"✅ Long-form built: {script.get('title')}\n{out}")
 
@@ -147,12 +147,14 @@ def main():
     ps.add_argument("topic", nargs="?", default="Inflation kya hai")
     ps.add_argument("--category", default="finance")
     ps.add_argument("--language", default="hindi")
+    ps.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     ps.add_argument("--demo", action="store_true", help="Use built-in demo script (no Gemini needed)")
 
     pl = sub.add_parser("long", help="Create a long-form video")
     pl.add_argument("topic", nargs="?", default="Share Market explained")
     pl.add_argument("--category", default="finance")
     pl.add_argument("--language", default="hindi")
+    pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     pl.add_argument("--minutes", type=int, default=7)
     pl.add_argument("--demo", action="store_true")
 
