@@ -293,6 +293,10 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
             if replacement:
                 beat["narration_anchor"] = replacement
                 repaired = True
+                replacement_norm = compact(replacement)
+                replacement_at = compact(narration).find(replacement_norm, normalized_search_from)
+                if replacement_at >= 0:
+                    normalized_search_from = replacement_at + len(replacement_norm)
 
         if repaired:
             print(
