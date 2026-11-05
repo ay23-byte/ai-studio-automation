@@ -225,15 +225,15 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
             media.append({"type":"image","path":img_p})
         else:
             clip_p = bd / f"raw{i}.mp4"
-            kws = sc.get("keywords", ["city"])
+            kws = sc.get("keywords") or [str(sc.get("say", ""))[:100]]
             if fetch_clip(kws, clip_p, used_ids):
                 media.append({"type":"video","path":clip_p})
-            elif local:
-                media.append({"type":"video","path":local[i % len(local)]})
-            elif media:
-                media.append(dict(media[-1]))
             else:
-                raise RuntimeError(f"No visual for scene {i+1}")
+                raise RuntimeError(
+                    f"No scene-matched visual was available for Shorts scene {i+1}. "
+                    "Image generation and relevant stock search both failed; refusing to insert unrelated footage. "
+                    "Retry later or configure a working image provider/Pixabay key."
+                )
 
     # Captions
     words_per_scene = [len(sc.get("say","").split()) for sc in scenes]
@@ -315,10 +315,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             shot["_dur"] = shot_dur
             shot_cursor += shot_dur
             img_p = bd / f"limg{i}_{j}.jpg"
-            prompt = ("Create a specific documentary shot illustrating ONLY this narration moment. "
-                      "Keep subject, action, era and setting faithful to the description. "
+            prompt = ("Create a documentary shot illustrating ONLY this spoken narration moment. "
+                      "Depict the same subject, action, process and setting; never substitute generic filler. "
                       "Photorealistic premium 16:9 B-roll, clear focal subject, realistic lighting, "
-                      "no text, labels, watermarks or logos. Shot: " + beat["prompt"])
+                      "no text, labels, watermarks or logos. Narration anchor: " + beat.get("anchor", "") +
+                      ". Visual direction: " + beat["prompt"])
             if generate_image(prompt, img_p):
                 shot["_media"] = {"type": "image", "path": str(img_p)}
             else:
@@ -326,10 +327,12 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 kws = beat["keywords"] or sec.get("keywords", ["documentary"])
                 if fetch_clip(kws, clip_p, used_ids):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
-                elif local:
-                    shot["_media"] = {"type": "video", "path": str(local[(i+j) % len(local)])}
                 else:
-                    shot["_media"] = {}
+                    raise RuntimeError(
+                        f"No scene-matched visual was available for long-form chapter {i+1}, beat {j+1}. "
+                        "Image generation and relevant stock search both failed; refusing to insert unrelated footage. "
+                        "Retry later or configure a working image provider/Pixabay key."
+                    )
             shot_timeline.append(shot)
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
