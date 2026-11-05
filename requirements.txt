@@ -6,3 +6,4 @@ google-auth-oauthlib
 python-dotenv
 chatterbox-tts
 streamlit
+Pillow
