@@ -278,11 +278,10 @@ The long-form GitHub Actions workflow is configured for documentary production:
 python run.py long "How does a global oil shock affect India?" --category geopolitics --minutes 12 --language hinglish --voice-gender male
 ```
 
-### Important AI presenter limitation
+### CPU-friendly documentary presenter
 
-The current pipeline creates narration and documentary visuals, but it does not yet generate a photorealistic talking-head avatar or lip-sync a face to narration. A real AI presenter requires a separately selected and tested model/provider or a licensed presenter video asset. Do not describe a still image or ordinary TTS as a talking AI presenter. The documentary workflow can be used now with voiceover and relevant visuals while that capability is evaluated.
+The long-form pipeline supports an optional CPU-only presenter scene renderer in `core/presenter_scene.py`. It uses an owned/licensed still portrait, FFmpeg and subtle Ken Burns movement to create short 16:9 presenter appearances at chapter openings. It does not need CUDA, a GPU, or a paid avatar API. It is **not lip-sync**: the continuous narration remains the original TTS audio track while the portrait is animated.
 
+Add your approved master portrait at `assets/presenter/presenter_master.png` (minimum 512×512; 1536 px or larger on the shortest side is recommended). Configure `PRESENTER_ENABLED=1`, `PRESENTER_MODE=still_cpu`, and `PRESENTER_IMAGE=assets/presenter/presenter_master.png`. If the image is not present, the pipeline logs a clear message and continues with the documentary visuals. Keep the asset fictional/original or document commercial-use permission.
 
-### Optional AI presenter integration
-
-An opt-in SadTalker adapter is available in `core/presenter.py`. It can generate short, narration-driven presenter intros when SadTalker, its checkpoints, and an owned/licensed portrait are already installed on a GPU-capable machine or self-hosted runner. Set `PRESENTER_ENABLED=1`, `SADTALKER_DIR`, and `PRESENTER_IMAGE`. It is intentionally disabled by default. GitHub-hosted runners are not treated as GPU avatar infrastructure; see [the documentary production standard](docs/DOCUMENTARY_CHANNEL_STANDARD.md) for limitations and setup requirements.
+SadTalker remains an optional experimental mode via `PRESENTER_MODE=sadtalker`, requiring SadTalker and its weights on a separately provisioned compatible machine. Standard GitHub-hosted runners are not assumed to have a GPU. See [the presenter asset specification](docs/PRESENTER_ASSET_SPEC.md) and [the documentary production standard](docs/DOCUMENTARY_CHANNEL_STANDARD.md).
