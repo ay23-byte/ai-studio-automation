@@ -46,7 +46,8 @@ def _publish_time():
     return target.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 def upload(video_path: Path, title: str, description: str, tags: list,
-           category_id: str = "27", contains_synthetic: bool = True,\n           privacy_status: str | None = None) -> str:
+           category_id: str = "27", contains_synthetic: bool = True,
+           privacy_status: str | None = None) -> str:
     yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
     status = {"selfDeclaredMadeForKids": False, "containsSyntheticMedia": contains_synthetic}
     pt = _publish_time()
