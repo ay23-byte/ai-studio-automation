@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from core.db import list_videos, update_video
+from core.db import list_videos, update_video, create_channel_profile, list_channel_profiles, update_channel_profile
 
 IST = timezone(timedelta(hours=5, minutes=30))
 st.set_page_config(page_title="AI Studio", page_icon="🎬", layout="wide")
@@ -26,7 +26,7 @@ m2.metric("Awaiting approval", total - approved)
 m3.metric("Approved", approved)
 m4.metric("Uploaded", uploaded)
 
-review_tab, approved_tab, calendar_tab, content_tab, analytics_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "🧠 Content lab", "📊 YouTube analytics", "Setup"])
+review_tab, approved_tab, calendar_tab, content_tab, analytics_tab, channels_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "🧠 Content lab", "📊 YouTube analytics", "📺 Channels", "Setup"])
 
 with review_tab:
     if not rows:
@@ -158,6 +158,53 @@ with calendar_tab:
             st.write(f"**{moment.astimezone(IST).strftime('%a, %d %b %Y · %H:%M IST')}** — {row.get('title')} (Job #{row['id']})")
         except ValueError:
             st.write(f"{row.get('scheduled_at')} — {row.get('title')}")
+
+
+with channels_tab:
+    st.subheader("📺 Channel workspaces")
+    st.caption("Organize content by channel brand, niche, language and editorial voice.")
+    with st.expander("➕ Add a channel workspace", expanded=not bool(list_channel_profiles())):
+        with st.form("create_channel_profile"):
+            new_name = st.text_input("Channel name", placeholder="e.g. Physics Sparks")
+            new_handle = st.text_input("YouTube handle (optional)", placeholder="@yourchannel")
+            new_niche = st.text_input("Niche", placeholder="Physics education")
+            new_language = st.selectbox("Default language", ["hindi", "hinglish", "english"])
+            new_category = st.text_input("Default category", value="education")
+            new_voice = st.text_area("Brand voice / editorial rules", placeholder="Audience, tone, style and words to avoid.")
+            create = st.form_submit_button("Create channel workspace", type="primary")
+        if create:
+            try:
+                create_channel_profile(new_name, new_handle, new_niche, new_language, new_category, new_voice)
+                st.success("Channel workspace created.")
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
+    profiles = list_channel_profiles()
+    if profiles:
+        for profile in profiles:
+            with st.expander(f"{profile['name']} - {profile['niche'] or 'No niche set'}"):
+                st.write(f"Handle: {profile['handle'] or 'Not set'}")
+                st.write(f"Language: {profile['language']} | Category: {profile['category']}")
+                st.write(f"Brand voice: {profile['brand_voice'] or 'Not defined'}")
+                with st.form(f"edit_channel_{profile['id']}"):
+                    edit_name = st.text_input("Name", value=profile["name"])
+                    edit_handle = st.text_input("Handle", value=profile["handle"])
+                    edit_niche = st.text_input("Niche", value=profile["niche"])
+                    edit_language = st.selectbox("Language", ["hindi", "hinglish", "english"], index=["hindi", "hinglish", "english"].index(profile["language"]))
+                    edit_category = st.text_input("Category", value=profile["category"])
+                    edit_voice = st.text_area("Brand voice", value=profile["brand_voice"])
+                    edit_active = st.checkbox("Active", value=bool(profile["active"]))
+                    save_profile = st.form_submit_button("Save workspace")
+                if save_profile:
+                    try:
+                        update_channel_profile(profile["id"], name=edit_name, handle=edit_handle, niche=edit_niche, language=edit_language, category=edit_category, brand_voice=edit_voice, active=int(edit_active))
+                        st.success("Channel workspace updated.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(str(exc))
+    else:
+        st.info("Create your first channel workspace to organize video jobs.")
+    st.warning("These profiles organize content only. Uploading and analytics still use the single Google account configured by YT_CLIENT_ID, YT_CLIENT_SECRET and YT_REFRESH_TOKEN. Separate YouTube OAuth accounts are not connected yet.")
 
 with setup_tab:
     st.markdown("""
