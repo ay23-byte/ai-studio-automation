@@ -281,3 +281,8 @@ python run.py long "How does a global oil shock affect India?" --category geopol
 ### Important AI presenter limitation
 
 The current pipeline creates narration and documentary visuals, but it does not yet generate a photorealistic talking-head avatar or lip-sync a face to narration. A real AI presenter requires a separately selected and tested model/provider or a licensed presenter video asset. Do not describe a still image or ordinary TTS as a talking AI presenter. The documentary workflow can be used now with voiceover and relevant visuals while that capability is evaluated.
+
+
+### Optional AI presenter integration
+
+An opt-in SadTalker adapter is available in `core/presenter.py`. It can generate short, narration-driven presenter intros when SadTalker, its checkpoints, and an owned/licensed portrait are already installed on a GPU-capable machine or self-hosted runner. Set `PRESENTER_ENABLED=1`, `SADTALKER_DIR`, and `PRESENTER_IMAGE`. It is intentionally disabled by default. GitHub-hosted runners are not treated as GPU avatar infrastructure; see [the documentary production standard](docs/DOCUMENTARY_CHANNEL_STANDARD.md) for limitations and setup requirements.
