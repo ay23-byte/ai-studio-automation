@@ -150,6 +150,13 @@ Checks include video/audio stream presence, resolution, detected black intervals
 
 The checks use FFmpeg/FFprobe and the existing Pillow dependency; no paid API is required. Run `python -m unittest discover -s tests -v` to run the regression suite.
 
+## Step 2: Narration-locked visual engine
+
+Long-form storyboard generation now requires at least three structured visual beats per chapter. Every beat must include an exact phrase copied from that chapter's narration, a specific visual prompt, and relevant stock-search keywords. The script is rejected before rendering if anchors are missing, out of order, or prompts/keywords are incomplete.
+
+Both Shorts and long-form image prompts now explicitly include the spoken narration moment so generated imagery is directed at the actual scene. If image generation fails, the pipeline tries scene-specific Pixabay search terms. It no longer substitutes random local clips or repeats the previous scene's media when a scene has no matching asset; the build stops with an actionable error instead.
+
+This prevents known sources of obvious mismatch, but it cannot guarantee that an AI-generated image or a stock search result is semantically perfect. Review the rendered video before publishing. Older saved scripts that use legacy string-only storyboards remain supported, with their previous approximate timing behavior.
 ## Content Lab (Phase 3)
 
 Open the local dashboard and select **🧠 Content lab**.
