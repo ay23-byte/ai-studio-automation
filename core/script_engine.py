@@ -278,12 +278,6 @@ def generate_seo(script: dict) -> dict:
     }
 
 
-# Record script-generation outcome and model-level elapsed time, without prompt text.
+# Record script-generation outcome without storing prompt text.
 from core.monitoring import monitored as _monitored
-_ask_gemini_unmonitored = _ask_gemini
-_ask_gemini = _monitored("gemini", "generate_script", _ask_gemini_unmonitored)
-
-
-from core.monitoring import monitored as _monitored
-_ask_gemini_raw = _ask_gemini
-_ask_gemini = _monitored("gemini", "generate_script", _ask_gemini_raw)
+_ask_gemini = _monitored("gemini", "generate_script", _ask_gemini)
