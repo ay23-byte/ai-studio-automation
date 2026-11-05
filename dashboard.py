@@ -68,6 +68,29 @@ with review_tab:
                 script = json.loads(row.get("script_json") or "{}")
             except (TypeError, json.JSONDecodeError):
                 script = {}
+            if row.get("quality_status"):
+                st.write(f"**Video quality:** {row.get('quality_status')} · {row.get('quality_score', '—')}/100")
+            with st.expander("🧪 Video quality report"):
+                report_path = Path(row.get("quality_report_path") or "")
+                if report_path.is_file():
+                    try:
+                        quality_report = json.loads(report_path.read_text(encoding="utf-8"))
+                        st.metric("Quality score", f"{quality_report.get('score', '—')}/100")
+                        st.write(f"**Status:** {quality_report.get('status', 'Unknown')}")
+                        if quality_report.get("issues"):
+                            st.error("Issues")
+                            for item in quality_report["issues"]:
+                                st.write(f"- {item}")
+                        if quality_report.get("warnings"):
+                            st.warning("Warnings")
+                            for item in quality_report["warnings"]:
+                                st.write(f"- {item}")
+                        with st.expander("Technical measurements"):
+                            st.json(quality_report.get("metrics", {}))
+                    except Exception as exc:
+                        st.error(f"Could not read quality report: {exc}")
+                else:
+                    st.info("No quality report yet. New videos are inspected automatically after rendering.")
             with st.expander("View generated script and metadata"):
                 st.json(script)
             with st.expander("🖼️ Thumbnail studio", expanded=False):
