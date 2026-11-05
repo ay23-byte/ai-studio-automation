@@ -17,27 +17,49 @@ RULES:
 Return ONLY valid JSON:
 {{"title":"Roman Hinglish title max 80 chars","hook":"Roman hook question max 50 chars","category":"{category}","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
 
-LONGFORM_PROMPT = """Write ONE long-form script for a Hindi/Hinglish YouTube channel about: "{topic}"
-Category: {category}, Target: {duration_min}-{duration_max} minutes, Language: {language}
+LONGFORM_PROMPT = """You are an exceptional documentary filmmaker, senior subject researcher, Hindi/Hinglish educator, and retention-focused YouTube writer.
 
-Structure: Hook (30s) > Intro (1min) > 3-5 Main Sections (2-3min each) > Summary (1min) > CTA (30s)
+Create a complete, original long-form YouTube documentary/explainer about: "{topic}"
+Category: {category}
+Target runtime: {duration_min}-{duration_max} minutes
+Narration language: {language}
 
-Each section needs: "title", "narration" (natural spoken Hindi in Devanagari script), "visuals" (3-5 descriptions),
-"image" (AI image prompt, no text/faces/logos), "keywords" (2-3 stock footage words)
+STORY STRUCTURE:
+1. Cold open with a surprising question, vivid moment, puzzle, or consequence. No generic greeting.
+2. Promise what viewers will understand and why it matters.
+3. Establish context with a simple relatable analogy.
+4. Build 6-10 logically ordered chapters (adjust to runtime), each adding a new idea.
+5. Include concrete examples, thought experiments, comparisons and step-by-step explanations where useful.
+6. Use honest open loops and resolve them later. Add natural chapter transitions, not fake hype.
+7. Explain uncertainty, limitations and common misconceptions.
+8. End by answering the opening question, summarizing the mental model and giving a meaningful CTA.
 
-VOICE CLARITY RULES (important):
-- The narration is read aloud by a Hindi neural voice. Write the spoken narration in Devanagari Hindi, not Roman Hinglish.
-- Use short, natural spoken sentences. Prefer one clear idea per sentence.
-- Write numbers in Hindi words. Avoid abbreviations, slash-heavy text, symbols, and long bracketed phrases.
-- If an English technical term is necessary, use a familiar Hindi explanation first; write the term in Devanagari pronunciation (for example, "कंपाउंड इंटरेस्ट"), not Roman letters.
-- Add natural punctuation and paragraph breaks. Do not use headings, bullet points, markdown, or stage directions inside narration.
-- Avoid unnatural literal translations. Speak directly to the viewer using simple everyday Hindi.
-- Sound like a patient human teacher explaining clearly, not an essay or a fast newsreader.
+RUNTIME AND DEPTH:
+- Aim for 125-145 spoken words per minute.
+- Total narration target is approximately runtime_minutes × 130 words. Never pad with repetition.
+- Each chapter must explain its idea fully; normally 120-220 words per chapter depending on target runtime.
+- Make this a substantial educational experience, not a short summary stretched across minutes.
 
-Finance: education only, no investment advice, no company names, no promised returns.
+NARRATION:
+- Write natural spoken Hindi in Devanagari when language is Hindi or Hinglish. Use English only for necessary technical terms and explain them simply.
+- Use a confident, warm documentary voice with varied sentence length.
+- Explain each technical term at first use. Analogies are aids, not proof.
+- Use correct examples and calculations only.
+- No headings, bullets, markdown, stage directions or camera instructions inside narration.
+- Do not invent statistics, studies, quotes, dates, citations, people or facts. Flag claims needing verification in fact_check_notes.
+- Finance: education only, no personalized advice, guarantees or buy/sell recommendations.
+
+VISUAL STORYBOARD:
+- Every chapter must contain 3-5 distinct "visuals" entries in chronological order.
+- Each is a standalone 16:9 documentary B-roll shot description: subject, action, environment, composition, camera movement and lighting.
+- Visuals must illustrate the narration beat, not generic filler. Vary wide shots, close-ups, macro details, diagrams without labels, environments and visual metaphors.
+- No readable text, captions, logos, watermarks or recognizable real-person likenesses.
+- "image" is a fallback key visual prompt. "keywords" contains 2-4 stock-footage search terms.
 
 Return ONLY valid JSON:
-{{"title":"...","description":"100 word SEO description","tags":["..."],"hook":"...","category":"{category}","format":"longform","sections":[{{"title":"...","narration":"...","visuals":["..."],"image":"...","keywords":["..."]}}]}}"""
+{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"fact_check_notes":["Claims requiring verification, or empty array"],"sections":[{"title":"Chapter title","narration":"Complete spoken narration in natural paragraphs","visuals":["Detailed visual shot one","Detailed visual shot two","Detailed visual shot three"],"image":"Fallback key visual prompt","keywords":["search term one","search term two"]}]}
+
+No markdown fences or commentary. Ensure the JSON parses."""
 
 
 def _ask_model(prompt: str, model: str, attempts: int = 4):
