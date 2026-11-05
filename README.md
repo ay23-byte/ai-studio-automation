@@ -157,6 +157,10 @@ Long-form storyboard generation now requires at least three structured visual be
 Both Shorts and long-form image prompts now explicitly include the spoken narration moment so generated imagery is directed at the actual scene. If image generation fails, the pipeline tries scene-specific Pixabay search terms. It no longer substitutes random local clips or repeats the previous scene's media when a scene has no matching asset; the build stops with an actionable error instead.
 
 This prevents known sources of obvious mismatch, but it cannot guarantee that an AI-generated image or a stock search result is semantically perfect. Review the rendered video before publishing. Older saved scripts that use legacy string-only storyboards remain supported, with their previous approximate timing behavior.
+## Long-form on-screen presenter
+
+The GitHub Actions long-form workflow automatically selects the matching still-image presenter when you choose the narration voice: **male** uses `assets/presenter/presenter_master.png`, and **female** uses `assets/presenter/presenter_female.png`. Both portraits are stored in the repository. The CPU-only `still_cpu` renderer adds subtle motion to the portrait; it is **not lip-sync** and does not animate mouth movements. The presenter is enabled by default for GitHub Actions long-form builds. Review the rendered video before publishing.
+
 ## Content Lab (Phase 3)
 
 Open the local dashboard and select **🧠 Content lab**.
