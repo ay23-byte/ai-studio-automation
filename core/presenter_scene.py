@@ -55,9 +55,10 @@ def render_presenter_scene(section_index, duration, build_dir, image_path=None,
     frames = max(int(round(duration * 30)), 30)
     zoom = "min(1.0+0.00035*on,1.035)"
     vf = (
-        f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
+        "[0:v]split=2[bgsrc][fgsrc];"
+        f"[bgsrc]scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
         f"crop={W}:{H},boxblur=24:2[bg];"
-        f"[0:v]scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,"
+        f"[fgsrc]scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,"
         f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0x101318[fg];"
         f"[bg][fg]overlay=(W-w)/2:(H-h)/2,"
         f"zoompan=z='{zoom}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
