@@ -276,3 +276,9 @@ def generate_seo(script: dict) -> dict:
         "pinned_comment": "कौन सा concept अगले video में समझाएँ? Comment में बताओ 👇",
         "hashtags": [f"#{t.replace(' ','')}" for t in tags[:5]],
     }
+
+
+# Record script-generation outcome and model-level elapsed time, without prompt text.
+from core.monitoring import monitored as _monitored
+_ask_gemini_unmonitored = _ask_gemini
+_ask_gemini = _monitored("gemini", "generate_script", _ask_gemini_unmonitored)
