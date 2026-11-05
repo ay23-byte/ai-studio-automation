@@ -11,7 +11,7 @@ from core.script_engine import _ask_gemini, _parse
 def _clean_list(values, limit):
     result, seen, total = [], set(), 0
     for value in values if isinstance(values, list) else []:
-        item = re.sub(r"\\s+", " ", str(value or "")).strip().strip("#")
+        item = re.sub(r"\s+", " ", str(value or "")).strip().strip("#")
         key = item.casefold()
         if not item or key in seen:
             continue
@@ -97,7 +97,7 @@ Rules:
     raw = _parse(_ask_gemini(prompt))
     titles = []
     for value in raw.get("titles", []) if isinstance(raw.get("titles"), list) else []:
-        title = re.sub(r"\\s+", " ", str(value or "")).strip()[:100]
+        title = re.sub(r"\s+", " ", str(value or "")).strip()[:100]
         if title and title.casefold() not in {x.casefold() for x in titles}:
             titles.append(title)
         if len(titles) == 5:
@@ -139,7 +139,7 @@ def normalize_seo_package(package):
     for chapter in package.get("chapters", []):
         stamp = str(chapter.get("timestamp") or "").strip()
         title = str(chapter.get("title") or "").strip()[:100]
-        match = re.fullmatch(r"(\\d{1,2}):(\\d{2})(?::(\\d{2}))?", stamp)
+        match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", stamp)
         if not match or not title:
             continue
         parts = [int(x) for x in match.groups() if x is not None]
