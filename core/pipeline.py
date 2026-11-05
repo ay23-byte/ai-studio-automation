@@ -379,3 +379,10 @@ _build_shorts_unmonitored = build_shorts
 _build_longform_unmonitored = build_longform
 build_shorts = _monitored("pipeline", "build_shorts", _build_shorts_unmonitored)
 build_longform = _monitored("pipeline", "build_longform", _build_longform_unmonitored)
+
+
+from core.monitoring import monitored as _monitored
+_build_shorts_raw = build_shorts
+_build_longform_raw = build_longform
+build_shorts = _monitored("pipeline", "build_shorts", _build_shorts_raw)
+build_longform = _monitored("pipeline", "build_longform", _build_longform_raw)
