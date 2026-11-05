@@ -18,6 +18,13 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
     inference = repo / "inference.py"
     if not inference.is_file() or not portrait.is_file():
         raise RuntimeError("AI presenter enabled but SadTalker inference.py or PRESENTER_IMAGE is missing.")
+    required_checkpoint = repo / "checkpoints" / "epoch_20.pth"
+    if not required_checkpoint.is_file():
+        raise RuntimeError(
+            f"SadTalker checkpoint is missing: {required_checkpoint}. "
+            "This SadTalker checkout uses a different checkpoint layout; "
+            "the video pipeline will fall back to the CPU still presenter."
+        )
     audio_path = Path(audio_path)
     if not audio_path.is_file():
         raise FileNotFoundError(f"Narration audio not found: {audio_path}")
