@@ -29,7 +29,9 @@ def _make_ass_shorts(items, hook, cta, total, labels, path, disclaimer):
     T = total + TAIL
     lines = []
     ch_name = cfg.CHANNEL_NAME
-    header = f"""[Script Info]
+    preset = cfg.SUBTITLE_PRESET
+    cap_style = (\n        "Style: Cap,Noto Sans Devanagari,82,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,4,1,2,70,70,620,1" if preset == "clean" else\n        "Style: Cap,Noto Sans Devanagari,104,&H0000FFFF,&H000000FF,&H00000000,&H90000000,1,0,0,0,100,100,0,0,1,10,4,2,70,70,640,1" if preset == "karaoke" else\n        "{cap_style}"\n    )\n    preset = cfg.SUBTITLE_PRESET
+    cap_style = (\n        "Style: Cap,Noto Sans Devanagari,52,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,1,2,120,120,60,1" if preset == "clean" else\n        "Style: Cap,Noto Sans Devanagari,66,&H0000FFFF,&H000000FF,&H00000000,&HC0000000,1,0,0,0,100,100,0,0,1,7,3,2,120,120,60,1" if preset == "karaoke" else\n        "{cap_style}"\n    )\n    header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W_S}
 PlayResY: {H_S}
