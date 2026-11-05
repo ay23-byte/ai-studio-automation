@@ -108,10 +108,6 @@ jobs:
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_PYTHON: ${{ runner.temp }}/sadtalker-venv/bin/python
           PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
-          # Keep the on-screen presenter aligned with the selected narration gender.
-          PRESENTER_ENABLED: "1"
-          PRESENTER_MODE: "still_cpu"
-          PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "unlisted"
         run: |
