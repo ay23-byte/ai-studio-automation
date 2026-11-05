@@ -23,6 +23,25 @@ class VoiceTextTests(unittest.TestCase):
         chunks = _speech_chunks("एक। दूसरा। तीसरा।", max_chars=8)
         self.assertEqual(chunks, ["एक।", "दूसरा।", "तीसरा।"])
 
+    def test_pause_length_matches_spoken_punctuation(self):
+        from core.voice import _pause_after
+        self.assertGreater(_pause_after("Really?"), _pause_after("A short phrase,"))
+        self.assertGreater(_pause_after("A sentence।"), _pause_after("A short phrase"))
+
+    def test_pronunciation_map_replaces_whole_words_case_insensitively(self):
+        from core.voice import _apply_pronunciation_map
+        self.assertEqual(
+            _apply_pronunciation_map("OpenAI helps AI.", {"OpenAI": "Open A I"}),
+            "Open A I helps AI.",
+        )
+
+    def test_pronunciation_map_does_not_replace_inside_words(self):
+        from core.voice import _apply_pronunciation_map
+        self.assertEqual(
+            _apply_pronunciation_map("AIndia and India", {"India": "In-dee-ah"}),
+            "AIndia and In-dee-ah",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
