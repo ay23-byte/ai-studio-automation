@@ -261,3 +261,23 @@ Run `python -m unittest discover -s tests -v` to test metadata limits and chapte
 Open **📊 YouTube analytics** in the local dashboard, choose a reporting window, and click **Analyze channel performance**. The dashboard reads channel totals, daily views, and up to 25 top videos from the YouTube Analytics API; it fetches public titles for those video IDs and calculates engagement per view (likes + comments + shares divided by views), median comparisons, average view duration and descriptive recommendations for future experiments. These metrics are period-specific, not lifetime performance. Average view duration is not audience-retention percentage, and the tool does not claim causal explanations or private competitor analytics. It does not automatically rewrite or publish scripts. Your OAuth token must include `youtube.readonly` and `yt-analytics.readonly`; no new paid API is introduced.
 
 Run `python -m unittest discover -s tests -v` to test metric calculations and empty-data handling.
+
+
+## Hindi/Hinglish documentary channel (10–15 minutes)
+
+The long-form GitHub Actions workflow is configured for documentary production:
+- Hindi/Hinglish narration, with a 12-minute default and 10, 12 or 15-minute choices.
+- Topic categories include geopolitics, history, science, technology, economics, India, mysteries and education.
+- Male/female narration selection.
+- YouTube upload is **off by default**. Review the rendered artifact and approve it before enabling upload.
+- See [the Documentary Channel Production Standard](docs/DOCUMENTARY_CHANNEL_STANDARD.md) for research, claim verification, visual rights, presenter ethics and release checks.
+
+### Run a documentary locally
+
+```bash
+python run.py long "How does a global oil shock affect India?" --category geopolitics --minutes 12 --language hinglish --voice-gender male
+```
+
+### Important AI presenter limitation
+
+The current pipeline creates narration and documentary visuals, but it does not yet generate a photorealistic talking-head avatar or lip-sync a face to narration. A real AI presenter requires a separately selected and tested model/provider or a licensed presenter video asset. Do not describe a still image or ordinary TTS as a talking AI presenter. The documentary workflow can be used now with voiceover and relevant visuals while that capability is evaluated.
