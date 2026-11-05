@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from core.db import list_videos, update_video, create_channel_profile, list_channel_profiles, update_channel_profile
+from core.db import list_videos, update_video, create_channel_profile, list_channel_profiles, update_channel_profile, save_video
 
 IST = timezone(timedelta(hours=5, minutes=30))
 st.set_page_config(page_title="AI Studio", page_icon="🎬", layout="wide")
@@ -174,6 +174,53 @@ with calendar_tab:
 with channels_tab:
     st.subheader("📺 Channel workspaces")
     st.caption("Organize content by channel brand, niche, language and editorial voice.")
+
+    st.markdown("#### ✍️ Generate a channel-branded script")
+    active_profiles = list_channel_profiles(active_only=True)
+    if active_profiles:
+        with st.form("channel_script_generator"):
+            profile_labels = [f"{p['name']} (#{p['id']})" for p in active_profiles]
+            selected_label = st.selectbox("Channel", profile_labels)
+            selected_profile = active_profiles[profile_labels.index(selected_label)]
+            topic = st.text_input("Video topic", placeholder="e.g. How black holes bend space-time")
+            script_format = st.selectbox("Video format", ["shorts", "longform"])
+            audience = st.text_input("Target audience", value=selected_profile["niche"] or "Beginners")
+            duration = st.slider("Long-form duration (minutes)", 3, 20, 7) if script_format == "longform" else 0
+            generate_script = st.form_submit_button("Generate channel-branded script", type="primary")
+        if generate_script:
+            if not topic.strip():
+                st.error("Enter a topic first.")
+            else:
+                try:
+                    from core.script_engine import generate_shorts_script, generate_longform_script
+                    with st.spinner(f"Writing for {selected_profile['name']}..."):
+                        if script_format == "shorts":
+                            generated = generate_shorts_script(
+                                topic, selected_profile["category"],
+                                channel_name=selected_profile["name"],
+                                audience=audience,
+                                brand_voice=selected_profile["brand_voice"])
+                        else:
+                            lang = selected_profile["language"].title()
+                            generated = generate_longform_script(
+                                topic, selected_profile["category"],
+                                max(2, duration - 1), duration, lang,
+                                channel_name=selected_profile["name"],
+                                audience=audience,
+                                brand_voice=selected_profile["brand_voice"])
+                    generated["channel_name"] = selected_profile["name"]
+                    generated["channel_profile_id"] = selected_profile["id"]
+                    job_id = save_video(
+                        generated.get("title", topic), script_format,
+                        selected_profile["language"], selected_profile["category"],
+                        generated, channel_profile_id=selected_profile["id"])
+                    st.success(f"Script saved as draft job #{job_id}. Review it in the Video library tab before rendering or publishing.")
+                    st.json(generated)
+                except Exception as exc:
+                    st.error(f"Script generation failed: {exc}")
+    else:
+        st.info("Create and activate a channel workspace before generating a branded script.")
+
     with st.expander("➕ Add a channel workspace", expanded=not bool(list_channel_profiles())):
         with st.form("create_channel_profile"):
             new_name = st.text_input("Channel name", placeholder="e.g. Physics Sparks")
