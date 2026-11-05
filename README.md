@@ -5,7 +5,7 @@ Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-
 ## Features
 
 - Create Shorts and long-form videos from a topic.
-- Generate three 1280×720 thumbnail designs (Bold, Cinematic, Minimal), select one, and upload it to YouTube from the local dashboard.
+- Automatically generate three topic-based 1280×720 AI thumbnail designs after each video renders (no MP4 download required); select one and upload it to YouTube from the local dashboard.
 - Select male or female narration with `--voice-gender`.
 - Choose `bold`, `clean`, or `karaoke` subtitle presets with `SUBTITLE_PRESET` in `.env`.
 - Run a demo build without API keys.
@@ -128,7 +128,7 @@ python -m pip install -r requirements.txt
 streamlit run dashboard.py
 ```
 
-The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, generates three thumbnail options, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
+The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, automatically generates three topic-based thumbnail options after rendering, can regenerate them from the title and script without a local MP4, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
 
 ## API keys and when they are needed
 
