@@ -128,17 +128,49 @@ def _parse(text: str) -> dict:
     return json.loads(text[a:b+1])
 
 
-def generate_shorts_script(topic: str, category: str = "finance") -> dict:
-    return _parse(_ask_gemini(SHORTS_PROMPT.format(topic=topic, category=category)))
+def _apply_channel_voice(prompt: str, channel_name: str = "",
+                         audience: str = "", brand_voice: str = "") -> str:
+    context = []
+    if channel_name:
+        context.append(f"Channel brand: {channel_name}")
+    if audience:
+        context.append(f"Target audience: {audience}")
+    if brand_voice:
+        context.append(f"Channel-specific brand voice and editorial rules:\n{brand_voice[:3000]}")
+    if not context:
+        return prompt
+    return prompt + "\n\nCHANNEL PROFILE (follow these rules consistently):\n" + "\n".join(context) + """
+Additional channel rules:
+- Keep this channel's identity distinct; do not mention another channel's name.
+- Follow the specified language, audience level and tone.
+- Do not invent statistics, sources, citations or current trends.
+- Preserve all safety and factuality rules in the base prompt.
+"""
+
+
+def generate_shorts_script(topic: str, category: str = "finance",
+                           channel_name: str = "", audience: str = "",
+                           brand_voice: str = "") -> dict:
+    prompt = SHORTS_PROMPT.format(topic=topic, category=category)
+    prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
+    script = _parse(_ask_gemini(prompt))
+    script["format"] = "shorts"
+    script["category"] = category
+    return script
 
 
 def generate_longform_script(topic: str, category: str = "finance",
-                              duration_min=5, duration_max=8, language="Hinglish") -> dict:
-    s = _parse(_ask_gemini(LONGFORM_PROMPT.format(
+                              duration_min=5, duration_max=8, language="Hinglish",
+                              channel_name: str = "", audience: str = "",
+                              brand_voice: str = "") -> dict:
+    prompt = LONGFORM_PROMPT.format(
         topic=topic, category=category,
-        duration_min=duration_min, duration_max=duration_max, language=language)))
-    s["format"] = "longform"
-    return s
+        duration_min=duration_min, duration_max=duration_max, language=language)
+    prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
+    script = _parse(_ask_gemini(prompt))
+    script["format"] = "longform"
+    script["category"] = category
+    return script
 
 
 def generate_seo(script: dict) -> dict:
