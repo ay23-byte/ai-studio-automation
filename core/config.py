@@ -5,7 +5,14 @@ ROOT = Path(__file__).parent.parent
 
 GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+GEMINI_FALLBACK_MODELS = [
+    model.strip()
+    for model in os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite,gemini-2.5-flash"),
+    ).split(",")
+    if model.strip()
+]
 PIXABAY_API_KEY  = os.getenv("PIXABAY_API_KEY", "")
 CF_ACCOUNT_ID    = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
 CF_API_TOKEN     = os.getenv("CLOUDFLARE_API_TOKEN", "")
