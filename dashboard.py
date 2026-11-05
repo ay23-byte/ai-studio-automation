@@ -26,7 +26,7 @@ m2.metric("Awaiting approval", total - approved)
 m3.metric("Approved", approved)
 m4.metric("Uploaded", uploaded)
 
-review_tab, approved_tab, calendar_tab, content_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "🧠 Content lab", "Setup"])
+review_tab, approved_tab, calendar_tab, content_tab, analytics_tab, setup_tab = st.tabs(["Video library & review", "✅ Approved videos", "Publishing calendar", "🧠 Content lab", "📊 YouTube analytics", "Setup"])
 
 with review_tab:
     if not rows:
