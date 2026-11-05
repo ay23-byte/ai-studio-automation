@@ -20,6 +20,7 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "")
 
 VOICE_HINDI   = os.getenv("VOICE_HINDI",   "hi-IN-MadhurNeural")
 VOICE_ENGLISH = os.getenv("VOICE_ENGLISH", "en-IN-PrabhatNeural")
+VOICE_ENGLISH_FEMALE = os.getenv("VOICE_ENGLISH_FEMALE", "en-IN-NeerjaNeural")
 VOICE_FEMALE  = os.getenv("VOICE_FEMALE",  "hi-IN-SwaraNeural")
 
 CHANNEL_NAME   = os.getenv("CHANNEL_NAME", "Engineering Physics")
