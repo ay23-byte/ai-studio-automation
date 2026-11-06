@@ -1,0 +1,41 @@
+name: avatar-studio-browser-test
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "avatar_studio/**"
+      - ".github/workflows/avatar-studio-browser.yml"
+  push:
+    branches: [feature/free-talking-avatar-studio]
+    paths:
+      - "avatar_studio/**"
+      - ".github/workflows/avatar-studio-browser.yml"
+permissions:
+  contents: read
+jobs:
+  browser-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install chromium
+      - name: Start local static server
+        run: |
+          python3 -m http.server 8765 > /tmp/avatar-server.log 2>&1 &
+          echo $! > /tmp/avatar-server.pid
+      - name: Verify SDK, avatar rendering, and audio lip-sync playback
+        run: node avatar_studio/ci-smoke-test.mjs
+      - name: Upload browser recording and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avatar-studio-browser-test-results
+          path: |
+            avatar_studio/test-results/
+            /tmp/avatar-server.log
