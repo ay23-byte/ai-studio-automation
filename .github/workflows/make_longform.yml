@@ -29,6 +29,11 @@ on:
         type: choice
         options: [talking_avatar, sadtalker, still_cpu, off]
         default: still_cpu
+      visual_mode:
+        description: "Long-form B-roll source preference"
+        type: choice
+        options: [video_first, image_first]
+        default: video_first
 
 permissions:
   contents: write
@@ -111,6 +116,7 @@ jobs:
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ inputs.presenter_mode }}
+          LONGFORM_VISUAL_MODE: ${{ inputs.visual_mode }}
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_PYTHON: ${{ runner.temp }}/sadtalker-venv/bin/python
           PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
