@@ -47,7 +47,7 @@
   </section>
   <section class="panel">
     <b>How recording works</b>
-    <p class="note">Recording captures the avatar canvas at 30 fps and the browser-tab audio. When prompted, select this tab and enable tab audio. The result is a WebM file. Convert it to MP4 with FFmpeg if your editor requires MP4. Keep the browser tab visible while recording.</p>
+    <p class="note">Recording captures the avatar canvas and the selected narration file directly in the browser. No screen-sharing prompt or tab-audio permission is required. The result is a WebM file with video and narration audio; convert it to MP4 with FFmpeg if your editor requires MP4.</p>
     <p class="note">This is a 3D avatar, not a photo-realistic portrait. Only facial mouth shapes, blinks and brows animate; there is no full-body movement. Hindi/Hinglish lip-sync can be less precise than English.</p>
     <p class="note">The SDK and built-in avatars are MIT-licensed. The avatar/model are fetched from jsDelivr on first use. No avatar account or API key is required. See <a href="https://github.com/InterviewFlowAI/talking-avatar" target="_blank" rel="noreferrer">SDK source and license</a>.</p>
   </section>
@@ -55,7 +55,7 @@
 <script type="module">
   import { AVATARS, TalkingAvatar } from "@interviewflowai/talking-avatar";
   const el = id => document.getElementById(id);
-  let avatar = null, audioUrl = null, recorder = null, chunks = [], displayStream = null;
+  let avatar = null, audioUrl = null, recorder = null, chunks = [], sourceAudio = null, sourceStream = null, canvasStream = null;
   const status = message => { el("status").textContent = message; };
   const enable = (id, yes) => { el(id).disabled = !yes; };
   async function loadAvatar(){
@@ -65,7 +65,7 @@
       status("Loading 3D presenter and lip-sync model…");
       await avatar.ready;
       enable("play",!!el("audio").files[0]); enable("record",!!el("audio").files[0]);
-      status("Presenter ready. Select narration audio, then play or record.");
+      status("Presenter ready. Select narration audio, then play or record. Recording will capture the narration automatically.");
     }catch(error){status("Could not load presenter: "+error.message);}
   }
   el("load").addEventListener("click",loadAvatar);
@@ -76,45 +76,83 @@
     enable("play",!!avatar&&!!audioUrl);enable("record",!!avatar&&!!audioUrl);
     status(audioUrl?"Audio selected. Load presenter if needed, then play or record.":"Choose an audio file.");
   });
+  async function prepareAudioStream(){
+    const file=el("audio").files[0];
+    if(!file)throw new Error("Choose a narration audio file first.");
+    if(!avatar)throw new Error("Load the presenter first.");
+    if(!HTMLMediaElement.prototype.captureStream && !HTMLMediaElement.prototype.mozCaptureStream)
+      throw new Error("This browser does not support audio capture. Use a current version of Chrome or Edge.");
+    if(sourceAudio){sourceAudio.pause();sourceAudio.src="";sourceAudio=null;}
+    sourceAudio=new Audio();
+    sourceAudio.preload="auto";
+    sourceAudio.src=URL.createObjectURL(file);
+    await new Promise((resolve,reject)=>{
+      sourceAudio.addEventListener("canplay",resolve,{once:true});
+      sourceAudio.addEventListener("error",()=>reject(new Error("The narration audio could not be decoded.")),{once:true});
+      sourceAudio.load();
+    });
+    const capture=sourceAudio.captureStream||sourceAudio.mozCaptureStream;
+    sourceStream=capture.call(sourceAudio);
+    if(!sourceStream.getAudioTracks().length)throw new Error("The narration did not produce an audio track.");
+    await avatar.attachStream(sourceStream);
+  }
+  function stopRecording(){
+    if(recorder?.state==="recording")recorder.stop();
+    sourceAudio?.pause();
+    avatar?.detachStream();
+  }
   el("play").addEventListener("click",async()=>{
-    if(!avatar||!el("audio").files[0])return;
-    try{enable("play",false);enable("stop",true);status("Playing narration with synchronized mouth movement…");
-      await avatar.speak(el("audio").files[0]);status("Narration finished.");}
-    catch(error){status("Playback error: "+error.message);}
-    finally{enable("play",true);enable("stop",false);}
+    try{
+      enable("play",false);enable("stop",true);
+      await prepareAudioStream();
+      status("Playing narration with live lip-sync…");
+      await sourceAudio.play();
+      sourceAudio.addEventListener("ended",()=>{
+        avatar?.detachStream();enable("play",true);enable("stop",false);
+        status("Narration finished.");
+      },{once:true});
+    }catch(error){avatar?.detachStream();status("Playback error: "+error.message);enable("play",true);enable("stop",false);}
   });
-  el("stop").addEventListener("click",()=>{avatar?.stopSpeaking();enable("play",true);enable("stop",false);status("Playback stopped.");});
+  el("stop").addEventListener("click",()=>{
+    sourceAudio?.pause();avatar?.detachStream();enable("play",true);enable("stop",false);status("Playback stopped.");
+  });
   el("record").addEventListener("click",async()=>{
     try{
       if(!avatar||!el("audio").files[0])throw new Error("Load the presenter and choose narration first.");
-      displayStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
-      const audioTracks=displayStream.getAudioTracks();
-      if(!audioTracks.length)throw new Error("No tab audio captured. Stop and retry, selecting this tab and enabling 'Share tab audio'.");
+      enable("record",false);status("Preparing narration and avatar recording…");
+      await prepareAudioStream();
       const canvas=el("avatar").querySelector("canvas");
       if(!canvas)throw new Error("Avatar canvas not found. Reload the presenter.");
-      const videoStream=canvas.captureStream(30);
-      const combined=new MediaStream([...videoStream.getVideoTracks(),...audioTracks]);
+      canvasStream=canvas.captureStream(30);
+      const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
       chunks=[];
       const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")?"video/webm;codecs=vp9,opus":"video/webm";
       recorder=new MediaRecorder(combined,{mimeType:mime});
       recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+      recorder.onerror=e=>{status("Recording error: "+(e.error?.message||"unknown error"));};
       recorder.onstop=()=>{
         const blob=new Blob(chunks,{type:"video/webm"}),url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download="talking_presenter.webm";a.click();
         setTimeout(()=>URL.revokeObjectURL(url),30000);
-        videoStream.getTracks().forEach(t=>t.stop());displayStream?.getTracks().forEach(t=>t.stop());
-        displayStream=null;enable("record",true);enable("finish",false);status("Recording saved as talking_presenter.webm.");
+        canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
+        canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
+        enable("record",true);enable("finish",false);enable("play",true);
+        status("Saved talking_presenter.webm with the avatar video and matching narration audio.");
       };
-      recorder.start(500);enable("record",false);enable("finish",true);
-      status("Recording. Click 'Stop & save recording' when the narration finishes.");
-      await avatar.speak(el("audio").files[0]);
-      if(recorder?.state==="recording"){status("Narration finished. Click 'Stop & save recording'.");}
+      recorder.start(500);enable("finish",true);
+      status("Recording avatar and narration together…");
+      await sourceAudio.play();
+      sourceAudio.addEventListener("ended",()=>{
+        if(recorder?.state==="recording")recorder.stop();
+      },{once:true});
     }catch(error){
-      displayStream?.getTracks().forEach(t=>t.stop());displayStream=null;
-      status(error.message||String(error));enable("record",true);enable("finish",false);
+      canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
+      canvasStream=null;sourceStream=null;avatar?.detachStream();
+      enable("record",true);enable("finish",false);enable("play",true);
+      status("Could not record: "+error.message);
     }
   });
-  el("finish").addEventListener("click",()=>{if(recorder?.state==="recording")recorder.stop();avatar?.stopSpeaking();});
+  el("finish").addEventListener("click",()=>stopRecording());
   window.addEventListener("beforeunload",()=>{avatar?.dispose();if(audioUrl)URL.revokeObjectURL(audioUrl);});
 </script>
 </body>
