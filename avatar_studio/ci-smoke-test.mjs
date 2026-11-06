@@ -69,7 +69,8 @@ try {
   // Exercise the actual recording button, canvas.captureStream, MediaRecorder,
   // stop handler, and browser download—not just SDK playback.
   await page.locator("#record").click();
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Narration finished"), null, { timeout: 30000 });
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Recording."), null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Narration finished. Click"), null, { timeout: 30000 });
   if (!(await page.locator("#finish").isEnabled())) throw new Error("Recording did not enter the active state.");
   const downloadPromise = page.waitForEvent("download", { timeout: 30000 });
   await page.locator("#finish").click();
