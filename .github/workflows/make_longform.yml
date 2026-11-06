@@ -108,7 +108,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          FREE_ONLY_MODE: "1"\n          AI_VIDEO_ENABLED: "0"
+          FREE_ONLY_MODE: "1"
+          AI_VIDEO_ENABLED: "0"
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           REPLICATE_VIDEO_MODEL: ${{ vars.REPLICATE_VIDEO_MODEL }}
           REPLICATE_VIDEO_INPUT_JSON: ${{ vars.REPLICATE_VIDEO_INPUT_JSON }}
