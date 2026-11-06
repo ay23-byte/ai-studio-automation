@@ -346,6 +346,35 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 remaining = max(sec["_dur"] - actual_duration, 0.0)
                 scale = remaining / max(sum(durations), 0.001)
                 durations = [value * scale for value in durations]
+        elif presenter_enabled and presenter_mode == "talking_avatar":
+            # Use one pre-rendered browser avatar clip per chapter. The editor
+            # mutes source-video audio and keeps the continuous narration track.
+            from core.talking_avatar import find_section_clip, probe_duration
+            avatar_clip = find_section_clip(i + 1)
+            if avatar_clip is None:
+                raise FileNotFoundError(
+                    f"Talking Avatar clip missing for chapter {i + 1}. "
+                    "Create it in avatar_studio from this chapter's narration audio, "
+                    f"then save it as assets/presenter_clips/presenter_section_{i + 1:02d}.mp4 "
+                    "(or .webm). Set PRESENTER_MODE=talking_avatar."
+                )
+            actual_duration = probe_duration(avatar_clip)
+            if actual_duration <= 0 or actual_duration > sec["_dur"] + 0.75:
+                raise ValueError(
+                    f"Talking Avatar clip for chapter {i + 1} is {actual_duration:.2f}s, "
+                    f"but the chapter narration is {sec['_dur']:.2f}s. Recreate the clip "
+                    "from that chapter's exact narration audio so lip-sync stays aligned."
+                )
+            presenter_shot = dict(sec)
+            presenter_shot["title"] = sec.get("title", "")
+            presenter_shot["_start"] = shot_cursor
+            presenter_shot["_dur"] = actual_duration
+            presenter_shot["_media"] = {"type": "video", "path": str(avatar_clip)}
+            shot_timeline.append(presenter_shot)
+            shot_cursor += actual_duration
+            remaining = max(sec["_dur"] - actual_duration, 0.0)
+            scale = remaining / max(sum(durations), 0.001)
+            durations = [value * scale for value in durations]
         elif presenter_enabled and presenter_mode == "sadtalker":
             presenter_duration = min(6.0, max(2.0, sec["_dur"] * 0.22))
             presenter_clip = None
