@@ -285,3 +285,22 @@ python run.py long "How does a global oil shock affect India?" --category geopol
 ### CPU-friendly documentary presenter
 
 The long-form pipeline offers three presenter modes. `PRESENTER_MODE=sadtalker` creates actual audio-driven face and mouth animation from each chapter’s narration. GitHub Actions provisions SadTalker in a separate Python 3.8 environment, installs CPU PyTorch, and downloads the official pretrained checkpoints; the inference adapter uses 256px output and batch size 1 to fit a CPU runner. This avoids a GPU or paid avatar API, but CPU rendering can be extremely slow and may make long-form jobs exceed practical runtime limits. `PRESENTER_MODE=still_cpu` is the fast FFmpeg Ken Burns fallback and is **not lip-sync**. `PRESENTER_MODE=off` disables presenter shots. The GitHub Actions workflow defaults to `sadtalker`; select a different mode in the manual workflow form if needed. The male/female narration selection also chooses the corresponding portrait. Keep presenter images fictional/original or ensure you have permission to use them. See [the presenter asset specification](docs/PRESENTER_ASSET_SPEC.md) and [the documentary production standard](docs/DOCUMENTARY_CHANNEL_STANDARD.md).
+
+
+## Free browser-based talking 3D presenter
+
+The optional `avatar_studio/` companion uses the MIT-licensed [Talking Avatar SDK](https://github.com/InterviewFlowAI/talking-avatar). It includes built-in male and female 3D presenters and animates their mouths from a narration audio file in the browser. No avatar API key, account or paid avatar service is required.
+
+Start a local static server from the repository root:
+
+```powershell
+python -m http.server 8765
+```
+
+Open [http://localhost:8765/avatar_studio/](http://localhost:8765/avatar_studio/) in Chrome or Edge. Choose a presenter, upload narration, load the avatar, then use **Record avatar clip**. In the browser sharing prompt, select the current tab and enable tab audio. Stop and save the recording when narration finishes. The output is WebM; convert it to MP4 with FFmpeg:
+
+```powershell
+ffmpeg -y -i talking_presenter.webm -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k talking_presenter.mp4
+```
+
+This studio is a companion clip creator; it does not yet automatically replace every presenter shot in the main long-form pipeline. The SDK does not convert portrait photos into talking videos, and its lip-sync model is English-trained, so Hindi/Hinglish mouth shapes may be approximate. It animates the face (mouth, blinks and brows), not a full body. Browser recording requires a user permission step. Existing presenter modes remain unchanged.
