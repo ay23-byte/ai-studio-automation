@@ -25,9 +25,9 @@ on:
         options: [male, female]
         default: male
       presenter_mode:
-        description: "Presenter animation (SadTalker creates real audio-driven mouth movement; CPU is slower)"
+        description: "Presenter animation (Talking Avatar uses saved chapter clips; SadTalker is CPU-heavy)"
         type: choice
-        options: [sadtalker, still_cpu, off]
+        options: [talking_avatar, sadtalker, still_cpu, off]
         default: still_cpu
 
 permissions:

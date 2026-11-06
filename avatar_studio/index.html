@@ -131,7 +131,15 @@
       recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
       recorder.onerror=e=>{status("Recording error: "+(e.error?.message||"unknown error"));};
       recorder.onstop=()=>{
-        const blob=new Blob(chunks,{type:"video/webm"}),url=URL.createObjectURL(blob);
+        const blob=new Blob(chunks,{type:"video/webm"});
+        if(blob.size===0){
+          canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
+          canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
+          enable("record",true);enable("finish",false);enable("play",true);
+          status("Recording produced no media data. Check browser MediaRecorder support and try Chrome or Edge.");
+          return;
+        }
+        const url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download="talking_presenter.webm";a.click();
         setTimeout(()=>URL.revokeObjectURL(url),30000);
         canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
@@ -143,7 +151,13 @@
       status("Recording avatar and narration together…");
       await sourceAudio.play();
       sourceAudio.addEventListener("ended",()=>{
-        if(recorder?.state==="recording")recorder.stop();
+        // Allow the final video frame/audio packet to reach MediaRecorder before
+        // stopping. requestData() flushes the current segment; the short tail
+        // gives Chromium time to emit it before the final stop event.
+        if(recorder?.state==="recording"){
+          try{recorder.requestData();}catch(_){}
+          setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},350);
+        }
       },{once:true});
     }catch(error){
       canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
