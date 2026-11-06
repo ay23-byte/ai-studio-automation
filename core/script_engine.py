@@ -290,11 +290,12 @@ def validate_longform_storyboard(script: dict) -> dict:
     return script
 
 def _repair_longform_visual_anchors(script: dict) -> dict:
-    """Repair model-generated anchor typos/order mistakes using exact narration spans.
+    """Guarantee every visual anchor is an exact, chronological narration excerpt.
 
-    Visual prompts remain untouched. When a model fails to copy its anchors
-    verbatim, choose a short exact phrase from each chronological narration
-    segment so rendering can continue and shot timing remains deterministic.
+    Models sometimes paraphrase anchors or place them out of order. If any
+    anchor fails the same exact check used by the validator, rebuild the whole
+    chapter's anchor sequence from non-overlapping word ranges in narration.
+    Visual prompts and search keywords are deliberately left unchanged.
     """
     import re
 
@@ -304,58 +305,56 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
         if not narration or not isinstance(visuals, list) or not visuals:
             continue
 
-        # Split into word spans, then partition the narration into ordered,
-        # approximately equal regions (one region per visual beat).
-        words = list(re.finditer(r"\S+", narration))
-        if not words:
+        # First preserve a storyboard only if every anchor is an exact,
+        # forward-moving substring (same rule as validate_longform_storyboard).
+        cursor = 0
+        valid = True
+        for beat in visuals:
+            if not isinstance(beat, dict):
+                valid = False
+                break
+            anchor = str(beat.get("narration_anchor") or "").strip()
+            position = narration.casefold().find(anchor.casefold(), cursor) if anchor else -1
+            if position < 0:
+                valid = False
+                break
+            cursor = position + len(anchor)
+
+        if valid:
             continue
+
+        words = list(re.finditer(r"\S+", narration))
+        if len(words) < len(visuals):
+            raise ValueError(
+                f"Chapter {section_index} has fewer narration words than visual beats; "
+                "cannot create distinct chronological anchors."
+            )
+
+        # Split the narration into disjoint, chronological word ranges.
+        # A short exact excerpt from each range guarantees ordered anchors.
         count = len(visuals)
-        repaired = False
-        normalized_search_from = 0
         for beat_index, beat in enumerate(visuals):
             if not isinstance(beat, dict):
-                continue
-            anchor = str(beat.get("narration_anchor") or "").strip()
-            prompt = str(beat.get("visual_prompt") or "").strip()
-            keywords = beat.get("keywords")
-            if not prompt or not isinstance(keywords, list) or not any(str(k).strip() for k in keywords):
-                continue
+                raise ValueError(
+                    f"Chapter {section_index}, visual {beat_index + 1} must be a structured object."
+                )
+            lo = (beat_index * len(words)) // count
+            hi = ((beat_index + 1) * len(words)) // count
+            hi = max(lo + 1, hi)
+            phrase_words = min(8, hi - lo)
+            # Keep the anchor near the centre of its own range while retaining
+            # exact original punctuation and whitespace from the narration.
+            anchor_start = lo + max(0, (hi - lo - phrase_words) // 2)
+            anchor_end = anchor_start + phrase_words
+            beat["narration_anchor"] = narration[
+                words[anchor_start].start():words[anchor_end - 1].end()
+            ]
 
-            # Accept punctuation/whitespace differences before replacing a phrase.
-            def compact(value):
-                return re.sub(r"[^\w]+", " ", value.casefold(), flags=re.UNICODE).strip()
-
-            norm_text = compact(narration)
-            norm_anchor = compact(anchor)
-            # Require every accepted anchor to occur after the previous one.
-            if norm_anchor:
-                found_at = norm_text.find(norm_anchor, normalized_search_from)
-            else:
-                found_at = -1
-            if found_at >= 0:
-                normalized_search_from = found_at + len(norm_anchor)
-                continue
-
-            lo = round(beat_index * len(words) / count)
-            hi = round((beat_index + 1) * len(words) / count)
-            hi = max(lo + 1, min(hi, len(words)))
-            # Keep a concise, exact phrase from this beat's own narration region.
-            start = lo + max(0, (hi - lo - min(8, hi - lo)) // 2)
-            end = min(hi, start + min(8, hi - lo))
-            replacement = narration[words[start].start():words[end - 1].end()].strip(" ,;:—-")
-            if replacement:
-                beat["narration_anchor"] = replacement
-                repaired = True
-                replacement_norm = compact(replacement)
-                replacement_at = compact(narration).find(replacement_norm, normalized_search_from)
-                if replacement_at >= 0:
-                    normalized_search_from = replacement_at + len(replacement_norm)
-
-        if repaired:
-            print(
-                f"WARNING: Chapter {section_index} had inaccurate/out-of-order visual anchors. "
-                "Replaced them with exact chronological narration excerpts; review visual relevance."
-            )
+        print(
+            f"WARNING: Chapter {section_index} had inaccurate/out-of-order visual anchors. "
+            "Replaced all anchors with exact chronological narration excerpts; "
+            "visual prompt relevance still requires editorial review."
+        )
     return script
 
 
