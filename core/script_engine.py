@@ -381,7 +381,7 @@ def generate_longform_script(topic: str, category: str = "finance",
     # Free, keyless GDELT discovery adds recent-news leads to both current
     # affairs and evergreen documentaries. Failure is deliberately non-fatal.
     research_sources = research_topic(topic)
-    prompt += "\\n\\n" + format_research_context(research_sources)
+    prompt += "\n\n" + format_research_context(research_sources)
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
     script = _parse(_ask_gemini(prompt))
     script["format"] = "longform"
