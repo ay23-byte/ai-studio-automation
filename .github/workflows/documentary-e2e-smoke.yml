@@ -28,7 +28,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Verify preinstalled media tools
+      - name: Install FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+
+      - name: Verify FFmpeg installation
         run: |
           ffmpeg -version
           ffprobe -version
