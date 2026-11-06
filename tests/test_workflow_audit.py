@@ -1,0 +1,49 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from core.workflow_audit import (
+    audit_media_assets, audit_presenter_timing, audit_research,
+    audit_storyboard, build_workflow_report, save_workflow_report,
+)
+
+
+class WorkflowAuditTests(unittest.TestCase):
+    def test_claim_without_evidence_never_becomes_verified(self):
+        result = audit_research({"claims": [{"text": "A claim", "status": "verified"}]})
+        self.assertEqual(result["claims"][0]["status"], "needs_verification")
+        self.assertFalse(result["fact_check_complete"])
+
+    def test_claim_with_linked_evidence_is_pending_editor_review(self):
+        result = audit_research({
+            "sources": [{"id": "s1", "url": "https://example.org", "title": "Example"}],
+            "claims": [{"text": "Claim", "status": "verified", "source_ids": ["s1"], "evidence": "Relevant excerpt"}],
+        })
+        self.assertEqual(result["claims"][0]["status"], "source_supported_pending_editor_review")
+
+    def test_storyboard_detects_missing_narration_and_overlap(self):
+        result = audit_storyboard([
+            {"scene_number": 1, "narration": "First", "visual_prompt": "A lab", "start_seconds": 0, "end_seconds": 5},
+            {"scene_number": 2, "narration": "", "visual_prompt": "A city", "start_seconds": 4, "end_seconds": 8},
+        ])
+        self.assertTrue(any("overlap" in x["message"] for x in result["issues"]))
+        self.assertTrue(any("narration" in x["message"] for x in result["issues"]))
+
+    def test_media_requires_provenance_and_licence_review(self):
+        result = audit_media_assets([{"scene_number": 1, "provider": "Archive", "page_url": "https://example.org"}], [1, 2])
+        self.assertEqual(result["missing_scenes"], [2])
+        self.assertFalse(result["publication_ready"])
+
+    def test_presenter_duration_does_not_claim_lipsync(self):
+        result = audit_presenter_timing([{"narration_duration_seconds": 10, "presenter_duration_seconds": 10}])
+        self.assertFalse(result["lip_sync_verified"])
+
+    def test_combined_report_can_be_saved(self):
+        report = build_workflow_report({}, [], [], [])
+        with tempfile.TemporaryDirectory() as folder:
+            path = save_workflow_report(report, Path(folder) / "audit.json")
+            self.assertTrue(path.is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()
