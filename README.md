@@ -175,7 +175,7 @@ Generated Content Lab results are also saved locally under `output/content_lab/`
 
 ### Expanded documentary footage libraries
 
-When a scene has no suitable Pixabay result, the renderer can search additional public libraries in this order: Pexels (optional `PEXELS_API_KEY`), NASA Image and Video Library, Wikimedia Commons, and Internet Archive. NASA, Wikimedia Commons and Internet Archive discovery do not require a paid account. Pexels requires an API key and availability is subject to the provider's account/API limits. Add `PEXELS_API_KEY` to your local `.env` or GitHub Actions repository secrets to enable it.
+When a scene has no suitable Pixabay result, the renderer can search additional public libraries in this order: NASA Image and Video Library, Wikimedia Commons, and Internet Archive. NASA, Wikimedia Commons and Internet Archive discovery do not require a paid account. 
 
 For Wikimedia Commons, the asset's file-specific licence and attribution are captured in a `.source.json` sidecar. Other providers also receive a provenance sidecar with the asset page and rights-review link where available. **A search result is not automatically cleared for commercial reuse**: review each asset's rights statement, third-party credits, attribution and any restrictions before publishing. Internet Archive contains material with differing rights status; do not assume every item is public domain. NASA media can also contain third-party material or identifiable people/trademarks, so check item guidance.
 
