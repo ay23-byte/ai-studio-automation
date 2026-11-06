@@ -172,6 +172,19 @@ Open the local dashboard and select **🧠 Content lab**.
 
 Generated Content Lab results are also saved locally under `output/content_lab/`. Gemini API access is required for these AI features.
 
+
+### Long-form visual fallback order
+
+In the default `video_first` mode, each B-roll beat now tries these sources in order:
+
+1. Relevant Pixabay stock video (requires `PIXABAY_API_KEY`).
+2. Optional Replicate text-to-video generation (requires `AI_VIDEO_ENABLED=1`, `REPLICATE_API_TOKEN`, and `REPLICATE_VIDEO_MODEL=owner/model`).
+3. Existing generated-image fallback (Cloudflare Workers AI, then Pollinations).
+
+AI video is **off by default**. The code does not enable it just because a token exists. Replicate model input fields differ, so the default request uses `prompt`, `duration=5`, and `aspect_ratio=16:9`; set `REPLICATE_VIDEO_INPUT_JSON` to a JSON object matching the chosen model's documented input schema when needed. The prompt field is replaced with the scene prompt. The provider is polled until completion (up to `AI_VIDEO_TIMEOUT_SECONDS`) and the downloaded file is checked with ffprobe before it enters the edit. Set `AI_VIDEO_ENABLED=0` to disable it.
+
+**Cost warning:** Replicate is not a guaranteed free service or free-credit entitlement. Only enable this fallback after checking your account's current credits and the selected model's pricing. A configured API token may incur charges when predictions run. The workflow does not claim that free credits are available.
+
 ## API keys and when they are needed
 
 | Variable | Purpose | Required when |
@@ -180,6 +193,7 @@ Generated Content Lab results are also saved locally under `output/content_lab/`
 | `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS` | Primary model and comma-separated fallback model IDs | Optional; defaults are provided. Temporary 503 outages can still affect all providers/models simultaneously. |
 | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Cloudflare Workers AI image generation | Using Cloudflare image generation; optional if fallback works |
 | `PIXABAY_API_KEY` | Search for stock video clips at [Pixabay API](https://pixabay.com/api/docs/) | Optional stock-footage source |
+| `AI_VIDEO_ENABLED`, `REPLICATE_API_TOKEN`, `REPLICATE_VIDEO_MODEL` | Optional Replicate text-to-video fallback | Only when explicitly enabled and configured; model usage may cost money |
 | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | YouTube Data API OAuth credentials | Uploading to YouTube |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Telegram build/upload/failure notifications | Optional |
 | `PUBLISH_AT_IST` | Scheduled YouTube publishing time in 24-hour IST format, e.g. `19:00` | Optional |
@@ -201,6 +215,7 @@ To enable cloud builds, open **GitHub → repository → Settings → Secrets an
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
 - `PIXABAY_API_KEY`
+- `REPLICATE_API_TOKEN` (optional; only if you enable AI video and have checked available credits)
 - `YT_CLIENT_ID`
 - `YT_CLIENT_SECRET`
 - `YT_REFRESH_TOKEN`

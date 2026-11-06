@@ -107,6 +107,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          AI_VIDEO_ENABLED: ${{ vars.AI_VIDEO_ENABLED }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          REPLICATE_VIDEO_MODEL: ${{ vars.REPLICATE_VIDEO_MODEL }}
+          REPLICATE_VIDEO_INPUT_JSON: ${{ vars.REPLICATE_VIDEO_INPUT_JSON }}
+          AI_VIDEO_TIMEOUT_SECONDS: "480"
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
