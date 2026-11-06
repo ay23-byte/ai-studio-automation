@@ -424,18 +424,34 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                       "Photorealistic premium 16:9 B-roll, clear focal subject, realistic lighting, "
                       "no text, labels, watermarks or logos. Narration anchor: " + beat.get("anchor", "") +
                       ". Visual direction: " + beat["prompt"])
-            if generate_image(prompt, img_p):
-                shot["_media"] = {"type": "image", "path": str(img_p)}
-            else:
-                clip_p = bd / f"lraw{i}_{j}.mp4"
-                kws = beat["keywords"] or sec.get("keywords", ["documentary"])
+            clip_p = bd / f"lraw{i}_{j}.mp4"
+            kws = beat["keywords"] or sec.get("keywords", ["documentary"])
+            visual_mode = os.getenv("LONGFORM_VISUAL_MODE", "video_first").strip().lower()
+            if visual_mode not in {"video_first", "image_first"}:
+                raise ValueError("LONGFORM_VISUAL_MODE must be video_first or image_first.")
+            # Long-form documentaries should use moving B-roll by default.
+            # Images remain a fallback when no relevant stock clip is found.
+            if visual_mode == "video_first":
                 if fetch_clip(kws, clip_p, used_ids):
+                    shot["_media"] = {"type": "video", "path": str(clip_p)}
+                    print(f"  long-form visual {i+1}.{j+1}: stock video")
+                elif generate_image(prompt, img_p):
+                    shot["_media"] = {"type": "image", "path": str(img_p)}
+                    print(f"  long-form visual {i+1}.{j+1}: generated image fallback")
+                else:
+                    raise RuntimeError(
+                        f"No scene-matched video or image was available for long-form chapter {i+1}, beat {j+1}. "
+                        "Configure PIXABAY_API_KEY and an image provider; refusing unrelated filler."
+                    )
+            else:
+                if generate_image(prompt, img_p):
+                    shot["_media"] = {"type": "image", "path": str(img_p)}
+                elif fetch_clip(kws, clip_p, used_ids):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                 else:
                     raise RuntimeError(
                         f"No scene-matched visual was available for long-form chapter {i+1}, beat {j+1}. "
-                        "Image generation and relevant stock search both failed; refusing to insert unrelated footage. "
-                        "Retry later or configure a working image provider/Pixabay key."
+                        "Image generation and relevant stock search both failed; refusing unrelated footage."
                     )
             shot_timeline.append(shot)
 
