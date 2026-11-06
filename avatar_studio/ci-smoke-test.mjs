@@ -50,10 +50,13 @@ try {
 
   // Exercise the actual recording button, canvas.captureStream, MediaRecorder,
   // stop handler, and browser download—not just SDK playback.
+  // Arm the download listener before recording starts: the app triggers the
+  // download synchronously inside MediaRecorder.onstop, before the status text
+  // is updated. Waiting for the status first misses the one-time download event.
+  const downloadPromise = page.waitForEvent("download", { timeout: 45000 });
   await page.locator("#record").click();
   await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Recording avatar and narration together"), null, { timeout: 15000 });
   await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Saved talking_presenter.webm"), null, { timeout: 30000 });
-  const downloadPromise = page.waitForEvent("download", { timeout: 30000 });
   const download = await downloadPromise;
   const recordingPath = path.join(outputDir, "talking_presenter.webm");
   await download.saveAs(recordingPath);
