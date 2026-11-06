@@ -5,9 +5,10 @@ Usage:
 """
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from core.workflow_audit import build_workflow_report, save_workflow_report
+# When executed as `python scripts/audit_documentary.py`, Python places the\n# scripts directory (not the repository root) on sys.path. Add the root so\n# the sibling `core` package is importable in GitHub Actions and local runs.\nREPOSITORY_ROOT = Path(__file__).resolve().parents[1]\nif str(REPOSITORY_ROOT) not in sys.path:\n    sys.path.insert(0, str(REPOSITORY_ROOT))\n\nfrom core.workflow_audit import build_workflow_report, save_workflow_report
 
 
 def main():
