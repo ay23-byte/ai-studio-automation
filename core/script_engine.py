@@ -323,7 +323,7 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
         if valid:
             continue
 
-        words = list(re.finditer(r"\\S+", narration))
+        words = list(re.finditer(r"\S+", narration))
         if len(words) < len(visuals):
             raise ValueError(
                 f"Chapter {section_index} has fewer narration words than visual beats; "
