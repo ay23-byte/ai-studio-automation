@@ -161,16 +161,6 @@ This prevents known sources of obvious mismatch, but it cannot guarantee that an
 
 The GitHub Actions long-form workflow automatically selects the matching presenter portrait when you choose the narration voice: **male** uses `assets/presenter/presenter_master.png`, and **female** uses `assets/presenter/presenter_female.png`. Choose `talking_avatar` to insert browser-recorded, audio-synchronized 3D avatar clips for each chapter, `sadtalker` for audio-driven facial animation generated on the runner, `still_cpu` for a lightweight moving portrait, or `off` to disable the presenter. For `talking_avatar`, add one clip per chapter to `assets/presenter_clips/` in the repository before starting the workflow. Name them `presenter_section_01.mp4`, `presenter_section_02.mp4`, and so on. The browser Studio creates WebM; convert each clip to MP4 with FFmpeg before committing for the most reliable GitHub Actions rendering. The clips must match the chapter narration and must not exceed that chapter's narration duration. The workflow runner cannot access files left only on your personal computer. SadTalker runs in a separate Python 3.8 CPU environment on the standard GitHub runner and downloads its pretrained checkpoints during setup. CPU inference can be very slow for a 10–15 minute documentary; it may take substantially longer than the narration itself. The output is a talking-head animation, not a guarantee of perfect phoneme-level synchronization or broadcast-quality realism. Review the rendered video before publishing.
 
-## Free-first documentary research and visual workflow
-
-Long-form generation now performs one lightweight, keyless GDELT DOC 2.0 search for recent coverage of the topic (last 7 days). Returned article titles, publishers, dates and URLs are saved as `research_sources` in the generated script JSON and supplied to the script model as **research leads**. They are not independently verified facts: the script must flag claims needing verification, and the creator should open the sources before publishing. If GDELT is unavailable, generation continues without live-news references. Historical/evergreen documentaries still use the same workflow; recent coverage is supplementary, not a replacement for books, primary documents or specialist sources.
-
-The free-first visual order remains scene-specific Pixabay footage (when `PIXABAY_API_KEY` is configured), then generated still images through configured Cloudflare/Pollinations providers. The existing narration-anchored storyboard assigns each visual to a specific passage and the renderer times shots against those anchors. This improves relevance but does not guarantee semantic perfection; inspect the export. No news-broadcast footage is downloaded or reused by GDELT: it discovers article references only. Use footage only when its licence permits your intended use.
-
-The GitHub Actions long-form workflow now sets `FREE_ONLY_MODE=1` and disables the Replicate video call. This prevents unexpected paid text-to-video predictions. AI-generated video is not part of the strict-free workflow. If no matching stock clip is available, the pipeline uses a generated image fallback. Free-provider availability, quotas and terms can change; Pixabay's published API documentation describes its standard API as free with rate limits and attribution guidance, while API-key issuance may be paused at times: [Pexels is not used by this workflow](https://www.pexels.com/api/).
-
-GDELT reference: [GDELT Project](https://www.gdeltproject.org/). Stock-video API: [Pixabay API](https://pixabay.com/api/docs/). Always review source dates, credibility, licensing and visual relevance before publication.
-
 ## Content Lab (Phase 3)
 
 Open the local dashboard and select **🧠 Content lab**.
@@ -182,6 +172,16 @@ Open the local dashboard and select **🧠 Content lab**.
 
 Generated Content Lab results are also saved locally under `output/content_lab/`. Gemini API access is required for these AI features.
 
+
+### Expanded documentary footage libraries
+
+When a scene has no suitable Pixabay result, the renderer can search additional public libraries in this order: Pexels (optional `PEXELS_API_KEY`), NASA Image and Video Library, Wikimedia Commons, and Internet Archive. NASA, Wikimedia Commons and Internet Archive discovery do not require a paid account. Pexels requires an API key and availability is subject to the provider's account/API limits. Add `PEXELS_API_KEY` to your local `.env` or GitHub Actions repository secrets to enable it.
+
+For Wikimedia Commons, the asset's file-specific licence and attribution are captured in a `.source.json` sidecar. Other providers also receive a provenance sidecar with the asset page and rights-review link where available. **A search result is not automatically cleared for commercial reuse**: review each asset's rights statement, third-party credits, attribution and any restrictions before publishing. Internet Archive contains material with differing rights status; do not assume every item is public domain. NASA media can also contain third-party material or identifiable people/trademarks, so check item guidance.
+
+Mixkit is listed as a manual research source only because it does not expose a supported public stock-video search API. The project intentionally does not scrape its website or bypass access controls. Browse [Mixkit free stock video](https://mixkit.co/free-stock-video/) and manually add only clips whose licence permits your intended use.
+
+All discovered clips are downloaded only after HTTPS checks and validated with FFprobe for minimum file size, duration and resolution. If no real clip is found, the existing generated-image fallback remains available. The engine does not guarantee a real video for every narration beat, and it does not download copyrighted news-broadcast footage from YouTube, AP, Reuters or other broadcasters.
 
 ### Long-form visual fallback order
 
