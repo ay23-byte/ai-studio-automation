@@ -346,18 +346,21 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 remaining = max(sec["_dur"] - actual_duration, 0.0)
                 scale = remaining / max(sum(durations), 0.001)
                 durations = [value * scale for value in durations]
-        elif presenter_enabled and presenter_mode == "sadtalker":
+        elif presenter_enabled and presenter_mode in {"sadtalker", "openvino"}:
             presenter_duration = min(6.0, max(2.0, sec["_dur"] * 0.22))
             presenter_clip = None
             try:
-                from core.presenter import generate_section_presenter
+                if presenter_mode == "openvino":
+                    from core.presenter_openvino import generate_section_presenter
+                else:
+                    from core.presenter import generate_section_presenter
                 presenter_clip = generate_section_presenter(
                     voice_path, sec["_start"], presenter_duration, i + 1, bd
                 )
             except Exception as exc:
-                # Presenter animation is an enhancement, not a reason to lose
-                # an otherwise complete documentary render.
-                print(f"WARNING: SadTalker failed for chapter {i + 1}: {exc}")
+                # Presenter animation is optional; never lose a complete documentary
+                # because an optional model/runtime is unavailable.
+                print(f"WARNING: {presenter_mode} presenter failed for chapter {i + 1}: {exc}")
                 print("Falling back to the CPU still-image presenter.")
                 try:
                     from core.presenter_scene import render_presenter_scene
@@ -382,7 +385,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 scale = remaining / max(sum(durations), 0.001)
                 durations = [value * scale for value in durations]
         elif presenter_enabled and presenter_mode not in {"still_cpu", "off", "none"}:
-            raise ValueError(f"Unsupported PRESENTER_MODE: {presenter_mode}. Use still_cpu, sadtalker, or off.")
+            raise ValueError(
+                f"Unsupported PRESENTER_MODE: {presenter_mode}. "
+                "Use still_cpu, sadtalker, openvino, or off."
+            )
         for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""

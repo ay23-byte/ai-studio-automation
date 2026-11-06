@@ -1,0 +1,4 @@
+# Optional Intel GPU runtime for local Windows presenter inference.
+# Install inside the dedicated Python 3.11+ environment:
+#   python -m pip install -r requirements-intel.txt
+openvino>=2024.0
