@@ -32,24 +32,6 @@ const errors = [];
 page.on("pageerror", error => errors.push(error.message));
 page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
 
-// GitHub's headless browser cannot show the real screen-share picker. Supply a
-// synthetic tab-audio stream so the production MediaRecorder path is exercised.
-await page.addInitScript(() => {
-  navigator.mediaDevices.getDisplayMedia = async () => {
-    const audioContext = new AudioContext();
-    await audioContext.resume();
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    const destination = audioContext.createMediaStreamDestination();
-    oscillator.frequency.value = 220;
-    gain.gain.value = 0.08;
-    oscillator.connect(gain).connect(destination);
-    oscillator.start();
-    window.__avatarTestAudio = { audioContext, oscillator };
-    return new MediaStream(destination.stream.getAudioTracks());
-  };
-});
-
 try {
   const response = await page.goto("http://127.0.0.1:8765/avatar_studio/", { waitUntil: "networkidle", timeout: 90000 });
   if (!response?.ok()) throw new Error(`Studio page returned HTTP ${response?.status()}`);
@@ -68,12 +50,13 @@ try {
 
   // Exercise the actual recording button, canvas.captureStream, MediaRecorder,
   // stop handler, and browser download—not just SDK playback.
+  // Arm the download listener before recording starts: the app triggers the
+  // download synchronously inside MediaRecorder.onstop, before the status text
+  // is updated. Waiting for the status first misses the one-time download event.
+  const downloadPromise = page.waitForEvent("download", { timeout: 45000 });
   await page.locator("#record").click();
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Recording."), null, { timeout: 15000 });
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Narration finished. Click"), null, { timeout: 30000 });
-  if (!(await page.locator("#finish").isEnabled())) throw new Error("Recording did not enter the active state.");
-  const downloadPromise = page.waitForEvent("download", { timeout: 30000 });
-  await page.locator("#finish").click();
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Recording avatar and narration together"), null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Saved talking_presenter.webm"), null, { timeout: 30000 });
   const download = await downloadPromise;
   const recordingPath = path.join(outputDir, "talking_presenter.webm");
   await download.saveAs(recordingPath);
@@ -101,7 +84,9 @@ try {
     // Verify actual decoding and playback progress instead of requiring duration.
     await video.play();
     await new Promise(resolve => setTimeout(resolve, 700));
+    const audioTracks = video.captureStream().getAudioTracks().length;
     const result = {
+      audioTracks,
       duration: Number.isFinite(video.duration) ? video.duration : null,
       durationReportedByContainer: Number.isFinite(video.duration),
       currentTime: video.currentTime,
@@ -110,7 +95,7 @@ try {
       readyState: video.readyState
     };
     video.pause();
-    if (result.currentTime <= 0 || result.readyState < 2) {
+    if (result.currentTime <= 0 || result.readyState < 2 || result.audioTracks < 1) {
       throw new Error("Downloaded WebM did not decode and advance during playback: " + JSON.stringify(result));
     }
     return result;
@@ -122,7 +107,7 @@ try {
   await page.screenshot({ path: path.join(outputDir, "avatar-preview.png"), fullPage: true });
   fs.writeFileSync(path.join(outputDir, "browser-console-errors.json"), JSON.stringify(errors, null, 2));
   if (errors.length) throw new Error("Browser console errors: " + errors.join("\\n"));
-  console.log("PASS: SDK loaded, avatar rendered, narration played, MediaRecorder recorded the canvas, and a playable WebM downloaded.");
+  console.log("PASS: SDK loaded, avatar rendered, captured narration drove lip-sync, and MediaRecorder exported playable WebM containing video and audio.");
   console.log("Canvas:", JSON.stringify(canvasSize));
   console.log("Recording:", JSON.stringify({ bytes: recordingBytes, ...decoded }));
 } catch (error) {

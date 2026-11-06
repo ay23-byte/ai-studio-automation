@@ -30,9 +30,9 @@ ffmpeg -y -i talking_presenter.webm -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 
 
 - This is a 3D avatar studio, not a photo-to-video system.
 - The SDK does not provide direct MP4 export. Browser recording creates WebM; FFmpeg converts it.
-- The SDK animates face/mouth, blinks and brows; it does not animate a full body.
+- The SDK animates face/mouth, blinks and brows; it does not animate a full body. The studio feeds the narration audio stream into the SDK `attachStream()` API and records that same source audio alongside the avatar canvas.
 - The lip-sync model is English-trained. Hindi/Hinglish can work, but mouth shapes may be approximate.
-- Browser recording requires a user permission step and tab audio capture. Keep the tab visible.
+- Automatic audio capture uses the browser media element `captureStream()` API; use a current Chromium-based browser such as Chrome or Edge. Keep the studio tab visible while recording.
 - This companion studio creates a presenter clip from an audio file; it does not yet automatically replace every presenter shot inside the main long-form pipeline. The existing `still_cpu` and `sadtalker` modes remain unchanged and safe.
 
 ## License and privacy
