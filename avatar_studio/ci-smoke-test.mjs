@@ -5,7 +5,7 @@ import path from "node:path";
 const outputDir = "avatar_studio/test-results";
 fs.mkdirSync(outputDir, { recursive: true });
 
-function makeWav(seconds = 2, sampleRate = 16000) {
+function makeWav(seconds = 5, sampleRate = 16000) {
   const samples = Math.floor(seconds * sampleRate);
   const buffer = Buffer.alloc(44 + samples * 2);
   buffer.write("RIFF", 0); buffer.writeUInt32LE(36 + samples * 2, 4);
