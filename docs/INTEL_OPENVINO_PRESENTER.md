@@ -24,6 +24,17 @@ python -c "from openvino import Core; print(Core().available_devices)"
 
 Expected on a correctly configured Iris Xe system: `CPU` and `GPU`. If `GPU` is absent, update the Intel graphics driver and verify OpenVINO's Windows GPU plugin prerequisites.
 
+## Verify real GPU inference first
+
+After installing OpenVINO, run the repository smoke test from the project root:
+
+```powershell
+conda activate presenter
+python scripts/test_openvino_device.py --device GPU
+```
+
+A successful result must show `Compiled device: ['GPU']` (or the device reported by the runtime), the expected output `[[0.0, 2.0, 0.0]]`, and `SUCCESS`. Seeing `GPU` in `available_devices` alone only proves device discovery; this test also compiles and executes a graph. It does not yet prove that a face-animation model can run.
+
 ## Renderer contract
 
 Set these environment variables in the local `.env` file (do not commit secrets):
