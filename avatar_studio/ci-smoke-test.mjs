@@ -80,18 +80,6 @@ try {
   if (recordingBytes < 1000) throw new Error(`Recording file is unexpectedly small: ${recordingBytes} bytes.`);
 
   // Confirm the downloaded WebM is parseable and has a non-zero duration.
-  const metadata = await page.evaluate(async url => {
-    const video = document.createElement("video");
-    video.src = url;
-    await new Promise((resolve, reject) => {
-      video.onloadedmetadata = resolve;
-      video.onerror = () => reject(new Error("Downloaded WebM could not be decoded by Chromium."));
-    });
-    return { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
-  }, await page.evaluate(async () => {
-    const response = await fetch("/avatar_studio/test-results/talking_presenter.webm").catch(() => null);
-    return response ? URL.createObjectURL(await response.blob()) : "";
-  }).catch(() => ""));
   // The recording is downloaded by Playwright rather than served by the app;
   // validate its container with Chromium by loading the saved bytes as a data URL.
   const webmBase64 = fs.readFileSync(recordingPath).toString("base64");
