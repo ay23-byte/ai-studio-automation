@@ -1,12 +1,11 @@
 """Free-first documentary footage discovery from public media libraries.
 
-Pexels requires PEXELS_API_KEY. NASA, Wikimedia Commons and Internet Archive
-are searched without a paid account. Every asset is validated with ffprobe and
+NASA, Wikimedia Commons and Internet Archive
+are searched without an API key or paid account. Every asset is validated with ffprobe and
 a JSON provenance sidecar is written beside the downloaded clip. Search results
 are leads: review the asset-specific licence/credit before publishing.
 """
 import json
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -70,30 +69,6 @@ def _download(url, path, metadata):
         path.unlink(missing_ok=True)
         print(f"  footage download failed: {exc}")
         return False
-
-
-def _pexels(query):
-    key = os.getenv("PEXELS_API_KEY", "").strip()
-    if not key:
-        return []
-    data = _get_json("https://api.pexels.com/videos/search",
-                     {"query": query, "per_page": 12, "orientation": "landscape"},
-                     {"Authorization": key})
-    results = []
-    for video in (data or {}).get("videos", []):
-        files = sorted(video.get("video_files", []),
-                       key=lambda f: (f.get("width", 0) * f.get("height", 0)),
-                       reverse=True)
-        for item in files:
-            if item.get("link") and item.get("width", 0) >= 640:
-                results.append((item["link"], {
-                    "provider": "Pexels", "asset_id": video.get("id"),
-                    "page_url": video.get("url"), "creator": (video.get("user") or {}).get("name"),
-                    "licence_url": "https://www.pexels.com/license/",
-                    "query": query, "licence_status": "Review Pexels licence and attribution requirements"
-                }))
-                break
-    return results
 
 
 def _nasa(query):
@@ -174,7 +149,7 @@ def _internet_archive(query):
 def fetch_documentary_clip(keywords, path, used_ids=None):
     """Try free libraries in order; return True only for a validated video."""
     used_ids = used_ids if used_ids is not None else set()
-    providers = (_pexels, _nasa, _wikimedia, _internet_archive)
+    providers = (_nasa, _wikimedia, _internet_archive)
     for query in keywords:
         query = str(query).strip()
         if not query:
