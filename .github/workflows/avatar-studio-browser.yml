@@ -23,9 +23,8 @@ jobs:
           node-version: "20"
       - name: Install Playwright Chromium
         run: |
-          npm init -y
           npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Start local static server
         run: |
           python3 -m http.server 8765 > /tmp/avatar-server.log 2>&1 &
