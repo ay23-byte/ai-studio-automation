@@ -134,8 +134,11 @@ def generate_ai_video(prompt, path):
 
     try:
         raw_input = os.getenv("REPLICATE_VIDEO_INPUT_JSON", "").strip()
+        # MiniMax H3 Lite's documented text-to-video input requires only
+        # the prompt. Keep model-specific optional fields out of the default
+        # request; users can add supported fields through the JSON setting.
         model_input = json.loads(raw_input) if raw_input else {
-            "prompt": prompt[:1800], "duration": 5, "aspect_ratio": "16:9"
+            "prompt": prompt[:1800]
         }
         if not isinstance(model_input, dict):
             raise ValueError("REPLICATE_VIDEO_INPUT_JSON must be a JSON object.")
