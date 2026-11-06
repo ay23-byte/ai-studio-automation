@@ -89,6 +89,15 @@ def fetch_clip(keywords, path, used):
                 if path.stat().st_size > 50_000:
                     used.add(h.get("id")); print(f"  clip ok (pixabay '{q}')"); return True
             except Exception as e: print(f"  clip download: {e}")
+    # Expand beyond Pixabay when it has no usable scene match. These public
+    # libraries are searched without requiring a paid provider; Pexels is
+    # enabled only when its optional API key is configured.
+    try:
+        from core.footage_sources import fetch_documentary_clip
+        if fetch_documentary_clip(keywords, path, used):
+            return True
+    except Exception as exc:
+        print(f"  additional footage sources unavailable: {exc}")
     return False
 
 

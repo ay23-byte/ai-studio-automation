@@ -173,6 +173,16 @@ Open the local dashboard and select **🧠 Content lab**.
 Generated Content Lab results are also saved locally under `output/content_lab/`. Gemini API access is required for these AI features.
 
 
+### Expanded documentary footage libraries
+
+When a scene has no suitable Pixabay result, the renderer can search additional public libraries in this order: Pexels (optional `PEXELS_API_KEY`), NASA Image and Video Library, Wikimedia Commons, and Internet Archive. NASA, Wikimedia Commons and Internet Archive discovery do not require a paid account. Pexels requires an API key and availability is subject to the provider's account/API limits. Add `PEXELS_API_KEY` to your local `.env` or GitHub Actions repository secrets to enable it.
+
+For Wikimedia Commons, the asset's file-specific licence and attribution are captured in a `.source.json` sidecar. Other providers also receive a provenance sidecar with the asset page and rights-review link where available. **A search result is not automatically cleared for commercial reuse**: review each asset's rights statement, third-party credits, attribution and any restrictions before publishing. Internet Archive contains material with differing rights status; do not assume every item is public domain. NASA media can also contain third-party material or identifiable people/trademarks, so check item guidance.
+
+Mixkit is listed as a manual research source only because it does not expose a supported public stock-video search API. The project intentionally does not scrape its website or bypass access controls. Browse [Mixkit free stock video](https://mixkit.co/free-stock-video/) and manually add only clips whose licence permits your intended use.
+
+All discovered clips are downloaded only after HTTPS checks and validated with FFprobe for minimum file size, duration and resolution. If no real clip is found, the existing generated-image fallback remains available. The engine does not guarantee a real video for every narration beat, and it does not download copyrighted news-broadcast footage from YouTube, AP, Reuters or other broadcasters.
+
 ### Long-form visual fallback order
 
 In the default `video_first` mode, each B-roll beat now tries these sources in order:
