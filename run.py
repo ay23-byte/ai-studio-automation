@@ -104,7 +104,7 @@ def cmd_long(args):
 
 
 def cmd_upload(args):
-    from core.uploader import upload, add_to_playlist, post_comment
+    from core.uploader import upload, add_to_playlist, post_comment, set_video_thumbnail
     from core.db import get_conn
     conn = get_conn()
     row = conn.execute("SELECT * FROM videos WHERE id=?", (args.id,)).fetchone()
@@ -118,6 +118,19 @@ def cmd_upload(args):
     print(f"Uploading: {title}")
     vid = upload(Path(row["video_path"]), title, desc, seo["tags"])
     update_video(args.id, youtube_id=vid, status="uploaded")
+
+    # Apply the first automatically generated custom thumbnail after upload.
+    # Thumbnail failures must not invalidate an otherwise successful video upload.
+    thumbnail_path = row.get("thumb_path")
+    if thumbnail_path:
+        try:
+            set_video_thumbnail(vid, Path(thumbnail_path))
+            print(f"Custom thumbnail applied: {thumbnail_path}")
+        except Exception as e:
+            print(f"WARNING: Video uploaded, but custom thumbnail could not be applied: {e}")
+    else:
+        print("WARNING: No generated thumbnail is recorded for this video.")
+
     cat_info = {"finance":"Finance Explained | Power Codex", "markets":"Share Market | Power Codex"}
     playlist = cat_info.get(row.get("category",""), "Power Codex")
     try: add_to_playlist(vid, playlist)
