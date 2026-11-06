@@ -1,0 +1,115 @@
+name: Documentary end-to-end smoke test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/workflow_audit.py"
+      - "core/quality.py"
+      - "scripts/audit_documentary.py"
+      - "tests/test_workflow_audit.py"
+      - ".github/workflows/documentary-e2e-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  documentary-smoke:
+    name: Build sample MP4 and audit the complete hand-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system media tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip Pillow
+
+      - name: Compile and run audit unit tests
+        run: |
+          python -m py_compile core/workflow_audit.py core/quality.py scripts/audit_documentary.py
+          python -m unittest discover -s tests -p "test_workflow_audit.py" -v
+
+      - name: Generate deterministic sample documentary media
+        run: |
+          mkdir -p output/sample_media
+          ffmpeg -y -f lavfi -i "color=c=navy:s=1280x720:r=24:d=8" -f lavfi -i "sine=frequency=440:duration=8" -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac output/sample_media/smoke_documentary.mp4
+          cat > output/sample_media/subtitles.ass <<'EOF'
+          [Script Info]
+          ScriptType: v4.00+
+          PlayResX: 1280
+          PlayResY: 720
+          [V4+ Styles]
+          Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+          Style: Default,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,1,2,0,2,20,20,30,1
+          [Events]
+          Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+          Dialogue: 0,0:00:00.00,0:00:07.00,Default,,0,0,0,,Sample documentary smoke test
+          EOF
+          cat > output/sample_media/audit_input.json <<'EOF'
+          {
+            "research": {
+              "sources": [
+                {"id": "demo-source", "title": "Smoke-test fixture", "publisher": "CI fixture", "url": "https://example.org/source", "published_at": "2026-01-01"}
+              ],
+              "claims": [
+                {"id": "demo-claim", "text": "This is a synthetic test claim, not a factual documentary claim.", "status": "needs_verification", "source_ids": ["demo-source"], "evidence": "Synthetic fixture evidence for testing only."}
+              ]
+            },
+            "scenes": [
+              {"scene_number": 1, "narration": "This is a synthetic narration anchor.", "visual_prompt": "A simple navy sample frame for CI testing.", "start_seconds": 0, "end_seconds": 8}
+            ],
+            "assets": [],
+            "chapters": [
+              {"chapter": 1, "narration_duration_seconds": 8, "presenter_duration_seconds": 8}
+            ]
+          }
+          EOF
+
+      - name: Run full workflow audit against sample MP4
+        run: |
+          python scripts/audit_documentary.py             --input output/sample_media/audit_input.json             --video output/sample_media/smoke_documentary.mp4             --subtitles output/sample_media/subtitles.ass             --output output/sample_media/workflow_audit.json
+
+      - name: Verify report and media outputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("output/sample_media/workflow_audit.json").read_text())
+          video = report["video"]
+          assert video is not None, "MP4 inspection did not run"
+          assert video["metrics"]["has_video"], "No video stream detected"
+          assert video["metrics"]["has_audio"], "No audio stream detected"
+          assert video["metrics"]["duration_seconds"] >= 7, "Sample video duration is too short"
+          assert video["metrics"]["subtitles"]["exists"], "Subtitle file was not inspected"
+          assert report["research"]["fact_check_complete"] is False
+          assert report["presenter"]["lip_sync_verified"] is False
+          print(json.dumps({
+              "video_status": video["status"],
+              "video_score": video["score"],
+              "duration_seconds": video["metrics"]["duration_seconds"],
+              "has_audio": video["metrics"]["has_audio"],
+              "has_video": video["metrics"]["has_video"],
+              "subtitle_events": video["metrics"]["subtitles"]["dialogue_events"],
+              "audit_summary": report["summary"]
+          }, indent=2))
+          PY
+
+      - name: Upload smoke-test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentary-e2e-smoke-evidence
+          path: output/sample_media/
+          if-no-files-found: error
+          retention-days: 7
