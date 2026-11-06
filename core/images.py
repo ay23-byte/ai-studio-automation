@@ -119,7 +119,7 @@ def generate_ai_video(prompt, path):
     AI_VIDEO_ENABLED=1 are required. Model-specific input can be supplied as
     JSON in REPLICATE_VIDEO_INPUT_JSON; the prompt key is always overwritten.
     """
-    import json, os
+    import json, os, re
     from urllib.parse import urlparse
 
     token = os.getenv("REPLICATE_API_TOKEN", "").strip()
