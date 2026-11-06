@@ -3,7 +3,7 @@ import random, re, subprocess
 from pathlib import Path
 from core import config as cfg
 from core.voice import synthesise
-from core.images import generate_image, fetch_clip
+from core.images import generate_image, fetch_clip, generate_ai_video
 from core.db import save_video, update_video
 
 W_S, H_S = 1080, 1920   # Shorts
@@ -435,6 +435,9 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 if fetch_clip(kws, clip_p, used_ids):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: stock video")
+                elif generate_ai_video(prompt, clip_p):
+                    shot["_media"] = {"type": "video", "path": str(clip_p)}
+                    print(f"  long-form visual {i+1}.{j+1}: AI-generated video")
                 elif generate_image(prompt, img_p):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
                     print(f"  long-form visual {i+1}.{j+1}: generated image fallback")
