@@ -1,0 +1,42 @@
+name: Documentary workflow audit tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "core/workflow_audit.py"
+      - "scripts/audit_documentary.py"
+      - "tests/test_workflow_audit.py"
+      - ".github/workflows/documentary-audit.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/workflow_audit.py"
+      - "scripts/audit_documentary.py"
+      - "tests/test_workflow_audit.py"
+      - ".github/workflows/documentary-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-tests:
+    name: Run documentary audit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install audit test dependencies
+        run: python -m pip install --upgrade pip Pillow
+      - name: Compile audit code
+        run: python -m py_compile core/workflow_audit.py scripts/audit_documentary.py
+      - name: Run audit unit tests
+        run: python -m unittest discover -s tests -p "test_workflow_audit.py" -v
+      - name: Validate workflow CLI
+        run: python scripts/audit_documentary.py --help
