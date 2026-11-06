@@ -304,3 +304,24 @@ ffmpeg -y -i talking_presenter.webm -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 
 ```
 
 This studio is a companion clip creator; it does not yet automatically replace every presenter shot in the main long-form pipeline. The SDK does not convert portrait photos into talking videos, and its lip-sync model is English-trained, so Hindi/Hinglish mouth shapes may be approximate. It animates the face (mouth, blinks and brows), not a full body. Browser recording requires a user permission step. Existing presenter modes remain unchanged.
+
+
+### Talking Avatar clips in long-form videos
+
+The browser Talking Avatar Studio can now feed the existing long-form editor. This is an **opt-in clip-import workflow**: render one avatar clip per chapter from that chapter's exact narration audio, then place the files in `assets/presenter_clips/` using these names:
+
+- `presenter_section_01.mp4`
+- `presenter_section_02.mp4`
+- Continue numbering to match the script's `sections` order. WebM files are also accepted.
+
+Set the following in your local `.env`:
+
+```dotenv
+PRESENTER_ENABLED=1
+PRESENTER_MODE=talking_avatar
+AVATAR_CLIPS_DIR=assets/presenter_clips
+```
+
+The long-form pipeline inserts each chapter's avatar clip at that chapter's start, then uses the existing B-roll timeline for the remaining chapter duration. The final editor mutes the clip's embedded audio and uses the single continuous generated narration track, avoiding doubled audio. Clips longer than their chapter narration are rejected rather than silently desynchronizing lip-sync. Missing chapter clips produce a clear error. To return to the existing still presenter, set `PRESENTER_MODE=still_cpu`.
+
+The browser studio remains a separate browser-based renderer: this integration consumes its exported clips; it does not launch a browser or generate the avatar automatically inside Python/GitHub Actions. The browser export requires the user to select tab audio and record the chapter narration. Hindi/Hinglish lip-sync quality can be approximate.
