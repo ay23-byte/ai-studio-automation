@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Studio · Talking Avatar</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,system-ui,Segoe UI,sans-serif;background:#0b1020;color:#eef2ff}
+    *{box-sizing:border-box}body{margin:0;padding:28px;background:radial-gradient(circle at 20% 0,#202b49,#0b1020 55%)}
+    main{max-width:980px;margin:auto}.panel{background:#151d31;border:1px solid #34415d;border-radius:18px;padding:22px;margin:16px 0}
+    h1{margin:0 0 8px;font-size:28px}p{color:#b9c5dc;line-height:1.55}.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    button,select,input{border:1px solid #52617e;border-radius:10px;padding:11px 14px;background:#202b43;color:#fff;font:inherit}
+    button{cursor:pointer}button.primary{background:#d5a84b;color:#17130a;border:0;font-weight:700}button:disabled{opacity:.45;cursor:not-allowed}
+    #avatar{height:520px;max-width:100%;border-radius:14px;overflow:hidden;background:linear-gradient(145deg,#24344b,#111827)}
+    #avatar canvas{display:block;width:100%;height:100%}.status{font-size:14px;color:#b8c7df;margin-top:12px}
+    a{color:#f2c66d}.note{font-size:13px}.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:700px){.row{grid-template-columns:1fr}#avatar{height:400px}}
+  </style>
+  <script type="importmap">
+    {"imports":{
+      "three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+      "three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/",
+      "@interviewflowai/talking-avatar":"https://cdn.jsdelivr.net/npm/@interviewflowai/talking-avatar@0.3.0/dist/index.js"
+    }}
+  </script>
+</head>
+<body>
+<main>
+  <h1>🎬 AI Studio · Talking Avatar</h1>
+  <p>Turn your narration audio into a talking 3D presenter. Processing happens in your browser. Choose a built-in male or female avatar, preview the speech, and record a WebM clip for your video workflow.</p>
+  <section class="panel">
+    <div class="row">
+      <label>Presenter<br><select id="gender"><option value="female">Female presenter</option><option value="male">Male presenter</option></select></label>
+      <label>Narration audio (MP3/WAV/OGG)<br><input id="audio" type="file" accept="audio/*"></label>
+    </div>
+    <div style="height:16px"></div>
+    <div id="avatar" aria-label="Talking avatar preview"></div>
+    <div style="height:16px"></div>
+    <div class="controls">
+      <button id="load" class="primary">Load presenter</button>
+      <button id="play" disabled>Play narration</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="record" disabled>Record avatar clip</button>
+      <button id="finish" disabled>Stop & save recording</button>
+    </div>
+    <div id="status" class="status" role="status">Choose a presenter and audio file, then load the presenter.</div>
+  </section>
+  <section class="panel">
+    <b>How recording works</b>
+    <p class="note">Recording captures the avatar canvas at 30 fps and the browser-tab audio. When prompted, select this tab and enable tab audio. The result is a WebM file. Convert it to MP4 with FFmpeg if your editor requires MP4. Keep the browser tab visible while recording.</p>
+    <p class="note">This is a 3D avatar, not a photo-realistic portrait. Only facial mouth shapes, blinks and brows animate; there is no full-body movement. Hindi/Hinglish lip-sync can be less precise than English.</p>
+    <p class="note">The SDK and built-in avatars are MIT-licensed. The avatar/model are fetched from jsDelivr on first use. No avatar account or API key is required. See <a href="https://github.com/InterviewFlowAI/talking-avatar" target="_blank" rel="noreferrer">SDK source and license</a>.</p>
+  </section>
+</main>
+<script type="module">
+  import { AVATARS, TalkingAvatar } from "@interviewflowai/talking-avatar";
+  const el = id => document.getElementById(id);
+  let avatar = null, audioUrl = null, recorder = null, chunks = [], displayStream = null;
+  const status = message => { el("status").textContent = message; };
+  const enable = (id, yes) => { el(id).disabled = !yes; };
+  async function loadAvatar(){
+    try{
+      if(avatar){avatar.dispose();avatar=null;}
+      avatar = new TalkingAvatar({container:el("avatar"),avatarUrl:el("gender").value==="male"?AVATARS.male:AVATARS.female});
+      status("Loading 3D presenter and lip-sync model…");
+      await avatar.ready;
+      enable("play",!!el("audio").files[0]); enable("record",!!el("audio").files[0]);
+      status("Presenter ready. Select narration audio, then play or record.");
+    }catch(error){status("Could not load presenter: "+error.message);}
+  }
+  el("load").addEventListener("click",loadAvatar);
+  el("gender").addEventListener("change",()=>{if(avatar)loadAvatar();});
+  el("audio").addEventListener("change",()=>{
+    if(audioUrl)URL.revokeObjectURL(audioUrl);
+    audioUrl=el("audio").files[0]?URL.createObjectURL(el("audio").files[0]):null;
+    enable("play",!!avatar&&!!audioUrl);enable("record",!!avatar&&!!audioUrl);
+    status(audioUrl?"Audio selected. Load presenter if needed, then play or record.":"Choose an audio file.");
+  });
+  el("play").addEventListener("click",async()=>{
+    if(!avatar||!el("audio").files[0])return;
+    try{enable("play",false);enable("stop",true);status("Playing narration with synchronized mouth movement…");
+      await avatar.speak(el("audio").files[0]);status("Narration finished.");}
+    catch(error){status("Playback error: "+error.message);}
+    finally{enable("play",true);enable("stop",false);}
+  });
+  el("stop").addEventListener("click",()=>{avatar?.stopSpeaking();enable("play",true);enable("stop",false);status("Playback stopped.");});
+  el("record").addEventListener("click",async()=>{
+    try{
+      if(!avatar||!el("audio").files[0])throw new Error("Load the presenter and choose narration first.");
+      displayStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+      const audioTracks=displayStream.getAudioTracks();
+      if(!audioTracks.length)throw new Error("No tab audio captured. Stop and retry, selecting this tab and enabling 'Share tab audio'.");
+      const canvas=el("avatar").querySelector("canvas");
+      if(!canvas)throw new Error("Avatar canvas not found. Reload the presenter.");
+      const videoStream=canvas.captureStream(30);
+      const combined=new MediaStream([...videoStream.getVideoTracks(),...audioTracks]);
+      chunks=[];
+      const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")?"video/webm;codecs=vp9,opus":"video/webm";
+      recorder=new MediaRecorder(combined,{mimeType:mime});
+      recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+      recorder.onstop=()=>{
+        const blob=new Blob(chunks,{type:"video/webm"}),url=URL.createObjectURL(blob);
+        const a=document.createElement("a");a.href=url;a.download="talking_presenter.webm";a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),30000);
+        videoStream.getTracks().forEach(t=>t.stop());displayStream?.getTracks().forEach(t=>t.stop());
+        displayStream=null;enable("record",true);enable("finish",false);status("Recording saved as talking_presenter.webm.");
+      };
+      recorder.start(500);enable("record",false);enable("finish",true);
+      status("Recording. Click 'Stop & save recording' when the narration finishes.");
+      await avatar.speak(el("audio").files[0]);
+      if(recorder?.state==="recording"){status("Narration finished. Click 'Stop & save recording'.");}
+    }catch(error){
+      displayStream?.getTracks().forEach(t=>t.stop());displayStream=null;
+      status(error.message||String(error));enable("record",true);enable("finish",false);
+    }
+  });
+  el("finish").addEventListener("click",()=>{if(recorder?.state==="recording")recorder.stop();avatar?.stopSpeaking();});
+  window.addEventListener("beforeunload",()=>{avatar?.dispose();if(audioUrl)URL.revokeObjectURL(audioUrl);});
+</script>
+</body>
+</html>
