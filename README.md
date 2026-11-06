@@ -350,3 +350,23 @@ AVATAR_CLIPS_DIR=assets/presenter_clips
 The long-form pipeline inserts each chapter's avatar clip at that chapter's start, then uses the existing B-roll timeline for the remaining chapter duration. The final editor mutes the clip's embedded audio and uses the single continuous generated narration track, avoiding doubled audio. Clips longer than their chapter narration are rejected rather than silently desynchronizing lip-sync. Missing chapter clips produce a clear error. To return to the existing still presenter, set `PRESENTER_MODE=still_cpu`.
 
 The browser studio remains a separate browser-based renderer: this integration consumes its exported clips; it does not launch a browser or generate the avatar automatically inside Python/GitHub Actions. The browser export requires the user to select tab audio and record the chapter narration. Hindi/Hinglish lip-sync quality can be approximate.
+
+
+## End-to-end workflow audit (research → final MP4)
+
+A deterministic release-audit layer is available for the documentary pipeline. It checks
+research-source metadata and claim evidence links, storyboard narration/timestamp coverage,
+footage scene coverage and provenance/licence-review flags, presenter chapter durations,
+and (when an MP4 is supplied) the existing FFmpeg/FFprobe export checks. It deliberately
+does **not** claim that a source proves a claim, that an asset is legally reusable, that
+a visual is semantically relevant, or that equal presenter duration proves lip-sync.
+Human editorial review remains required.
+
+See [End-to-End Workflow Audit](docs/END_TO_END_WORKFLOW_AUDIT.md) for the input schema
+and commands. Run:
+
+```bash
+python -m unittest discover -s tests -v
+python scripts/audit_documentary.py --input documentary_audit_input.json
+python scripts/audit_documentary.py --input documentary_audit_input.json --video output/final_documentary.mp4 --subtitles output/subtitles.ass
+```
