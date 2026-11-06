@@ -86,15 +86,37 @@ try {
   const webmBase64 = fs.readFileSync(recordingPath).toString("base64");
   const decoded = await page.evaluate(async base64 => {
     const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
     video.src = "data:video/webm;base64," + base64;
     await new Promise((resolve, reject) => {
       video.onloadedmetadata = resolve;
-      video.onerror = () => reject(new Error("Downloaded WebM is not a playable video."));
+      video.onerror = () => reject(new Error("Downloaded WebM could not be parsed by Chromium."));
     });
-    return { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+      throw new Error("Downloaded WebM has invalid video dimensions.");
+    }
+    // MediaRecorder WebM files commonly omit the Duration element. Chromium
+    // then reports Infinity/NaN even though the video is valid and playable.
+    // Verify actual decoding and playback progress instead of requiring duration.
+    await video.play();
+    await new Promise(resolve => setTimeout(resolve, 700));
+    const result = {
+      duration: Number.isFinite(video.duration) ? video.duration : null,
+      durationReportedByContainer: Number.isFinite(video.duration),
+      currentTime: video.currentTime,
+      width: video.videoWidth,
+      height: video.videoHeight,
+      readyState: video.readyState
+    };
+    video.pause();
+    if (result.currentTime <= 0 || result.readyState < 2) {
+      throw new Error("Downloaded WebM did not decode and advance during playback: " + JSON.stringify(result));
+    }
+    return result;
   }, webmBase64);
-  if (!Number.isFinite(decoded.duration) || decoded.duration <= 0 || decoded.width <= 0 || decoded.height <= 0) {
-    throw new Error("Downloaded WebM has invalid video metadata: " + JSON.stringify(decoded));
+  if (decoded.width <= 0 || decoded.height <= 0 || decoded.currentTime <= 0) {
+    throw new Error("Downloaded WebM failed playback validation: " + JSON.stringify(decoded));
   }
 
   await page.screenshot({ path: path.join(outputDir, "avatar-preview.png"), fullPage: true });
