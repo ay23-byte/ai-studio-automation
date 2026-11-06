@@ -125,6 +125,10 @@ def generate_ai_video(prompt, path):
     token = os.getenv("REPLICATE_API_TOKEN", "").strip()
     model = os.getenv("REPLICATE_VIDEO_MODEL", "").strip()
     enabled = os.getenv("AI_VIDEO_ENABLED", "0").strip().lower() in {"1", "true", "yes"}
+    free_only = os.getenv("FREE_ONLY_MODE", "1").strip().lower() in {"1", "true", "yes"}
+    if free_only:
+        print("AI video skipped: FREE_ONLY_MODE is enabled; no paid video provider will be called.")
+        return False
     if not (enabled and token and model):
         return False
 

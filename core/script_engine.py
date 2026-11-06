@@ -1,5 +1,6 @@
 import json, re, requests, time, random
 from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS
+from core.news_research import research_topic, format_research_context
 
 class GeminiRequestError(RuntimeError):
     """Gemini API failure with metadata for safe model failover."""
@@ -376,10 +377,16 @@ def generate_longform_script(topic: str, category: str = "finance",
     prompt = LONGFORM_PROMPT.format(
         topic=topic, category=category,
         duration_min=duration_min, duration_max=duration_max, language=language)
+
+    # Free, keyless GDELT discovery adds recent-news leads to both current
+    # affairs and evergreen documentaries. Failure is deliberately non-fatal.
+    research_sources = research_topic(topic)
+    prompt += "\n\n" + format_research_context(research_sources)
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
     script = _parse(_ask_gemini(prompt))
     script["format"] = "longform"
     script["category"] = category
+    script["research_sources"] = research_sources
     script = _repair_longform_visual_anchors(script)
     return validate_longform_storyboard(script)
 
