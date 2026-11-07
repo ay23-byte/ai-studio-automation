@@ -179,7 +179,7 @@ def save_review(report_path: str | Path, shot_id: str, *, status: str | None = N
     elif status == "approved":
         current["replacement_requested"] = False
         current["rejection_reason"] = ""
-    if any(value is not None for key, value in updates.items() if key in {"status", "source_review_status"}):
+    if any(value is not None for value in updates.values()):
         current["reviewed_at"] = _now()
     store["shots"][shot_id] = _validate_record(current, shot_id)
     store["updated_at"] = _now()
