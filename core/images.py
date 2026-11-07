@@ -217,7 +217,15 @@ def _search_pixabay(q):
                 print(f"  Pixabay disabled for this run: HTTP {r.status_code}; check the repository secret.")
                 return []
             if r.status_code != 200:
-                print(f"  Pixabay search failed: HTTP {r.status_code}; query skipped.")
+                # Pixabay returns actionable JSON error messages for invalid keys,
+                # unsupported parameters and exhausted quotas. Keep the diagnostic
+                # short and never print the request URL (which contains the API key).
+                try:
+                    error_payload = r.json()
+                    detail = error_payload.get("message") or error_payload.get("error") or str(error_payload)
+                except ValueError:
+                    detail = " ".join((r.text or "")[:240].split())
+                print(f"  Pixabay search failed: HTTP {r.status_code}: {str(detail)[:300]}; query skipped.")
                 return []
             payload = r.json()
             hits = payload.get("hits", []) if isinstance(payload, dict) else []
