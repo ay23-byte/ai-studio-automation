@@ -53,9 +53,8 @@ def visual_plan(scene_number: int, scene_count: int, is_himalayan: bool) -> dict
     if not is_himalayan:
         return {}
     if scene_number == 1:
-        return {"kind": "stock", "queries": [
-            "Himalaya mountain", "Himalaya river", "Nepal mountain"
-        ]}
+        # A deterministic HAND cross-section is more explanatory than generic mountain B-roll.
+        return {"kind": "graphic", "graphic": "hand_explainer"}
     if scene_number == 2:
         return {"kind": "graphic", "graphic": "building_growth"}
     if scene_number == 3:
