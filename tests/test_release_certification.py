@@ -131,6 +131,18 @@ class ReleaseCertificationTests(unittest.TestCase):
         self.assertEqual(certificate["status"], "BLOCKED")
         self.assertTrue(any("below 720p" in item for item in certificate["blockers"]))
 
+    @patch("core.release_certification.probe_release_video")
+    def test_missing_source_citation_in_release_description_blocks(self, probe):
+        probe.return_value = self._valid_video_metadata()
+        self._write_json("release_metadata.json", {
+            "title": "Sample documentary", "description": "No source links included.",
+            "tags": ["documentary"],
+        })
+        certificate = certify_documentary(self.root, self.video)
+        self.assertEqual(certificate["status"], "BLOCKED")
+        self.assertTrue(any("missing from the release description" in item
+                            for item in certificate["blockers"]))
+
     def test_release_assertion_requires_certificate(self):
         with self.assertRaisesRegex(ValueError, "Release certificate is missing"):
             assert_release_certified(self.root, self.video)
