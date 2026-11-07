@@ -83,5 +83,39 @@ class GeminiFailoverTests(unittest.TestCase):
         self.assertEqual(post.call_count, 2)
 
 
+class LongformStoryboardRepairTests(unittest.TestCase):
+    def test_missing_visual_beats_are_repaired_without_inventing_evidence(self):
+        script = {
+            "sections": [{
+                "title": "Outro",
+                "narration": (
+                    "The villages are not simply disappearing. Families are making "
+                    "difficult choices as work, schools and services change. "
+                    "The future depends on whether opportunity can return."
+                ),
+                "visuals": [],
+            }]
+        }
+        repaired = script_engine._repair_longform_visual_anchors(script)
+        validated = script_engine.validate_longform_storyboard(repaired)
+        visuals = validated["sections"][0]["visuals"]
+        self.assertEqual(len(visuals), 3)
+        self.assertTrue(all(v["visual_type"] == "presenter" for v in visuals))
+        narration = validated["sections"][0]["narration"].casefold()
+        cursor = 0
+        for beat in visuals:
+            anchor = beat["narration_anchor"].casefold()
+            position = narration.find(anchor, cursor)
+            self.assertGreaterEqual(position, 0)
+            cursor = position + len(anchor)
+            self.assertEqual(beat["source_refs"], [])
+            self.assertIn("unverified", beat["visual_prompt"].lower())
+
+    def test_short_narration_cannot_be_fabricated_into_three_beats(self):
+        script = {"sections": [{"narration": "Too short.", "visuals": []}]}
+        with self.assertRaisesRegex(ValueError, "too little narration"):
+            script_engine._repair_longform_visual_anchors(script)
+
+
 if __name__ == "__main__":
     unittest.main()

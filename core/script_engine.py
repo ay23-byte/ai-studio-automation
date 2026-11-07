@@ -329,7 +329,61 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
     for section_index, section in enumerate(script.get("sections") or [], start=1):
         narration = str(section.get("narration") or "").strip()
         visuals = section.get("visuals")
-        if not narration or not isinstance(visuals, list) or not visuals:
+        if not narration:
+            continue
+
+        if not isinstance(visuals, list):
+            visuals = []
+            section["visuals"] = visuals
+
+        # A model occasionally omits storyboard beats for a short closing
+        # chapter. Add neutral presenter/typography beats anchored to the
+        # actual narration rather than failing the entire documentary or
+        # inventing archival footage, locations, people, or evidence.
+        if len(visuals) < 3:
+            words = list(re.finditer(r"\S+", narration))
+            if len(words) < 3:
+                raise ValueError(
+                    f"Chapter {section_index} has too little narration to create "
+                    "three distinct visual beats."
+                )
+            original_count = len(visuals)
+            while len(visuals) < 3:
+                beat_index = len(visuals)
+                lo = (beat_index * len(words)) // 3
+                hi = ((beat_index + 1) * len(words)) // 3
+                hi = max(lo + 1, hi)
+                anchor_end = min(hi, lo + 8)
+                anchor = narration[words[lo].start():words[anchor_end - 1].end()]
+                visuals.append({
+                    "narration_anchor": anchor,
+                    "visual_prompt": (
+                        "Restrained documentary presenter shot, visually emphasizing "
+                        f"the narration: {anchor}. Use a clean, cinematic composition; "
+                        "do not depict an unverified event, person, place, document, "
+                        "or statistic."
+                    ),
+                    "visual_type": "presenter",
+                    "subject": "Documentary presenter and on-screen narration emphasis",
+                    "location": "studio",
+                    "time_period": "present day",
+                    "shot_size": "medium" if beat_index % 2 == 0 else "close-up",
+                    "camera_movement": "subtle push-in",
+                    "keywords": ["documentary presenter", "cinematic narration"],
+                    "search_queries": ["documentary presenter studio", "cinematic presenter close up"],
+                    "source_refs": [],
+                    "chart_spec": None,
+                    "timeline_events": [],
+                    "on_screen_text": "",
+                    "sound_design": "Subtle room tone under narration",
+                    "visual_guardrail": "Presenter/typography only; do not imply unverified evidence.",
+                })
+            print(
+                f"WARNING: Chapter {section_index} contained {original_count} visual beat(s). "
+                "Added neutral narration-anchored presenter beats to meet the three-beat minimum."
+            )
+
+        if not visuals:
             continue
 
         # First preserve a storyboard only if every anchor is an exact,
