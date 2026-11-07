@@ -162,7 +162,7 @@ REVIEWED PACKET:
             'Generated script failed validation after one correction attempt: '
             + str(last_error)
         )
-    known={s['source_id'] for s in sources}
+    scenes = script.get('scenes', [])\n    known={s['source_id'] for s in sources}
     for claim in script.get('claims',[]):
         if not set(claim.get('source_ids',[])).issubset(known): raise ValueError('Generated claim has unknown source IDs.')
     for scene in scenes:
