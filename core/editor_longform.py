@@ -34,6 +34,14 @@ def _pacing_duration(shot):
         return min(max(duration, 5.0), 14.0)
     return min(max(duration, 3.5), 8.0)
 
+def _video_motion_expressions(index):
+    """Return deterministic, low-amplitude crop expressions for moving B-roll."""
+    phase = (int(index) % 7) * 0.37
+    x = f"(in_w-out_w)*(0.5+0.18*sin(t*0.12+{phase:.3f}))"
+    y = f"(in_h-out_h)*(0.5+0.14*cos(t*0.10+{phase:.3f}))"
+    return x, y
+
+
 def _run(cmd): subprocess.run(cmd, check=True)
 
 
@@ -72,9 +80,7 @@ def _seg(src, idx, dur, is_image, bd):
         grade = color_grade_filter()
         # Give moving B-roll a restrained, slow camera drift. The 6.7% overscan
         # prevents empty edges while the crop travels gently across the frame.
-        phase = (idx % 7) * 0.37
-        x_motion = f"(in_w-out_w)*(0.5+0.18*sin(t*0.12+{phase:.3f}))"
-        y_motion = f"(in_h-out_h)*(0.5+0.14*cos(t*0.10+{phase:.3f}))"
+        x_motion, y_motion = _video_motion_expressions(idx)
         vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W}:{H},scale=2048:1152:flags=lanczos,"
               f"crop={W}:{H}:x='{x_motion}':y='{y_motion}',"
