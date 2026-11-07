@@ -61,21 +61,23 @@ def audit_visual_consistency(visual_report: dict[str, Any],
         min_width = min(item["width"] for item in metrics)
         min_height = min(item["height"] for item in metrics)
         average.update({"min_width": min_width, "min_height": min_height})
-        row_issues = []
+        failure_issues, review_issues = [], []
         if min_width < 640 or min_height < 360:
-            row_issues.append("Sampled visual is below the recommended 640×360 source resolution.")
+            failure_issues.append("Sampled visual is below the recommended 640×360 source resolution.")
         if average["brightness"] < 12:
-            row_issues.append("Visual is severely underexposed.")
+            failure_issues.append("Visual is severely underexposed.")
         elif average["brightness"] > 242:
-            row_issues.append("Visual is severely overexposed.")
+            failure_issues.append("Visual is severely overexposed.")
         if average["clipped_pixel_ratio"] > 0.55:
-            row_issues.append("Large portions of the frame are clipped to near-black or near-white.")
+            failure_issues.append("Large portions of the frame are clipped to near-black or near-white.")
         if average["contrast"] < 8:
-            row_issues.append("Visual has very low contrast; inspect readability and detail.")
+            review_issues.append("Visual has very low contrast; inspect readability and detail.")
         if average["sharpness_proxy"] < 1.2:
-            row_issues.append("Visual appears unusually soft or blurred; inspect focus and source quality.")
+            review_issues.append("Visual appears unusually soft or blurred; inspect focus and source quality.")
+        row_issues = failure_issues + review_issues
         rows.append({
-            "shot_id": shot_id, "status": "fail" if row_issues else "pass",
+            "shot_id": shot_id,
+            "status": "fail" if failure_issues else ("review" if review_issues else "pass"),
             "frame_count": len(metrics), "metrics": average, "issues": row_issues,
             "frame_metrics": metrics,
         })
