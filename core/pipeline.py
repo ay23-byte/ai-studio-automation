@@ -133,8 +133,11 @@ def _visual_beats_for_section(section, category="general"):
     from core.documentary_storyboard import plan_section_visuals
     planned = plan_section_visuals(section, category)
     beats = []
-    for item in planned[:8]:
-        prompt = str(item.get("production_prompt") or item.get("visual_prompt") or "").strip()
+    for item in planned[:6]:
+        # Preserve the original concise prompt for legacy string storyboards;
+        # structured visual beats receive the full production prompt.
+        is_structured = isinstance(item, dict) and bool(item.get("visual_type") or item.get("subject") or item.get("location") or item.get("time_period"))
+        prompt = str((item.get("production_prompt") if is_structured else item.get("visual_prompt")) or item.get("visual_prompt") or "").strip()
         anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
         keywords = item.get("search_queries") or item.get("keywords") or section.get("keywords") or []
         beats.append({
