@@ -2,6 +2,7 @@
   "tier1_primary": ["pib.gov.in", "india.gov.in", "rbi.org.in", "sebi.gov.in", "isro.gov.in", "mea.gov.in", "eci.gov.in", "main.sci.gov.in", "indiankanoon.org", "mca.gov.in", "incometax.gov.in", "who.int", "un.org", "worldbank.org", "imf.org", "nasa.gov", "nih.gov", "cdc.gov", "sec.gov", "europa.eu", "bseindia.com", "nseindia.com"],
   "tier2_major": ["reuters.com", "apnews.com", "bbc.com", "bbc.co.uk", "ptinews.com", "aninews.in", "thehindu.com", "indianexpress.com", "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "livemint.com", "business-standard.com", "economictimes.indiatimes.com", "theprint.in", "scroll.in", "bloomberg.com", "ft.com", "wsj.com", "nytimes.com", "theguardian.com", "aljazeera.com"],
   "tier3_specialist": ["techcrunch.com", "theverge.com", "arstechnica.com", "wired.com", "espncricinfo.com", "medianama.com", "moneycontrol.com", "sciencemag.org", "nature.com", "thelancet.com"],
+  "peer_reviewed_primary_research_domains": ["nature.com"],
   "social_lead_only": ["x.com", "twitter.com", "instagram.com", "facebook.com", "reddit.com", "youtube.com", "t.me", "whatsapp.com", "quora.com", "medium.com"],
   "wire_markers": ["PTI", "ANI", "IANS", "Reuters", "AP", "AFP", "Bloomberg", "with inputs from"],
   "freshness_hours": {"breaking": 48, "explainer": 168}
