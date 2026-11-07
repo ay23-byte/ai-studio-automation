@@ -146,16 +146,57 @@ def _internet_archive(query):
     return results
 
 
-def fetch_documentary_clip(keywords, path, used_ids=None):
-    """Try free libraries in order; return True only for a validated video."""
+def _tokens(value):
+    stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",
+            "scene", "footage", "video", "documentary", "file"}
+    return {word for word in re.findall(r"[a-z0-9]+", str(value or "").lower())
+            if len(word) > 2 and word not in stop}
+
+
+def _metadata_relevance(query, metadata):
+    wanted = _tokens(query)
+    found = _tokens(metadata.get("title")) | _tokens(metadata.get("description"))
+    return len(wanted & found) / len(wanted) if wanted else 0.0
+
+
+def _expanded_queries(keywords, scene_prompt=""):
+    values = []
+    for item in keywords or []:
+        query = str(item).strip()
+        if query and query not in values:
+            values.append(query)
+    context_tokens = _tokens(" ".join(values) + " " + str(scene_prompt or ""))
+    india_terms = {"india", "indian", "mughal", "maratha", "british", "delhi",
+                   "mumbai", "bombay", "kolkata", "calcutta", "plassey",
+                   "panipat", "1857", "independence", "east", "company"}
+    if context_tokens & india_terms:
+        for query in list(values):
+            specific = f"{query} India"
+            if specific not in values:
+                values.append(specific)
+    return values[:12]
+
+
+def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
+    """Search free archives with conservative metadata relevance ranking.
+
+    Text matching is a discovery filter, not computer-vision verification.
+    """
     used_ids = used_ids if used_ids is not None else set()
-    providers = (_nasa, _wikimedia, _internet_archive)
-    for query in keywords:
-        query = str(query).strip()
-        if not query:
-            continue
+    context = " ".join(str(x) for x in (keywords or [])) + " " + str(scene_prompt or "")
+    is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
+    providers = ((_nasa, _wikimedia, _internet_archive) if is_space
+                 else (_wikimedia, _internet_archive))
+    for query in _expanded_queries(keywords, scene_prompt):
         for provider in providers:
-            for url, metadata in provider(query):
+            ranked = sorted(provider(query), key=lambda item: _metadata_relevance(
+                query + " " + scene_prompt, item[1]), reverse=True)
+            for url, metadata in ranked:
+                score = _metadata_relevance(query + " " + scene_prompt, metadata)
+                metadata["relevance_score"] = round(score, 3)
+                metadata["scene_prompt"] = str(scene_prompt)[:500]
+                if score < 0.12:
+                    continue
                 identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or url}"
                 if identity in used_ids:
                     continue
