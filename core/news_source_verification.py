@@ -50,6 +50,21 @@ def classify_source(source: dict, trusted: dict | None = None,
     return "unknown"
 
 
+def _is_reviewed_primary_research(source: dict, trusted: dict) -> bool:
+    """Allow a specifically declared peer-reviewed paper to support its own results.
+
+    This is an evidence-type exception, not a blanket upgrade of the publisher.
+    The domain must be explicitly listed, and packet metadata must identify the
+    item as peer-reviewed primary research. Human passage review remains required.
+    """
+    host = _host(source.get("url", ""))
+    return (
+        source.get("source_type") == "peer_reviewed_primary_research"
+        and source.get("peer_reviewed") is True
+        and _matches(host, trusted.get("peer_reviewed_primary_research_domains", []))
+    )
+
+
 def _parse_date(value: str):
     if not value:
         return None
@@ -96,6 +111,12 @@ def verify_fact_sources(fact: dict, sources: list[dict], *,
         if tier in {"blocked", "unknown", "social"}:
             rejected.append({"source_id": source_id, "tier": tier, "reason": "not eligible to confirm"})
             continue
+        if _is_reviewed_primary_research(source, trusted):
+            accepted.append({"source_id": str(source_id), "tier": "tier1",
+                             "origin": "primary-research:" + _host(source.get("url", "")),
+                             "domain": _host(source.get("url", "")),
+                             "evidence_basis": "reviewed peer-reviewed primary research"})
+            continue
         published = _parse_date(source.get("published", ""))
         if tier != "tier1" and (published is None or now - published > max_age or published > now + timedelta(hours=1)):
             rejected.append({"source_id": source_id, "tier": tier, "reason": "missing, stale, or future publication date"})
@@ -106,7 +127,6 @@ def verify_fact_sources(fact: dict, sources: list[dict], *,
     origins = {s["origin"] for s in accepted}
     has_t1 = any(s["tier"] == "tier1" for s in accepted)
     has_t2 = any(s["tier"] == "tier2" for s in accepted)
-    has_t3 = any(s["tier"] == "tier3" for s in accepted)
     enough = has_t1 or (has_t2 and len(origins) >= 2)
     reason = "tier1 primary source" if has_t1 else (
         "two independent eligible sources including tier2" if enough else
