@@ -74,6 +74,7 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
         "provider": "SadTalker", "presenter_mode": "sadtalker",
         "portrait_asset": portrait.name, "driven_audio_sha256": digest,
         "driven_audio_duration_seconds": duration, "validation": validation,
+        "licence_status": "Confirm portrait permission and current SadTalker code/model-weight terms before publication.",
         "lip_sync_verified": False,
         "notice": "Audio-driven facial animation with technical A/V duration checks; not a guarantee of phoneme-perfect lip-sync.",
     }
