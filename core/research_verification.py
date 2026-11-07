@@ -275,6 +275,27 @@ def audit_research_reviews(report: dict[str, Any], store: dict[str, Any]) -> dic
     }
 
 
+def append_source_citations_to_description(script: dict[str, Any]) -> dict[str, Any]:
+    """Append source links to the YouTube description without claiming they are verified."""
+    description = str(script.get("description") or "").strip()
+    sources = script.get("sources") or []
+    rows = []
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        url = str(source.get("url") or "").strip()
+        if not _normal_url(url):
+            continue
+        title = " ".join(str(source.get("title") or "Source").split())[:300]
+        publisher = " ".join(str(source.get("publisher") or "Publisher unknown").split())[:160]
+        published = " ".join(str(source.get("published_at") or "Date not supplied").split())[:80]
+        rows.append(f"- {title} — {publisher} ({published}): {url}")
+    if rows and "Sources & further reading" not in description:
+        description = (description + "\\n\\nSources & further reading:\\n" + "\\n".join(rows)).strip()
+    script["description"] = description
+    return script
+
+
 def write_research_verification_report(script: dict[str, Any],
                                        discovery_sources: list[dict] | None,
                                        build_dir: str | Path) -> dict[str, Any]:
