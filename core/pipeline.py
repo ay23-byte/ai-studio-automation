@@ -292,7 +292,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"shorts_{job_id}.mp4"
     shorts_render(media, lens, cuts, voice_path, ass, total, out, music)
-    _quality_check(job_id, out, ass, bd, documentary=True)
+    _quality_check(job_id, out, ass, bd)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
         from core.thumbnail import generate_topic_variants
@@ -570,7 +570,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
     lf_render(shot_timeline, voice_path, ass, total, out, music)
-    _quality_check(job_id, out, ass, bd)
+    _quality_check(job_id, out, ass, bd, documentary=True)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
         from core.thumbnail import generate_topic_variants
