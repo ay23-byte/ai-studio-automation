@@ -216,6 +216,12 @@ def audit_visual_reviews(report: dict[str, Any], store: dict[str, Any]) -> dict[
                         "resolve the screening concern and regenerate/review this shot before publication."
                     ),
                 })
+        presenter_sync_status = str(shot.get("presenter_sync_status") or "").lower()
+        if presenter_sync_status in {"fail", "error"}:
+            issues.append({
+                "level": "error", "shot_id": shot_id,
+                "message": "Presenter A/V synchronization validation failed; regenerate or replace this presenter clip.",
+            })
         visual_quality = shot.get("visual_quality") or {}
         if visual_quality.get("status") == "fail":
             messages = visual_quality.get("issues") or ["Resolve the technical visual-quality failure."]
