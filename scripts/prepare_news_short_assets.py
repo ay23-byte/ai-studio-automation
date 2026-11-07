@@ -96,7 +96,7 @@ def prepare_assets(artifact_dir: str | Path, output_dir: str | Path) -> dict:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         scene_assets.append({
             "asset_type": asset_type,
-            "asset_path": str(asset_path.resolve()),
+            "asset_path": str(asset_path),
             "ai_disclosure": ai_disclosure,
             "asset_review_status": "pending_human_visual_and_rights_review",
         })
