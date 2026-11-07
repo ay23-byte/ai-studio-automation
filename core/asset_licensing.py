@@ -88,6 +88,8 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             asset_type == "programmatic_graphic"
             and metadata.get("ai_generated") is False
             and provider == "LabLens/AI Studio local graphic renderer"
+            and bool(metadata.get("font_licence"))
+            and bool(metadata.get("font_licence_url"))
         )
         licensed, licence_status = licence_is_usable(metadata)
         if is_ai:
@@ -95,7 +97,7 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             licence_status = "AI-generated; not a real-world source; provider terms require separate review"
         elif is_project_graphic:
             licensed = True
-            licence_status = "project_created_original_graphic; inspect font and embedded-element rights"
+            licence_status = "project_created_original_graphic; DejaVu font licence recorded; human review required"
         url = str(metadata.get("page_url") or metadata.get("url") or "")
         author = str(metadata.get("creator") or metadata.get("author") or metadata.get("user") or "")
         licence = str(metadata.get("licence") or metadata.get("license") or
@@ -103,7 +105,11 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
         licence_url = str(metadata.get("licence_url") or metadata.get("license_url") or "")
         attribution = str(metadata.get("attribution_text") or "")
         if is_project_graphic and not attribution:
-            attribution = "Original graphic created by the AI Studio Automation project; no external media embedded."
+            attribution = (
+                "Original graphic created by the AI Studio Automation project. "
+                + str(metadata.get("font_attribution") or
+                      "Font attribution details must be reviewed before publication.")
+            )
         if licensed and not attribution:
             if _normal(licence).startswith("cc by"):
                 attribution = f"{author or 'Author not supplied'}, {metadata.get('title') or path.name if path else 'Untitled'}, {licence}, {url}"
