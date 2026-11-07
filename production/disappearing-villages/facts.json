@@ -74,47 +74,47 @@
     },
     {
       "id": "F03",
-      "claim": "The Uttarakhand Migration Commission 2018 survey reported 734 villages that became uninhabited after Census 2011.",
-      "value": "734 villages",
-      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_name": "Uttarakhand migration research report citing Migration Commission survey",
-      "date": "2018 survey; reproduced in 2021 report",
+      "claim": "The Commission's 2018 report lists 734 uninhabited revenue villages/toks/majra depopulated after 2011.",
+      "value": "734 revenue villages/toks/majra",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
       "confidence": "reported"
     },
     {
       "id": "F04",
-      "claim": "Pauri Garhwal had the largest district count in the reported list of villages depopulated after 2011.",
-      "value": "186 villages",
-      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_name": "Uttarakhand migration research report citing Migration Commission survey",
-      "date": "2018 survey; reproduced in 2021 report",
+      "claim": "Pauri Garhwal had the highest district count in the Commission's list of depopulated revenue villages/toks/majra.",
+      "value": "186",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
       "confidence": "reported"
     },
     {
       "id": "F05",
-      "claim": "Lack of livelihood and employment was the leading reported migration reason in the cited Uttarakhand Migration Commission data.",
+      "claim": "Livelihood/employment problems were the leading listed migration reason in the Commission's 2018 state-wise table.",
       "value": "50.16%",
-      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_name": "Uttarakhand migration research report citing Migration Commission data",
-      "date": "2018 data; reproduced in 2021 report",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
       "confidence": "reported"
     },
     {
       "id": "F06",
-      "claim": "Roughly 70% of migration in the cited Uttarakhand data occurred within the state.",
-      "value": "Approximately 70%",
-      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_name": "Uttarakhand migration research report citing Migration Commission data",
-      "date": "2018 data; reproduced in 2021 report",
+      "claim": "Approximately 70.33% of reported migration destinations were within Uttarakhand.",
+      "value": "19.46% nearby towns + 15.18% district headquarters + 35.69% other districts = 70.33%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
       "confidence": "reported"
     },
     {
       "id": "F07",
-      "claim": "Among the 734 villages in the 2018 survey, the report listed deficits in health centres, roads, drinking-water access and electrification.",
-      "value": "660 lacked a primary health centre; 482 lacked road connectivity; 399 had no drinking water within 1 km; 358 were not electrified",
-      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_name": "Uttarakhand migration research report citing Migration Commission survey",
-      "date": "2018 survey; reproduced in 2021 report",
+      "claim": "The Commission's 2018 state-wise table lists education, health, infrastructure, agricultural productivity and crop damage by wild animals among migration reasons.",
+      "value": "Education 15.21%; health 8.83%; infrastructure 3.74%; agricultural productivity 5.44%; crop damage by wild animals 5.61%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
       "confidence": "reported"
     },
     {
@@ -164,11 +164,11 @@
     },
     {
       "id": "F13",
-      "claim": "The Uttarakhand research report discusses interacting agricultural and environmental pressures, including erratic rainfall, water stress, limited irrigation and crop damage.",
-      "value": "Qualitative findings",
-      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_name": "Uttarakhand migration research report",
-      "date": "2021",
+      "claim": "The Commission's 2018 table lists agricultural productivity/yield decline and crop damage by wild animals among reported migration reasons.",
+      "value": "5.44%; 5.61%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
       "confidence": "reported"
     },
     {
@@ -239,14 +239,29 @@
       "where_to_find": "MoSPI Annual Report PLFS 2020-21",
       "license": "Government publication; verify reuse terms and attribute.",
       "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf"
+    },
+    {
+      "description": "Original Rural Development and Migration Commission 2018 report with methods, reasons for migration, destination and district-wise depopulated revenue village/tok/majra tables.",
+      "where_to_find": "Official report PDF; methodology around pages 3-4; reasons around pages 29-31; destinations around page 33; depopulated revenue villages/toks/majra around pages 34-37.",
+      "license": "Government report; cite and verify reuse terms before reproducing page images.",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf"
     }
   ],
   "open_questions": [
-    "Obtain and inspect the original Uttarakhand Migration Commission report and verify all quoted tables, definitions and denominators.",
     "Find current, comparable official data on village occupancy; do not extrapolate 2011 or 2018 figures to 2026.",
     "Verify the exact question wording and denominator behind the 50.16% livelihood/employment figure.",
     "Verify whether the reported infrastructure deficits are village counts, household-level indicators or survey classifications.",
     "Find attributable interviews or published expert analysis; do not simulate interviews.",
-    "Check current government programme implementation and outcomes in the specific districts before claiming success or failure."
+    "Check current government programme implementation and outcomes in the specific districts before claiming success or failure.",
+    "Inspect the original Commission report's field-survey method and exact wording for each reported migration reason; distinguish gram-panchayat-level responses from individual migrant motives."
+  ],
+  "sources": [
+    {
+      "id": "S06",
+      "title": "Executive Summary of Interim Report on Status of Migration",
+      "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
+      "date": "April 2018",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf"
+    }
   ]
 }
