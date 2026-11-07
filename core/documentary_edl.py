@@ -60,7 +60,7 @@ def build_edit_decision_list(
     checks, fixes = [], []
     chapter_grades = {}
     music = []
-    previous_end = 0.0
+    previous_chapter = None
     chapter_lookup = {}
     for chapter_index, section in enumerate(sections, start=1):
         chapter_lookup[chapter_index - 1] = section
@@ -124,8 +124,9 @@ def build_edit_decision_list(
         kind = str(shot.get("visual_type") or "").lower()
         cut_reason = "emphasis" if overlay else ("new_idea" if anchor else "beat")
         transition = "cut"
-        if chapter_idx != int(ordered[scene_id - 2][1].get("_chapter_index", chapter_idx) or chapter_idx) if scene_id > 1 and scene_id - 2 < len(ordered) else False:
+        if previous_chapter is not None and chapter_idx != previous_chapter:
             transition = "dip_black"
+        previous_chapter = chapter_idx
         if start < 15.0:
             cut_reason = "beat" if scene_id > 1 else "emphasis"
         timeline.append({
