@@ -17,6 +17,6 @@ jobs:
       - name: Install lightweight test dependency
         run: python -m pip install requests google-api-python-client google-auth google-auth-oauthlib edge-tts python-dotenv Pillow
       - name: Compile all Python modules
-        run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py dashboard.py pages
+        run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py dashboard.py pages tests
       - name: Run automated unit tests
         run: python -m unittest discover -s tests -v
