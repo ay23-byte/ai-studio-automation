@@ -72,7 +72,7 @@ def run(video, report_dir=None, manifest_path=None):
     (root/"semantic_qa_report.json").write_text(json.dumps(semantic,ensure_ascii=False,indent=2),encoding="utf-8")
     if semantic.get("status") == "FAIL":
         errors.append("Shot-to-narration semantic QA detected a mismatch or blocking error.")
-    elif semantic.get("status") in {"REVIEW","ERROR","UNAVAILABLE"}:
+    elif str(semantic.get("status","")).upper() in {"REVIEW","ERROR","UNAVAILABLE","NOT_RUN"} or str(semantic.get("status","")).lower() == "error":
         warnings.append("Shot-to-narration semantic QA needs human review; see semantic_qa_report.json.")
     if audio.get("status") in {"FAIL","ERROR"}: errors.append("Audio quality analysis failed or detected a blocking audio issue.")
     elif audio.get("status")=="REVIEW": warnings.append("Audio quality needs human review; see audio_quality_report.json.")
