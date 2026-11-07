@@ -75,7 +75,7 @@ jobs:
           cache: "pip"
 
       - name: Install FFmpeg and Hindi fonts
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core fonts-dejavu-core
 
       - name: Install lightweight visual dependencies
         run: python -m pip install requests Pillow python-dotenv
