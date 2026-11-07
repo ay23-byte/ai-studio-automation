@@ -45,6 +45,8 @@ class CoverrAdapterTests(unittest.TestCase):
         self.assertGreater(metadata["relevance_score"], 0)
         self.assertTrue(metadata["human_visual_inspection_required"])
         self.assertFalse(metadata["terms_reviewed"])
+        from core.asset_licensing import licence_is_usable
+        self.assertTrue(licence_is_usable(metadata)[0])
 
 
 if __name__ == "__main__":
