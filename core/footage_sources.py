@@ -87,9 +87,9 @@ def _download(url, path, metadata):
         score = score_asset(metadata, width, height)
         metadata["quality_score"] = score["score_0_10"]
         metadata["quality_score_details"] = score
-        if score["score_0_10"] < 3.0
+        if score["score_0_10"] < 3.0:
             path.unlink(missing_ok=True)
-            print(f"  archive candidate rejected: score {score['score_0_10']}/10 is below 7")
+            print(f"  archive candidate rejected: score {score['score_0_10']}/10 is below 3")
             return False
         sidecar = path.with_suffix(path.suffix + ".source.json")
         sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
