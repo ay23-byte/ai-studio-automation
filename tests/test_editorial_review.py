@@ -97,6 +97,23 @@ class EditorialReviewTests(unittest.TestCase):
         saved = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(saved["schema_version"], 2)
 
+    def test_source_metadata_change_invalidates_rights_and_editorial_decision(self):
+        shot = dict(self.report["shots"][0], source={
+            "provider": "Pixabay", "asset_id": "asset-1",
+            "licence_status": "Pixabay terms; attribution review required",
+        })
+        load_reviews(self.report_path, [shot])
+        save_review(
+            self.report_path, "shot_0001", status="approved",
+            source_review_status="reviewed", rights_review_status="reviewed",
+            rights_notes="Checked asset licence and attribution.", licence_name="Pixabay licence",
+        )
+        changed = dict(shot, source=dict(shot["source"], licence_status="Updated terms; re-check"))
+        store = load_reviews(self.report_path, [changed])
+        self.assertEqual(store["shots"]["shot_0001"]["status"], "pending")
+        self.assertEqual(store["shots"]["shot_0001"]["rights_review_status"], "pending")
+
+
     def test_corrupt_json_is_reported_without_overwrite(self):
         path = review_store_path(self.report_path)
         original = "{broken"
