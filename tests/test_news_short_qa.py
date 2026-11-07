@@ -28,7 +28,8 @@ class QATests(unittest.TestCase):
  @patch("scripts.qa_news_short.subprocess.check_output",return_value=json.dumps(GOOD))
  def test_pass_requires_audio_and_visual_checks(self,probe,run_cmd,frames,audio,visual):
   with tempfile.TemporaryDirectory() as temp: result=run(Path("short.mp4"),Path(temp))
-  self.assertEqual(result["status"],"PASS"); self.assertFalse(result["publication_ready"])
+  self.assertEqual(result["status"],"REVIEW"); self.assertFalse(result["publication_ready"])
+  self.assertEqual(result["semantic_qa_status"],"NOT_RUN")
   self.assertEqual(result["sampled_frame_count"],3); audio.assert_called_once(); visual.assert_called_once()
   self.assertEqual(run_cmd.call_count,2)
 
