@@ -122,5 +122,20 @@ class EditorialReviewTests(unittest.TestCase):
                             for issue in result["issues"]))
 
 
+    def test_severe_visual_quality_failure_blocks_publication(self):
+        report = dict(self.report, shots=[
+            dict(self.report["shots"][0], visual_quality={
+                "status": "fail", "issues": ["Visual is severely underexposed."]
+            })
+        ])
+        load_reviews(self.report_path, report["shots"])
+        save_review(self.report_path, "shot_0001", status="approved", source_review_status="reviewed")
+        store = load_reviews(self.report_path, report["shots"])
+        result = audit_visual_reviews(report, store)
+        self.assertFalse(result["publication_ready"])
+        self.assertTrue(any("Visual quality check failed" in issue["message"]
+                            for issue in result["issues"]))
+
+
 if __name__ == "__main__":
     unittest.main()
