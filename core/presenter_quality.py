@@ -87,3 +87,36 @@ def inspect_presenter_clip(path: str | Path, expected_duration: float | None = N
         "lip_sync_verified": False,
         "notice": "Stream and duration alignment do not prove phoneme-level lip-sync. Human visual/audio review remains required.",
     }
+
+
+def write_presenter_metadata(path: str | Path, metadata: dict[str, Any]) -> Path:
+    """Persist presenter provenance and technical sync status beside the clip."""
+    import os
+    import tempfile
+
+    media = Path(path)
+    sidecar = media.with_suffix(media.suffix + ".source.json")
+    current: dict[str, Any] = {}
+    if sidecar.is_file():
+        try:
+            loaded = json.loads(sidecar.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                current = loaded
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            current = {}
+    current.update(metadata)
+    fd, temp_name = tempfile.mkstemp(prefix=".presenter-source.", suffix=".tmp", dir=str(sidecar.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(current, handle, ensure_ascii=False, indent=2)
+            handle.write("\\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, sidecar)
+    except Exception:
+        try:
+            os.unlink(temp_name)
+        except OSError:
+            pass
+        raise
+    return sidecar
