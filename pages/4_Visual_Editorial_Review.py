@@ -99,6 +99,20 @@ for shot_id, shot, record in visible:
                 st.write("**Screening concerns**")
                 st.write(screening["concerns"])
             st.caption(screening.get("notice", "AI screening cannot verify truth, history, identity, rights or licensing."))
+            visual_quality = shot.get("visual_quality") or {}
+            st.write("**Technical visual quality**")
+            quality_status = visual_quality.get("status", "unavailable")
+            quality_metrics = visual_quality.get("metrics") or {}
+            if quality_status == "fail":
+                st.error("Technical visual-quality failure: " + "; ".join(visual_quality.get("issues") or []))
+            elif quality_status == "review":
+                st.warning("Visual consistency outlier: " + "; ".join(visual_quality.get("issues") or []))
+            elif quality_status == "pass":
+                st.success("Sampled frames passed the basic exposure, contrast and resolution checks.")
+            else:
+                st.info("Technical visual metrics unavailable for this shot.")
+            if quality_metrics:
+                st.json(quality_metrics)
             st.write("**Media source / provenance**")
             st.json(shot.get("source") or {"notice": "No source sidecar was found."})
         notes = st.text_area("Reviewer notes", value=record.get("reviewer_notes", ""), key=f"notes_{shot_id}")

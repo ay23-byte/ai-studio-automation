@@ -42,14 +42,18 @@ def _seg(src, idx, dur, is_image, bd):
         frames = max(int(dur*30),2)
         z = f"1+0.05*on/{frames}" if idx%2==0 else f"1.05-0.05*on/{frames}"
         pos = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        from core.visual_consistency import color_grade_filter
+        grade = color_grade_filter()
         vf = (f"scale={W*2}:{H*2}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W*2}:{H*2},zoompan=z='{z}':{pos}:d=1:s={W}x{H}:fps=30,"
-              "eq=brightness=-0.03:saturation=1.05,format=yuv420p")
+              f"{grade},format=yuv420p")
         _run(["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30",
               "-t",f"{dur:.3f}","-i",str(src),"-vf",vf,"-an",*ENC,str(out)])
     else:
+        from core.visual_consistency import color_grade_filter
+        grade = color_grade_filter()
         vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
-              f"crop={W}:{H},fps=30,setsar=1,eq=brightness=-0.05:saturation=0.9,format=yuv420p")
+              f"crop={W}:{H},fps=30,setsar=1,{grade},format=yuv420p")
         _run(["ffmpeg","-y","-loglevel","error","-stream_loop","-1",
               "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out

@@ -524,9 +524,22 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     # Save a reviewable shot manifest and sample frames before final rendering.
     try:
+        import json
         from core.visual_production import build_visual_review
+        from core.visual_consistency import audit_visual_consistency
         visual_report = build_visual_review(shot_timeline, bd, research_sources=script.get("research_sources", []))
+        consistency_report = audit_visual_consistency(visual_report, bd)
+        quality_by_id = {row["shot_id"]: row for row in consistency_report.get("shots", [])}
+        for shot in visual_report.get("shots", []):
+            shot["visual_quality"] = quality_by_id.get(shot.get("shot_id"), {"status": "unavailable"})
+        visual_report["visual_consistency_summary"] = consistency_report.get("summary", {})
+        (bd / "visual_review_report.json").write_text(
+            json.dumps(visual_report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         print(f"Visual review: {visual_report['shot_count']} shots; human approval required.")
+        print(f"Visual consistency: {consistency_report['status']} ({consistency_report['summary']['measured_shot_count']} measured shots).")
+        for issue in consistency_report.get("issues", []):
+            print(f"VISUAL QUALITY {issue['level'].upper()}: {issue['message']}")
         for issue in visual_report.get("issues", []):
             print(f"VISUAL REVIEW {issue['level'].upper()}: {issue['message']}")
     except Exception as exc:
