@@ -85,7 +85,7 @@ class ScriptCorrectionPromptTests(unittest.TestCase):
 
  def test_non_word_count_failure_keeps_scientific_correction(self):
   prompt = _build_correction_prompt("BASE", ValueError("HAND missing definition"))
-  self.assertIn("nearest drainage", prompt.lower())
+  self.assertIn("निकटतम जलधारा", prompt)
   self.assertIn("Do not weaken scientific guardrails", prompt)
   self.assertNotIn("WORD-COUNT REPAIR", prompt)
 
