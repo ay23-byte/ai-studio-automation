@@ -124,39 +124,47 @@ jobs:
               shutil.copy2(source, target)
               target_sidecar = target.with_suffix(target.suffix + ".source.json")
               metadata = json.loads(sidecar.read_text(encoding="utf-8"))
-              # The existing approved visual package predates the new font fields.
-              # Upgrade only the exact five allowlisted, project-rendered graphic types.
-              # Any other provider/type/AI flag or unknown graphic is rejected.
-              allowed_graphics = {
-                  "population_exposure", "hand_explainer", "building_growth",
-                  "not_forecast", "outro"
-              }
-              if (
-                  metadata.get("provider") != "LabLens/AI Studio local graphic renderer"
-                  or metadata.get("asset_type") != "programmatic_graphic"
-                  or metadata.get("ai_generated") is not False
-                  or metadata.get("graphic_kind") not in allowed_graphics
-              ):
-                  raise SystemExit(f"Scene {i} is not a recognized original project graphic.")
-              metadata.update({
-                  "licence": "Project-created original graphic",
-                  "licence_status": "Original project graphic using DejaVu Sans under its published font licence; human review remains required.",
-                  "licence_url": "https://dejavu-fonts.github.io/License.html",
-                  "font_name": "DejaVu Sans",
-                  "font_licence": "Bitstream Vera and DejaVu font licence",
-                  "font_licence_url": "https://dejavu-fonts.github.io/License.html",
-                  "font_attribution": (
-                      "DejaVu Sans font software; DejaVu changes are public domain; "
-                      "Bitstream Vera-derived font software is distributed under its permissive licence. "
-                      "See https://dejavu-fonts.github.io/License.html."
-                  ),
-                  "attribution_text": (
-                      "Original graphic created by the AI Studio Automation project. "
-                      "DejaVu Sans font software; see https://dejavu-fonts.github.io/License.html."
-                  ),
-                  "metadata_migrated_by": "news-short-review-render workflow",
-                  "metadata_migration_reason": "Backfilled licence fields for a previously reviewed project-created graphic; no external media rights inferred."
-              })
+              # Permit the real licensed archive/stock assets selected by the
+              # asset stage. A provider name alone is never treated as proof of rights.
+              asset_type = str(metadata.get("asset_type") or "").lower()
+              is_project_graphic = (
+                  metadata.get("provider") == "LabLens/AI Studio local graphic renderer"
+                  and asset_type == "programmatic_graphic"
+                  and metadata.get("ai_generated") is False
+              )
+              is_ai = asset_type.startswith("ai_generated")
+              if is_project_graphic:
+                  metadata.update({
+                      "licence": "Project-created original graphic",
+                      "licence_status": "Original project graphic using DejaVu Sans under its published font licence; human review remains required.",
+                      "licence_url": "https://dejavu-fonts.github.io/License.html",
+                      "font_name": "DejaVu Sans",
+                      "font_licence": "Bitstream Vera and DejaVu font licence",
+                      "font_licence_url": "https://dejavu-fonts.github.io/License.html",
+                      "font_attribution": (
+                          "DejaVu Sans font software; DejaVu changes are public domain; "
+                          "Bitstream Vera-derived font software is distributed under its permissive licence. "
+                          "See https://dejavu-fonts.github.io/License.html."
+                      ),
+                      "attribution_text": (
+                          "Original graphic created by the AI Studio Automation project. "
+                          "DejaVu Sans font software; see https://dejavu-fonts.github.io/License.html."
+                      ),
+                      "metadata_migrated_by": "news-short-review-render workflow",
+                      "metadata_migration_reason": "Backfilled font licence fields for an original project-created graphic."
+                  })
+              elif is_ai:
+                  if not scene.get("ai_disclosure") or not metadata.get("terms_reviewed"):
+                      raise SystemExit(
+                          f"Scene {i} AI asset needs visible disclosure and explicit provider-terms review."
+                      )
+                  if not (metadata.get("page_url") or metadata.get("url")):
+                      raise SystemExit(f"Scene {i} AI asset is missing its provider/source page.")
+              else:
+                  if not (metadata.get("page_url") or metadata.get("url")):
+                      raise SystemExit(f"Scene {i} real asset is missing its original source page.")
+                  if not metadata.get("licence") or not metadata.get("licence_url"):
+                      raise SystemExit(f"Scene {i} real asset is missing item-specific licence metadata.")
               target_sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
               scene["asset_path"] = str(target.resolve())
           # The workflow_dispatch confirmation is the explicit authorization to render

@@ -53,18 +53,28 @@ def visual_plan(scene_number: int, scene_count: int, is_himalayan: bool) -> dict
     if not is_himalayan:
         return {}
     if scene_number == 1:
+        # The key population statistic is a genuine data graphic.
         return {"kind": "graphic", "graphic": "population_exposure"}
     if scene_number == 2:
-        # Define HAND in the same scene as the Nepal exposure figures.
-        return {"kind": "graphic", "graphic": "hand_explainer"}
+        return {"kind": "stock", "queries": [
+            "Himalayan village mountain river aerial",
+            "Himalayan settlement river valley"
+        ]}
     if scene_number == 3:
+        # The two measured area comparisons belong in one data graphic.
         return {"kind": "graphic", "graphic": "building_growth"}
     if scene_number == 4:
-        return {"kind": "graphic", "graphic": "not_forecast"}
+        return {"kind": "stock", "queries": [
+            "Himalayan glacier lake outburst flood river valley",
+            "Himalayan mountain river aerial landscape"
+        ]}
     if scene_number == scene_count:
-        return {"kind": "graphic", "graphic": "outro"}
+        return {"kind": "stock", "queries": [
+            "Himalayan mountain river wide aerial",
+            "Himalayan mountain range valley"
+        ]}
     return {"kind": "stock", "queries": [
-        "Himalayan glacier river valley", "Himalaya mountain river"
+        "Himalayan mountain river valley", "Himalaya glacier landscape"
     ]}
 
 
@@ -249,7 +259,7 @@ def prepare_assets(artifact_dir: str | Path, output_dir: str | Path) -> dict:
     script = json.loads(find_one(artifact_dir, "shorts_script_draft.json").read_text(encoding="utf-8"))
     validate_draft(packet, script)
 
-    from core.images import fetch_clip, generate_image
+    from core.images import fetch_clip, generate_image, generate_ai_video
     from core.asset_licensing import build_licence_register
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -287,13 +297,34 @@ def prepare_assets(artifact_dir: str | Path, output_dir: str | Path) -> dict:
             if fetch_clip(keywords, clip_path, used_ids, scene_prompt=prompt):
                 asset_type, asset_path, ai_disclosure = "video", clip_path, False
                 metadata = json.loads(clip_path.with_suffix(clip_path.suffix + ".source.json").read_text(encoding="utf-8"))
-                if plan.get("kind") == "stock" and float(metadata.get("relevance_score", 0)) < 0.45:
+                if float(metadata.get("relevance_score", 0)) < 0.45:
                     clip_path.unlink(missing_ok=True)
                     clip_path.with_suffix(clip_path.suffix + ".source.json").unlink(missing_ok=True)
                     raise RuntimeError(
                         f"Scene {index} stock candidate failed the stricter relevance threshold; "
                         "refusing to package unrelated footage."
                     )
+            elif generate_ai_video(
+                "Clearly illustrative, visibly stylised documentary animation; not archival footage, "
+                "not a real event recreation, no identifiable people, no logos or readable text. "
+                + prompt,
+                clip_path,
+            ):
+                asset_type, asset_path, ai_disclosure = "video", clip_path, True
+                metadata = {
+                    "provider": "Replicate (configured by operator)",
+                    "asset_type": "ai_generated_video",
+                    "page_url": "https://replicate.com/",
+                    "licence": "AI-generated; provider/model terms must be reviewed",
+                    "licence_url": "https://replicate.com/terms",
+                    "terms_reviewed": False,
+                    "ai_disclosure": True,
+                    "human_visual_inspection_required": True,
+                    "human_terms_review_required": True,
+                }
+                clip_path.with_suffix(clip_path.suffix + ".source.json").write_text(
+                    json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             elif generate_image(prompt, image_path, category="geopolitics" if himalayan else "general"):
                 asset_type, asset_path, ai_disclosure = "image", image_path, True
                 metadata = json.loads(image_path.with_suffix(image_path.suffix + ".source.json").read_text(encoding="utf-8"))

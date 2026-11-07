@@ -59,6 +59,10 @@ def _cloudflare(prompt, path):
                 "provider": "Cloudflare Workers AI",
                 "model": "@cf/black-forest-labs/flux-1-schnell",
                 "asset_type": "ai_generated_image",
+                "page_url": "https://developers.cloudflare.com/workers-ai/",
+                "licence_url": "https://www.cloudflare.com/terms/",
+                "terms_reviewed": False,
+                "ai_disclosure": True,
                 "licence_status": "Check current Cloudflare AI terms and any applicable model/provider restrictions before commercial publication.",
                 "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
             })
@@ -81,6 +85,10 @@ def _pollinations(prompt, path):
             "provider": "Pollinations",
             "model": "flux",
             "asset_type": "ai_generated_image",
+            "page_url": "https://pollinations.ai/",
+            "licence_url": "https://pollinations.ai/terms",
+            "terms_reviewed": False,
+            "ai_disclosure": True,
             "licence_status": "Check current Pollinations service/model terms and any applicable restrictions before commercial publication.",
             "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
         })
@@ -106,11 +114,13 @@ def _search_pixabay(q):
         except: pass
     return []
 
-def fetch_clip(keywords, path, used, scene_prompt=""):
-    """Search three focused API queries; download at most five scored candidates.
 
-    Pixabay's Content License is recorded explicitly. Visual cleanliness, watermark
-    and privacy still require human inspection and are never inferred from metadata.
+
+def fetch_clip(keywords, path, used, scene_prompt=""):
+    """Search archives, Coverr and Pixabay.
+
+    Mixkit is handled through explicit human-selected local assets because its
+    published terms prohibit scripted/bot mass downloading and site scraping.
     """
     from datetime import date
     queries = []
@@ -118,85 +128,74 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
         query = str(value or "").strip()
         if query and query not in queries:
             queries.append(query)
-        if len(queries) == 3:
+        if len(queries) >= 8:
             break
-    # Priority 1: public-domain / file-level CC archives before stock libraries.
+
     try:
         from core.footage_sources import fetch_documentary_clip
         if fetch_documentary_clip(queries, path, used, scene_prompt=scene_prompt):
             return True
     except Exception as exc:
         print(f"  public-domain/CC archive search unavailable: {exc}")
-    # Priority 2: free stock API sources with explicit provider licence terms.
-    downloaded = 0
-    for q in queries:
-        time.sleep(1.2)
-        hits = _search_pixabay(q)
-        fresh = [h for h in hits if h.get("id") not in used and (h.get("duration") or 0) >= 3]
-        candidates = []
-        for h in fresh:
-            tags = h.get("tags", "")
-            match = max(_relevance(q, tags), _relevance(scene_prompt, tags))
-            variants = h.get("videos") or {}
+
+    candidates = []
+    for query in queries:
+        for hit in _search_coverr(query):
+            item = _coverr_candidate(hit, query)
+            if item:
+                url, metadata = item
+                candidates.append((url, metadata, hit.get("id"), "Coverr"))
+        for hit in _search_pixabay(query):
+            if ("Pixabay:" + str(hit.get("id"))) in used or (hit.get("duration") or 0) < 3:
+                continue
+            tags = hit.get("tags", "")
+            match = max(_relevance(query, tags), _relevance(scene_prompt, tags))
+            variants = hit.get("videos") or {}
             best = max(variants.values(), key=lambda v: (v.get("width") or 0) * (v.get("height") or 0), default={})
             width, height = int(best.get("width") or 0), int(best.get("height") or 0)
-            resolution_points = 2.0 if width >= 1920 and height >= 1080 else (1.0 if width >= 1280 and height >= 720 else 0.0)
-            score = round(min(10.0, match * 5.0 + resolution_points + 2.0), 2)
-            h["_match"] = match
-            h["_score"] = score
-            h["_dimensions"] = (width, height)
-            candidates.append(h)
-        candidates.sort(key=lambda h: (h["_score"], h.get("views") or 0), reverse=True)
-        for h in candidates:
-            if downloaded >= 5:
-                return False
-            downloaded += 1
-            if h["_score"] < 7.0:
+            if width < 720 or height < 400 or not best.get("url"):
                 continue
-            url = None
-            for size in ("large", "medium", "small"):
-                v = (h.get("videos") or {}).get(size) or {}
-                if v.get("url") and (v.get("size") or 0) < 100_000_000:
-                    url = v["url"]
-                    break
-            if not url:
-                continue
-            try:
-                with requests.get(url, stream=True, timeout=120) as resp:
-                    resp.raise_for_status()
-                    with path.open("wb") as target:
-                        for chunk in resp.iter_content(1024 * 1024):
-                            if chunk:
-                                target.write(chunk)
-                if path.stat().st_size > 50_000 and _video_ok(path):
-                    used.add(h.get("id"))
-                    import json
-                    width, height = h["_dimensions"]
-                    creator = str(h.get("user") or "")
-                    title = str(h.get("tags") or "")
-                    page_url = str(h.get("pageURL") or "")
-                    metadata = {
-                        "provider": "Pixabay", "asset_id": h.get("id"),
-                        "title": title, "creator": creator, "page_url": page_url,
-                        "query": q, "relevance_score": round(h["_match"], 3),
-                        "quality_score": h["_score"], "width": width, "height": height,
-                        "licence": "Pixabay Content License",
-                        "licence_url": "https://pixabay.com/service/license-summary/",
-                        "attribution_text": f"{title} by {creator} — Pixabay Content License; {page_url}",
-                        "date_accessed": date.today().isoformat(),
-                        "human_visual_inspection_required": True,
-                        "visual_checks": {
-                            "steady_clean": "not_automatically_verified",
-                            "watermark_logo": "not_automatically_verified",
-                            "private_person_privacy": "not_automatically_verified"
-                        }
-                    }
-                    _write_source_metadata(path, metadata)
-                    print(f"  clip candidate ok (Pixabay '{q}', score {h['_score']}/10); human visual review required")
-                    return True
-                path.unlink(missing_ok=True)
-            except Exception as e:
-                print(f"  clip download: {e}")
+            metadata = {
+                "provider": "Pixabay", "asset_id": hit.get("id"),
+                "title": tags, "creator": str(hit.get("user") or ""),
+                "page_url": str(hit.get("pageURL") or ""), "query": query,
+                "relevance_score": match, "width": width, "height": height,
+                "licence": "Pixabay Content License",
+                "licence_url": "https://pixabay.com/service/license-summary/",
+                "attribution_text": f"{tags} by {hit.get('user') or 'Pixabay contributor'} — Pixabay Content License; {hit.get('pageURL') or ''}",
+                "date_accessed": date.today().isoformat(),
+                "human_visual_inspection_required": True,
+                "visual_checks": {"steady_clean": "not_automatically_verified",
+                                  "watermark_logo": "not_automatically_verified",
+                                  "private_person_privacy": "not_automatically_verified"},
+            }
+            candidates.append((best["url"], metadata, hit.get("id"), "Pixabay"))
+
+    candidates.sort(key=lambda item: (
+        float(item[1].get("relevance_score") or 0),
+        int(item[1].get("width") or 0) * int(item[1].get("height") or 0)
+    ), reverse=True)
+    for url, metadata, asset_id, provider in candidates[:20]:
+        if (provider + ":" + str(asset_id)) in used or float(metadata.get("relevance_score") or 0) < 0.45:
+            continue
+        metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
+        try:
+            with requests.get(url, stream=True, timeout=120) as resp:
+                resp.raise_for_status()
+                with path.open("wb") as target:
+                    for chunk in resp.iter_content(1024 * 1024):
+                        if chunk:
+                            target.write(chunk)
+            if path.stat().st_size > 50_000 and _video_ok(path):
+                used.add(f"{provider}:{asset_id}")
+                _write_source_metadata(path, metadata)
+                print(f"  clip candidate ok ({provider}, relevance {metadata['relevance_score']:.2f}); human visual review required")
+                return True
+            path.unlink(missing_ok=True)
+        except Exception as exc:
+            path.unlink(missing_ok=True)
+            print(f"  {provider} download failed: {exc}")
+    print("  no stock clip met the relevance/quality gate across configured sources")
     return False
 
 

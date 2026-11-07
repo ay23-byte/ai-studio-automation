@@ -106,6 +106,72 @@ def _write_ass(scenes: list[dict], durations: list[float], output: Path) -> None
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
+def _render_media_timeline(scenes: list[dict], durations: list[float], output: Path, workdir: Path) -> dict:
+    """Assemble the actual approved scene media into a vertical 30fps timeline."""
+    segments = []
+    report = []
+    for index, (scene, duration) in enumerate(zip(scenes, durations), start=1):
+        source = Path(str(scene["asset_path"])).expanduser().resolve()
+        kind = scene["asset_type"]
+        segment = workdir / f"visual_{index:02d}.mp4"
+        common = [
+            "ffmpeg", "-y", "-loglevel", "error",
+        ]
+        if kind == "video":
+            # Loop only when a source clip is shorter than the narration beat;
+            # no audio from stock footage is carried into the final mix.
+            args = common + [
+                "-stream_loop", "-1", "-i", str(source),
+                "-t", f"{duration:.3f}",
+                "-vf",
+                "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,"
+                "crop=1080:1920,setsar=1,fps=30,"
+                "eq=contrast=1.035:saturation=0.92:brightness=0.005,"
+                "vignette=PI/6,noise=alls=3:allf=t",
+                "-an", "-c:v", "libx264", "-preset", "veryfast",
+                "-crf", "18", "-pix_fmt", "yuv420p",
+                "-r", "30", "-t", f"{duration:.3f}", str(segment),
+            ]
+        else:
+            frames = max(1, round(duration * 30))
+            args = common + [
+                "-loop", "1", "-i", str(source), "-t", f"{duration:.3f}",
+                "-vf",
+                f"scale=2160:3840:force_original_aspect_ratio=increase:flags=lanczos,"
+                f"crop=2160:3840,zoompan=z='min(1.12,1+0.12*on/{frames})':"
+                f"d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                f"s=1080x1920:fps=30,setsar=1,"
+                "eq=contrast=1.035:saturation=0.92:brightness=0.005,"
+                "vignette=PI/6,noise=alls=3:allf=t",
+                "-an", "-c:v", "libx264", "-preset", "veryfast",
+                "-crf", "18", "-pix_fmt", "yuv420p",
+                "-r", "30", "-t", f"{duration:.3f}", str(segment),
+            ]
+        subprocess.run(args, check=True)
+        segments.append(segment)
+        report.append({
+            "shot": index, "asset_type": kind, "asset_path": str(source),
+            "duration_seconds": round(duration, 3),
+            "renderer": "ffmpeg_media_asset",
+        })
+
+    concat_list = workdir / "visual_concat.txt"
+    concat_list.write_text(
+        "".join("file '" + str(p.resolve()).replace("'", "'\\''") + "'\\n" for p in segments),
+        encoding="utf-8",
+    )
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+        "-i", str(concat_list), "-an", "-c:v", "libx264", "-preset", "veryfast",
+        "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", str(output),
+    ], check=True)
+    return {
+        "renderer": "ffmpeg_media_asset_timeline",
+        "segments": report,
+        "actual_assets_rendered": len(report),
+    }
+
+
 def render_review_copy(script_path: str | Path, approval_path: str | Path,
                        output_dir: str | Path) -> dict:
     script_path, approval_path = Path(script_path), Path(approval_path)
@@ -169,12 +235,10 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     ass_path = outdir / "captions.ass"
     _write_ass(scenes, durations, ass_path)
 
-    # Build original, animated documentary graphics from reviewed scene copy.
-    # Existing licensed media and provenance remain validated above; the new
-    # renderer intentionally does not pretend those assets are animated footage.
-    from core.cinematic_renderer import render_cinematic_video
-    visual_path = build_dir / "cinematic_visuals.mp4"
-    visual_report = render_cinematic_video(scenes, durations, visual_path)
+    # Render the actual downloaded/approved media assets. Do not substitute
+    # generic motion-graphics cards for footage or photographs.
+    visual_path = build_dir / "media_visuals.mp4"
+    visual_report = _render_media_timeline(scenes, durations, visual_path, build_dir)
     final_path = outdir / "review_short.mp4"
     subtitle_filter = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     mux_duration = total + 0.6
@@ -211,7 +275,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         "resolution": "1080x1920",
         "fps": 30,
         "visual_renderer": visual_report,
-        "visual_style": "code_generated_visual_investigation_and_broadcast_news",
+        "visual_style": "actual_licensed_media_and_approved_stills_with_subtle_motion",
         "voice": str(voice_path),
         "captions": str(ass_path),
         "licence_register": licence["csv_path"],

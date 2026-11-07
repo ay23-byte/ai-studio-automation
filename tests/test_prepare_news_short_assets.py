@@ -64,12 +64,12 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
         self.assertEqual(candidate["visual_review_status"], "pending_human_visual_and_rights_review")
         self.assertEqual(len(candidate["sources"]), 1)
 
-    def test_himalayan_story_uses_curated_visuals_instead_of_generic_research_search(self):
+    def test_himalayan_story_uses_graphics_only_for_measured_statistics(self):
         self.assertEqual(visual_plan(1, 5, True)["graphic"], "population_exposure")
-        self.assertEqual(visual_plan(2, 5, True)["graphic"], "hand_explainer")
+        self.assertEqual(visual_plan(2, 5, True)["kind"], "stock")
         self.assertEqual(visual_plan(3, 5, True)["graphic"], "building_growth")
-        self.assertEqual(visual_plan(4, 5, True)["graphic"], "not_forecast")
-        self.assertEqual(visual_plan(5, 5, True)["graphic"], "outro")
+        self.assertEqual(visual_plan(4, 5, True)["kind"], "stock")
+        self.assertEqual(visual_plan(5, 5, True)["kind"], "stock")
         self.assertEqual(visual_plan(5, 5, False), {})
 
     def test_story_graphics_are_local_and_have_provenance_sidecars(self):
