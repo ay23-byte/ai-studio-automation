@@ -1,6 +1,13 @@
 name: Render prepared documentary package
 
 on:
+  push:
+    branches:
+      - production-trial/disappearing-villages
+    paths:
+      - "production/disappearing-villages/**"
+      - "scripts/render_editorial_package.py"
+      - ".github/workflows/render-editorial-package.yml"
   workflow_dispatch:
     inputs:
       script_path:
