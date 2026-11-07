@@ -1,4 +1,4 @@
-import time, random, base64, urllib.parse, subprocess
+import time, random, base64, urllib.parse, subprocess, hashlib
 from pathlib import Path
 import requests
 from core.config import CF_ACCOUNT_ID, CF_API_TOKEN, POLLINATIONS_GAP, PIXABAY_API_KEY
@@ -60,7 +60,7 @@ def _cloudflare(prompt, path):
                 "model": "@cf/black-forest-labs/flux-1-schnell",
                 "asset_type": "ai_generated_image",
                 "licence_status": "Check current Cloudflare AI terms and any applicable model/provider restrictions before commercial publication.",
-                "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
+                "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
             })
             return True
         except Exception as e: print(f"Cloudflare {attempt+1}: {e}")
