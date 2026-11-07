@@ -113,8 +113,8 @@ def cmd_upload(args):
     row = dict(row)
     if row.get("format") == "longform":
         from core.config import BUILD_DIR
-        from core.editorial_review import assert_visual_review_ready
-        assert_visual_review_ready(BUILD_DIR / f"job_{args.id}")
+        from core.release_certification import assert_release_certified
+        assert_release_certified(BUILD_DIR / f"job_{args.id}", Path(row["video_path"]))
     script = json.loads(row.get("script_json") or "{}")
     seo = generate_seo(script)
     title = row.get("title","") + " #Shorts" if row.get("format")=="shorts" else row.get("title","")

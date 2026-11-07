@@ -436,3 +436,18 @@ Open **Research, citations & rights verification** in the Streamlit Pages naviga
 The **Visual Editorial Review** page now has a separate per-shot copyright/licence decision, licence basis, attribution and reviewer notes. A source/provenance check is not a rights clearance. Mark rights reviewed only after checking the actual asset terms, commercial-use restrictions, attribution requirements and any permissions. The editorial decision store migrates version-1 records to version 2 while preserving old decisions; all migrated shots start with rights review pending.
 
 Long-form publication now requires all of the following: approved shot reviews, reviewed provenance, documented rights review for every shot, no unresolved visual/semantic/presenter technical failures, a completed audio QA report plus human listening review, and a human-verified claim ledger with coverage attestation. These controls are workflow gates, not legal advice or independent certification.
+
+
+## Milestone 25: End-to-end production testing and release certification
+
+A long-form documentary must now pass an explicit release-certification step before approval, upload or public scheduling. The certifier checks the final MP4 delivery profile (video/audio streams, landscape resolution, frame rate, duration and stereo sample rate), the visual consistency report, the final video quality report, all human visual/source/rights decisions, the audio listening review, the claim-level research review and the presenter/semantic failure states.
+
+The certifier writes `release_certificate.json` with a unique certificate ID, check results, blockers, warnings, video metadata and SHA-256 hashes of the final MP4 plus all required review/QA reports and decision stores. If any required gate is incomplete, the certificate is `BLOCKED`. If a video or report changes after certification, upload is blocked until the build is certified again.
+
+You can certify from the dashboard under **Documentary release certification**, or run:
+
+```bash
+python scripts/certify_release.py --build-dir "<BUILD_DIR>/job_<ID>" --video "<OUTPUT_DIR>/longform_<ID>.mp4"
+```
+
+The certificate is an internal production checklist and artifact-integrity record, not a legal, factual, historical or scientific guarantee. The FFmpeg smoke-test suite also creates a real sample MP4 and runs the release certifier end to end.

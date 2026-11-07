@@ -182,6 +182,39 @@ with review_tab:
                     st.image(row["thumb_path"], caption="Saved thumbnail", use_container_width=True)
                 else:
                     st.caption("Thumbnails are generated automatically after new videos finish rendering. You can also generate them here from the title and script.")
+            if row.get("format") == "longform" and path.is_file():
+                build_path = BUILD_DIR / f"job_{job_id}"
+                certificate_path = build_path / "release_certificate.json"
+                with st.expander("🏁 Documentary release certification"):
+                    if st.button("Run complete release certification", key=f"certify_{job_id}"):
+                        try:
+                            from core.release_certification import certify_documentary
+                            certificate = certify_documentary(build_path, path)
+                            if certificate["status"] == "CERTIFIED":
+                                st.success("Release certified. The video and review artifacts are hash-locked.")
+                            else:
+                                st.error(f"Release blocked by {len(certificate['blockers'])} issue(s).")
+                                for blocker in certificate["blockers"]:
+                                    st.error(blocker)
+                            for warning in certificate.get("warnings", []):
+                                st.warning(warning)
+                        except Exception as exc:
+                            st.error(f"Release certification failed: {exc}")
+                    if certificate_path.is_file():
+                        try:
+                            certificate = json.loads(certificate_path.read_text(encoding="utf-8"))
+                            if certificate.get("status") == "CERTIFIED":
+                                st.success(f"Certified at {certificate.get('created_at')}")
+                                st.caption(f"Certificate ID: {certificate.get('certificate_id')}")
+                                st.json(certificate.get("video_metadata", {}))
+                            else:
+                                st.error("Latest release certificate is BLOCKED.")
+                                for blocker in certificate.get("blockers", []):
+                                    st.error(blocker)
+                        except Exception as exc:
+                            st.error(f"Could not read release certificate: {exc}")
+                    else:
+                        st.info("Complete all visual, rights, audio and research reviews, then run certification here.")
             a, b = st.columns(2)
             with a:
                 if row.get("approved"):
@@ -191,8 +224,8 @@ with review_tab:
                 elif st.button("Approve video", key=f"approve_{job_id}", type="primary"):
                     try:
                         if row.get("format") == "longform":
-                            from core.editorial_review import assert_visual_review_ready
-                            assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
+                            from core.release_certification import assert_release_certified
+                            assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
                         update_video(job_id, approved=1, status="approved")
                         st.rerun()
                     except Exception as exc:
@@ -203,8 +236,8 @@ with review_tab:
                         try:
                             from core.uploader import upload
                             if row.get("format") == "longform":
-                                from core.editorial_review import assert_visual_review_ready
-                                assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
+                                from core.release_certification import assert_release_certified
+                                assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
                             new_id = upload(path, row.get("title") or "Untitled",
                                             script.get("description", "Created with AI Studio."),
                                             script.get("tags", []), privacy_status="unlisted")
@@ -223,8 +256,8 @@ with review_tab:
                 if submit:
                     try:
                         if row.get("format") == "longform":
-                            from core.editorial_review import assert_visual_review_ready
-                            assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
+                            from core.release_certification import assert_release_certified
+                            assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
                         from core.uploader import schedule_video
                         publish_at = datetime.combine(chosen_date, chosen_time).replace(tzinfo=IST)
                         schedule_video(youtube_id, publish_at)

@@ -83,3 +83,8 @@ Only enable after installing SadTalker and its required checkpoints on a GPU-cap
 The production app writes `research_verification_report.json` and `research_review_decisions.json` for each long-form build. Use the **Research, citations & rights verification** Streamlit page to open original sources, record claim-level verification notes and attest that the complete narration is represented. Source URLs and GDELT discovery matches are not proof of claim support.
 
 Use the **Visual Editorial Review** page to record a separate per-shot rights decision, licence basis, attribution and notes. Provenance review and rights clearance are different checks. The release gate requires both; changed source metadata invalidates previous shot and rights approval.
+
+
+## Final release certification
+
+Before approval or upload, run the release certifier from the dashboard or `scripts/certify_release.py`. A release certificate is issued only after the final MP4 delivery profile, visual consistency, video quality, visual/editorial approvals, rights reviews, audio metering/listening review and claim-level source verification all pass. The certificate stores SHA-256 hashes of the video and required reports; any post-certification file change invalidates it. Certification is an internal workflow record, not a legal or factual guarantee.

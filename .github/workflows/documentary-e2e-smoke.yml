@@ -7,8 +7,12 @@ on:
     paths:
       - "core/workflow_audit.py"
       - "core/quality.py"
+      - "core/release_certification.py"
       - "scripts/audit_documentary.py"
+      - "scripts/certify_release.py"
       - "tests/test_workflow_audit.py"
+      - "tests/test_release_certification.py"
+      - "tests/test_release_certification_smoke.py"
       - ".github/workflows/documentary-e2e-smoke.yml"
 
 permissions:
@@ -41,8 +45,9 @@ jobs:
 
       - name: Compile and run audit unit tests
         run: |
-          python -m py_compile core/workflow_audit.py core/quality.py scripts/audit_documentary.py
+          python -m py_compile core/workflow_audit.py core/quality.py core/release_certification.py scripts/audit_documentary.py scripts/certify_release.py
           python -m unittest discover -s tests -p "test_workflow_audit.py" -v
+          python -m unittest discover -s tests -p "test_release_certification*.py" -v
 
       - name: Generate deterministic sample documentary media
         run: |
