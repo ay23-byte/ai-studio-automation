@@ -1,0 +1,158 @@
+{
+  "central_question": "Why are people leaving India's villages behind—and are these villages disappearing because people no longer want to live there, or because staying has become increasingly difficult?",
+  "logline": "Across India's mountains and plains, locked houses and silent streets reveal a transformation behind India's changing settlement patterns. Following the evidence from Census records to Uttarakhand's reported depopulated villages, this documentary investigates how livelihoods, essential services, agriculture and geography interact—and asks whether migration is always a tragedy.",
+  "chapters": [
+    {
+      "id": 1,
+      "title": "Cold Open — The Village That Went Silent",
+      "purpose": "Open with an atmospheric but clearly illustrative empty-village image and state the central question. Use the historical national figure as a hook without presenting it as current.",
+      "hook": "Imagine ek aisa gaon… jahan ghar abhi bhi khade hain, lekin un darwazon ko kholne wala koi nahi.",
+      "bridge": "Aur yeh sirf ek pahadi gaon ki kahani nahi. Government ke records mein, yeh ek national-scale mystery ban chuki hai.",
+      "minutes": 0.9,
+      "fact_ids": [
+        "F01",
+        "F02",
+        "F03"
+      ],
+      "emotional_beat": "Curiosity turns into unease.",
+      "reveal": "Census 2011 recorded 43,324 uninhabited villages nationally."
+    },
+    {
+      "id": 2,
+      "title": "Title Card",
+      "purpose": "Short title sequence and map transition.",
+      "hook": "THE MYSTERY OF INDIA'S DISAPPEARING VILLAGES",
+      "bridge": "Is mystery ko samajhne ke liye, pehle humein dekhna hoga ki ek gaon kab aur kyun khaali hota hai.",
+      "minutes": 0.1,
+      "fact_ids": [],
+      "emotional_beat": "A pause before the investigation.",
+      "reveal": null
+    },
+    {
+      "id": 3,
+      "title": "Act 1 — A Country Built on Villages",
+      "purpose": "Define uninhabited, seasonal and migration categories; explain why the distinction matters.",
+      "hook": "India ki kahani sirf bade shehron ki kahani nahi hai.",
+      "bridge": "Lekin Uttarakhand ke records mein, yeh story aur zyada personal ho jaati hai.",
+      "minutes": 2,
+      "fact_ids": [
+        "F01",
+        "F02",
+        "F11",
+        "F12"
+      ],
+      "emotional_beat": "National scale becomes human.",
+      "reveal": "Seasonal winter absence is not equivalent to permanent depopulation."
+    },
+    {
+      "id": 4,
+      "title": "Act 2 — The Himalayan Disappearance",
+      "purpose": "Introduce Uttarakhand as the case study and compare 2011 and 2018 survey evidence.",
+      "hook": "Himalaya ki khoobsurati ke peeche ek aisi kahani chhupi hai jo tourist photographs nahi dikhaati.",
+      "bridge": "Numbers humein batate hain kitne gaon khaali hue. Ab humein samajhna hai kyun.",
+      "minutes": 1.625,
+      "fact_ids": [
+        "F02",
+        "F03",
+        "F04"
+      ],
+      "emotional_beat": "The pattern becomes concrete.",
+      "reveal": "The 2018 survey reported 734 villages depopulated after 2011; Pauri Garhwal's reported count was 186."
+    },
+    {
+      "id": 5,
+      "title": "Act 2 — The Economics of Leaving",
+      "purpose": "Explain livelihood, employment, education, healthcare and intra-state migration.",
+      "hook": "Kisi ghar ko chhodna aasaan nahi hota. Lekin rukna bhi mushkil ho sakta hai.",
+      "bridge": "Jab log jaate hain, toh gaon ki daily life aur local economy bhi badalti hai.",
+      "minutes": 1.625,
+      "fact_ids": [
+        "F05",
+        "F06",
+        "F08"
+      ],
+      "emotional_beat": "Empathy replaces blame.",
+      "reveal": "Lack of livelihood and employment was the leading reported reason at 50.16% in the cited commission data."
+    },
+    {
+      "id": 6,
+      "title": "Act 2 — When Essential Services Disappear",
+      "purpose": "Connect service access and agricultural pressures to everyday decisions; explain overlapping categories.",
+      "hook": "Ek gaon tab khaali nahi hota jab aakhri insaan chala jaata hai. Kabhi-kabhi woh tab khaali hone lagta hai jab roz ki zindagi mushkil hoti jaati hai.",
+      "bridge": "Lekin kya yeh sab alag-alag problems hain—or ek doosre ko badhane wala cycle?",
+      "minutes": 1.625,
+      "fact_ids": [
+        "F07",
+        "F08",
+        "F13"
+      ],
+      "emotional_beat": "Statistics become everyday realities.",
+      "reveal": "660 of the 734 surveyed villages were reported to lack a primary health centre; the other service categories overlap."
+    },
+    {
+      "id": 7,
+      "title": "Act 2 — Big Reveal: It Is Not One Cause",
+      "purpose": "Synthesize the evidence into a reinforcing system of livelihood, services, agriculture, geography and aspirations. Keep national migration statistics distinct from village abandonment.",
+      "hook": "Asli mystery yeh nahi ki log kyun ja rahe hain. Sawaal yeh hai ki kya in saari problems ne milkar jaana ek practical choice bana diya hai?",
+      "bridge": "Agar migration ek response hai, toh kya har village ko wapas pehle jaisa banana zaroori hai?",
+      "minutes": 1.625,
+      "fact_ids": [
+        "F05",
+        "F06",
+        "F09",
+        "F10",
+        "F11",
+        "F12",
+        "F13"
+      ],
+      "emotional_beat": "A simple tragedy story becomes a nuanced investigation.",
+      "reveal": "There is no single cause; the evidence points to interacting pressures, while migration can also be beneficial."
+    },
+    {
+      "id": 8,
+      "title": "Act 3 — Can a Village Come Back?",
+      "purpose": "Treat the strongest counter-argument fairly. Discuss benefits of migration and the difference between a programme existing and delivering outcomes.",
+      "hook": "Kya har gaon ko dobara basana zaroori hai? Shayad iska jawab itna simple nahi.",
+      "bridge": "Chahe koi wapas aaye ya na aaye, ek sawaal reh jaata hai: kya kisi gaon ka future uske logon ke bina imagine kiya ja sakta hai?",
+      "minutes": 2,
+      "fact_ids": [
+        "F06",
+        "F10",
+        "F12",
+        "F14",
+        "F15"
+      ],
+      "emotional_beat": "Respect for choice and concern for opportunity coexist.",
+      "reveal": "Migration is not automatically failure; lack of meaningful choice is the deeper concern."
+    },
+    {
+      "id": 9,
+      "title": "Closing — The Door That Remains",
+      "purpose": "Return to the opening door image and answer the central question without overclaiming.",
+      "hook": "Ek khaali ghar bhi kabhi kisi ka poora jahaan hua karta tha.",
+      "bridge": "End on silence and a lingering question.",
+      "minutes": 0.5,
+      "fact_ids": [
+        "F03",
+        "F07",
+        "F08"
+      ],
+      "emotional_beat": "Reflective, bittersweet ending.",
+      "reveal": null
+    }
+  ],
+  "callbacks": [
+    {
+      "plant_in": "Chapter 1: locked wooden door and silent village path.",
+      "payoff_in": "Chapter 9: return to the same image with a deeper understanding of the pressures behind depopulation."
+    },
+    {
+      "plant_in": "Chapter 1: who will open the doors again?",
+      "payoff_in": "Chapter 8 and closing: people should have a genuine choice to stay or move."
+    },
+    {
+      "plant_in": "Chapter 3: seasonal absence versus permanent depopulation.",
+      "payoff_in": "Chapter 7: do not label a settlement a ghost village merely because residents temporarily migrate."
+    }
+  ]
+}
