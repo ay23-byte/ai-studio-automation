@@ -341,7 +341,7 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
         # actual narration rather than failing the entire documentary or
         # inventing archival footage, locations, people, or evidence.
         if len(visuals) < 3:
-            words = list(re.finditer(r"\\S+", narration))
+            words = list(re.finditer(r"\S+", narration))
             if len(words) < 3:
                 raise ValueError(
                     f"Chapter {section_index} has too little narration to create "
