@@ -13,13 +13,21 @@ class VisualConsistencyTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def _frame(self, name, colour, size=(1280, 720)):
+    def _frame(self, name, colour, size=(1280, 720), texture=False):
         path = self.root / name
-        Image.new("RGB", size, colour).save(path)
+        image = Image.new("RGB", (160, 90), colour)
+        if texture:
+            pixels = []
+            for y in range(90):
+                for x in range(160):
+                    offset = 35 if (x // 8 + y // 8) % 2 else -35
+                    pixels.append(tuple(max(0, min(255, channel + offset)) for channel in colour))
+            image.putdata(pixels)
+        image.resize(size).save(path)
         return str(path)
 
     def test_normal_sample_passes_basic_technical_checks(self):
-        frame = self._frame("normal.jpg", (105, 110, 115))
+        frame = self._frame("normal.jpg", (105, 110, 115), texture=True)
         report = audit_visual_consistency(
             {"shots": [{"shot_id": "shot_1", "sample_frames": [frame]}]}, self.root
         )
