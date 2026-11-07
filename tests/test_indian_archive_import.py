@@ -72,5 +72,35 @@ class IndianArchiveImportTests(unittest.TestCase):
         self.assertIn("reference", reason)
 
 
+    def test_imported_indian_clip_is_discovered_for_matching_documentary_scene(self):
+        from unittest.mock import patch
+        from core import footage_sources
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            old = Path.cwd()
+            try:
+                os.chdir(root)
+                source = root / "licensed_indian_clip.mp4"
+                source.write_bytes(b"licensed-video")
+                register_indian_archive_asset(
+                    source, provider="NCAA", title="Ramlila performance in Varanasi",
+                    source_url="https://ncaa.gov.in/repository/item/456",
+                    licence_reference="IGNCA permission 456",
+                    usage_scope="Commercial YouTube use including monetization",
+                )
+                target = root / "build" / "scene.mp4"
+                with patch.object(footage_sources, "_valid_video", return_value=True):
+                    found = footage_sources.fetch_documentary_clip(
+                        ["Ramlila Varanasi"], target, set(), scene_prompt="Ramlila performance in Varanasi"
+                    )
+                self.assertTrue(found)
+                self.assertTrue(target.is_file())
+                copied = json.loads(target.with_suffix(".mp4.source.json").read_text(encoding="utf-8"))
+                self.assertEqual(copied["provider"], "NCAA")
+                self.assertEqual(copied["licence_document_ref"], "IGNCA permission 456")
+            finally:
+                os.chdir(old)
+
+
 if __name__ == "__main__":
     unittest.main()
