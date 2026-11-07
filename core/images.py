@@ -1,7 +1,7 @@
 import time, random, base64, urllib.parse, subprocess, hashlib
 from pathlib import Path
 import requests
-from core.config import CF_ACCOUNT_ID, CF_API_TOKEN, POLLINATIONS_GAP, PIXABAY_API_KEY
+from core.config import CF_ACCOUNT_ID, CF_API_TOKEN, POLLINATIONS_GAP, PIXABAY_API_KEY, COVERR_API_KEY
 
 def _tokens(value):
     import re
@@ -100,6 +100,94 @@ def generate_image(scene_prompt, path, category="general"):
     if _cloudflare(full, path): print(f"  image ok (cloudflare)"); return True
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
+
+def _search_coverr(q):
+    """Search Coverr's official API. Returns raw hits; no scraping is used."""
+    if not COVERR_API_KEY:
+        return []
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                "https://api.coverr.co/videos",
+                headers={"x-api-key": COVERR_API_KEY},
+                params={"query": q, "page_size": 20, "urls": "true"},
+                timeout=30,
+            )
+            if response.status_code == 429:
+                time.sleep(15 * (attempt + 1))
+                continue
+            response.raise_for_status()
+            payload = response.json()
+            hits = payload.get("hits", [])
+            return hits if isinstance(hits, list) else []
+        except Exception as exc:
+            print(f"  Coverr search attempt {attempt + 1} failed: {exc}")
+    return []
+
+
+def _coverr_candidate(hit, query):
+    """Convert a Coverr API hit into a downloadable candidate and licence record."""
+    from datetime import date
+
+    if not isinstance(hit, dict):
+        return None
+    urls = hit.get("urls") if isinstance(hit.get("urls"), dict) else {}
+    video_url = (
+        hit.get("mp4_download")
+        or hit.get("mp4")
+        or urls.get("mp4_download")
+        or urls.get("mp4")
+    )
+    if isinstance(video_url, dict):
+        video_url = video_url.get("url") or video_url.get("src")
+    if not isinstance(video_url, str) or not video_url.startswith("https://"):
+        return None
+
+    title = str(hit.get("title") or hit.get("name") or "")
+    description = str(hit.get("description") or "")
+    tags = hit.get("tags") or []
+    if isinstance(tags, list):
+        tags_text = " ".join(str(tag.get("name") if isinstance(tag, dict) else tag) for tag in tags)
+    else:
+        tags_text = str(tags)
+    relevance = max(
+        _relevance(query, title, tags_text),
+        _relevance(query, description, tags_text),
+    )
+    width = int(hit.get("width") or hit.get("video_width") or 0)
+    height = int(hit.get("height") or hit.get("video_height") or 0)
+    asset_id = hit.get("id") or hit.get("video_id") or hit.get("slug")
+    if not asset_id:
+        return None
+
+    page_url = str(hit.get("url") or hit.get("page_url") or "")
+    if page_url and page_url.startswith("/"):
+        page_url = "https://coverr.co" + page_url
+    metadata = {
+        "provider": "Coverr",
+        "asset_id": str(asset_id),
+        "title": title,
+        "description": description,
+        "tags": tags_text,
+        "page_url": page_url or "https://coverr.co/",
+        "query": query,
+        "relevance_score": relevance,
+        "width": width,
+        "height": height,
+        "licence": "Coverr License — verify the specific asset and current terms",
+        "licence_url": "https://coverr.co/license",
+        "attribution_text": f"{title or 'Video'} — Coverr; {page_url or 'https://coverr.co/'}",
+        "date_accessed": date.today().isoformat(),
+        "terms_reviewed": False,
+        "human_visual_inspection_required": True,
+        "visual_checks": {
+            "steady_clean": "not_automatically_verified",
+            "watermark_logo": "not_automatically_verified",
+            "private_person_privacy": "not_automatically_verified",
+        },
+    }
+    return video_url, metadata
+
 
 def _search_pixabay(q):
     if not PIXABAY_API_KEY: return []
