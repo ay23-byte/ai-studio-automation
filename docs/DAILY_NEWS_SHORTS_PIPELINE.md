@@ -86,3 +86,29 @@ The command synthesizes each scene with the existing voice engine, creates capti
 **Hard boundary:** this is a review render only. It does not call the YouTube uploader, set privacy, schedule, or publish. Licence metadata is not legal advice or proof of rights; every asset still requires human inspection for exact licence terms, attribution, visual relevance, watermarks and context. Human fact, script, visual, audio and phone playback review remain mandatory. The existing scheduled GitHub workflow remains discovery-only and does not invoke TTS/rendering or upload.
 
 The production approval file is intentionally separate from the generated script so an AI-generated draft cannot approve itself.
+
+
+## Milestone: technical QA and explicitly approved private upload
+
+After rendering a review copy, run:
+
+```bash
+python scripts/qa_news_short.py output/daily_news/rendered/review_short.mp4
+```
+
+The technical gate checks a single video/audio stream, 1080×1920, 30 fps, 35–58 seconds, H.264/yuv420p, AAC and 48 kHz. It also reports black-frame and silence detections for human inspection. A PASS is only a technical pass: it does not certify facts, rights, captions, visual relevance, audio quality or policy compliance.
+
+To upload a reviewed file as **PRIVATE only**, create three separate files:
+- metadata JSON with `title`, `description`, `tags`, and `synthetic_media`;
+- QA report produced by the command above;
+- human approval JSON containing exactly `{"status":"approved_private_upload"}`.
+
+Then run:
+
+```bash
+python scripts/upload_approved_news_short.py metadata.json upload_approval.json
+```
+
+The script calls the existing YouTube uploader with `privacy_status="private"`. It has no public/unlisted mode and cannot schedule publication. YouTube credentials must be configured separately. Never put credentials in these JSON files or commit them.
+
+This is an opt-in manual step, not part of the scheduled discovery workflow. Do not upload until the reviewer has watched the complete MP4 on a phone, checked every factual claim against the cited sources, confirmed asset rights and credits, checked synthetic-media disclosure, and approved the metadata. YouTube API audit restrictions may still limit uploads to private. Public publishing is intentionally not automated.
