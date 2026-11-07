@@ -136,7 +136,7 @@ def _visual_beats_for_section(section, category="general"):
     for item in planned[:6]:
         # Preserve the original concise prompt for legacy string storyboards;
         # structured visual beats receive the full production prompt.
-        is_structured = isinstance(item, dict) and bool(item.get("visual_type") or item.get("subject") or item.get("location") or item.get("time_period"))
+        is_structured = bool(item.get("_structured_input"))
         prompt = str((item.get("production_prompt") if is_structured else item.get("visual_prompt")) or item.get("visual_prompt") or "").strip()
         anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
         keywords = item.get("search_queries") or item.get("keywords") or section.get("keywords") or []
