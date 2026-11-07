@@ -1,0 +1,210 @@
+name: Render approved news Short — review MP4 only
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Open News story review issue number"
+        required: true
+        type: number
+      visual_run_id:
+        description: "Successful visual-review workflow run ID"
+        required: true
+        type: string
+      confirmation:
+        description: "Type exactly: I approve a review-only MP4 render"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  issues: read
+
+concurrency:
+  group: news-review-render-${{ inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  render-review-copy:
+    if: ${{ github.actor == github.repository_owner && inputs.confirmation == 'I approve a review-only MP4 render' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify issue and visual-review artifact
+        id: source
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = Number(context.payload.inputs.issue_number);
+            const runId = Number(context.payload.inputs.visual_run_id);
+            if (!Number.isInteger(issueNumber) || !Number.isInteger(runId)) {
+              core.setFailed("Issue number and workflow run ID must be integers.");
+              return;
+            }
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: issueNumber
+            });
+            if (issue.data.state !== "open" ||
+                !issue.data.title.startsWith("News story review:")) {
+              core.setFailed("The target must be an open News story review issue.");
+              return;
+            }
+            const run = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId
+            });
+            if (run.data.conclusion !== "success" || run.data.repository.full_name !== context.repo.owner + "/" + context.repo.repo) {
+              core.setFailed("The selected visual workflow run must have succeeded in this repository.");
+              return;
+            }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId, per_page: 100
+            });
+            const expected = `news-visual-review-issue-${issueNumber}`;
+            const artifact = artifacts.find(a => a.name === expected && !a.expired);
+            if (!artifact) {
+              core.setFailed(`No unexpired ${expected} artifact exists in run ${runId}.`);
+              return;
+            }
+            core.setOutput("run_id", String(runId));
+            core.info(`Verified ${expected} from successful run ${runId}.`);
+
+      - name: Download approved visual-review package
+        uses: actions/download-artifact@v4
+        with:
+          name: news-visual-review-issue-${{ inputs.issue_number }}
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: visual-package
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg and deterministic licensed font
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core fonts-dejavu-core
+
+      - name: Install rendering dependencies
+        run: python -m pip install --upgrade pip edge-tts Pillow
+
+      - name: Prepare explicitly approved render inputs
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          VISUAL_RUN_ID: ${{ inputs.visual_run_id }}
+        run: |
+          python - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+
+          root = Path("visual-package")
+          candidate_path = root / "production_candidate.json"
+          candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+          if candidate.get("visual_review_status") != "pending_human_visual_and_rights_review":
+              raise SystemExit("Unexpected visual review state; refusing to render.")
+          scenes = candidate.get("scenes")
+          if not isinstance(scenes, list) or not 4 <= len(scenes) <= 6:
+              raise SystemExit("Candidate must contain 4–6 scenes.")
+          out = Path("render-input")
+          assets = out / "assets"
+          assets.mkdir(parents=True, exist_ok=True)
+          for i, scene in enumerate(scenes, 1):
+              old = Path(scene.get("asset_path", ""))
+              source = root / "assets" / old.name
+              if not source.is_file():
+                  raise SystemExit(f"Missing packaged scene asset: {source}")
+              sidecar = source.with_suffix(source.suffix + ".source.json")
+              if not sidecar.is_file():
+                  raise SystemExit(f"Missing provenance sidecar: {sidecar}")
+              target = assets / source.name
+              shutil.copy2(source, target)
+              shutil.copy2(sidecar, target.with_suffix(target.suffix + ".source.json"))
+              scene["asset_path"] = str(target.resolve())
+          # The workflow_dispatch confirmation is the explicit authorization to render
+          # this review copy. It does not authorize upload or publication.
+          candidate["editorial_status"] = "approved_for_production"
+          (out / "production_candidate.json").write_text(
+              json.dumps(candidate, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          approval = {
+              "status": "approved",
+              "approval_type": "review_only_mp4_render",
+              "issue_number": int(os.environ["ISSUE_NUMBER"]),
+              "visual_review_run_id": int(os.environ["VISUAL_RUN_ID"]),
+              "confirmation": "I approve a review-only MP4 render",
+              "upload_performed": False,
+              "publish_performed": False
+          }
+          (out / "render_approval.json").write_text(
+              json.dumps(approval, indent=2), encoding="utf-8"
+          )
+          PY
+
+      - name: Run validation tests
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+        run: |
+          python -m compileall -q core scripts/render_reviewed_news_short.py
+          python -m unittest discover -s tests -p 'test_news_short_production.py' -v
+
+      - name: Render review MP4 (no upload)
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+        run: |
+          python -m scripts.render_reviewed_news_short render-input/production_candidate.json render-input/render_approval.json --output-dir output/daily_news/rendered
+          test -s output/daily_news/rendered/review_short.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of json output/daily_news/rendered/review_short.mp4
+          ffprobe -v error -show_entries format=duration -of json output/daily_news/rendered/review_short.mp4
+
+      - name: Upload review-only MP4 and audit files
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-review-mp4-issue-${{ inputs.issue_number }}
+          path: |
+            output/daily_news/rendered/review_short.mp4
+            output/daily_news/rendered/production_manifest.json
+            output/daily_news/rendered/licenses.csv
+            output/daily_news/rendered/credits.txt
+            output/daily_news/rendered/captions.ass
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Report review MP4 on the issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              run_id: context.runId, per_page: 100
+            });
+            const artifact = artifacts.find(a => a.name === `news-review-mp4-issue-${context.payload.inputs.issue_number}`);
+            const url = artifact
+              ? `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifact.id}`
+              : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: Number(context.payload.inputs.issue_number),
+              body: [
+                "## Review-only MP4 rendered",
+                "",
+                url,
+                "",
+                "This is a private review artifact only. No YouTube upload or publication was attempted.",
+                "The workflow dispatch confirmation authorized only this review render. Please inspect narration, pronunciation, captions, visual timing, audio and factual context before any separate publication decision."
+              ].join("\n")
+            });
+
+      - name: Report render failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: Number(context.payload.inputs.issue_number),
+              body: "The review-only render failed or was blocked. No YouTube upload or publication was attempted; inspect this workflow run."
+            });

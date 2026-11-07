@@ -68,17 +68,27 @@ def visual_plan(scene_number: int, scene_count: int, is_himalayan: bool) -> dict
     ]}
 
 
+FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_NAME = "DejaVu Sans"
+FONT_LICENCE = "Bitstream Vera and DejaVu font licence"
+FONT_LICENCE_URL = "https://dejavu-fonts.github.io/License.html"
+FONT_ATTRIBUTION = (
+    "DejaVu Sans font software; DejaVu changes are public domain; "
+    "Bitstream Vera-derived font software is distributed under its permissive licence. "
+    "See the full licence and notices at https://dejavu-fonts.github.io/License.html."
+)
+
+
 def _font(size: int):
+    """Use one pinned, licensed font; fail rather than silently use an unknown fallback."""
     from PIL import ImageFont
-    for candidate in (
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-    ):
-        try:
-            return ImageFont.truetype(candidate, size=size)
-        except OSError:
-            pass
-    return ImageFont.load_default()
+    try:
+        return ImageFont.truetype(FONT_PATH, size=size)
+    except OSError as exc:
+        raise RuntimeError(
+            "Required DejaVu Sans Bold font is missing. Install fonts-dejavu-core; "
+            "the renderer intentionally has no untracked font fallback."
+        ) from exc
 
 
 def create_story_graphic(path: str | Path, graphic: str) -> dict:
@@ -185,7 +195,17 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
         "provider": "LabLens/AI Studio local graphic renderer",
         "asset_type": "programmatic_graphic",
         "ai_generated": False,
-        "licence_status": "Created by this project; verify project ownership and any embedded font licence before publication.",
+        "licence": "Project-created original graphic",
+        "licence_status": "Original project graphic using DejaVu Sans under its published font licence; human review remains required.",
+        "licence_url": FONT_LICENCE_URL,
+        "font_name": FONT_NAME,
+        "font_licence": FONT_LICENCE,
+        "font_licence_url": FONT_LICENCE_URL,
+        "font_attribution": FONT_ATTRIBUTION,
+        "attribution_text": (
+            "Original graphic created by the AI Studio Automation project. "
+            + FONT_ATTRIBUTION
+        ),
         "graphic_kind": graphic,
         "human_visual_inspection_required": True,
     }
