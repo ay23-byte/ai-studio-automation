@@ -48,6 +48,18 @@ def _valid_video(path):
         return False
 
 
+def _video_dimensions(path):
+    try:
+        raw = subprocess.check_output([
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height", "-of", "json", str(path)
+        ], stderr=subprocess.DEVNULL)
+        stream = (json.loads(raw).get("streams") or [{}])[0]
+        return int(stream.get("width") or 0), int(stream.get("height") or 0)
+    except Exception:
+        return 0, 0
+
+
 def _download(url, path, metadata):
     if not url or not str(url).startswith("https://"):
         return False
@@ -61,6 +73,16 @@ def _download(url, path, metadata):
                         target.write(chunk)
         if not _valid_video(path):
             path.unlink(missing_ok=True)
+            return False
+        width, height = _video_dimensions(path)
+        metadata["width"], metadata["height"] = width, height
+        from core.asset_licensing import score_asset
+        score = score_asset(metadata, width, height)
+        metadata["quality_score"] = score["score_0_10"]
+        metadata["quality_score_details"] = score
+        if score["score_0_10"] < 7.0:
+            path.unlink(missing_ok=True)
+            print(f"  archive candidate rejected: score {score['score_0_10']}/10 is below 7")
             return False
         sidecar = path.with_suffix(path.suffix + ".source.json")
         sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -155,11 +177,16 @@ def _internet_archive(query):
         licence_url = str(item_meta.get("licenseurl") or item_meta.get("license_url") or "")
         licence = str(item_meta.get("license") or "")
         normalized = (licence + " " + rights).lower()
-        if not (licence_url and (
-            "public domain" in normalized or "creativecommons.org/publicdomain/zero" in licence_url.lower()
-            or "creativecommons.org/licenses/by/" in licence_url.lower()
-            or "creativecommons.org/licenses/by-sa/" in licence_url.lower()
-        )):
+        licence_url_lower = licence_url.lower()
+        if "public domain" in normalized:
+            licence = "Public Domain"
+        elif "creativecommons.org/publicdomain/zero" in licence_url_lower:
+            licence = "CC0 1.0"
+        elif "creativecommons.org/licenses/by-sa/" in licence_url_lower:
+            licence = "CC BY-SA 4.0"
+        elif "creativecommons.org/licenses/by/" in licence_url_lower:
+            licence = "CC BY 4.0"
+        else:
             continue
         candidates = [f for f in files if str(f.get("name", "")).lower().endswith(".mp4")
                       and int(f.get("size") or 0) > 50000]
