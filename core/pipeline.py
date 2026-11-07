@@ -129,24 +129,25 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _visual_beats_for_section(section):
-    raw = section.get("visuals") or [section.get("image", "documentary establishing shot")]
+def _visual_beats_for_section(section, category="general"):
+    from core.documentary_storyboard import plan_section_visuals
+    planned = plan_section_visuals(section, category)
     beats = []
-    for item in raw:
-        if len(beats) >= 6:
-            break
-        if isinstance(item, dict):
-            prompt = str(item.get("visual_prompt") or item.get("prompt") or item.get("description") or "").strip()
-            anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
-            keywords = item.get("keywords") or section.get("keywords") or []
-        else:
-            prompt, anchor, keywords = str(item).strip(), "", section.get("keywords") or []
-        if prompt:
-            if isinstance(keywords, str): keywords = [keywords]
-            beats.append({"prompt":prompt,"anchor":anchor,
-                          "keywords":[str(k).strip() for k in keywords if str(k).strip()][:5]})
-    return beats or [{"prompt":str(section.get("image") or section.get("title") or "documentary establishing shot"),
-                      "anchor":"","keywords":section.get("keywords") or ["documentary"]}]
+    for item in planned[:8]:
+        prompt = str(item.get("production_prompt") or item.get("visual_prompt") or "").strip()
+        anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
+        keywords = item.get("search_queries") or item.get("keywords") or section.get("keywords") or []
+        beats.append({
+            "prompt": prompt, "anchor": anchor,
+            "keywords": [str(k).strip() for k in keywords if str(k).strip()][:8],
+            "visual_type": item.get("visual_type", "stock"),
+            "subject": item.get("subject", ""), "location": item.get("location", ""),
+            "time_period": item.get("time_period", ""),
+            "shot_size": item.get("shot_size", "medium or wide establishing shot"),
+            "camera_movement": item.get("camera_movement", ""),
+            "visual_guardrail": item.get("visual_guardrail", ""),
+        })
+    return beats
 
 
 def _visual_beat_durations(narration, beats, section_duration):
@@ -323,7 +324,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     presenter_image = os.getenv("PRESENTER_IMAGE", "assets/presenter/presenter_master.png")
     for i, sec in enumerate(sections):
         narration = str(sec.get("narration", ""))
-        beats = _visual_beats_for_section(sec)
+        beats = _visual_beats_for_section(sec, script.get('category', 'general'))
         durations = _visual_beat_durations(narration, beats, sec["_dur"])
         shot_cursor = sec["_start"]
         if presenter_enabled and presenter_mode == "still_cpu":
