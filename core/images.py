@@ -140,7 +140,7 @@ def _pexels_candidate(hit, query):
     return video["link"], {
         "provider": "Pexels", "asset_id": hit.get("id"),
         "title": f"Pexels video {hit.get('id')}", "creator": user.get("name", ""),
-        "page_url": page, "query": query, "relevance_score": 0.0,
+        "page_url": page, "query": query, "relevance_score": 0.65,  # Pexels search itself is query-ranked
         "width": video.get("width", 0), "height": video.get("height", 0),
         "licence": "Pexels License",
         "licence_url": "https://www.pexels.com/license/",
