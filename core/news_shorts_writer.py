@@ -87,6 +87,13 @@ def _post_gemini_with_retries(url, key, payload, *, attempts=3):
     ) from last_error
 
 
+ 
+def _gemini_model_candidates(configured_model):
+    """Return ordered, de-duplicated models for resilient generation."""
+    ordered = [configured_model, 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
+    return list(dict.fromkeys(model.strip() for model in ordered if model and model.strip()))
+
+
 def generate_reviewed_shorts(review_path, output_path):
     packet=json.loads(open(review_path,encoding='utf-8').read())
     if packet.get('review_status')!='approved':
@@ -128,9 +135,7 @@ REVIEWED PACKET:
     # Retry the configured model once through a second supported Flash model.
     # A second generation attempt also repairs validator feedback (for example,
     # a spoken HAND reference that omits the nearest-drainage definition).
-    model_candidates = [model]
-    if model != 'gemini-3.6-flash':
-        model_candidates.append('gemini-3.6-flash')
+    model_candidates = _gemini_model_candidates(model)
     payload = {'contents': [{'parts': [{'text': prompt}]}],
                'generationConfig': {'responseMimeType': 'application/json',
                                     'temperature': 0.3}}
@@ -146,9 +151,12 @@ REVIEWED PACKET:
             except (requests.RequestException, RuntimeError) as exc:
                 last_error = exc
         if response is None:
+            attempted = ', '.join(model_candidates)
             raise RuntimeError(
-                'Gemini script generation failed on configured and fallback models. '
-                'Check Google AI API availability and the GEMINI_MODEL setting.'
+                'Gemini script generation failed after retries on all configured '
+                f'model candidates ({attempted}). Last error: {last_error}. '
+                'Check Google AI API availability, quota/billing, credentials, '
+                'network status, and GEMINI_MODEL.'
             ) from last_error
         data = response.json()
         try:
