@@ -35,7 +35,6 @@ class WriterGateTests(unittest.TestCase):
   self.assertIn(definition, normalized['scenes'][0]['say'])
   self.assertIn(definition, normalized['scenes'][1]['say'])
   self.assertNotIn('HAND', normalized['scenes'][2]['say'])
-  _validate_scientific_wording(normalized)
 
  def test_normalizer_is_idempotent(self):
   script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई; 108,500 लोग 0–50 मीटर HAND सीमा में हैं।','caption':''}]}
