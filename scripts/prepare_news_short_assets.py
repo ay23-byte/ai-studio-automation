@@ -100,7 +100,25 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
     small = _font(38)
     x = 82
 
-    if graphic == "building_growth":
+    if graphic == "hand_explainer":
+        draw.text((x, 170), "WHAT DOES HAND MEAN?", font=medium, fill=accent)
+        draw.text((x, 300), "VERTICAL HEIGHT", font=large, fill=white)
+        draw.text((x, 425), "ABOVE DRAINAGE", font=large, fill=white)
+        # Schematic terrain cross-section, not a geographic map.
+        terrain = [(70, 1160), (220, 900), (390, 1040), (560, 760),
+                   (730, 1010), (880, 900), (1010, 1130)]
+        draw.line(terrain, fill=(100, 205, 190), width=18, joint="curve")
+        draw.line((450, 1200, 630, 1200), fill=(105, 185, 235), width=18)
+        draw.line((450, 1220, 630, 1220), fill=(105, 185, 235), width=5)
+        draw.line((760, 1010, 760, 1195), fill=(255, 190, 115), width=9)
+        draw.polygon([(760, 985), (740, 1025), (780, 1025)], fill=(255, 190, 115))
+        draw.polygon([(760, 1220), (740, 1180), (780, 1180)], fill=(255, 190, 115))
+        draw.text((785, 1060), "HEIGHT", font=small, fill=(255, 210, 155))
+        draw.text((430, 1280), "NEAREST DRAINAGE", font=small, fill=(150, 210, 245))
+        draw.rounded_rectangle((70, 1450, 1010, 1690), radius=28, fill=(24, 47, 64), outline=(55, 87, 105), width=3)
+        draw.text((105, 1490), "0–50 m HAND = VERTICAL HEIGHT", font=_font(34), fill=white)
+        draw.text((105, 1560), "NOT horizontal distance from a river", font=_font(32), fill=muted)
+    elif graphic == "building_growth":
         draw.text((x, 190), "HIMALAYAN STUDY", font=medium, fill=accent)
         draw.text((x, 340), "BUILDING", font=large, fill=white)
         draw.text((x, 465), "FOOTPRINT AREA", font=medium, fill=white)
