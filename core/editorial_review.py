@@ -117,12 +117,20 @@ def review_store_path(report_path: str | Path) -> Path:
 
 
 def _shot_fingerprint(shot: dict[str, Any], chapter: str) -> str:
+    source = shot.get("source") if isinstance(shot.get("source"), dict) else {}
+    source_identity = {
+        key: source.get(key) for key in (
+            "provider", "asset_id", "page_url", "creator", "licence",
+            "licence_url", "licence_status", "model", "asset_type",
+        )
+    }
     identity = {
         "chapter_id": chapter,
         "media_path": shot.get("media_path"),
         "visual_prompt": shot.get("visual_prompt"),
         "narration": shot.get("narration"),
         "media_type": shot.get("media_type"),
+        "source_metadata": source_identity,
     }
     encoded = json.dumps(identity, sort_keys=True, ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
