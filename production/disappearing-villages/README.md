@@ -12,7 +12,7 @@ Prepared documentary package for the 12-minute Hinglish investigative film.
 
 ## Render the prepared script
 
-The new GitHub Actions workflow `Render prepared documentary package` is manually triggered after this branch is merged. It uses:
+The GitHub Actions workflow `Render prepared documentary package` runs automatically when this package is merged into `production-trial/disappearing-villages`; it can also be manually dispatched. It uses:
 
 ```text
 python scripts/render_editorial_package.py --script production/disappearing-villages/script.json --voice-gender female --language hinglish
