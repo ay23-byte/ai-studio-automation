@@ -114,57 +114,13 @@ def _search_pixabay(q):
         except: pass
     return []
 
-def _search_pexels(q):
-    """Search the official Pexels video API when a key is configured."""
-    import os
-    key = os.getenv("PEXELS_API_KEY", "").strip()
-    if not key:
-        return []
-    try:
-        response = requests.get(
-            "https://api.pexels.com/videos/search",
-            headers={"Authorization": key},
-            params={"query": q, "per_page": 30, "orientation": "portrait"},
-            timeout=35,
-        )
-        if response.status_code == 429:
-            return []
-        response.raise_for_status()
-        return response.json().get("videos", [])
-    except Exception as exc:
-        print(f"  Pexels search unavailable: {exc}")
-        return []
-
-
-def _pexels_candidate(hit, query):
-    files = sorted(hit.get("video_files") or [],
-                   key=lambda f: (f.get("width") or 0) * (f.get("height") or 0),
-                   reverse=True)
-    video = next((f for f in files if f.get("link") and (f.get("width") or 0) >= 720), None)
-    if not video:
-        return None
-    user = hit.get("user") or {}
-    page = hit.get("url") or ""
-    return video["link"], {
-        "provider": "Pexels", "asset_id": hit.get("id"),
-        "title": f"Pexels video {hit.get('id')}", "creator": user.get("name", ""),
-        "page_url": page, "query": query, "relevance_score": 0.65,  # Pexels search itself is query-ranked
-        "width": video.get("width", 0), "height": video.get("height", 0),
-        "licence": "Pexels License",
-        "licence_url": "https://www.pexels.com/license/",
-        "attribution_text": f"Video by {user.get('name', 'Pexels contributor')} on Pexels — {page}",
-        "date_accessed": __import__("datetime").date.today().isoformat(),
-        "human_visual_inspection_required": True,
-        "visual_checks": {"watermark_logo": "not_automatically_verified",
-                          "private_person_privacy": "not_automatically_verified"},
-    }
 
 
 def fetch_clip(keywords, path, used, scene_prompt=""):
-    """Search archives, Pexels and Pixabay; do not silently depend on Pixabay alone.
+    """Search archives, Coverr and Pixabay.
 
-    Coverr and Mixkit remain manual discovery sources: neither has a supported
-    public search API for automated downloads, so this code does not scrape them.
+    Mixkit is handled through explicit human-selected local assets because its
+    published terms prohibit scripted/bot mass downloading and site scraping.
     """
     from datetime import date
     queries = []
@@ -184,13 +140,11 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
 
     candidates = []
     for query in queries:
-        for hit in _search_pexels(query):
-            item = _pexels_candidate(hit, query)
+        for hit in _search_coverr(query):
+            item = _coverr_candidate(hit, query)
             if item:
                 url, metadata = item
-                # Pexels search is already ranked by the exact query; its video
-                # response does not expose descriptive title/tags fields.
-                candidates.append((url, metadata, hit.get("id"), "Pexels"))
+                candidates.append((url, metadata, hit.get("id"), "Coverr"))
         for hit in _search_pixabay(query):
             if ("Pixabay:" + str(hit.get("id"))) in used or (hit.get("duration") or 0) < 3:
                 continue
