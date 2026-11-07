@@ -30,7 +30,7 @@ class ScientificScriptWordingTests(unittest.TestCase):
 
     def test_rejects_missing_flood_forecast_caveat(self):
         script = self.valid_script()
-        script["scenes"][0]["say"] = "संभावित exposure है। HAND ऊँचाई मापता है। भवन क्षेत्र बढ़ा।"
+        script["scenes"][0]["say"] = "संभावित exposure है। HAND निकटतम जलधारा से ऊर्ध्वाधर ऊँचाई मापता है। भवन क्षेत्र बढ़ा।"
         with self.assertRaisesRegex(ValueError, "not a flood forecast"):
             _validate_scientific_wording(script)
 
