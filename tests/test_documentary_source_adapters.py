@@ -31,7 +31,7 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         self.assertEqual(result[0][1]["asset_id"], "101")
         self.assertEqual(result[0][1]["licence"], "Public Domain")
         self.assertEqual(get_json.call_args.args[0], "https://catalog.archives.gov/api/v2/records/search")
-        self.assertEqual(get_json.call_args.kwargs["headers"]["x-api-key"], "nara-test")
+        self.assertEqual(get_json.call_args.args[2]["x-api-key"], "nara-test")
 
     @patch.dict(os.environ, {"DVIDS_API_KEY": "dvids-test"})
     @patch.object(fs, "_get_json")
