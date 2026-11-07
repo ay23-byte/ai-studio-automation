@@ -90,7 +90,7 @@ class ScriptCorrectionPromptTests(unittest.TestCase):
   prompt = _build_correction_prompt("BASE", ValueError("Script word count outside safe target: 151."))
   self.assertIn("151 spoken words", prompt)
   self.assertIn("hard maximum is 140", prompt)
-  self.assertIn("target 105–120", prompt)
+  self.assertIn("target 85–100", prompt)
   self.assertIn("Do not weaken scientific guardrails", prompt)
   self.assertIn("Nepal ranges", prompt)
   self.assertIn("building footprint area", prompt)
