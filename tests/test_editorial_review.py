@@ -36,7 +36,11 @@ class EditorialReviewTests(unittest.TestCase):
         store = load_reviews(self.report_path, self.report["shots"])
         self.assertEqual(store["shots"]["shot_0001"]["status"], "approved")
         self.assertFalse(audit_visual_reviews(self.report, store)["publication_ready"])
-        save_review(self.report_path, "shot_0001", source_review_status="reviewed")
+        save_review(
+            self.report_path, "shot_0001", source_review_status="reviewed",
+            rights_review_status="reviewed", rights_notes="Checked original asset terms.",
+            licence_name="Original asset / permission confirmed",
+        )
         store = load_reviews(self.report_path, self.report["shots"])
         self.assertTrue(audit_visual_reviews(self.report, store)["publication_ready"])
 
@@ -58,6 +62,40 @@ class EditorialReviewTests(unittest.TestCase):
     def test_chapter_filter_metadata_is_preserved(self):
         store = load_reviews(self.report_path, self.report["shots"])
         self.assertEqual(store["shots"]["shot_0001"]["chapter_id"], "chapter_1")
+
+    def test_rights_review_is_separate_and_blocks_until_documented(self):
+        load_reviews(self.report_path, self.report["shots"])
+        save_review(self.report_path, "shot_0001", status="approved", source_review_status="reviewed")
+        store = load_reviews(self.report_path, self.report["shots"])
+        result = audit_visual_reviews(self.report, store)
+        self.assertFalse(result["publication_ready"])
+        self.assertTrue(any("Rights review status" in issue["message"] for issue in result["issues"]))
+        save_review(
+            self.report_path, "shot_0001", rights_review_status="reviewed",
+            rights_notes="Reviewed provider terms and reuse restrictions.",
+            licence_name="Provider licence reviewed",
+        )
+        store = load_reviews(self.report_path, self.report["shots"])
+        self.assertTrue(audit_visual_reviews(self.report, store)["publication_ready"])
+
+    def test_schema_v1_migrates_preserving_approval_but_rights_pending(self):
+        path = review_store_path(self.report_path)
+        path.write_text(json.dumps({
+            "schema_version": 1, "updated_at": None,
+            "shots": {"shot_0001": {
+                "shot_id": "shot_0001", "chapter_id": "chapter_1",
+                "status": "approved", "reviewer_notes": "old review",
+                "rejection_reason": "", "replacement_requested": False,
+                "reviewed_at": None, "source_review_status": "reviewed",
+                "shot_fingerprint": "",
+            }},
+        }), encoding="utf-8")
+        store = load_reviews(self.report_path, self.report["shots"])
+        self.assertEqual(store["schema_version"], 2)
+        self.assertEqual(store["shots"]["shot_0001"]["status"], "approved")
+        self.assertEqual(store["shots"]["shot_0001"]["rights_review_status"], "pending")
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(saved["schema_version"], 2)
 
     def test_corrupt_json_is_reported_without_overwrite(self):
         path = review_store_path(self.report_path)
