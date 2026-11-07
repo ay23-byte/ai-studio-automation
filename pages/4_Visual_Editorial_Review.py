@@ -31,15 +31,26 @@ except (OSError, json.JSONDecodeError, ValueError, ReviewStoreError) as exc:
     st.stop()
 
 gate = audit_visual_reviews(report, store)
+release_issues = list(gate["issues"])
+try:
+    from core.audio_quality import assert_audio_quality_ready
+    assert_audio_quality_ready(report_path.parent)
+except Exception as exc:
+    release_issues.append({"shot_id": "audio", "message": str(exc)})
+try:
+    from core.research_verification import assert_research_review_ready
+    assert_research_review_ready(report_path.parent)
+except Exception as exc:
+    release_issues.append({"shot_id": "research", "message": str(exc)})
 a, b, c, d = st.columns(4)
 a.metric("Shots", gate["shot_count"])
 b.metric("Approved", gate["approved_count"])
 c.metric("Pending", gate["pending_count"])
 d.metric("Needs replacement", gate["replacement_count"])
-if gate["publication_ready"]:
-    st.success("Editorial workflow gate passed. Separate fact-checking, historical-context, and legal rights checks are still required.")
+if not release_issues:
+    st.success("Combined long-form review gate passed: editorial, source, rights, audio listening and claim verification are complete.")
 else:
-    st.error(f"Publication blocked: {len(gate['issues'])} review issue(s) remain.")
+    st.error(f"Publication blocked: {len(release_issues)} review issue(s) remain across visual, rights, audio or research checks.")
 
 records = store["shots"]
 chapters = sorted({records.get(str(s.get("shot_id")), {}).get("chapter_id", "unassigned") for s in shots})
@@ -189,10 +200,10 @@ for shot_id, shot, record in visible:
             st.error(str(exc))
 
 with st.expander("Publication gate details"):
-    if gate["issues"]:
-        for issue in gate["issues"]:
-            st.error(f"{issue['shot_id']}: {issue['message']}")
+    if release_issues:
+        for issue in release_issues:
+            st.error(f"{issue.get('shot_id', 'Review')}: {issue['message']}")
     else:
-        st.success("All manifest shots have approved editorial decisions, reviewed source metadata, and existing media files.")
+        st.success("All manifest shots, rights decisions, audio listening review and research claims have passed their required checks.")
     st.caption(gate["notice"])
 st.caption(f"Decision file: {review_store_path(report_path)}")
