@@ -601,7 +601,7 @@
     },
     {
       "title": "Act 3 — Can a Village Come Back?",
-      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? Government ka Border Area Development Programme remote border areas mein roads, water, education, health aur skill development jaise infrastructure ko support karne ke liye describe kiya gaya hai. Programme ka hona yeh prove nahi karta ki har village ki problem solve ho gayi. Outcomes ko village-level evidence se check karna padega. Sirf road enough nahi agar local livelihood sustainable nahi. Sirf school enough nahi agar quality education tak access nahi. Solution logon ko force karke wapas bulaana nahi. Focus choice par hona chahiye: jo jaana chahe woh ja sake, jo rehna chahe uske paas viable future ho, aur jo wapas aana chahe uske liye basic conditions hon. Local planning bhi geography aur economy ke hisaab se honi chahiye. Ek hi scheme har jagah same result degi, yeh assume nahi kar sakte.",
+      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? Government ka Border Area Development Programme remote border areas mein roads, water, education, health aur skill development jaise infrastructure ko support karne ke liye describe kiya gaya hai. Programme ka hona yeh prove nahi karta ki har village ki problem solve ho gayi. Outcomes ko village-level evidence se check karna padega. Sirf road enough nahi agar local livelihood sustainable nahi. Sirf school enough nahi agar quality education tak access nahi. Solution logon ko force karke wapas bulaana nahi. Focus choice par hona chahiye: jo jaana chahe woh ja sake, jo rehna chahe uske paas viable future ho, aur jo wapas aana chahe uske liye basic conditions hon. Local planning bhi geography aur economy ke hisaab se honi chahiye. Ek hi scheme har jagah same result degi, yeh assume nahi kar sakte. Iska matlab policy ka goal sirf population numbers badhana nahi hona chahiye. Goal yeh hona chahiye ki healthcare, education, connectivity aur income ke options reliable hon. Aur success ko sirf naye construction se nahi, balki service quality aur local livelihoods se measure kiya jaaye. Yeh ek policy direction hai, kisi ek programme ke proven result ka claim nahi.",
       "visuals": [
         {
           "narration_anchor": "city jaana better education ka chance ho sakta hai",
@@ -671,8 +671,8 @@
       ]
     }
   ],
-  "word_count_estimate": 1726,
-  "estimated_minutes": "11.51",
+  "word_count_estimate": 1784,
+  "estimated_minutes": "11.89",
   "narration_rules": {
     "target_words_per_minute": 150,
     "pauses": "Add 0.8 second pause before the central reveal and chapter-defining lines during TTS editing.",
