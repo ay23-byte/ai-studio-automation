@@ -39,7 +39,7 @@ def _validate_scientific_wording(script):
         raise ValueError('Any spoken HAND reference must explain nearest drainage in the same scene.')
     if not any(term in combined for term in ('संभावित', 'potential exposure', 'modelled exposure')):
         raise ValueError('Script must describe the figures as potential/modelled exposure.')
-    if not any(term in combined for term in ('पक्की भविष्यवाणी नहीं', 'forecast नहीं', 'not a flood forecast')):
+    if not any(term in combined for term in ('पक्की भविष्यवाणी नहीं', 'बाढ़ का पूर्वानुमान नहीं', 'forecast नहीं', 'not a flood forecast')):
         raise ValueError('Script must explicitly say this is not a flood forecast.')
     if not any(term in combined for term in ('भवन क्षेत्र', 'भवन-फुटप्रिंट', 'building footprint area', 'building area')):
         raise ValueError('Script must identify the 46%/77% values as building area/footprint area.')
