@@ -1,6 +1,6 @@
 import json, tempfile, unittest
 from pathlib import Path
-from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording
+from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording, _build_correction_prompt
 class WriterGateTests(unittest.TestCase):
  def test_unapproved_packet_is_rejected_before_api_call(self):
   with tempfile.TemporaryDirectory() as tmp:
@@ -65,6 +65,29 @@ class GeminiRetryTests(unittest.TestCase):
     _post_gemini_with_retries('https://example.test','key',{})
   post.assert_called_once()
   sleep.assert_not_called()
+
+
+class ScriptCorrectionPromptTests(unittest.TestCase):
+ def test_overlong_script_gets_specific_compression_instruction(self):
+  prompt = _build_correction_prompt("BASE", ValueError("Script word count outside safe target: 151."))
+  self.assertIn("151 spoken words", prompt)
+  self.assertIn("hard maximum is 140", prompt)
+  self.assertIn("target 105–120", prompt)
+  self.assertIn("Do not weaken scientific guardrails", prompt)
+  self.assertIn("Nepal ranges", prompt)
+  self.assertIn("building footprint area", prompt)
+
+ def test_short_script_gets_supported_expansion_instruction(self):
+  prompt = _build_correction_prompt("BASE", ValueError("Script word count outside safe target: 55."))
+  self.assertIn("minimum is 70", prompt)
+  self.assertIn("supported by the reviewed packet", prompt)
+  self.assertNotIn("hard maximum is 140", prompt)
+
+ def test_non_word_count_failure_keeps_scientific_correction(self):
+  prompt = _build_correction_prompt("BASE", ValueError("HAND missing definition"))
+  self.assertIn("निकटतम जलधारा", prompt)
+  self.assertIn("Do not weaken scientific guardrails", prompt)
+  self.assertNotIn("WORD-COUNT REPAIR", prompt)
 
 
 if __name__=='__main__': unittest.main()
