@@ -187,6 +187,9 @@ def load_research_reviews(build_dir: str | Path, report: dict[str, Any]) -> dict
                                     "fingerprint": claim.get("fingerprint", ""), "reviewed_at": None}
             changed = True
     if changed or not path.is_file():
+        # Any source/claim addition or edit invalidates the prior whole-script coverage attestation.
+        store["coverage_reviewed"] = False
+        store["coverage_notes"] = ""
         store["updated_at"] = _now()
         _atomic_write(path, store)
     return store
