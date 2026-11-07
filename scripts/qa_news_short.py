@@ -85,13 +85,15 @@ def run(video, report_dir=None, manifest_path=None):
     return {"status":"FAIL" if errors else ("REVIEW" if warnings else "PASS"),
         "duration_seconds":round(dur,2),"fps":round(fps,2),"resolution":f'{v["width"]}x{v["height"]}',
         "errors":errors,"warnings":warnings,"audio_quality_report":str(root/"audio_quality_report.json"),
-        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),\n        "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
+        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),
+        "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
         "human_review_required":True,"publication_ready":False,
         "notice":"A PASS is technical screening only. It does not verify facts, visual relevance, historical authenticity, media rights, captions, or policy compliance. Human review and phone playback remain mandatory."}
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(); parser.add_argument("video")
-    parser.add_argument("--report",default="output/daily_news/rendered/technical_qa.json")\n    parser.add_argument("--manifest",default=None,help="Production manifest containing per-shot narration and visual descriptions")
+    parser.add_argument("--report",default="output/daily_news/rendered/technical_qa.json")
+    parser.add_argument("--manifest",default=None,help="Production manifest containing per-shot narration and visual descriptions")
     args=parser.parse_args()
     result=run(Path(args.video),Path(args.report).parent/"advanced_qa",args.manifest)
     Path(args.report).parent.mkdir(parents=True,exist_ok=True)
