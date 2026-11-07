@@ -151,13 +151,14 @@ def _render_media_timeline(scenes: list[dict], durations: list[float], output: P
         segments.append(segment)
         report.append({
             "shot": index, "asset_type": kind, "asset_path": str(source),
+            "source_sha256": __import__("hashlib").sha256(source.read_bytes()).hexdigest(),
             "duration_seconds": round(duration, 3),
             "renderer": "ffmpeg_media_asset",
         })
 
     concat_list = workdir / "visual_concat.txt"
     concat_list.write_text(
-        "".join("file '" + str(p.resolve()).replace("'", "'\\''") + "'\\n" for p in segments),
+        "".join("file '" + str(p.resolve()).replace("'", "'\\''") + "'\n" for p in segments),
         encoding="utf-8",
     )
     subprocess.run([

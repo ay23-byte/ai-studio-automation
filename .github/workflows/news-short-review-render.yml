@@ -202,6 +202,7 @@ jobs:
         run: |
           python -m scripts.render_reviewed_news_short render-input/production_candidate.json render-input/render_approval.json --output-dir output/daily_news/rendered
           test -s output/daily_news/rendered/review_short.mp4
+          python -m scripts.verify_rendered_media output/daily_news/rendered/production_manifest.json
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of json output/daily_news/rendered/review_short.mp4
           ffprobe -v error -show_entries format=duration -of json output/daily_news/rendered/review_short.mp4
 

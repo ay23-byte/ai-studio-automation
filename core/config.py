@@ -16,6 +16,7 @@ GEMINI_FALLBACK_MODELS = [
 PIXABAY_API_KEY  = os.getenv("PIXABAY_API_KEY", "")
 COVERR_API_KEY   = os.getenv("COVERR_API_KEY", "")
 NARA_API_KEY     = os.getenv("NARA_API_KEY", "")
+EUROPEANA_API_KEY = os.getenv("EUROPEANA_API_KEY", "")
 CF_ACCOUNT_ID    = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
 CF_API_TOKEN     = os.getenv("CLOUDFLARE_API_TOKEN", "")
 POLLINATIONS_GAP = float(os.getenv("POLLINATIONS_GAP", "16"))

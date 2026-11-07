@@ -1,0 +1,46 @@
+name: Documentary footage source validation
+
+on:
+  pull_request:
+    paths:
+      - "core/footage_sources.py"
+      - "core/asset_licensing.py"
+      - "core/config.py"
+      - "scripts/register_mixkit_asset.py"
+      - "scripts/verify_rendered_media.py"
+      - "scripts/check_footage_sources_live.py"
+      - "tests/test_documentary_source_adapters.py"
+      - "tests/test_media_timeline_integration.py"
+      - ".github/workflows/footage-source-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-live-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg and test dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip requests Pillow google-api-python-client
+      - name: Run provider adapter unit tests
+        run: python -m unittest tests.test_documentary_source_adapters -v
+      - name: Run real FFmpeg media timeline integration test
+        run: python -m unittest tests.test_media_timeline_integration -v
+      - name: Run repository test suite
+        run: python -m unittest discover -s tests -v
+      - name: Validate Python syntax
+        run: python -m compileall -q core scripts tests
+      - name: Live read-only provider API smoke checks
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+        run: python -m scripts.check_footage_sources_live
