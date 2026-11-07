@@ -61,7 +61,7 @@
       "title": "Can a Village Come Back?"
     },
     {
-      "timestamp": "11:08",
+      "timestamp": "11:18",
       "title": "The Door That Remains"
     }
   ],
@@ -100,5 +100,5 @@
       "hook_line": "A village doesn't disappear for one single reason. The causes can reinforce one another."
     }
   ],
-  "editorial_status": "Estimated from 1,784 narration words at 150 wpm; final timestamps must be replaced with actual TTS timings after render."
+  "editorial_status": "Estimated from narration word count; replace with real TTS timings after render."
 }
