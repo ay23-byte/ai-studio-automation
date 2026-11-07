@@ -20,7 +20,15 @@ class LiveFootageValidationTests(unittest.TestCase):
             ("provider-b", lambda query: [1, 2]),
         ])
         self.assertEqual(result["status"], "passed")
-        self.assertEqual(result["total_eligible_candidates"], 3)
+        self.assertEqual(result["total_eligible_candidates"], 9)
+
+    def test_topic_variants_are_checked(self):
+        seen = []
+        run_checks("India disappearing villages", providers=[
+            ("provider", lambda query: seen.append(query) or []),
+        ])
+        self.assertIn("India village rural life", seen)
+        self.assertGreater(len(seen), 1)
 
     def test_provider_exception_is_reported_and_other_results_count(self):
         def broken(query):
@@ -31,7 +39,7 @@ class LiveFootageValidationTests(unittest.TestCase):
         ])
         self.assertEqual(result["status"], "passed")
         self.assertEqual(result["providers"][0]["status"], "error")
-        self.assertIn("provider offline", result["providers"][0]["error"])
+        self.assertIn("provider offline", result["providers"][0]["errors"][0])
 
 
 if __name__ == "__main__":
