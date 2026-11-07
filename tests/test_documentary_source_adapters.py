@@ -9,6 +9,17 @@ from core import footage_sources as fs
 
 
 class DocumentarySourceAdapterTests(unittest.TestCase):
+    def setUp(self):
+        fs._DISABLED_PROVIDER_HOSTS.clear()
+
+    @patch.object(fs.requests, "get")
+    def test_forbidden_provider_is_not_queried_repeatedly(self, get):
+        get.return_value = Mock(status_code=403)
+        self.assertIsNone(fs._get_json("https://api.dvidshub.net/search", {"q": "one"}))
+        self.assertIsNone(fs._get_json("https://api.dvidshub.net/search", {"q": "two"}))
+        get.assert_called_once()
+        self.assertIn("api.dvidshub.net", fs._DISABLED_PROVIDER_HOSTS)
+
     @patch("core.config.NARA_API_KEY", "nara-test")
     @patch.object(fs, "_get_json")
     def test_nara_requires_explicit_public_domain_and_video_object(self, get_json):
