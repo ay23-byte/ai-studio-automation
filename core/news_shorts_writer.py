@@ -31,11 +31,36 @@ Return JSON only: {"title":"...","hook":"...","category":"news","format":"shorts
 Every material factual statement in each scene must map to source_ids. Mark visual prompts illustrative and not documentary evidence.
 REVIEWED PACKET:
 '''+json.dumps(packet,ensure_ascii=False)
-    url=f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
-    response=requests.post(url,params={'key':key},json={'contents':[{'parts':[{'text':prompt}]}],
-      'generationConfig':{'responseMimeType':'application/json','temperature':0.3}},timeout=90)
-    response.raise_for_status()
-    data=response.json(); text=''.join(p.get('text','') for p in data['candidates'][0]['content']['parts'])
+    # Retry the configured model once through a second supported Flash model.
+    # GitHub-hosted runners can occasionally hit transient Gemini API read timeouts.
+    model_candidates = [model]
+    if model != 'gemini-3.6-flash':
+        model_candidates.append('gemini-3.6-flash')
+    payload = {'contents': [{'parts': [{'text': prompt}]}],
+               'generationConfig': {'responseMimeType': 'application/json',
+                                    'temperature': 0.3}}
+    response = None
+    last_error = None
+    for candidate_model in model_candidates:
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
+        try:
+            candidate_response = requests.post(
+                url, params={'key': key}, json=payload, timeout=(15, 75))
+            candidate_response.raise_for_status()
+            response = candidate_response
+            break
+        except requests.RequestException as exc:
+            last_error = exc
+    if response is None:
+        raise RuntimeError(
+            'Gemini script generation failed on configured and fallback models. '
+            'Check Google AI API availability and the GEMINI_MODEL setting.'
+        ) from last_error
+    data=response.json()
+    try:
+        text=''.join(p.get('text','') for p in data['candidates'][0]['content']['parts'])
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError('Gemini returned no usable text candidate for the script.') from exc
     script=json.loads(text)
     scenes=script.get('scenes',[])
     words=sum(len(re.findall(r'\S+',s.get('say',''))) for s in scenes)
