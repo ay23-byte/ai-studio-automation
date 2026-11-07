@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -80,18 +81,27 @@ def _ass_time(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+def _subtitle_text(narration: str, width: int = 42) -> str:
+    """Create readable Hindi subtitles from the spoken narration, not English graphic copy."""
+    clean = str(narration).replace("\\N", " ").replace("\n", " ")
+    clean = clean.replace("{", "").replace("}", "").strip()
+    return textwrap.fill(clean, width=width, break_long_words=False, break_on_hyphens=False)
+
+
 def _write_ass(scenes: list[dict], durations: list[float], output: Path) -> None:
     rows = [
         "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920",
-        "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "ScaledBorderAndShadow: yes", "WrapStyle: 2", "", "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        "Style: News,Noto Sans Devanagari,72,&H00FFFFFF,&H0000D7FF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,5,2,2,70,70,650,1",
+        # Compact, boxed Hindi subtitles sit in the lower safe band instead of over the
+        # center of the project graphics. Noto Sans Devanagari is installed in CI.
+        "Style: News,Noto Sans Devanagari,46,&H00FFFFFF,&H0000D7FF,&H00101010,&H78000000,0,0,0,0,100,100,0,0,3,2,1,2,90,90,300,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
     ]
     cursor = 0.0
     for scene, duration in zip(scenes, durations):
-        caption = str(scene["caption"]).replace("\\N", " ").replace("\n", " ").replace("{", "").replace("}", "")
-        rows.append(f"Dialogue: 0,{_ass_time(cursor)},{_ass_time(cursor + duration)},News,,0,0,0,,{caption}")
+        subtitle = _subtitle_text(scene["say"])
+        rows.append(f"Dialogue: 0,{_ass_time(cursor)},{_ass_time(cursor + duration)},News,,0,0,0,,{subtitle}")
         cursor += duration + 0.25
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
