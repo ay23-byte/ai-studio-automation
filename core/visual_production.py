@@ -123,7 +123,8 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         if not source:
             issues.append({"level": "warning", "shot": shot_id, "message": "No source metadata sidecar; provenance and match cannot be assessed automatically."})
         shots.append({
-            "shot_id": shot_id, "chapter_id": str(shot.get("chapter_id") or shot.get("chapter") or shot.get("_chapter_index") or "unassigned"),\n            "start_seconds": shot.get("_start"),
+            "shot_id": shot_id, "chapter_id": str(shot.get("chapter_id") or shot.get("chapter") or shot.get("_chapter_index") or "unassigned"),
+            "start_seconds": shot.get("_start"),
             "duration_seconds": shot.get("_dur"), "media_type": media_type,
             "visual_type": shot.get("visual_type", "unknown"),
             "subject": shot.get("subject", ""), "location": shot.get("location", ""),
