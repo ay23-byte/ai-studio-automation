@@ -34,10 +34,13 @@ jobs:
         with:
           script: |
             const body = context.payload.issue.body || "";
-            const matches = [...body.matchAll(/~~~json\s*([\s\S]*?)~~~/gi)];
-            if (matches.length !== 1) core.setFailed("Issue must contain exactly one JSON packet between ~~~json fences.");
+            const matches = [...body.matchAll(/```json\s*([\s\S]*?)```/gi)];
+            if (matches.length !== 1) {
+              core.setFailed("Issue must contain exactly one JSON packet in a fenced JSON block.");
+              return;
+            }
             let packet;
-            try { packet = JSON.parse(matches[0][2]); }
+            try { packet = JSON.parse(matches[0][1]); }
             catch (error) { core.setFailed("The issue JSON packet is invalid: " + error.message); }
             if (packet.review_status !== "approved") {
               core.setFailed("Script drafting blocked: review_status must be approved after human source inspection.");
