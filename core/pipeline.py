@@ -673,7 +673,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             release_data = json.loads(release_path.read_text(encoding="utf-8"))
             description = str(release_data.get("description") or "").strip()
             credits_text = Path(licence_report["credits_path"]).read_text(encoding="utf-8").strip()
-            release_data["description"] = (description + "\\n\\n" + credits_text).strip()
+            release_data["description"] = (description + "\n\n" + credits_text).strip()
             release_data["asset_licence_register"] = "licenses.csv"
             release_path.write_text(json.dumps(release_data, ensure_ascii=False, indent=2), encoding="utf-8")
         quality_by_id = {row["shot_id"]: row for row in consistency_report.get("shots", [])}
