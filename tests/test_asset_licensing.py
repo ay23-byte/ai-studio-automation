@@ -57,6 +57,9 @@ class AssetLicensingTests(unittest.TestCase):
                 "provider": "LabLens/AI Studio local graphic renderer",
                 "asset_type": "programmatic_graphic",
                 "ai_generated": False,
+                "font_licence": "Bitstream Vera and DejaVu font licence",
+                "font_licence_url": "https://dejavu-fonts.github.io/License.html",
+                "attribution_text": "Project-created graphic; DejaVu font notice.",
                 "licence_status": "Created by this project",
                 "graphic_kind": "building_growth",
             }), encoding="utf-8")
