@@ -91,6 +91,13 @@
       "status": "blocked_until_human_approval",
       "detail": "Workflow does not upload or publish.",
       "required_action": "Complete full human watch-through, visual approvals, fact and licence review before any upload."
+    },
+    {
+      "id": "Q14",
+      "area": "policy_context",
+      "status": "review_required",
+      "detail": "March 2026 MHA release says BADP is in its sunset phase and lists VVP-I/VVP-II approval counts.",
+      "required_action": "Inspect the release and avoid implying programme approvals prove implementation or results in the villages discussed."
     }
   ]
 }
