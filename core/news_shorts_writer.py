@@ -116,10 +116,17 @@ def _build_correction_prompt(prompt, error):
         + message
         + "\nReturn a corrected complete JSON script. Preserve all verified facts, "
           "figures, source IDs, scientific caveats, and 4–6 scenes. Do not weaken "
-          "scientific guardrails. Every spoken HAND reference must define HAND in "
-          "that same scene as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. Do not use "
-          "radius, horizontal-distance, or river-buffer wording. Keep all required "
-          "Nepal ranges and identify both percentages as building footprint area."
+          "scientific guardrails. Treat the HAND definition as a scene-level requirement, "
+          "not a script-level requirement: whenever a scene's say field contains the word "
+          "HAND, that same say field MUST contain the complete phrase "
+          "“HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. Do not put the definition "
+          "only in a caption or another scene. Prefer mentioning HAND only in the definition "
+          "scene and the Nepal metrics scene. In the Nepal metrics scene, use a compact "
+          "spoken construction such as: “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर "
+          "ऊँचाई; नेपाल में 108,500 लोग 0–50 मीटर और 22,800 लोग 0–10 मीटर HAND सीमा "
+          "में हैं.” Keep each say field concise while preserving all verified facts. "
+          "Do not use radius, horizontal-distance, or river-buffer wording. Keep all "
+          "required Nepal ranges and identify both percentages as building footprint area."
     )
     match = re.search(r'Script word count outside safe target: (\d+)', message)
     if match:
@@ -169,7 +176,7 @@ def generate_reviewed_shorts(review_path, output_path):
 Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, ideally 12–20 words per scene, target 105–120 spoken words total (hard validation range 70–140 words). Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
 
 CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
-- In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
+- HAND is a strict same-scene spoken requirement: if a scene's say field contains “HAND”, that same say field MUST contain the full phrase “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. A definition in another scene or in a caption does NOT satisfy this rule. Do not say HAND in any other narration scene unless the full definition is repeated there. In the Nepal metrics scene, put the definition and both Nepal estimates together in one concise spoken sentence: “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई; नेपाल में 108,500 लोग 0–50 मीटर और 22,800 लोग 0–10 मीटर HAND सीमा में हैं.” Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
 - 293,800, 108,500 and 22,800 are modelled potential-exposure estimates, not counts of people already affected and not a prediction that they will be flooded.
 - The 46% and 77% values refer to building footprint area, not the number of buildings.
 - Do not claim that construction caused flooding. Do not claim that construction did NOT increase flood probability: absence of causal evidence is not proof of no effect. Say the study does not establish whether construction caused flooding or increased its probability.
@@ -246,7 +253,7 @@ REVIEWED PACKET:
             payload['contents'][0]['parts'][0]['text'] = correction_prompt
     if script is None:
         raise ValueError(
-            'Generated script failed validation after one correction attempt: '
+            'Generated script failed validation after three generation attempts (initial draft plus two targeted corrections): '
             + str(last_error)
         )
     scenes = script.get('scenes', [])
