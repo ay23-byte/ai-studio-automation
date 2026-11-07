@@ -148,6 +148,8 @@ def certify_documentary(build_dir: str | Path, video_path: str | Path) -> dict[s
         checks.append({"name": "visual_manifest", "status": "PASS", "shot_count": len(shots)})
     consistency = reports.get("visual_consistency_report.json", {})
     consistency_summary = consistency.get("summary") or {}
+    if consistency.get("status") not in {"PASS", "REVIEW"}:
+        blockers.append("Visual consistency report is missing a valid PASS/REVIEW status.")
     if consistency_summary.get("fail_count", 0):
         blockers.append(
             f"Visual consistency report has {consistency_summary['fail_count']} severe technical failure(s)."
@@ -155,8 +157,8 @@ def certify_documentary(build_dir: str | Path, video_path: str | Path) -> dict[s
     if consistency_summary.get("review_count", 0) or consistency_summary.get("unavailable_count", 0):
         warnings.append("Some sampled visual-quality metrics require human inspection.")
     quality = reports.get("quality_report.json", {})
-    if quality.get("status") == "FAIL":
-        blockers.append("The final video quality report has blocking failures.")
+    if quality.get("status") not in {"PASS", "REVIEW"}:
+        blockers.append("The final video quality report is missing a valid PASS/REVIEW status.")
     elif quality.get("status") == "REVIEW":
         warnings.append("The final video quality report contains review warnings.")
     audio = reports.get("audio_quality_report.json", {})
