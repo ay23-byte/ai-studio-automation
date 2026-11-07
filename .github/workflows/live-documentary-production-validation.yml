@@ -1,0 +1,222 @@
+name: Live documentary production validation (current main)
+
+on:
+  push:
+    branches:
+      - production-trial/live-footage-e2e-v2
+    paths:
+      - ".github/live-documentary-e2e-v2-trigger.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-documentary-production-validation
+  cancel-in-progress: false
+
+jobs:
+  production-render:
+    name: Render, probe and package documentary evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Check out current production branch
+        uses: actions/checkout@v4
+        with:
+          ref: production-trial/live-footage-e2e-v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m pip check
+
+      - name: Compile production code
+        run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py scripts
+
+      - name: Run live footage provider discovery
+        env:
+          PIXABAY_API_KEY: \${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: \${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: \${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: \${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: \${{ secrets.EUROPEANA_API_KEY }}
+        run: |
+          mkdir -p build/live_documentary_e2e
+          set -o pipefail
+          python -m scripts.check_footage_sources_live "India disappearing villages rural migration abandoned villages" \
+            2>&1 | tee build/live_documentary_e2e/provider-live-checks.log
+
+      - name: Render 12-minute Hinglish documentary
+        id: render
+        env:
+          GEMINI_API_KEY: \${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: "gemini-3.8-flash"
+          GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PIXABAY_API_KEY: \${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: \${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: \${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: \${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: \${{ secrets.EUROPEANA_API_KEY }}
+          FREE_ONLY_MODE: "1"
+          AI_VIDEO_ENABLED: "0"
+          TTS_ENGINE: "edge"
+          PRESENTER_ENABLED: "1"
+          PRESENTER_MODE: "still_cpu"
+          PRESENTER_IMAGE: "assets/presenter/presenter_female.png"
+          SADTALKER_DEVICE: "cpu"
+          LONGFORM_VISUAL_MODE: "video_first"
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "unlisted"
+          VISUAL_SEMANTIC_CHECK: "0"
+        run: |
+          test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY repository Actions secret." && exit 1)
+          mkdir -p build/live_documentary_e2e
+          set -o pipefail
+          python run.py long "The Mystery of India's Disappearing Villages" \
+            --category india --minutes 12 --language hinglish --voice-gender female \
+            2>&1 | tee build/live_documentary_e2e/render.log
+
+      - name: Verify final MP4, shot manifest and rights evidence
+        if: steps.render.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          from core.release_certification import probe_release_video
+
+          candidates = sorted(
+              Path("output").glob("longform_*.mp4"),
+              key=lambda p: p.stat().st_mtime,
+              reverse=True,
+          )
+          if not candidates:
+              raise SystemExit("Render step succeeded but no output/longform_*.mp4 exists.")
+          video = candidates[0]
+          metadata = probe_release_video(video)
+          duration = metadata["duration_seconds"]
+          if not 540 <= duration <= 900:
+              raise SystemExit(
+                  f"Unexpected documentary runtime {duration:.1f}s; expected 540–900s."
+              )
+
+          build_dirs = sorted(
+              Path("build").glob("job_*"),
+              key=lambda p: p.stat().st_mtime,
+              reverse=True,
+          )
+          if not build_dirs:
+              raise SystemExit("No build/job_* directory exists for documentary evidence.")
+          build_dir = build_dirs[0]
+          manifest_path = build_dir / "visual_review_report.json"
+          if not manifest_path.is_file():
+              raise SystemExit("Missing visual_review_report.json.")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          shots = manifest.get("shots") or []
+          if not shots:
+              raise SystemExit("Visual review manifest contains no shots.")
+          licence = manifest.get("licence_register") or {}
+          if not licence:
+              raise SystemExit("Visual manifest has no asset licence register.")
+          report = {
+              "status": "rendered_and_probed",
+              "video": metadata,
+              "visual_review_manifest": str(manifest_path),
+              "shot_count": len(shots),
+              "licence_register": {
+                  "asset_count": licence.get("asset_count"),
+                  "eligible_pending_human_review": licence.get("eligible_pending_human_review"),
+                  "blocked_count": licence.get("blocked_count"),
+              },
+              "human_review_required": True,
+              "presenter_mode": "still_cpu",
+              "presenter_lip_sync_verified": False,
+              "youtube_upload_performed": False,
+          }
+          Path("build/live_documentary_e2e/render-evidence.json").write_text(
+              json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Collect failure diagnostics and compact editorial evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+
+          root = Path("build/live_documentary_e2e")
+          root.mkdir(parents=True, exist_ok=True)
+          videos = sorted(Path("output").glob("longform_*.mp4")) if Path("output").exists() else []
+          diagnostics = []
+          for video in videos:
+              probe = subprocess.run(
+                  ["ffprobe", "-v", "error", "-show_entries",
+                   "format=duration:stream=codec_type,width,height",
+                   "-of", "json", str(video)],
+                  capture_output=True, text=True,
+              )
+              diagnostics.append({
+                  "path": str(video),
+                  "size_bytes": video.stat().st_size,
+                  "ffprobe_exit_code": probe.returncode,
+                  "ffprobe": probe.stdout[-12000:],
+                  "ffprobe_error": probe.stderr[-4000:],
+                  "valid_mp4": probe.returncode == 0,
+              })
+          (root / "mp4-diagnostics.json").write_text(
+              json.dumps(diagnostics, indent=2), encoding="utf-8"
+          )
+
+          # Keep the artifact focused: final MP4, logs, reports and sampled review frames.
+          for build_dir in Path("build").glob("job_*"):
+              for name in (
+                  "visual_review_report.json", "visual_consistency_report.json",
+                  "edit_decision_list.json", "quality_report.json",
+                  "audio_quality_report.json", "release_certificate.json",
+              ):
+                  source = build_dir / name
+                  if source.is_file():
+                      target = root / build_dir.name / name
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_bytes(source.read_bytes())
+              frames = build_dir / "visual_review_frames"
+              if frames.is_dir():
+                  target = root / build_dir.name / "visual_review_frames"
+                  target.mkdir(parents=True, exist_ok=True)
+                  for frame in sorted(frames.glob("*.jpg")):
+                      target.joinpath(frame.name).write_bytes(frame.read_bytes())
+          print(json.dumps({
+              "candidate_mp4_count": len(videos),
+              "candidate_mp4": [str(p) for p in videos],
+              "evidence_directory": str(root),
+          }, indent=2))
+          PY
+
+      - name: Upload final video and editorial evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-documentary-production-evidence
+          path: |
+            output/longform_*.mp4
+            build/live_documentary_e2e/**
+          if-no-files-found: warn
+          retention-days: 14
