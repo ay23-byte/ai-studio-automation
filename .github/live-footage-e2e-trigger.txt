@@ -1,0 +1,6 @@
+One-time live production validation trigger.
+Source branch: main plus merged PR #79.
+Topic: The Mystery of India's Disappearing Villages.
+Target: 12-minute Hinglish documentary; female voice.
+Validation: live provider discovery, licensed footage provenance, rendered MP4 evidence.
+YouTube upload: disabled.
