@@ -1,0 +1,68 @@
+name: Live footage provider API health audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/check_footage_sources_live.py"
+      - ".github/workflows/footage-provider-api-health.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-api-health:
+    name: Check real footage provider APIs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile provider code
+        run: python -m compileall -q core scripts
+
+      - name: Run live read-only API checks
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+        run: |
+          mkdir -p build/provider_api_health
+          set -o pipefail
+          python - <<'PY' 2>&1 | tee build/provider_api_health/provider-report.log
+          import json
+          from pathlib import Path
+          from scripts.check_footage_sources_live import DEFAULT_QUERY, run_checks
+          report = run_checks(DEFAULT_QUERY, min_total=1)
+          path = Path("build/provider_api_health/provider-report.json")
+          path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+          print(json.dumps(report, indent=2))
+          if report["status"] != "passed":
+              raise SystemExit("No eligible candidates returned by any configured provider.")
+          PY
+
+      - name: Upload provider health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: footage-provider-api-health
+          path: build/provider_api_health/
+          if-no-files-found: warn
+          retention-days: 14
