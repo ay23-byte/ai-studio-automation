@@ -62,6 +62,11 @@ VISUAL STORYBOARD:
 - Each visual object must contain "narration_anchor" (an exact short phrase copied verbatim from this chapter's narration), "visual_prompt" (a standalone 16:9 documentary shot description), and "keywords" (2-4 precise stock-footage search terms for that exact moment).
 - The narration_anchor phrases must appear verbatim in the narration, in the same order, and be spread across the chapter from beginning to end.
 - The visual_prompt must depict the specific subject, action, concept, place or process explained at that anchor. Do not use generic space, city, technology or people footage unless the narration is actually about those things.
+- Add optional fields to every visual: "subject", "location", "time_period", "visual_type" (archival, stock, ai_reconstruction, diagram, map), and "search_queries" (3-5 specific search phrases). Keep these consistent with narration.
+- For Indian history, name the exact Indian region/city, ruler/company/person, battle/event, and period where supported by narration. Prefer period photographs, maps, paintings, buildings, documents and named archival collections.
+- Never label an AI reconstruction as archival footage. For events before photography, request period paintings, engravings, maps, archaeological remains or clearly disclosed AI reconstructions.
+- Search phrases must include proper nouns and the relevant period/event, not broad terms such as "India history" or "old city".
+- When evidence is uncertain, use a neutral historically plausible illustration and mark period/location as requiring editor review.
 - For scientific explanations, depict the actual object/process being discussed; if literal depiction is difficult, use a clearly relevant scientific visualization or physical analogy, never unrelated cinematic filler.
 - Vary wide shots, close-ups, macro details, accurate unlabeled diagrams and relevant environments.
 - No readable text, captions, logos, watermarks or recognizable real-person likenesses.

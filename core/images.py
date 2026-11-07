@@ -1,7 +1,28 @@
 import time, random, base64, urllib.parse, subprocess
 from pathlib import Path
 import requests
-from core.config import CF_ACCOUNT_ID, CF_API_TOKEN, POLLINATIONS_GAP, PIXABAY_API_KEY, IMAGE_STYLE
+from core.config import CF_ACCOUNT_ID, CF_API_TOKEN, POLLINATIONS_GAP, PIXABAY_API_KEY
+
+def _tokens(value):
+    import re
+    stop = {"the","and","for","with","from","that","this","into","over","under","about","scene","shot","video","image","documentary","historical","history"}
+    return {w for w in re.findall(r"[a-z0-9]+", str(value or "").lower()) if len(w) > 2 and w not in stop}
+
+def _relevance(query, title="", tags=""):
+    wanted = _tokens(query)
+    found = _tokens(title) | _tokens(tags)
+    return len(wanted & found) / len(wanted) if wanted else 0.0
+
+def _image_style(category="general"):
+    styles = {
+        "history": "Historically grounded cinematic documentary reconstruction, accurate period clothing, architecture, tools and geography, natural film grain, realistic lighting; illustrative reconstruction, not archival. ",
+        "geopolitics": "Photorealistic current-affairs documentary B-roll, geographically accurate environments, realistic materials and restrained cinematic lighting. ",
+        "science": "Scientifically accurate laboratory visualization, correct instruments and physical processes, clean documentary lighting. ",
+        "physics": "Scientifically accurate physics visualization, realistic laboratory apparatus and physical models. ",
+        "technology": "Photorealistic technology documentary B-roll showing the exact device or process and credible components. ",
+        "finance": "Premium cinematic financial education visual, dark navy with restrained gold and teal accents. ",
+    }
+    return styles.get(str(category or "general").lower(), "Photorealistic documentary B-roll depicting the exact described subject and setting, natural cinematic lighting. ")
 
 def _ok(p):
     try:
@@ -59,23 +80,19 @@ def _search_pixabay(q):
         except: pass
     return []
 
-def fetch_clip(keywords, path, used):
+def fetch_clip(keywords, path, used, scene_prompt=""):
     for q in keywords:
         time.sleep(1.2)
         hits = _search_pixabay(q)
         fresh = [h for h in hits if h.get("id") not in used and (h.get("duration") or 0) >= 3]
-        # Pixabay already filters by the query. Prefer usable, higher-resolution,
-        # longer clips instead of randomising the result set.
-        candidates = fresh or [h for h in hits if (h.get("duration") or 0) >= 3]
-        candidates.sort(
-            key=lambda h: (
-                max((v.get("width") or 0) * (v.get("height") or 0)
-                    for v in (h.get("videos") or {}).values()),
-                min(h.get("duration") or 0, 60),
-                h.get("views") or 0,
-            ),
-            reverse=True,
-        )
+        for h in fresh:
+            h["_relevance"] = _relevance(q, h.get("tags", ""), h.get("user", ""))
+        # Reject weak matches instead of using unrelated high-resolution footage.
+        candidates = [h for h in fresh if h["_relevance"] >= 0.18]
+        candidates.sort(key=lambda h: (h["_relevance"],
+            max((v.get("width") or 0) * (v.get("height") or 0)
+                for v in (h.get("videos") or {}).values()),
+            min(h.get("duration") or 0, 60), h.get("views") or 0), reverse=True)
         for h in candidates[:5]:
             url = None
             for s in ("small","medium","tiny"):
@@ -86,15 +103,24 @@ def fetch_clip(keywords, path, used):
             try:
                 with requests.get(url, stream=True, timeout=120) as resp:
                     resp.raise_for_status(); path.write_bytes(resp.content)
-                if path.stat().st_size > 50_000:
-                    used.add(h.get("id")); print(f"  clip ok (pixabay '{q}')"); return True
+                if path.stat().st_size > 50_000 and _video_ok(path):
+                    used.add(h.get("id"))
+                    import json
+                    path.with_suffix(path.suffix + ".source.json").write_text(json.dumps({
+                        "provider": "Pixabay", "asset_id": h.get("id"), "title": h.get("tags", ""),
+                        "creator": h.get("user"), "page_url": h.get("pageURL"), "query": q,
+                        "relevance_score": round(h.get("_relevance", 0), 3),
+                        "licence_status": "Pixabay licence; verify asset-specific terms and attribution"
+                    }, ensure_ascii=False, indent=2), encoding="utf-8")
+                    print(f"  clip ok (Pixabay '{q}', relevance {h.get('_relevance', 0):.2f})")
+                    return True
             except Exception as e: print(f"  clip download: {e}")
     # Expand beyond Pixabay when it has no usable scene match. These public
     # libraries are searched without requiring a paid provider; Pexels is
     # enabled only when its optional API key is configured.
     try:
         from core.footage_sources import fetch_documentary_clip
-        if fetch_documentary_clip(keywords, path, used):
+        if fetch_documentary_clip(keywords, path, used, scene_prompt=scene_prompt):
             return True
     except Exception as exc:
         print(f"  additional footage sources unavailable: {exc}")

@@ -105,6 +105,16 @@ def audit_media_assets(assets: list[dict] | None, required_scenes: list[int] | N
         page_url = asset.get("page_url") or asset.get("source_url")
         licence = asset.get("licence") or asset.get("licence_status")
         path = asset.get("path")
+        relevance = asset.get("relevance_score")
+        visual_type = asset.get("visual_type") or asset.get("media_type") or "unknown"
+        if relevance is None:
+            issues.append(_issue("warning", "visual_authenticity", "No scene-to-asset relevance score is recorded; content match is unverified.", asset=index + 1))
+        elif float(relevance) < 0.12:
+            issues.append(_issue("error", "visual_authenticity", "Asset metadata is a weak match for its scene and should be rejected.", asset=index + 1, relevance_score=relevance))
+        if visual_type == "ai_reconstruction" and asset.get("disclosure_ready") is not True:
+            issues.append(_issue("warning", "visual_authenticity", "AI reconstruction needs an on-screen or editorial disclosure.", asset=index + 1))
+        if asset.get("human_visual_reviewed") is not True:
+            issues.append(_issue("warning", "visual_authenticity", "A human must confirm depicted subject, location and historical period before publication.", asset=index + 1))
         if not provider or not page_url:
             issues.append(_issue("warning", "footage", "Asset provenance is incomplete.", asset=index + 1))
         if not licence or asset.get("licence_reviewed") is not True:
@@ -112,6 +122,8 @@ def audit_media_assets(assets: list[dict] | None, required_scenes: list[int] | N
         if path and not Path(path).is_file():
             issues.append(_issue("error", "footage", "Referenced media file does not exist.", asset=index + 1))
         rows.append({"scene_number": scene, "provider": provider, "path": path,
+                     "relevance_score": relevance, "visual_type": visual_type,
+                     "human_visual_reviewed": asset.get("human_visual_reviewed") is True,
                      "licence_reviewed": asset.get("licence_reviewed") is True})
     missing = sorted(required - covered)
     for scene in missing:
