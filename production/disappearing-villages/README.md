@@ -40,7 +40,9 @@ Expected build evidence includes (subject to successful provider calls and pipel
 5. Stock search and metadata are not visual approval. Check each frame for actual relevance, watermarks, logos, identifiable people and misleading context.
 6. AI reconstructions are illustrative, not archival footage. Disclose realistic synthetic visuals as required by YouTube.
 7. The female `still_cpu` presenter is a subtly animated portrait, not lip-sync. Do not claim otherwise.
-8. No YouTube upload or public publishing is performed by this workflow. A human must watch the complete render, inspect licences and source claims, approve every visual-review item, and make the publication decision.
+8. The packaging also cites the Ministry of Home Affairs' 25 March 2026 update: BADP was described as in its sunset phase, while VVP-I and VVP-II approvals were reported. Approval counts are not treated as proof of local outcomes.
+
+No YouTube upload or public publishing is performed by this workflow. A human must watch the complete render, inspect licences and source claims, approve every visual-review item, and make the publication decision.
 
 ## Runtime note
 
