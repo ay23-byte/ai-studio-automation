@@ -364,9 +364,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 actual_duration = float(subprocess.check_output(
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
                 ).strip())
+                from core.presenter_quality import write_presenter_metadata
+                write_presenter_metadata(presenter_clip, {
+                    "provider": "AI Studio CPU still presenter", "presenter_mode": "still_cpu",
+                    "lip_sync_verified": False,
+                    "notice": "This mode animates a still portrait; it is not lip-sync.",
+                })
                 presenter_shot = dict(sec)
                 presenter_shot["_chapter_index"] = i
                 presenter_shot["title"] = sec.get("title", "")
+                presenter_shot["presenter_mode"] = "still_cpu"
+                presenter_shot["presenter_sync_status"] = "not_lipsynced"
+                presenter_shot["presenter_lip_sync_verified"] = False
                 presenter_shot["_start"] = shot_cursor
                 presenter_shot["_dur"] = actual_duration
                 presenter_shot["_media"] = {"type": "video", "path": str(presenter_clip)}
@@ -394,8 +403,28 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     f"but the chapter narration is {sec['_dur']:.2f}s. Recreate the clip "
                     "from that chapter's exact narration audio so lip-sync stays aligned."
                 )
+            from core.presenter_quality import inspect_presenter_clip, write_presenter_metadata
+            validation = inspect_presenter_clip(
+                avatar_clip, expected_duration=actual_duration,
+                tolerance_seconds=0.75, require_audio=True,
+            )
+            if validation["status"] == "FAIL":
+                raise ValueError(
+                    f"Talking Avatar clip for chapter {i + 1} failed A/V validation: "
+                    + "; ".join(validation["issues"])
+                )
+            write_presenter_metadata(avatar_clip, {
+                "provider": "Talking Avatar SDK", "presenter_mode": "talking_avatar",
+                "validation": validation, "lip_sync_verified": False,
+                "notice": "The clip includes its driving audio and passes stream/duration checks; phoneme-level lip-sync still requires human review.",
+            })
             presenter_shot = dict(sec)
             presenter_shot["title"] = sec.get("title", "")
+            presenter_shot["presenter_mode"] = "talking_avatar"
+            presenter_shot["presenter_sync_status"] = (
+                "duration_aligned" if validation["status"] == "PASS" else "duration_aligned_review"
+            )
+            presenter_shot["presenter_lip_sync_verified"] = False
             presenter_shot["_start"] = shot_cursor
             presenter_shot["_dur"] = actual_duration
             presenter_shot["_media"] = {"type": "video", "path": str(avatar_clip)}
@@ -407,11 +436,13 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         elif presenter_enabled and presenter_mode == "sadtalker":
             presenter_duration = min(6.0, max(2.0, sec["_dur"] * 0.22))
             presenter_clip = None
+            sadtalker_used = False
             try:
                 from core.presenter import generate_section_presenter
                 presenter_clip = generate_section_presenter(
                     voice_path, sec["_start"], presenter_duration, i + 1, bd
                 )
+                sadtalker_used = presenter_clip is not None
             except Exception as exc:
                 # Presenter animation is an enhancement, not a reason to lose
                 # an otherwise complete documentary render.
@@ -429,9 +460,32 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 actual_duration = float(subprocess.check_output(
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
                 ).strip())
+                from core.presenter_quality import write_presenter_metadata
+                if not sadtalker_used:
+                    write_presenter_metadata(presenter_clip, {
+                        "provider": "AI Studio CPU still presenter fallback",
+                        "presenter_mode": "still_cpu_fallback",
+                        "lip_sync_verified": False,
+                        "notice": "SadTalker was unavailable; this fallback animates a still portrait and is not lip-sync.",
+                    })
+                presenter_metadata = {}
+                sidecar = presenter_clip.with_suffix(presenter_clip.suffix + ".source.json")
+                if sidecar.is_file():
+                    try:
+                        import json
+                        presenter_metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+                    except (OSError, ValueError):
+                        presenter_metadata = {}
+                sync_status = "not_lipsynced"
+                if sadtalker_used:
+                    validation = presenter_metadata.get("validation") or {}
+                    sync_status = "duration_aligned" if validation.get("status") == "PASS" else "duration_aligned_review"
                 presenter_shot = dict(sec)
                 presenter_shot["_chapter_index"] = i
                 presenter_shot["title"] = sec.get("title", "")
+                presenter_shot["presenter_mode"] = "sadtalker" if sadtalker_used else "still_cpu_fallback"
+                presenter_shot["presenter_sync_status"] = sync_status
+                presenter_shot["presenter_lip_sync_verified"] = False
                 presenter_shot["_start"] = shot_cursor
                 presenter_shot["_dur"] = actual_duration
                 presenter_shot["_media"] = {"type": "video", "path": str(presenter_clip)}
