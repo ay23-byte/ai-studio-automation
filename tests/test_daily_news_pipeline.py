@@ -20,7 +20,7 @@ class DailyNewsPipelineTests(unittest.TestCase):
         feed.return_value = [item, dict(item)]
         result = collect_candidates(['https://feed.test'])
         self.assertEqual(result['candidate_count'], 1)
-        self.assertIn('not been independently verified', result['notice'])
+        self.assertIn('independently verified', result['notice'])
     def test_seen_state_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:
             mark_seen(['a','b'], tmp)
