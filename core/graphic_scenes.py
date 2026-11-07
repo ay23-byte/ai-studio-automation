@@ -5,8 +5,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 W,H=1920,1080
-BG=(12,14,19); PANEL=(25,28,36); WHITE=(242,242,242); MUTED=(160,166,177)
-RED=(176,18,27); YELLOW=(255,230,0); GRID=(58,62,72)
+BG=(10,15,24); PANEL=(21,29,40); WHITE=(238,236,229); MUTED=(157,168,180)
+RED=(171,133,74); YELLOW=(218,184,115); GRID=(54,65,79)
 
 def _font(size,bold=False):
     names=(["C:/Windows/Fonts/arialbd.ttf","/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"] if bold else
