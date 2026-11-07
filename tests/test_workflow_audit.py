@@ -6,6 +6,7 @@ from core.workflow_audit import (
     audit_media_assets, audit_presenter_timing, audit_research,
     audit_storyboard, build_workflow_report, save_workflow_report,
 )
+from core.research_verification import write_research_verification_report
 
 
 class WorkflowAuditTests(unittest.TestCase):
@@ -43,6 +44,26 @@ class WorkflowAuditTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = save_workflow_report(report, Path(folder) / "audit.json")
             self.assertTrue(path.is_file())
+
+    def test_combined_workflow_audit_blocks_unreviewed_research(self):
+        with tempfile.TemporaryDirectory() as folder:
+            script = {
+                "sources": [{"source_id": "S1", "title": "Official report",
+                             "publisher": "Institution", "published_at": "2025-01-01",
+                             "url": "https://example.org/report"}],
+                "claims": [{"claim_id": "C1", "text": "A checkable fact",
+                            "claim_type": "fact", "source_ids": ["S1"],
+                            "evidence": "Official report page 3."}],
+            }
+            research_path = Path(folder) / "research_verification_report.json"
+            write_research_verification_report(script, [], folder)
+            report = build_workflow_report(
+                {}, [], [], [], research_verification_path=research_path
+            )
+            self.assertTrue(report["summary"]["publication_blocked"])
+            self.assertEqual(report["summary"]["publish_recommendation"],
+                             "blocked_by_research_verification")
+
 
 
 if __name__ == "__main__":
