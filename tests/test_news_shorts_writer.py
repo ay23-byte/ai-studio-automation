@@ -1,6 +1,6 @@
 import json, tempfile, unittest
 from pathlib import Path
-from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording, _build_correction_prompt
+from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording, _build_correction_prompt, _normalize_spoken_hand_definitions
 class WriterGateTests(unittest.TestCase):
  def test_unapproved_packet_is_rejected_before_api_call(self):
   with tempfile.TemporaryDirectory() as tmp:
@@ -23,6 +23,25 @@ class WriterGateTests(unittest.TestCase):
   script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 293,800 लोग संभावित exposure में हैं। 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 46% भवन क्षेत्रफल और 77% भवन क्षेत्रफल बढ़ा। यह संभावित जोखिम है, बाढ़ का पूर्वानुमान नहीं। अध्ययन के अनुसार निर्माण ने बाढ़ की संभावना नहीं बढ़ाई।','caption':'building footprint area'}]}
   with self.assertRaisesRegex(ValueError,'Caveat overstates the evidence'):
    _validate_scientific_wording(script)
+
+ def test_normalizer_adds_definition_to_each_spoken_hand_scene(self):
+  script={'scenes':[
+   {'say':'नेपाल में 108,500 लोग 0–50 मीटर HAND सीमा में हैं।','caption':'Nepal estimate'},
+   {'say':'22,800 लोग 0–10 मीटर HAND सीमा में हैं।','caption':'Nepal estimate'},
+   {'say':'293,800 लोग संभावित exposure में हैं।','caption':'Potential exposure'}
+  ]}
+  normalized = _normalize_spoken_hand_definitions(script)
+  definition = 'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई'
+  self.assertIn(definition, normalized['scenes'][0]['say'])
+  self.assertIn(definition, normalized['scenes'][1]['say'])
+  self.assertNotIn('HAND', normalized['scenes'][2]['say'])
+  _validate_scientific_wording(normalized)
+
+ def test_normalizer_is_idempotent(self):
+  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई; 108,500 लोग 0–50 मीटर HAND सीमा में हैं।','caption':''}]}
+  once = _normalize_spoken_hand_definitions(script)['scenes'][0]['say']
+  twice = _normalize_spoken_hand_definitions(script)['scenes'][0]['say']
+  self.assertEqual(once, twice)
 
  def test_rejects_hand_without_nearest_drainage_definition_in_scene(self):
   script={'scenes':[
