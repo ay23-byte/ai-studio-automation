@@ -1,5 +1,6 @@
 """Generate a short Hinglish news script only from a human-reviewed evidence packet."""
 import json, os, re, requests
+from core.news_source_verification import verify_packet
 
 def generate_reviewed_shorts(review_path, output_path):
     packet=json.loads(open(review_path,encoding='utf-8').read())
@@ -17,6 +18,10 @@ def generate_reviewed_shorts(review_path, output_path):
     source_ids={s.get('source_id') for s in sources}
     for f in facts:
         if not set(f['source_ids']).issubset(source_ids): raise ValueError('Fact references an unknown source_id.')
+    verification = verify_packet(packet, breaking=packet.get('story_type', 'breaking') != 'explainer')
+    if not verification['safe_to_draft']:
+        reasons = '; '.join(f"fact {r['fact_index']}: {r['reason']}" for r in verification['fact_checks'] if not r['ok'])
+        raise ValueError('Source verification gate rejected this packet: ' + reasons)
     key=os.getenv('GEMINI_API_KEY','')
     if not key: raise RuntimeError('GEMINI_API_KEY is required to draft a script.')
     model=os.getenv('GEMINI_MODEL','gemini-3.8-flash')
@@ -41,6 +46,7 @@ REVIEWED PACKET:
         if not set(claim.get('source_ids',[])).issubset(known): raise ValueError('Generated claim has unknown source IDs.')
     for scene in scenes:
         if not set(scene.get('source_ids',[])).issubset(known): raise ValueError('Scene has unknown source IDs.')
+    script['source_verification']=verification
     script['editorial_status']='draft_requires_human_script_and_visual_review'
     script['word_count']=words
     script['reviewed_packet_path']=str(review_path)

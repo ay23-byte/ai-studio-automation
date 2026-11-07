@@ -1,0 +1,5 @@
+{
+  "domains": ["theonion.com"],
+  "keywords_in_domain": ["fakenews", "viral", "gossip", "clickbait"],
+  "note": "Maintain this list through reviewed pull requests. Unknown and social domains are never accepted as confirmation."
+}
