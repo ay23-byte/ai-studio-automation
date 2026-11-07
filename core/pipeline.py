@@ -421,10 +421,31 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 durations = [value * scale for value in durations]
         elif presenter_enabled and presenter_mode not in {"still_cpu", "off", "none"}:
             raise ValueError(f"Unsupported PRESENTER_MODE: {presenter_mode}. Use still_cpu, sadtalker, or off.")
+        # A short animated chapter slate establishes clear documentary structure.
+        title_duration = min(2.4, max(0.0, sec["_dur"] * 0.12))
+        if title_duration >= 1.5:
+            try:
+                from core.graphic_scenes import render_chapter_title
+                title_clip = render_chapter_title(sec.get("title", f"Chapter {i+1}"),
+                                                  i + 1, title_duration, bd / "chapter_slates")
+            except Exception as exc:
+                print(f"WARNING: chapter title slate skipped: {exc}")
+                title_clip = None
+            if title_clip:
+                title_shot = dict(sec)
+                title_shot.update({"_chapter_index": i, "visual_type": "chapter_title",
+                                   "_start": shot_cursor, "_dur": title_duration,
+                                   "_media": {"type": "video", "path": str(title_clip)}})
+                shot_timeline.append(title_shot)
+                shot_cursor += title_duration
+                remaining = max(sec["_dur"] - title_duration, 0.0)
+                scale = remaining / max(sum(durations), 0.001)
+                durations = [value * scale for value in durations]
         for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""
             shot["_start"] = shot_cursor
+            shot["_chapter_index"] = i
             shot["_dur"] = shot_dur
             shot_cursor += shot_dur
             img_p = bd / f"limg{i}_{j}.jpg"
