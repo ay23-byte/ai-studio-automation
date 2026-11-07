@@ -61,8 +61,8 @@ def _pollinations(prompt, path):
         path.write_bytes(r.content); return _ok(path)
     except Exception as e: print(f"Pollinations: {e}"); return False
 
-def generate_image(scene_prompt, path):
-    full = IMAGE_STYLE + scene_prompt
+def generate_image(scene_prompt, path, category="general"):
+    full = _image_style(category) + scene_prompt
     if _cloudflare(full, path): print(f"  image ok (cloudflare)"); return True
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
