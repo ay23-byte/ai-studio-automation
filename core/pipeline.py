@@ -346,6 +346,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
                 ).strip())
                 presenter_shot = dict(sec)
+                presenter_shot["_chapter_index"] = i
                 presenter_shot["title"] = sec.get("title", "")
                 presenter_shot["_start"] = shot_cursor
                 presenter_shot["_dur"] = actual_duration
@@ -410,6 +411,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
                 ).strip())
                 presenter_shot = dict(sec)
+                presenter_shot["_chapter_index"] = i
                 presenter_shot["title"] = sec.get("title", "")
                 presenter_shot["_start"] = shot_cursor
                 presenter_shot["_dur"] = actual_duration
