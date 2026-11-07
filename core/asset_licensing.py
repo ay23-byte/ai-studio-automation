@@ -101,7 +101,7 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
         quality = metadata.get("quality_score")
         if quality is None:
             quality = score_asset(metadata, int(metadata.get("width") or 0), int(metadata.get("height") or 0))["score_0_10"]
-        fallback = not (path and path.is_file()) or not licensed
+        fallback = not (path and path.is_file()) or (not licensed and not is_ai)
         note = licence_status
         if not url:
             note += "; source page URL missing"
@@ -117,7 +117,7 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             "licence": licence or ("AI-generated" if is_ai else "UNKNOWN"),
             "attribution_text": attribution, "date_accessed": str(metadata.get("date_accessed") or date.today().isoformat()),
             "licence_url": licence_url, "score_0_10": quality,
-            "use_status": "eligible_pending_human_review" if licensed and url and licence_url else "blocked",
+            "use_status": ("ai_reconstruction_disclosure_and_terms_review" if is_ai else ("eligible_pending_human_review" if licensed and url and licence_url else "blocked")),
             "human_review_required": True, "fallback_required": fallback,
             "notes": note,
         })
