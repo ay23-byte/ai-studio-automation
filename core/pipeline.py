@@ -438,6 +438,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "shot_size": beat.get("shot_size", ""),
                 "camera_movement": beat.get("camera_movement", ""),
                 "visual_guardrail": beat.get("visual_guardrail", ""),
+                "source_refs": beat.get("source_refs", []),
+                "chart_spec": beat.get("chart_spec"),
+                "timeline_events": beat.get("timeline_events", []),
+                "on_screen_text": beat.get("on_screen_text", ""),
+                "sound_design": beat.get("sound_design", ""),
             })
             clip_p = bd / f"lraw{i}_{j}.mp4"
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
