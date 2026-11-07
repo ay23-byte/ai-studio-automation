@@ -58,3 +58,22 @@ class GeminiRetryTests(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+ 
+class GeminiFallbackModelTests(unittest.TestCase):
+ def test_primary_then_two_ordered_fallbacks(self):
+  from core.news_shorts_writer import _gemini_model_candidates
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.8-flash'),
+   ['gemini-3.8-flash','gemini-3.6-flash','gemini-3.5-flash-lite'])
+
+ def test_deduplicates_configured_fallback_model(self):
+  from core.news_shorts_writer import _gemini_model_candidates
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.6-flash'),
+   ['gemini-3.6-flash','gemini-3.5-flash-lite'])
+
+ def test_uses_lite_as_primary_without_duplicate_fallbacks(self):
+  from core.news_shorts_writer import _gemini_model_candidates
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.5-flash-lite'),
+   ['gemini-3.5-flash-lite','gemini-3.6-flash'])
