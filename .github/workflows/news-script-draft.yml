@@ -21,7 +21,7 @@ jobs:
           github.event.comment.body == '/approve-script' &&
           github.event.comment.author_association == 'OWNER' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
