@@ -58,6 +58,36 @@ class NewsShortProductionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "AI asset"):
                 validate_render_inputs(script, {"status": "approved"})
 
+    def test_project_graphic_requires_and_accepts_font_licence_provenance(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            script = self._fixture(root)
+            for scene in script["scenes"]:
+                asset = Path(scene["asset_path"])
+                asset.with_suffix(".jpg.source.json").write_text(json.dumps({
+                    "provider": "LabLens/AI Studio local graphic renderer",
+                    "asset_type": "programmatic_graphic",
+                    "ai_generated": False,
+                    "licence": "Project-created original graphic",
+                    "font_licence": "Bitstream Vera and DejaVu font licence",
+                    "font_licence_url": "https://dejavu-fonts.github.io/License.html",
+                    "attribution_text": "Original graphic; DejaVu font notice."
+                }), encoding="utf-8")
+            self.assertEqual(len(validate_render_inputs(script, {"status": "approved"})), 4)
+
+    def test_project_graphic_without_font_licence_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            script = self._fixture(root)
+            asset = Path(script["scenes"][0]["asset_path"])
+            asset.with_suffix(".jpg.source.json").write_text(json.dumps({
+                "provider": "LabLens/AI Studio local graphic renderer",
+                "asset_type": "programmatic_graphic", "ai_generated": False,
+                "licence": "Project-created original graphic"
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "font licence labels"):
+                validate_render_inputs(script, {"status": "approved"})
+
     def test_ass_time_format(self):
         self.assertEqual(_ass_time(65.239), "0:01:05.24")
 
