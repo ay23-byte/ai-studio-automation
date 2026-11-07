@@ -132,6 +132,20 @@ streamlit run dashboard.py
 
 The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, automatically generates three topic-based thumbnail options after rendering, can regenerate them from the title and script without a local MP4, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses the local SQLite database; GitHub Actions artifacts and its cloud database are not automatically synced to your PC.
 
+## Visual editorial review (Milestone 19)
+
+Long-form documentary builds write `visual_review_report.json` and initialize a separate `visual_review_decisions.json` file with every shot set to **pending**. Open the local Streamlit dashboard and select **Visual editorial review** in the Pages navigation to inspect sample frames, narration, visual prompts, chapter, and source metadata.
+
+For each shot, explicitly approve it, reject it with a reason, request a replacement, save reviewer notes, and record whether the source/provenance details were inspected. Decisions are persisted atomically and survive dashboard restarts. New shots are added as pending without resetting existing decisions. If the review JSON is malformed, the dashboard reports the problem and preserves the original file rather than silently replacing it.
+
+Long-form video approval, upload, and public scheduling are blocked until every shot is approved, source review is marked reviewed, and the media file exists. Shorts are unaffected. The audit CLI can enforce the same gate:
+
+```bash
+python scripts/audit_documentary.py --input documentary_audit_input.json --visual-review build/job_1/visual_review_report.json
+```
+
+Editorial approval and source review are workflow attestations only. They do not prove factual accuracy, historical authenticity, copyright ownership, legal licensing, or presenter lip-sync. Verify facts and asset terms separately before publishing. Existing long-form builds without a visual review manifest must regenerate the review report before they can pass the new publication gate.
+
 ## Multi-channel workspaces (Phase 5)
 
 Use the **📺 Channels** dashboard tab to create and edit channel workspaces with a name, handle, niche, default language/category and brand voice. Generate a Shorts or long-form script from the same tab; the selected channel's name, audience and editorial voice are included in the Gemini prompt. Generated scripts are saved as `script_ready` draft jobs and appear in the video review library; they are not rendered or published automatically. Existing SQLite databases are migrated automatically and existing video records are preserved. These profiles organize editorial workflows only: upload and analytics still use the single YouTube OAuth account configured in environment secrets. Separate OAuth accounts are not connected yet.
