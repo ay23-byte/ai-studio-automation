@@ -93,7 +93,6 @@ def _seg(src, idx, dur, is_image, bd):
 def _append_credits_card(video_path, credits_path):
     """Append a restrained source-credit slate to the rendered documentary."""
     import textwrap
-    import tempfile
 
     credits_file = Path(credits_path)
     if not credits_file.is_file():
@@ -107,48 +106,42 @@ def _append_credits_card(video_path, credits_path):
         return video_path
     display_lines = []
     for line in raw_lines:
-        display_lines.extend(textwrap.wrap(line, width=92) or [""])
-    # Keep the complete attribution list readable; extend the slate for long lists.
-    pages = [display_lines[i:i + 18] for i in range(0, len(display_lines), 18)]
+        display_lines.extend(textwrap.wrap(line, width=100) or [""])
+    duration = max(10.0, 6.0 + len(display_lines) * 0.48)
+
+    def ass_time(seconds):
+        centiseconds = int(round(seconds * 100))
+        return f"{centiseconds // 360000}:{(centiseconds // 6000) % 60:02d}:{(centiseconds % 6000) / 100:05.2f}"
+
+    body = r"\N".join(line.replace("{", "(").replace("}", ")") for line in display_lines)
     ass_path = Path(video_path).parent / "source_credits.ass"
-    ass_path.write_text(
-        "[Script Info]\\nScriptType: v4.00+\\nPlayResX: 1920\\nPlayResY: 1080\\n"
-        "WrapStyle: 2\\n\\n[V4+ Styles]\\n"
-        "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,"
-        "Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,"
-        "Alignment,MarginL,MarginR,MarginV,Encoding\\n"
-        "Style: Heading,Noto Sans,48,&H00D6C39A,&H000000FF,&H0010151D,&H0010151D,1,0,0,0,100,100,0,0,1,0,0,8,110,110,70,1\\n"
-        "Style: Credit,Noto Sans,26,&H00F2F2F2,&H000000FF,&H0010151D,&H0010151D,0,0,0,0,100,100,0,0,1,0,0,7,120,120,170,1\\n\\n"
-        "[Events]\\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\\n" +
-        "".join(
-            f"Dialogue: 0,0:00:00.00,0:00:{12 + len(page) * 0.5:05.2f},Heading,,0,0,0,,SOURCE CREDITS\\n"
-            f"Dialogue: 0,0:00:00.00,0:00:{12 + len(page) * 0.5:05.2f},Credit,,0,0,0,,"
-            + r"\\N".join(line.replace("{", "(").replace("}", ")") for line in page)
-            + "\\n"
-            for page in pages
-        ),
-        encoding="utf-8",
-    )
-    # Keep pages sequential by using one slate per credits page and concatenating
-    # all pages with the original video in a single filter graph.
+    ass_content = "\n".join([
+        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1920",
+        "PlayResY: 1080", "WrapStyle: 2", "", "[V4+ Styles]",
+        "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding",
+        "Style: Heading,Noto Sans,48,&H00D6C39A,&H000000FF,&H0010151D,&H0010151D,1,0,0,0,100,100,0,0,1,0,0,8,110,110,70,1",
+        "Style: Credit,Noto Sans,25,&H00F2F2F2,&H000000FF,&H0010151D,&H0010151D,0,0,0,0,100,100,0,0,1,0,0,7,120,120,170,1",
+        "", "[Events]",
+        "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text",
+        f"Dialogue: 0,0:00:00.00,{ass_time(duration)},Heading,,0,0,0,,SOURCE CREDITS",
+        f"Dialogue: 0,0:00:00.00,{ass_time(duration)},Credit,,0,0,0,,{body}",
+        "",
+    ])
+    ass_path.write_text(ass_content, encoding="utf-8")
     temp_out = Path(video_path).with_name(Path(video_path).stem + "_with_credits.mp4")
-    slate_inputs = []
-    filter_parts = []
-    concat_inputs = ["[0:v][0:a]"]
-    args = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path)]
-    duration = 12.0 + len(display_lines) * 0.5
-    args += ["-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}"]
-    args += ["-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}"]
-    filter_parts.append(
+    args = [
+        "ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path),
+        "-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}",
+        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}",
+        "-filter_complex",
         f"[1:v]subtitles='{ass_path.as_posix()}',format=yuv420p,setpts=PTS-STARTPTS[cv];"
         "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=44100,asetpts=PTS-STARTPTS[a0];"
-        "[2:a]asetpts=PTS-STARTPTS[ca];"
-        "[v0][a0][cv][ca]concat=n=2:v=1:a=1[v][a]"
-    )
-    args += ["-filter_complex", "".join(filter_parts), "-map", "[v]", "-map", "[a]",
-             "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-             "-r", "30", "-c:a", "aac", "-b:a", "256k", "-ar", "44100", "-ac", "2",
-             "-movflags", "+faststart", str(temp_out)]
+        "[2:a]asetpts=PTS-STARTPTS[ca];[v0][a0][cv][ca]concat=n=2:v=1:a=1[v][a]",
+        "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium",
+        "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac",
+        "-b:a", "256k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart",
+        str(temp_out),
+    ]
     try:
         _run(args)
         if temp_out.is_file() and temp_out.stat().st_size > 100_000:
