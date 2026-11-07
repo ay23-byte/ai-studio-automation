@@ -9,17 +9,17 @@ permissions:
   issues: write
 
 concurrency:
-  group: news-script-draft-issue-\${{ github.event.issue.number }}
+  group: news-script-draft-issue-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
   draft:
     if: >-
-      \${{ github.event.issue.pull_request == null &&
+      ${{ github.event.issue.pull_request == null &&
+          startsWith(github.event.issue.title, 'News story review:') &&
+          github.event.issue.state == 'open' &&
           github.event.comment.body == '/approve-script' &&
-          (github.event.comment.author_association == 'OWNER' ||
-           github.event.comment.author_association == 'MEMBER' ||
-           github.event.comment.author_association == 'COLLABORATOR') }}
+          github.event.comment.author_association == 'OWNER' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -58,8 +58,8 @@ jobs:
 
       - name: Generate a script draft (source-verification gate runs first)
         env:
-          GEMINI_API_KEY: \${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: \${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
         run: |
           python -m scripts.draft_reviewed_news_short \
             output/daily_news/reviewed_story.json \
@@ -69,7 +69,7 @@ jobs:
         id: draft-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: news-script-draft-issue-\${{ github.event.issue.number }}
+          name: news-script-draft-issue-${{ github.event.issue.number }}
           path: |
             output/daily_news/reviewed_story.json
             output/daily_news/shorts_script_draft.json
@@ -80,7 +80,7 @@ jobs:
         if: success()
         uses: actions/github-script@v7
         env:
-          ARTIFACT_URL: \${{ steps.draft-artifact.outputs.artifact-url }}
+          ARTIFACT_URL: ${{ steps.draft-artifact.outputs.artifact-url }}
         with:
           script: |
             await github.rest.issues.createComment({
