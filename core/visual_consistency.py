@@ -81,8 +81,10 @@ def audit_visual_consistency(visual_report: dict[str, Any],
             "frame_count": len(metrics), "metrics": average, "issues": row_issues,
             "frame_metrics": metrics,
         })
-        for message in row_issues:
+        for message in failure_issues:
             issues.append({"level": "error", "shot_id": shot_id, "message": message})
+        for message in review_issues:
+            issues.append({"level": "warning", "shot_id": shot_id, "message": message})
 
     measured = [row for row in rows if row.get("metrics")]
     medians = {}
