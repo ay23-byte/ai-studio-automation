@@ -65,9 +65,9 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
         self.assertEqual(len(candidate["sources"]), 1)
 
     def test_himalayan_story_uses_curated_visuals_instead_of_generic_research_search(self):
-        self.assertEqual(visual_plan(1, 5, True)["graphic"], "hand_explainer")
-        self.assertEqual(visual_plan(2, 5, True)["graphic"], "building_growth")
-        self.assertEqual(visual_plan(3, 5, True)["graphic"], "nepal_breakdown")
+        self.assertEqual(visual_plan(1, 5, True)["graphic"], "population_exposure")
+        self.assertEqual(visual_plan(2, 5, True)["graphic"], "hand_explainer")
+        self.assertEqual(visual_plan(3, 5, True)["graphic"], "building_growth")
         self.assertEqual(visual_plan(4, 5, True)["graphic"], "not_forecast")
         self.assertEqual(visual_plan(5, 5, True)["graphic"], "outro")
         self.assertEqual(visual_plan(5, 5, False), {})
@@ -91,6 +91,29 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
             self.assertTrue(disclaimer.is_file())
             sidecar = path.with_suffix(".jpg.source.json")
             self.assertTrue(sidecar.is_file())
+
+
+    def test_himalayan_candidate_carries_user_approved_narration_corrections(self):
+        packet = dict(self.packet, story_title="Himalayan construction and disaster exposure")
+        script = dict(self.script, title="Himalayan flood exposure study")
+        script["scenes"] = [dict(scene) for scene in self.script["scenes"]]
+        script["scenes"][2]["say"] = "Old repetitive building footprint narration."
+        script["scenes"][3]["say"] = "Old causality wording."
+        assets = [{"asset_type": "image", "asset_path": f"/tmp/scene{i}.jpg",
+                   "ai_disclosure": False,
+                   "asset_review_status": "pending_human_visual_and_rights_review"}
+                  for i in range(4)]
+        candidate = prepare_candidate_script(script, packet, assets)
+        self.assertIn("इमारतों का कुल ज़मीनी footprint 46%", candidate["scenes"][2]["say"])
+        self.assertIn("कारण-परिणाम साबित नहीं करता", candidate["scenes"][3]["say"])
+        self.assertEqual(script["scenes"][2]["say"], "Old repetitive building footprint narration.")
+
+    def test_population_exposure_graphic_is_created(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "population.jpg"
+            metadata = create_story_graphic(path, "population_exposure")
+            self.assertTrue(path.is_file())
+            self.assertEqual(metadata["graphic_kind"], "population_exposure")
 
     def test_find_one_requires_exactly_one_match(self):
         with tempfile.TemporaryDirectory() as temp:
