@@ -73,6 +73,7 @@ def build_research_verification_report(script: dict[str, Any],
             "published_at": published or "unknown",
             "url": url,
             "url_valid": valid,
+            "metadata_complete": bool(raw.get("title") and raw.get("publisher")),
             "matched_discovery_lead": bool(in_discovery),
             "supports": [str(item)[:800] for item in (raw.get("supports") or [])[:30]],
             "verification_state": "discovery_lead_only" if in_discovery else ("requires_manual_source_validation" if valid else "invalid_url"),
@@ -166,6 +167,10 @@ def load_research_reviews(build_dir: str | Path, report: dict[str, Any]) -> dict
     else:
         store = {"schema_version": SCHEMA_VERSION, "updated_at": None,
                  "coverage_reviewed": False, "coverage_notes": "", "sources": {}, "claims": {}}
+    if not isinstance(store.get("sources"), dict) or not isinstance(store.get("claims"), dict):
+        raise ValueError(f"Research review decisions {path} must contain source and claim objects.")
+    if not isinstance(store.get("coverage_reviewed", False), bool):
+        raise ValueError(f"Research review decisions {path} has an invalid coverage_reviewed value.")
     changed = False
     for source in report.get("sources") or []:
         sid = source["source_id"]
@@ -245,6 +250,9 @@ def audit_research_reviews(report: dict[str, Any], store: dict[str, Any]) -> dic
         if not source.get("url_valid"):
             issues.append({"level": "error", "source_id": source["source_id"],
                            "message": "Source URL is invalid; replace it with a verified source."})
+        if not source.get("metadata_complete"):
+            issues.append({"level": "error", "source_id": source["source_id"],
+                           "message": "Source title and publisher are required for a usable citation."})
     for claim in report.get("claims") or []:
         decision = (store.get("claims") or {}).get(claim["claim_id"], {})
         if claim.get("traceability_status") != "source_linked_pending_human_review":
