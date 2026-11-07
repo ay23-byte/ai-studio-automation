@@ -8,3 +8,5 @@ YouTube upload: disabled
 Retry after PR #29 merged: narration-anchored visual-beat repair.
 
 Branch synchronized with main storyboard repair commit d1eb6ff.
+
+Cinematic polish trial: slow B-roll drift, expanded visual beats, muted editorial graphics.
