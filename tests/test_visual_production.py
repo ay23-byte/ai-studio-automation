@@ -56,3 +56,26 @@ class VisualProductionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_research_audit_detects_missing_and_unresolved_citations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            image = root / "shot.jpg"
+            image.write_bytes(b"placeholder")
+            report = build_visual_review([
+                {"source_refs": ["S1"], "chart_spec": {"values": [4]},
+                 "_media": {"type": "image", "path": str(image)}},
+                {"on_screen_text": "Claim without a citation",
+                 "_media": {"type": "image", "path": str(image)}},
+                {"source_refs": ["UNKNOWN"],
+                 "_media": {"type": "image", "path": str(image)}},
+            ], root, sample_video_frames=False,
+               research_sources=[{"title": "Official report", "url": "https://example.org/report"}])
+            audit = report["research_audit"]
+            self.assertEqual(audit["research_source_count"], 1)
+            self.assertEqual(audit["shots_with_resolved_sources"], ["shot_0001"])
+            self.assertEqual(audit["evidence_graphics_missing_source_refs"], ["shot_0002"])
+            self.assertEqual(audit["unresolved_source_refs"][0]["refs"], ["UNKNOWN"])
+            self.assertFalse(audit["citation_coverage_complete"])
+            self.assertTrue(audit["human_fact_check_required"])
