@@ -36,6 +36,24 @@ def _pacing_duration(shot):
 
 def _run(cmd): subprocess.run(cmd, check=True)
 
+
+def _audio_master_filter():
+    """Build a bounded one-pass loudness master for the final documentary mix."""
+    import os
+
+    def setting(name, default, low, high):
+        try:
+            value = float(os.getenv(name, str(default)))
+        except (TypeError, ValueError):
+            value = default
+        return max(low, min(high, value))
+
+    target = setting("DOCUMENTARY_TARGET_LUFS", -16.0, -24.0, -8.0)
+    peak = setting("DOCUMENTARY_TRUE_PEAK_DBFS", -1.5, -9.0, -0.1)
+    lra = setting("DOCUMENTARY_TARGET_LRA", 11.0, 1.0, 20.0)
+    return f"loudnorm=I={target}:TP={peak}:LRA={lra}"
+
+
 def _seg(src, idx, dur, is_image, bd):
     out = bd / f"lseg{idx}.mp4"
     if is_image:
@@ -98,7 +116,7 @@ def render(sections, voice, ass, total, out, music=None, music_vol=0.18):
         mix_in = ["[va]","[duck]"]
     fade = f"afade=t=out:st={max(T-2.0,0):.3f}:d=2.0"
     afilt.append("".join(mix_in)+f"amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
-                 f"normalize=0,alimiter=limit=0.95,{fade}[aout]")
+                 f"normalize=0,alimiter=limit=0.95,{fade},{_audio_master_filter()}[aout]")
     filt += ";".join(afilt)
     _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
