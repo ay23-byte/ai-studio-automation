@@ -200,16 +200,33 @@ def _coverr_candidate(hit, query):
 
 
 def _search_pixabay(q):
-    if not PIXABAY_API_KEY: return []
+    if not PIXABAY_API_KEY:
+        print("  Pixabay skipped: PIXABAY_API_KEY is not configured.")
+        return []
     for attempt in range(3):
         try:
             r = requests.get("https://pixabay.com/api/videos/",
                 params={"key":PIXABAY_API_KEY,"q":q,"per_page":30,
                         "safesearch":"true","video_type":"film"}, timeout=30)
-            if r.status_code == 429: time.sleep(20*(attempt+1)); continue
-            if r.status_code != 200: return []
-            return r.json().get("hits", [])
-        except: pass
+            if r.status_code == 429:
+                print("  Pixabay rate limited (HTTP 429); retrying.")
+                time.sleep(20*(attempt+1))
+                continue
+            if r.status_code in (401, 403):
+                _DISABLED_VIDEO_PROVIDERS.add("pixabay")
+                print(f"  Pixabay disabled for this run: HTTP {r.status_code}; check the repository secret.")
+                return []
+            if r.status_code != 200:
+                print(f"  Pixabay search failed: HTTP {r.status_code}; query skipped.")
+                return []
+            payload = r.json()
+            hits = payload.get("hits", []) if isinstance(payload, dict) else []
+            if not isinstance(hits, list):
+                print("  Pixabay returned an unexpected response shape.")
+                return []
+            return hits
+        except Exception as exc:
+            print(f"  Pixabay search attempt {attempt + 1} failed: {type(exc).__name__}: {exc}")
     return []
 
 
