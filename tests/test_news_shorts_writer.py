@@ -1,6 +1,6 @@
 import json, tempfile, unittest
 from pathlib import Path
-from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording, _build_correction_prompt, _normalize_spoken_hand_definitions
+from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording, _build_correction_prompt, _normalize_spoken_hand_definitions, _normalize_spoken_building_footprint_labels
 class WriterGateTests(unittest.TestCase):
  def test_unapproved_packet_is_rejected_before_api_call(self):
   with tempfile.TemporaryDirectory() as tmp:
@@ -40,6 +40,24 @@ class WriterGateTests(unittest.TestCase):
   script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई; 108,500 लोग 0–50 मीटर HAND सीमा में हैं।','caption':''}]}
   once = _normalize_spoken_hand_definitions(script)['scenes'][0]['say']
   twice = _normalize_spoken_hand_definitions(script)['scenes'][0]['say']
+  self.assertEqual(once, twice)
+
+
+ def test_normalizer_labels_each_spoken_percentage_as_building_footprint_area(self):
+  script={'scenes':[
+   {'say':'2016 से 2023 तक 46% बढ़ोतरी हुई।','caption':'46%'},
+   {'say':'मॉडल किए गए GLOF विस्तारों में 77% की वृद्धि हुई।','caption':'77%'},
+   {'say':'293,800 लोग संभावित exposure में हैं।','caption':'Potential exposure'}
+  ]}
+  normalized = _normalize_spoken_building_footprint_labels(script)
+  self.assertIn('भवन-फुटप्रिंट क्षेत्रफल', normalized['scenes'][0]['say'])
+  self.assertIn('भवन-फुटप्रिंट क्षेत्रफल', normalized['scenes'][1]['say'])
+  self.assertNotIn('भवन-फुटप्रिंट क्षेत्रफल', normalized['scenes'][2]['say'])
+
+ def test_building_footprint_normalizer_is_idempotent(self):
+  script={'scenes':[{'say':'भवन-फुटप्रिंट क्षेत्रफल में 46% वृद्धि हुई।','caption':''}]}
+  once = _normalize_spoken_building_footprint_labels(script)['scenes'][0]['say']
+  twice = _normalize_spoken_building_footprint_labels(script)['scenes'][0]['say']
   self.assertEqual(once, twice)
 
  def test_rejects_hand_without_nearest_drainage_definition_in_scene(self):
