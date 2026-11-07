@@ -16,18 +16,27 @@ import requests
 from datetime import date
 
 TIMEOUT = 35
+# Authorization failures are stable for the lifetime of one production run.
+_DISABLED_PROVIDER_HOSTS = set()
 USER_AGENT = "AIStudioDocumentary/1.0 (educational video research)"
 
 
 def _get_json(url, params=None, headers=None):
+    host = url.split("/")[2].lower() if "://" in url else ""
+    if host in _DISABLED_PROVIDER_HOSTS:
+        return None
     try:
         response = requests.get(url, params=params, headers=headers, timeout=TIMEOUT)
+        if response.status_code in (401, 403):
+            _DISABLED_PROVIDER_HOSTS.add(host)
+            print(f"  footage provider disabled for this run ({host}): HTTP {response.status_code}")
+            return None
         if response.status_code == 429:
             return None
         response.raise_for_status()
         return response.json()
     except Exception as exc:
-        print(f"  footage discovery unavailable ({url.split('/')[2]}): {exc}")
+        print(f"  footage discovery unavailable ({host or 'unknown host'}): {exc}")
         return None
 
 
