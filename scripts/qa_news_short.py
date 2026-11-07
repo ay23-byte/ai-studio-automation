@@ -14,7 +14,7 @@ def _sample_video_frames(video, duration, output_dir):
             samples.append(str(target))
     return samples
 
-def run(video, report_dir=None):
+def run(video, report_dir=None, manifest_path=None):
     video = Path(video)
     data = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams",
         "-show_format", "-of", "json", str(video)], text=True))
@@ -61,6 +61,19 @@ def run(video, report_dir=None):
     visual["semantic_match_verified"] = False
     visual["human_visual_review_required"] = True
     (root/"visual_quality_report.json").write_text(json.dumps(visual,ensure_ascii=False,indent=2),encoding="utf-8")
+    # The renderer writes this manifest beside the review MP4. Legacy exports without
+    # a manifest remain technically scannable, but semantic QA is explicitly not run.
+    semantic_manifest = Path(manifest_path) if manifest_path else video.parent/"production_manifest.json"
+    semantic = {"status":"NOT_RUN","reason":"No production manifest supplied; shot-to-narration semantic QA was not run.",
+                "human_review_required":True,"semantic_match_verified":False}
+    if semantic_manifest.is_file():
+        from core.news_semantic_qa import run_semantic_qa
+        semantic = run_semantic_qa(video,semantic_manifest,root)
+    (root/"semantic_qa_report.json").write_text(json.dumps(semantic,ensure_ascii=False,indent=2),encoding="utf-8")
+    if semantic.get("status") == "FAIL":
+        errors.append("Shot-to-narration semantic QA detected a mismatch or blocking error.")
+    elif semantic.get("status") in {"REVIEW","ERROR","UNAVAILABLE"}:
+        warnings.append("Shot-to-narration semantic QA needs human review; see semantic_qa_report.json.")
     if audio.get("status") in {"FAIL","ERROR"}: errors.append("Audio quality analysis failed or detected a blocking audio issue.")
     elif audio.get("status")=="REVIEW": warnings.append("Audio quality needs human review; see audio_quality_report.json.")
     if not frames or visual.get("summary",{}).get("measured_shot_count",0)==0:
@@ -72,15 +85,15 @@ def run(video, report_dir=None):
     return {"status":"FAIL" if errors else ("REVIEW" if warnings else "PASS"),
         "duration_seconds":round(dur,2),"fps":round(fps,2),"resolution":f'{v["width"]}x{v["height"]}',
         "errors":errors,"warnings":warnings,"audio_quality_report":str(root/"audio_quality_report.json"),
-        "visual_quality_report":str(root/"visual_quality_report.json"),"sampled_frame_count":len(frames),
+        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),\n        "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
         "human_review_required":True,"publication_ready":False,
         "notice":"A PASS is technical screening only. It does not verify facts, visual relevance, historical authenticity, media rights, captions, or policy compliance. Human review and phone playback remain mandatory."}
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(); parser.add_argument("video")
-    parser.add_argument("--report",default="output/daily_news/rendered/technical_qa.json")
+    parser.add_argument("--report",default="output/daily_news/rendered/technical_qa.json")\n    parser.add_argument("--manifest",default=None,help="Production manifest containing per-shot narration and visual descriptions")
     args=parser.parse_args()
-    result=run(Path(args.video),Path(args.report).parent/"advanced_qa")
+    result=run(Path(args.video),Path(args.report).parent/"advanced_qa",args.manifest)
     Path(args.report).parent.mkdir(parents=True,exist_ok=True)
     Path(args.report).write_text(json.dumps(result,indent=2),encoding="utf-8")
     print(json.dumps(result,indent=2)); raise SystemExit(result["status"]!="PASS")
