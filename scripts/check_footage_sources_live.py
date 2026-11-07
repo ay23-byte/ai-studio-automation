@@ -12,6 +12,12 @@ from core import images
 
 DEFAULT_QUERY = "India disappearing villages rural migration abandoned villages"
 DEFAULT_QUERY_VARIANTS = (
+    "Indian village",
+    "rural India",
+    "Indian countryside",
+    "village life India",
+    "Indian farming village",
+    "rural village landscape India",
     "India village rural life",
     "Indian village landscape",
     "rural India agriculture",
@@ -68,7 +74,7 @@ def _query_variants(query):
     else:
         values.extend([query + " video", query + " documentary"])
     # Keep stable order and avoid redundant requests.
-    return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:5]
+    return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:10]
 
 
 def run_checks(query, min_total=1, providers=None):
