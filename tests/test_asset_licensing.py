@@ -59,7 +59,7 @@ class AssetLicensingTests(unittest.TestCase):
                 "ai_generated": False,
                 "font_licence": "Bitstream Vera and DejaVu font licence",
                 "font_licence_url": "https://dejavu-fonts.github.io/License.html",
-                "attribution_text": "Project-created graphic; DejaVu font notice.",
+                "attribution_text": "Original graphic created by project; DejaVu font notice.",
                 "licence_status": "Created by this project",
                 "graphic_kind": "building_growth",
             }), encoding="utf-8")
