@@ -317,6 +317,14 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         raise ValueError("Long-form script must contain at least one section.")
     if any(not str(sec.get("narration", "")).strip() for sec in sections):
         raise ValueError("Every long-form section must contain non-empty narration.")
+    from core.research_verification import write_research_verification_report
+    research_report = write_research_verification_report(
+        script, script.get("research_sources", []), bd
+    )
+    print(
+        f"Research verification dossier: {research_report['source_count']} sources, "
+        f"{research_report['claim_count']} claims; human fact-check required."
+    )
     # Validate new structured storyboards before generating any media.
     if any(any(isinstance(item, dict) for item in (sec.get("visuals") or [])) for sec in sections):
         from core.script_engine import validate_longform_storyboard
@@ -600,7 +608,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         import json
         from core.visual_production import build_visual_review
         from core.visual_consistency import audit_visual_consistency
-        visual_report = build_visual_review(shot_timeline, bd, research_sources=script.get("research_sources", []))
+        visual_report = build_visual_review(
+            shot_timeline, bd,
+            research_sources=script.get("sources") or script.get("research_sources", [])
+        )
         consistency_report = audit_visual_consistency(visual_report, bd)
         quality_by_id = {row["shot_id"]: row for row in consistency_report.get("shots", [])}
         for shot in visual_report.get("shots", []):
