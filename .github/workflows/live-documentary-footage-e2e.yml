@@ -1,0 +1,135 @@
+name: Live documentary footage end-to-end validation
+
+on:
+  push:
+    branches:
+      - production-trial/live-footage-e2e
+    paths:
+      - ".github/live-footage-e2e-trigger.txt"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-documentary-footage-e2e
+  cancel-in-progress: false
+
+jobs:
+  production-render:
+    name: Render documentary and verify real footage evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Check out current main-based trial branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Cache Chatterbox model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: chatterbox-v3-${{ runner.os }}-live-footage-e2e-v1
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile current production code
+        run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py scripts
+
+      - name: Run provider live discovery checks
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+        run: |
+          mkdir -p build/live_footage_validation
+          python -m scripts.check_footage_sources_live 2>&1 | tee build/live_footage_validation/provider-live-checks.log
+
+      - name: Render real 12-minute documentary
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: "gemini-3.8-flash"
+          GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          FREE_ONLY_MODE: "1"
+          AI_VIDEO_ENABLED: "0"
+          TTS_ENGINE: "chatterbox"
+          CHATTERBOX_TORCH_THREADS: "2"
+          PRESENTER_ENABLED: "1"
+          PRESENTER_MODE: "still_cpu"
+          PRESENTER_IMAGE: "assets/presenter/presenter_female.png"
+          SADTALKER_DEVICE: "cpu"
+          LONGFORM_VISUAL_MODE: "video_first"
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "unlisted"
+          VISUAL_SEMANTIC_CHECK: "0"
+        run: |
+          test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY repository Actions secret." && exit 1)
+          python run.py long "The Mystery of India's Disappearing Villages" --category india --minutes 12 --language hinglish --voice-gender female
+
+      - name: Verify rendered MP4 and collect footage provenance
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          out = Path("output")
+          videos = sorted(out.rglob("*.mp4")) if out.exists() else []
+          sidecars = sorted(Path(".").rglob("*.source.json"))
+          sidecars = [p for p in sidecars if ".git" not in p.parts and "venv" not in p.parts]
+          report = {
+              "mp4_files": [str(p) for p in videos],
+              "source_sidecars": [str(p) for p in sidecars],
+              "video_probes": []
+          }
+          for p in videos:
+              raw = subprocess.check_output([
+                  "ffprobe", "-v", "error", "-show_entries",
+                  "format=duration:stream=codec_type,width,height",
+                  "-of", "json", str(p)
+              ], text=True)
+              info = json.loads(raw)
+              report["video_probes"].append({"path": str(p), "probe": json.loads(raw)})
+          Path("build/live_footage_validation").mkdir(parents=True, exist_ok=True)
+          Path("build/live_footage_validation/render-evidence.json").write_text(
+              json.dumps(report, indent=2), encoding="utf-8")
+          print(json.dumps({
+              "mp4_count": len(videos),
+              "provenance_sidecar_count": len(sidecars),
+              "video_paths": report["mp4_files"]
+          }, indent=2))
+          if not videos:
+              raise SystemExit("No MP4 documentary was produced.")
+          PY
+
+      - name: Upload documentary, logs, provenance and build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-documentary-footage-e2e
+          path: |
+            output/**
+            build/**
+            assets/clips/**
+          if-no-files-found: warn
+          retention-days: 14
