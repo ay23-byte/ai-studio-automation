@@ -6,6 +6,7 @@ a JSON provenance sidecar is written beside the downloaded clip. Search results
 are leads: review the asset-specific licence/credit before publishing.
 """
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -247,6 +248,183 @@ def _loc(query):
     return results
 
 
+
+
+def _nara(query):
+    """Search NARA Catalog v2 and accept only item-level explicit reuse rights."""
+    from core.config import NARA_API_KEY
+    if not NARA_API_KEY:
+        return []
+    data = _get_json(
+        "https://catalog.archives.gov/api/v2/records/search",
+        {"q": query, "availableOnline": "true", "typeOfMaterials": "Moving Images", "rows": 10},
+        {"x-api-key": NARA_API_KEY, "Content-Type": "application/json"},
+    )
+    hits = (((data or {}).get("body") or {}).get("hits") or {}).get("hits") or []
+    results = []
+    for hit in hits:
+        record = (((hit.get("_source") or {}).get("record")) or {})
+        restriction = (record.get("useRestriction") or {}).get("status", "")
+        notes = " ".join(str(record.get(k) or "") for k in
+                         ("copyrightNote", "scopeAndContentNote", "generalNote", "title"))
+        # An unrestricted access flag is NOT a copyright licence. Require an
+        # explicit public-domain / US-government-work statement in item metadata.
+        if str(restriction).lower() not in {"unrestricted", "unrestricted use"}:
+            continue
+        if not re.search(r"public domain|work of the u\\.s\\. federal government|\\bu\\.s\\. government work\\b", notes, re.I):
+            continue
+        naid = record.get("naId") or hit.get("_id")
+        page = f"https://catalog.archives.gov/id/{naid}" if naid else ""
+        for obj in record.get("digitalObjects") or []:
+            obj_url = obj.get("objectUrl")
+            object_type = str(obj.get("objectType") or "").lower()
+            filename = str(obj.get("objectFilename") or obj_url or "").lower()
+            if not obj_url or not str(obj_url).startswith("https://"):
+                continue
+            if not ("video" in object_type or filename.endswith((".mp4", ".mov", ".m4v", ".mpeg", ".mpg"))):
+                continue
+            results.append((obj_url, {
+                "provider": "National Archives (NARA)", "asset_id": str(naid),
+                "title": record.get("title"), "page_url": page,
+                "licence": "Public Domain", "licence_url": page,
+                "rights_statement": notes[:3000], "access_restriction": (record.get("accessRestriction") or {}).get("status"),
+                "use_restriction": restriction, "query": query,
+                "date_accessed": date.today().isoformat(),
+                "attribution_text": f"{record.get('title') or 'Untitled'} — U.S. National Archives, NAID {naid}; {page}",
+                "licence_status": "Explicit public-domain statement in NARA item metadata; verify record notes and third-party content",
+            }))
+    return results
+
+
+def _dvids(query):
+    """Search DVIDS public-media API; require item-specific copyright/release evidence."""
+    api_key = os.getenv("DVIDS_API_KEY", "").strip()
+    if not api_key:
+        return []
+    data = _get_json("https://api.dvidshub.net/search", {
+        "api_key": api_key, "q": query, "type": "video", "page": 1, "max_results": 10,
+    })
+    payload = data or {}
+    hits = payload.get("results") or payload.get("items") or payload.get("data") or []
+    if isinstance(hits, dict):
+        hits = hits.get("results") or hits.get("items") or []
+    results = []
+    for hit in hits if isinstance(hits, list) else []:
+        if not isinstance(hit, dict):
+            continue
+        rights = " ".join(str(hit.get(k) or "") for k in
+                          ("copyright", "rights", "usage", "release_status", "description"))
+        if not re.search(r"public domain|unrestricted|released for public use", rights, re.I):
+            continue
+        url = hit.get("download_url") or hit.get("downloadUrl") or hit.get("url")
+        page = hit.get("url") or hit.get("page_url") or hit.get("link")
+        if not isinstance(url, str) or not url.startswith("https://"):
+            continue
+        if not re.search(r"\\.(mp4|mov|m4v)(?:\\?|$)", url, re.I):
+            continue
+        asset_id = hit.get("id") or hit.get("asset_id")
+        if not asset_id:
+            continue
+        results.append((url, {
+            "provider": "DVIDS", "asset_id": str(asset_id),
+            "title": hit.get("title") or hit.get("name"),
+            "page_url": page or "https://www.dvidshub.net/",
+            "licence": "Public Domain", "licence_url": page or "https://www.dvidshub.net/about/copyright",
+            "rights_statement": rights[:2000], "query": query,
+            "date_accessed": date.today().isoformat(),
+            "attribution_text": f"{hit.get('title') or 'Untitled'} — DVIDS; {page or 'https://www.dvidshub.net/'}",
+            "licence_status": "DVIDS item-level rights/release metadata found; verify item page and required DVIDS credit",
+        }))
+    return results
+
+
+def _europeana_cc(query):
+    """Discover Europeana video objects with an explicit CC0/CC BY rights URI."""
+    from core.config import EUROPEANA_API_KEY
+    if not EUROPEANA_API_KEY:
+        return []
+    data = _get_json("https://api.europeana.eu/record/v2/search.json", {
+        "wskey": EUROPEANA_API_KEY, "query": query, "qf": "TYPE:VIDEO",
+        "media": "true", "rows": 10,
+        "profile": "standard",
+    })
+    results = []
+    for item in (data or {}).get("items", []):
+        rights_values = item.get("rights") or []
+        rights_url = next((str(x) for x in rights_values if isinstance(x, str)), "")
+        low = rights_url.lower()
+        if "creativecommons.org/publicdomain/zero" in low:
+            licence = "CC0 1.0"
+        elif re.search(r"creativecommons\\.org/licenses/by/(?:[0-9.]+)", low):
+            licence = "CC BY 4.0"
+        elif re.search(r"creativecommons\\.org/licenses/by-sa/(?:[0-9.]+)", low):
+            licence = "CC BY-SA 4.0"
+        else:
+            continue
+        objects = item.get("edmIsShownBy") or item.get("edmObject") or []
+        if isinstance(objects, str):
+            objects = [objects]
+        url = next((str(x) for x in objects if isinstance(x, str) and
+                    re.search(r"\\.(mp4|mov|webm|m4v)(?:\\?|$)", x, re.I)), None)
+        if not url or not url.startswith("https://"):
+            continue
+        page = item.get("guid") or item.get("edmIsShownAt") or ""
+        title_values = item.get("title") or []
+        creator_values = item.get("dcCreator") or []
+        title = title_values[0] if title_values else "Untitled Europeana video"
+        creator = creator_values[0] if creator_values else "Creator not supplied"
+        results.append((url, {
+            "provider": "Europeana CC", "asset_id": str(item.get("id") or page),
+            "title": title, "creator": creator, "page_url": page,
+            "licence": licence, "licence_url": rights_url, "query": query,
+            "date_accessed": date.today().isoformat(),
+            "attribution_text": f"{title} — {creator}; {licence}; {page}",
+            "licence_status": "Explicit item-level CC rights URI; verify source institution terms and any embedded third-party rights",
+        }))
+    return results
+
+
+def register_mixkit_asset(source_file, *, title, source_url, licence, creator="", attribution=""):
+    """Register a user-selected Mixkit Free License download; never scrapes Mixkit."""
+    from shutil import copy2
+    from datetime import date as _date
+    source = Path(source_file)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if str(licence).strip().lower() != "mixkit free license":
+        raise ValueError("Only an explicitly verified 'Mixkit Free License' asset can be registered; Restricted License is not accepted.")
+    if not str(source_url).startswith("https://mixkit.co/"):
+        raise ValueError("source_url must be the exact Mixkit asset page URL.")
+    if not title.strip():
+        raise ValueError("The exact Mixkit clip title is required.")
+    target_dir = Path("assets/clips/mixkit")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / source.name
+    if source.resolve() != target.resolve():
+        copy2(source, target)
+    metadata = {
+        "provider": "Mixkit (manual user-selected import)",
+        "asset_id": source.stem,
+        "title": title.strip(),
+        "creator": creator.strip(),
+        "page_url": source_url,
+        "licence": "Mixkit Free License",
+        "licence_url": "https://mixkit.co/license/",
+        "attribution_text": attribution.strip() or f"{title.strip()} — Mixkit; {source_url}",
+        "date_accessed": _date.today().isoformat(),
+        "terms_reviewed": True,
+        "review_basis": "User confirmed this exact asset is labelled Free License on its Mixkit page.",
+        "automated_download": False,
+        "human_visual_inspection_required": True,
+        "visual_checks": {"steady_clean": "not_automatically_verified",
+                          "watermark_logo": "not_automatically_verified",
+                          "private_person_privacy": "not_automatically_verified"},
+    }
+    sidecar = target.with_suffix(target.suffix + ".source.json")
+    sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    return target, sidecar
+
+
 def _tokens(value):
     stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",
             "scene", "footage", "video", "documentary", "file"}
@@ -286,8 +464,8 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     used_ids = used_ids if used_ids is not None else set()
     context = " ".join(str(x) for x in (keywords or [])) + " " + str(scene_prompt or "")
     is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
-    providers = ((_nasa, _loc, _wikimedia, _internet_archive) if is_space
-                 else (_loc, _wikimedia, _internet_archive))
+    providers = ((_nasa, _nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc) if is_space
+                 else (_nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc))
     candidate_count = 0
     for query in _expanded_queries(keywords, scene_prompt)[:3]:
         candidates = []
