@@ -489,7 +489,10 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
             identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or media_path.name}"
             if identity in used_ids:
                 continue
-            score = _metadata_relevance(context, metadata)
+            local_query = " ".join(str(value) for value in (keywords or []) if str(value).strip())
+            if not local_query:
+                local_query = str(scene_prompt or "")
+            score = _metadata_relevance(local_query, metadata)
             if score < 0.25 or not _valid_video(media_path):
                 continue
             import shutil
