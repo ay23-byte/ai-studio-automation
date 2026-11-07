@@ -54,13 +54,13 @@ def visual_plan(scene_number: int, scene_count: int, is_himalayan: bool) -> dict
         return {}
     if scene_number == 1:
         return {"kind": "stock", "queries": [
-            "Himalayan mountain river valley", "Himalaya river landscape", "Nepal mountain river"
+            "Himalaya mountain", "Himalaya river", "Nepal mountain"
         ]}
     if scene_number == 2:
         return {"kind": "graphic", "graphic": "building_growth"}
     if scene_number == 3:
         return {"kind": "stock", "queries": [
-            "Nepal Himalaya glacier lake", "Himalayan glacial lake", "Nepal glacier river valley"
+            "Nepal glacier", "Himalaya glacier", "Nepal river"
         ]}
     if scene_number == 4:
         return {"kind": "graphic", "graphic": "not_forecast"}
