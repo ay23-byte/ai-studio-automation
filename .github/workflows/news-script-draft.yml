@@ -37,7 +37,7 @@ jobs:
             const matches = [...body.matchAll(/~~~json\s*([\s\S]*?)~~~/gi)];
             if (matches.length !== 1) core.setFailed("Issue must contain exactly one JSON packet between ~~~json fences.");
             let packet;
-            try { packet = JSON.parse(matches[0][1]); }
+            try { packet = JSON.parse(matches[0][2]); }
             catch (error) { core.setFailed("The issue JSON packet is invalid: " + error.message); }
             if (packet.review_status !== "approved") {
               core.setFailed("Script drafting blocked: review_status must be approved after human source inspection.");
