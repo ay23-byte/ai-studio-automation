@@ -93,3 +93,26 @@ def render_graphic_scene(shot,duration,build_dir,scene_id):
     try: subprocess.run(cmd,check=True,timeout=max(90,int(duration*20)))
     except (OSError,subprocess.SubprocessError): return None
     return out if out.is_file() and out.stat().st_size>1000 else None
+
+
+def render_chapter_title(title, chapter_number, duration, build_dir):
+    """Create a restrained animated chapter slate with no generated factual claims."""
+    root=Path(build_dir); root.mkdir(parents=True,exist_ok=True)
+    fps=15; count=max(30,min(90,int(max(float(duration),2)*fps)))
+    safe_title=str(title or f"Chapter {chapter_number}")[:100]
+    for i in range(count):
+        p=(i+1)/count
+        im,d=_base(safe_title,f"CHAPTER {int(chapter_number):02d}")
+        # Reveal a thin editorial progress line across the lower third.
+        x_end=int(110+(W-220)*p)
+        d.rounded_rectangle((110,850,x_end,862),radius=6,fill=YELLOW)
+        d.text((112,900),"INVESTIGATIVE DOCUMENTARY",font=_font(22,True),fill=MUTED)
+        im.save(root/f"title_{int(chapter_number):02d}_{i:04d}.png",optimize=True)
+    out=root/f"chapter_title_{int(chapter_number):02d}.mp4"
+    cmd=["ffmpeg","-y","-loglevel","error","-framerate",str(fps),"-i",
+         str(root/f"title_{int(chapter_number):02d}_%04d.png"),"-t",f"{float(duration):.3f}",
+         "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","veryfast","-crf","20",
+         "-movflags","+faststart",str(out)]
+    try: subprocess.run(cmd,check=True,timeout=max(60,int(duration*15)))
+    except (OSError,subprocess.SubprocessError): return None
+    return out if out.is_file() and out.stat().st_size>1000 else None
