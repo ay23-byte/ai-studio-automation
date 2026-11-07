@@ -1,6 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from core.editor_longform import _seg
 
 from PIL import Image
 
@@ -68,6 +71,20 @@ class VisualConsistencyTests(unittest.TestCase):
         self.assertTrue(all("eq=" in item for item in presets))
         self.assertIn("colorbalance=", color_grade_filter("cinematic"))
         self.assertEqual(color_grade_filter("unknown"), color_grade_filter("cinematic"))
+
+
+    def test_same_grade_is_applied_to_stills_and_video_segments(self):
+        source = self.root / "source.mp4"
+        source.write_bytes(b"placeholder")
+        with patch("core.editor_longform._run") as run:
+            _seg(source, 0, 2.0, True, self.root)
+            still_filter = run.call_args.args[0][run.call_args.args[0].index("-vf") + 1]
+            _seg(source, 1, 2.0, False, self.root)
+            video_filter = run.call_args.args[0][run.call_args.args[0].index("-vf") + 1]
+        self.assertIn("colorbalance=", still_filter)
+        self.assertIn("colorbalance=", video_filter)
+        self.assertIn(color_grade_filter("cinematic"), still_filter)
+        self.assertIn(color_grade_filter("cinematic"), video_filter)
 
 
 if __name__ == "__main__":
