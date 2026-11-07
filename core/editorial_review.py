@@ -189,3 +189,25 @@ def audit_visual_reviews(report: dict[str, Any], store: dict[str, Any]) -> dict[
         "notice": ("Editorial and source review states are workflow attestations only. They do not establish factual accuracy, "
                    "historical authenticity, copyright ownership, legal licensing, or presenter lip-sync."),
     }
+
+
+def assert_visual_review_ready(build_dir: str | Path) -> dict[str, Any]:
+    """Raise ReviewStoreError unless every shot is editorially approved and source-reviewed."""
+    root = Path(build_dir)
+    report_path = root / "visual_review_report.json"
+    if not report_path.is_file():
+        raise ReviewStoreError(
+            f"Visual review manifest is missing from {root}. Generate/recover the documentary review report first."
+        )
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ReviewStoreError(f"Cannot read visual review manifest {report_path}: {exc}") from exc
+    if not isinstance(report, dict) or not isinstance(report.get("shots"), list):
+        raise ReviewStoreError(f"Visual review manifest {report_path} has an invalid structure.")
+    store = load_reviews(report_path, report["shots"])
+    result = audit_visual_reviews(report, store)
+    if not result["publication_ready"]:
+        details = "; ".join(f"{item['shot_id']}: {item['message']}" for item in result["issues"])
+        raise ReviewStoreError("Long-form publication is blocked by editorial review: " + details)
+    return result
