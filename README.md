@@ -400,3 +400,12 @@ VISUAL_SEMANTIC_MAX_SHOTS=40
 The screen uses the existing `GEMINI_API_KEY` and `GEMINI_MODEL`. It is opt-in because it makes an additional vision-model request per shot and may incur API usage. Set the maximum shot count to control the per-build request budget. If the key, frames or model are unavailable, the report records that state rather than claiming a match.
 
 **Publication behavior:** when semantic screening is enabled, any shot that is not explicitly returned as `match` blocks the long-form publication gate until the issue is resolved and the report is regenerated. A `match` never approves a shot: a human must still approve it in the editorial review page and review its source metadata. This model cannot establish factual truth, historical authenticity, identity, copyright ownership, licensing, or lip-sync.
+
+
+## Milestone 21: Cinematic consistency and shot-quality control
+
+Long-form documentary rendering now applies one consistent colour-grade preset to every image and video segment, instead of using different hard-coded adjustments for stills and B-roll. Configure `DOCUMENTARY_COLOR_GRADE` as `neutral`, `cinematic` (default), `warm`, `cool` or `archive`. Shorts rendering is unchanged.
+
+Each long-form build also writes `visual_consistency_report.json` and adds per-shot technical metrics to `visual_review_report.json`. Sampled frames are checked for source resolution, exposure, contrast, saturation, clipped highlights/shadows and a sharpness proxy. Shots with severe technical failures block the editorial publication gate; relative colour/exposure outliers are flagged for human review.
+
+These are deterministic image-quality diagnostics, not a replacement for a colourist or a semantic/factual review. Source footage may legitimately vary by scene; use the report to find unintended inconsistencies, not to force every scene to look identical.
