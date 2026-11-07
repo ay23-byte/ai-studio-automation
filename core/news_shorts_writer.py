@@ -104,32 +104,65 @@ def _validate_scientific_wording(script):
 
 
 
+def _gemini_retry_delay(response, attempt):
+    """Use Google's Retry-After hint when present, otherwise exponential backoff."""
+    delays = (10, 30, 60)
+    fallback = delays[min(attempt, len(delays) - 1)]
+    raw = getattr(response, 'headers', {}).get('Retry-After') if response is not None else None
+    if raw:
+        try:
+            # Retry-After is normally a number of seconds for API throttling.
+            return max(1, min(60, int(float(raw))))
+        except (TypeError, ValueError):
+            pass
+    return fallback
+
+
+def _gemini_error_detail(response):
+    """Return a bounded diagnostic without exposing request credentials."""
+    if response is None:
+        return ''
+    try:
+        detail = re.sub(r'\\s+', ' ', str(response.text)).strip()
+    except Exception:
+        detail = ''
+    return f' Response: {detail[:400]}' if detail else ''
+
+
 def _post_gemini_with_retries(url, key, payload, *, attempts=3):
-    """Retry transient Gemini API failures before moving to the fallback model."""
+    """Retry transient Gemini outages with backoff and preserve useful API diagnostics.
+
+    This reduces failures caused by short-lived 429/5xx incidents. It cannot make
+    an upstream provider outage disappear; callers still receive a clear error
+    after the bounded retry budget is exhausted.
+    """
     retryable_statuses = {408, 429, 500, 502, 503, 504}
-    delays = (2, 5)
     last_error = None
+    last_response = None
     for attempt in range(attempts):
         try:
             response = requests.post(
-                url, params={'key': key}, json=payload, timeout=(15, 75))
+                url, params={'key': key}, json=payload, timeout=(10, 45))
+            last_response = response
             if response.status_code in retryable_statuses:
+                detail = _gemini_error_detail(response)
                 last_error = requests.HTTPError(
-                    f'Gemini temporarily unavailable (HTTP {response.status_code}).',
+                    f'Gemini temporarily unavailable (HTTP {response.status_code}).{detail}',
                     response=response)
                 if attempt + 1 < attempts:
-                    time.sleep(delays[min(attempt, len(delays) - 1)])
+                    time.sleep(_gemini_retry_delay(response, attempt))
                     continue
-                raise last_error
+                break
             response.raise_for_status()
             return response
         except requests.RequestException as exc:
             last_error = exc
-            status = getattr(getattr(exc, 'response', None), 'status_code', None)
+            last_response = getattr(exc, 'response', None)
+            status = getattr(last_response, 'status_code', None)
             if status is not None and status not in retryable_statuses:
                 raise
             if attempt + 1 < attempts:
-                time.sleep(delays[min(attempt, len(delays) - 1)])
+                time.sleep(_gemini_retry_delay(last_response, attempt))
     raise RuntimeError(
         f'Gemini request failed after {attempts} attempts: {last_error}'
     ) from last_error
