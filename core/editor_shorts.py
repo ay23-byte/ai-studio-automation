@@ -101,5 +101,5 @@ def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.45
     filt += ";".join(afilt)
     _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
-          "-c:a","aac","-b:a","192k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
+          "-c:a","aac","-b:a","192k","-ar","48000","-ac","2","-movflags","+faststart",str(out)])
     return out

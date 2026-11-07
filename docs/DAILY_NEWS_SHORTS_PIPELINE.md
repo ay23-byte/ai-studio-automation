@@ -109,6 +109,6 @@ Then run:
 python scripts/upload_approved_news_short.py metadata.json upload_approval.json
 ```
 
-The script calls the existing YouTube uploader with `privacy_status="private"`. It has no public/unlisted mode and cannot schedule publication. YouTube credentials must be configured separately. Never put credentials in these JSON files or commit them.
+The script calls the existing YouTube uploader with `privacy_status="private"` and an explicit `disable_scheduling` safety flag. This bypasses `PUBLISH_AT_IST` and guarantees that this upload request does not include `publishAt`; the command has no public/unlisted mode. The rendered MP4 is encoded with 48 kHz AAC to match the QA profile. YouTube credentials must be configured separately. Never put credentials in these JSON files or commit them.
 
 This is an opt-in manual step, not part of the scheduled discovery workflow. Do not upload until the reviewer has watched the complete MP4 on a phone, checked every factual claim against the cited sources, confirmed asset rights and credits, checked synthetic-media disclosure, and approved the metadata. YouTube API audit restrictions may still limit uploads to private. Public publishing is intentionally not automated.

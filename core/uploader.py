@@ -47,14 +47,16 @@ def _publish_time():
 
 def upload(video_path: Path, title: str, description: str, tags: list,
            category_id: str = "27", contains_synthetic: bool = True,
-           privacy_status: str | None = None) -> str:
+           privacy_status: str | None = None,
+           disable_scheduling: bool = False) -> str:
+    """Upload a video; disable_scheduling guarantees no publishAt is sent."""
     yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
     status = {"selfDeclaredMadeForKids": False, "containsSyntheticMedia": contains_synthetic}
-    pt = _publish_time()
+    pt = None if disable_scheduling else _publish_time()
     if pt:
         status.update({"privacyStatus": "private", "publishAt": pt})
     else:
-        status["privacyStatus"] = privacy_status or PRIVACY or "unlisted"
+        status["privacyStatus"] = "private" if disable_scheduling else (privacy_status or PRIVACY or "unlisted")
     body = {"snippet": {"title": title[:100], "description": description,
                         "tags": tags[:30], "categoryId": category_id},
             "status": status}
@@ -128,7 +130,6 @@ def wait_processed(vid: str, max_wait: int = 600) -> str:
             return us
         time.sleep(20)
     return "timeout"
-
 
 def set_video_thumbnail(vid: str, image_path: Path):
     """Set a custom thumbnail on an existing YouTube video."""

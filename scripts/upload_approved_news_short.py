@@ -11,6 +11,6 @@ def main():
  if not video.is_file(): raise FileNotFoundError(video)
  if not all(k in meta for k in ("title","description","tags")): raise ValueError("Metadata requires title, description and tags.")
  from core.uploader import upload
- vid=upload(video,meta["title"],meta["description"],meta["tags"],category_id=str(meta.get("category_id","25")),contains_synthetic=bool(meta.get("synthetic_media",True)),privacy_status="private")
- print(json.dumps({"video_id":vid,"url":"https://www.youtube.com/watch?v="+vid,"privacy":"private","public_publish_performed":False},indent=2))
+ vid=upload(video,meta["title"],meta["description"],meta["tags"],category_id=str(meta.get("category_id","25")),contains_synthetic=bool(meta.get("synthetic_media",True)),privacy_status="private",disable_scheduling=True)
+ print(json.dumps({"video_id":vid,"url":"https://www.youtube.com/watch?v="+vid,"privacy":"private","scheduled":False,"public_publish_performed":False},indent=2))
 if __name__=="__main__": main()
