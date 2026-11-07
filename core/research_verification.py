@@ -86,13 +86,21 @@ def build_research_verification_report(script: dict[str, Any],
 
     raw_claims = script.get("claims") or []
     claim_rows = []
+    claim_ids = set()
     for index, raw in enumerate(raw_claims):
         if not isinstance(raw, dict):
             issues.append({"level": "error", "message": f"Claim record {index + 1} is not an object."})
             continue
         claim_id = str(raw.get("claim_id") or raw.get("id") or f"C{index + 1}").strip()
+        if not claim_id or claim_id in claim_ids:
+            issues.append({"level": "error", "message": f"Claim record {index + 1} has a missing or duplicate claim ID."})
+            continue
+        claim_ids.add(claim_id)
         text = " ".join(str(raw.get("text") or raw.get("claim") or "").split())
-        refs = [str(item) for item in (raw.get("source_ids") or [])]
+        raw_refs = raw.get("source_ids") or []
+        if isinstance(raw_refs, str):
+            raw_refs = [raw_refs]
+        refs = [str(item) for item in raw_refs]
         evidence = " ".join(str(raw.get("evidence") or "").split())
         valid_refs = [ref for ref in refs if ref in source_ids]
         missing_refs = [ref for ref in refs if ref not in source_ids]
@@ -171,6 +179,16 @@ def load_research_reviews(build_dir: str | Path, report: dict[str, Any]) -> dict
         raise ValueError(f"Research review decisions {path} must contain source and claim objects.")
     if not isinstance(store.get("coverage_reviewed", False), bool):
         raise ValueError(f"Research review decisions {path} has an invalid coverage_reviewed value.")
+    for item_id, decision in store["sources"].items():
+        if not isinstance(decision, dict) or decision.get("status", "pending") not in SOURCE_STATES:
+            raise ValueError(f"Research source decision {item_id!r} is malformed.")
+        if not isinstance(decision.get("reviewer_notes", ""), str):
+            raise ValueError(f"Research source notes for {item_id!r} must be text.")
+    for item_id, decision in store["claims"].items():
+        if not isinstance(decision, dict) or decision.get("status", "pending") not in CLAIM_STATES:
+            raise ValueError(f"Research claim decision {item_id!r} is malformed.")
+        if not isinstance(decision.get("reviewer_notes", ""), str):
+            raise ValueError(f"Research claim notes for {item_id!r} must be text.")
     changed = False
     for source in report.get("sources") or []:
         sid = source["source_id"]
