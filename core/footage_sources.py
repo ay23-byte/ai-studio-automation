@@ -497,3 +497,69 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
                 used_ids.add(identity)
                 return True
     return False
+
+def register_indian_archive_asset(
+    source_file, *, provider, title, source_url, licence_reference,
+    usage_scope, creator="", attribution="", licence_expiry=""
+):
+    """Register a manually obtained Indian archive clip with documented YouTube rights.
+
+    NCAA and Prasar Bharati do not expose a documented public bulk-download API
+    for this workflow. This deliberately avoids scraping/downloading their sites.
+    The operator must obtain the exact clip and written permission/licence first.
+    """
+    from shutil import copy2
+    from datetime import date as _date
+    from urllib.parse import urlparse
+
+    provider = str(provider or "").strip()
+    allowed = {
+        "NCAA": ("ncaa.gov.in", "NCAA written permission"),
+        "Prasar Bharati Archives": ("prasarbharati.gov.in", "Prasar Bharati licensed footage"),
+    }
+    if provider not in allowed:
+        raise ValueError("provider must be NCAA or Prasar Bharati Archives.")
+    host = (urlparse(str(source_url)).hostname or "").lower()
+    allowed_host, licence_label = allowed[provider]
+    if not (host == allowed_host or host.endswith("." + allowed_host)):
+        raise ValueError("source_url must be the official provider item page.")
+    if not str(source_url).startswith("https://"):
+        raise ValueError("source_url must use HTTPS.")
+    if not str(title).strip():
+        raise ValueError("The exact archive item title is required.")
+    if not str(licence_reference).strip():
+        raise ValueError("A written permission or licence reference is required.")
+    scope = str(usage_scope or "").strip()
+    scope_low = scope.lower()
+    if "youtube" not in scope_low or not any(x in scope_low for x in ("commercial", "monetized", "monetised")):
+        raise ValueError("The written permission must explicitly cover commercial/monetized YouTube use.")
+    source = Path(source_file)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    target_dir = Path("assets/clips/indian_archives").resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / source.name
+    if source.resolve() != target.resolve():
+        copy2(source, target)
+    metadata = {
+        "provider": provider,
+        "asset_id": source.stem,
+        "title": str(title).strip(),
+        "creator": str(creator).strip(),
+        "page_url": str(source_url).strip(),
+        "licence": licence_label,
+        "licence_url": str(source_url).strip(),
+        "licence_document_ref": str(licence_reference).strip(),
+        "usage_scope": scope,
+        "licence_expiry": str(licence_expiry).strip(),
+        "attribution_text": str(attribution).strip() or f"{str(title).strip()} — {provider}; {source_url}",
+        "date_accessed": _date.today().isoformat(),
+        "rights_confirmed_by_operator": True,
+        "review_basis": "Operator confirmed written permission/licence for this exact item and commercial YouTube use.",
+        "automated_download": False,
+        "human_visual_inspection_required": True,
+    }
+    sidecar = target.with_suffix(target.suffix + ".source.json")
+    sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    return target, sidecar
+
