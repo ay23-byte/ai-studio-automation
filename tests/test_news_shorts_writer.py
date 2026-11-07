@@ -72,8 +72,8 @@ from unittest.mock import patch, Mock
 from core.news_shorts_writer import _post_gemini_with_retries
 
 class GeminiRetryTests(unittest.TestCase):
- def test_retries_503_then_succeeds(self):
-  first=Mock(status_code=503)
+ def test_retries_503_then_succeeds_with_exponential_backoff(self):
+  first=Mock(status_code=503, headers={}, text='temporarily overloaded')
   second=Mock(status_code=200)
   second.raise_for_status.return_value=None
   with patch('core.news_shorts_writer.requests.post', side_effect=[first,second]) as post, \
@@ -81,15 +81,35 @@ class GeminiRetryTests(unittest.TestCase):
    result=_post_gemini_with_retries('https://example.test','key',{})
   self.assertIs(result,second)
   self.assertEqual(post.call_count,2)
-  sleep.assert_called_once_with(2)
+  sleep.assert_called_once_with(10)
 
- def test_uses_three_attempts_before_failing(self):
-  responses=[Mock(status_code=503) for _ in range(3)]
+ def test_honors_retry_after_header(self):
+  first=Mock(status_code=503, headers={'Retry-After':'17'}, text='busy')
+  second=Mock(status_code=200)
+  second.raise_for_status.return_value=None
+  with patch('core.news_shorts_writer.requests.post', side_effect=[first,second]), \
+       patch('core.news_shorts_writer.time.sleep') as sleep:
+   _post_gemini_with_retries('https://example.test','key',{})
+  sleep.assert_called_once_with(17)
+
+ def test_caps_retry_after_header(self):
+  first=Mock(status_code=503, headers={'Retry-After':'999'}, text='busy')
+  second=Mock(status_code=200)
+  second.raise_for_status.return_value=None
+  with patch('core.news_shorts_writer.requests.post', side_effect=[first,second]), \
+       patch('core.news_shorts_writer.time.sleep') as sleep:
+   _post_gemini_with_retries('https://example.test','key',{})
+  sleep.assert_called_once_with(60)
+
+ def test_uses_three_attempts_and_reports_api_body(self):
+  responses=[Mock(status_code=503, headers={}, text='backend overloaded') for _ in range(3)]
   with patch('core.news_shorts_writer.requests.post', side_effect=responses) as post, \
-       patch('core.news_shorts_writer.time.sleep'):
-   with self.assertRaisesRegex(RuntimeError,'after 3 attempts'):
+       patch('core.news_shorts_writer.time.sleep') as sleep:
+   with self.assertRaisesRegex(RuntimeError,'after 3 attempts') as caught:
     _post_gemini_with_retries('https://example.test','key',{})
   self.assertEqual(post.call_count,3)
+  self.assertEqual(sleep.call_args_list, [unittest.mock.call(10), unittest.mock.call(30)])
+  self.assertIn('backend overloaded', str(caught.exception))
 
  def test_does_not_retry_nontransient_http_error(self):
   response=Mock(status_code=400)
