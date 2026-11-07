@@ -188,6 +188,15 @@
       "source_name": "Press Information Bureau release citing Economic Survey projection",
       "date": "2024",
       "confidence": "estimated"
+    },
+    {
+      "id": "F16",
+      "claim": "The Ministry of Home Affairs stated in March 2026 that the Border Area Development Programme was in its sunset phase; it also described Vibrant Villages Programme-I and II coverage and approvals.",
+      "value": "BADP: sunset phase; VVP-I: 662 select villages; VVP-II: 1,954 select villages",
+      "source_url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3",
+      "source_name": "PIB release: Border Infrastructure Development, Ministry of Home Affairs",
+      "date": "25 March 2026",
+      "confidence": "reported"
     }
   ],
   "conflicts": [
@@ -253,7 +262,8 @@
     "Verify whether the reported infrastructure deficits are village counts, household-level indicators or survey classifications.",
     "Find attributable interviews or published expert analysis; do not simulate interviews.",
     "Check current government programme implementation and outcomes in the specific districts before claiming success or failure.",
-    "Inspect the original Commission report's field-survey method and exact wording for each reported migration reason; distinguish gram-panchayat-level responses from individual migrant motives."
+    "Inspect the original Commission report's field-survey method and exact wording for each reported migration reason; distinguish gram-panchayat-level responses from individual migrant motives.",
+    "Check the latest official status and implementation data for Vibrant Villages Programme in Uttarakhand before making any claim about local outcomes."
   ],
   "sources": [
     {
@@ -262,6 +272,13 @@
       "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
       "date": "April 2018",
       "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf"
+    },
+    {
+      "id": "S07",
+      "title": "Border Infrastructure Development",
+      "publisher": "Ministry of Home Affairs, Government of India (Press Information Bureau)",
+      "date": "25 March 2026",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3"
     }
   ]
 }
