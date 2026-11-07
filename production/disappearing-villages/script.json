@@ -622,5 +622,47 @@
     "no_fabricated_interviews": true,
     "source_claim_ids": "See claims array; map each visual/evidence card to source ids.",
     "visual_disclosure": "AI reconstructions are illustrative and must not be presented as archival footage."
-  }
+  },
+  "research_sources": [
+    {
+      "id": "S01",
+      "title": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "publisher": "Government of India, Lok Sabha",
+      "date": "03 March 2016",
+      "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "source_id": "S01"
+    },
+    {
+      "id": "S02",
+      "title": "Uttarakhand migration research report citing Migration Commission survey data",
+      "publisher": "Uttarakhand research report",
+      "date": "2021",
+      "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
+      "source_id": "S02"
+    },
+    {
+      "id": "S03",
+      "title": "Annual Report, Periodic Labour Force Survey 2020-21",
+      "publisher": "Ministry of Statistics and Programme Implementation",
+      "date": "2020-2021",
+      "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf",
+      "source_id": "S03"
+    },
+    {
+      "id": "S04",
+      "title": "Press Information Bureau release reporting PLFS migration indicators",
+      "publisher": "Press Information Bureau, Government of India",
+      "date": "2022",
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48",
+      "source_id": "S04"
+    },
+    {
+      "id": "S05",
+      "title": "Press Information Bureau release reporting migration streams and urbanisation projection",
+      "publisher": "Press Information Bureau, Government of India",
+      "date": "2024",
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
+      "source_id": "S05"
+    }
+  ]
 }
