@@ -33,35 +33,35 @@
       "title": "The Village That Went Silent"
     },
     {
-      "timestamp": "00:01",
+      "timestamp": "01:04",
       "title": "The Mystery of India's Disappearing Villages"
     },
     {
-      "timestamp": "00:01",
+      "timestamp": "01:12",
       "title": "A Country Built on Villages"
     },
     {
-      "timestamp": "00:02",
+      "timestamp": "02:32",
       "title": "The Himalayan Disappearance"
     },
     {
-      "timestamp": "00:03",
+      "timestamp": "03:49",
       "title": "The Economics of Leaving"
     },
     {
-      "timestamp": "00:05",
+      "timestamp": "05:34",
       "title": "When Essential Services Disappear"
     },
     {
-      "timestamp": "00:07",
+      "timestamp": "07:35",
       "title": "The Big Reveal: It Is Not One Cause"
     },
     {
-      "timestamp": "00:09",
+      "timestamp": "09:11",
       "title": "Can a Village Come Back?"
     },
     {
-      "timestamp": "00:11",
+      "timestamp": "11:08",
       "title": "The Door That Remains"
     }
   ],
@@ -100,5 +100,5 @@
       "hook_line": "A village doesn't disappear for one single reason. The causes can reinforce one another."
     }
   ],
-  "editorial_status": "Draft chapter timestamps estimated from narration word counts; replace with actual TTS timings after render."
+  "editorial_status": "Estimated from 1,784 narration words at 150 wpm; final timestamps must be replaced with actual TTS timings after render."
 }
