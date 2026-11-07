@@ -36,7 +36,7 @@ on:
         default: video_first
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: studio-build
@@ -160,25 +160,8 @@ jobs:
           path: output/*.mp4
           if-no-files-found: ignore
 
-      - name: Save database
-        if: always()
-        run: |
-          git config user.name "studio-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add -f db/studio.sqlite 2>/dev/null || true
-          if ! git diff --cached --quiet; then
-            git commit -m "bot: update studio db"
-            for attempt in 1 2 3; do
-              git pull --rebase origin main
-              if git push origin HEAD:main; then
-                exit 0
-              fi
-              echo "Database push attempt $attempt failed; retrying..."
-              sleep $((attempt * 3))
-            done
-            echo "Could not persist workflow database after 3 attempts."
-            exit 1
-          fi
+      # Build state remains an Actions artifact/local runtime concern; never
+      # commit a live SQLite database or grant this render workflow write access.
 
       - name: Alert on failure
         if: failure()
