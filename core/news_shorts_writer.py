@@ -112,28 +112,28 @@ def _build_correction_prompt(prompt, error):
     """Build a targeted second-pass instruction without relaxing validation."""
     message = str(error)
     correction = (
-        "\\n\\nCORRECTION REQUIRED: Your previous JSON draft failed validation: "
+        "\n\nCORRECTION REQUIRED: Your previous JSON draft failed validation: "
         + message
-        + "\\nReturn a corrected complete JSON script. Preserve all verified facts, "
+        + "\nReturn a corrected complete JSON script. Preserve all verified facts, "
           "figures, source IDs, scientific caveats, and 4–6 scenes. Do not weaken "
           "scientific guardrails. Every spoken HAND reference must define HAND in "
           "that same scene as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. Do not use "
           "radius, horizontal-distance, or river-buffer wording. Keep all required "
           "Nepal ranges and identify both percentages as building footprint area."
     )
-    match = re.search(r'Script word count outside safe target: (\\d+)', message)
+    match = re.search(r'Script word count outside safe target: (\d+)', message)
     if match:
         count = int(match.group(1))
         if count > 140:
             correction += (
-                f"\\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
+                f"\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
                 "the hard maximum is 140. Rewrite more concisely and target 105–120 "
                 "spoken words. Remove repetition and shorten transitions, not verified "
                 "figures, HAND definitions, Nepal ranges, percentage meanings, or caveats."
             )
         elif count < 70:
             correction += (
-                f"\\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
+                f"\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
                 "the minimum is 70. Expand only with concise context supported by the "
                 "reviewed packet; target 105–120 words. Do not invent facts."
             )
