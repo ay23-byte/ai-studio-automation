@@ -189,7 +189,7 @@ REVIEWED PACKET:
                                     'temperature': 0.3}}
     script = None
     last_error = None
-    for draft_attempt in range(2):
+    for draft_attempt in range(3):
         response = None
         for candidate_model in model_candidates:
             url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
@@ -231,8 +231,17 @@ REVIEWED PACKET:
                 script = candidate_script
                 words = candidate_words
                 break
-        if draft_attempt == 0:
-            payload['contents'][0]['parts'][0]['text'] = _build_correction_prompt(prompt, last_error)
+        if draft_attempt < 2:
+            correction_prompt = _build_correction_prompt(prompt, last_error)
+            if draft_attempt == 1:
+                correction_prompt += (
+                    "\\n\\nFINAL COMPRESSION PASS: The prior correction still failed. "
+                    "Keep every scene's say field to at most 22 whitespace-separated words. "
+                    "Use six concise scenes if needed. Preserve every required number, "
+                    "its meaning and range, the HAND definition, and both scientific caveats. "
+                    "Return only complete JSON and ensure total say-field word count is 70–140."
+                )
+            payload['contents'][0]['parts'][0]['text'] = correction_prompt
     if script is None:
         raise ValueError(
             'Generated script failed validation after one correction attempt: '
