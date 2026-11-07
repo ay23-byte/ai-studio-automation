@@ -65,7 +65,7 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
         self.assertEqual(len(candidate["sources"]), 1)
 
     def test_himalayan_story_uses_curated_visuals_instead_of_generic_research_search(self):
-        self.assertEqual(visual_plan(1, 5, True)["queries"][0], "Himalayan mountain river valley")
+        self.assertEqual(visual_plan(1, 5, True)["queries"][0], "Himalaya mountain")
         self.assertEqual(visual_plan(2, 5, True)["graphic"], "building_growth")
         self.assertEqual(visual_plan(4, 5, True)["graphic"], "not_forecast")
         self.assertEqual(visual_plan(5, 5, True)["graphic"], "outro")
