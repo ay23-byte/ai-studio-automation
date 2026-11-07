@@ -128,8 +128,10 @@ def _build_correction_prompt(prompt, error):
             correction += (
                 f"\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
                 "the hard maximum is 140. Rewrite more concisely and target 105–120 "
-                "spoken words. Remove repetition and shorten transitions, not verified "
-                "figures, HAND definitions, Nepal ranges, percentage meanings, or caveats."
+                "spoken words. Keep each scene's say field to at most 22 whitespace-separated "
+                "words. Remove repetition and shorten transitions, not verified figures, "
+                "HAND definitions, Nepal ranges, percentage meanings, or caveats. Count all "
+                "say fields before returning JSON; the total MUST be 70–140."
             )
         elif count < 70:
             correction += (
@@ -189,7 +191,7 @@ REVIEWED PACKET:
                                     'temperature': 0.3}}
     script = None
     last_error = None
-    for draft_attempt in range(2):
+    for draft_attempt in range(3):
         response = None
         for candidate_model in model_candidates:
             url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
@@ -231,8 +233,17 @@ REVIEWED PACKET:
                 script = candidate_script
                 words = candidate_words
                 break
-        if draft_attempt == 0:
-            payload['contents'][0]['parts'][0]['text'] = _build_correction_prompt(prompt, last_error)
+        if draft_attempt < 2:
+            correction_prompt = _build_correction_prompt(prompt, last_error)
+            if draft_attempt == 1:
+                correction_prompt += (
+                    "\\n\\nFINAL COMPRESSION PASS: The prior correction still failed. "
+                    "Keep every scene's say field to at most 22 whitespace-separated words. "
+                    "Use six concise scenes if needed. Preserve every required number, "
+                    "its meaning and range, the HAND definition, and both scientific caveats. "
+                    "Return only complete JSON and ensure total say-field word count is 70–140."
+                )
+            payload['contents'][0]['parts'][0]['text'] = correction_prompt
     if script is None:
         raise ValueError(
             'Generated script failed validation after one correction attempt: '

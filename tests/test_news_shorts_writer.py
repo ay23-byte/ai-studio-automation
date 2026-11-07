@@ -76,6 +76,8 @@ class ScriptCorrectionPromptTests(unittest.TestCase):
   self.assertIn("Do not weaken scientific guardrails", prompt)
   self.assertIn("Nepal ranges", prompt)
   self.assertIn("building footprint area", prompt)
+  self.assertIn("at most 22 whitespace-separated words", prompt)
+  self.assertIn("total MUST be 70–140", prompt)
 
  def test_short_script_gets_supported_expansion_instruction(self):
   prompt = _build_correction_prompt("BASE", ValueError("Script word count outside safe target: 55."))
