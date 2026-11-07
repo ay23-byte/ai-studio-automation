@@ -11,6 +11,7 @@ class _Response:
     def __init__(self, content=b"fake-image", content_type="image/png"):
         self.content = content
         self.headers = {"content-type": content_type}
+        self.status_code = 200
 
     def raise_for_status(self):
         return None
