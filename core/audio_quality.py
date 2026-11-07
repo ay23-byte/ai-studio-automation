@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -90,6 +93,10 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
         warnings.append("Audio true peak is above the recommended -1.0 dBFS ceiling.")
     if clipped is not None and clipped > 0:
         issues.append(f"FFmpeg detected {clipped} out-of-range audio samples.")
+    elif clipped is None or astats.returncode != 0:
+        warnings.append("Audio clipping statistics could not be completed.")
+    if silence.returncode != 0:
+        warnings.append("Audio silence scan could not be completed.")
     if integrated is not None and abs(integrated - target_lufs) > 2.0:
         warnings.append(
             f"Integrated loudness is {integrated:.1f} LUFS; target is {target_lufs:.1f} LUFS."
@@ -115,5 +122,55 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
         "target": {"integrated_lufs": target_lufs, "true_peak_dbfs": true_peak_target,
                    "loudness_range_lu": lra_target},
         "metrics": metrics, "issues": issues, "warnings": warnings,
+        "human_review_status": "pending",
+        "reviewed_at": None,
+        "reviewer_notes": "",
         "notice": "Loudness and peak measurements are technical checks. Listen to the complete export on headphones and speakers before release.",
     }
+
+
+def mark_audio_reviewed(build_dir: str | Path, reviewer_notes: str = "") -> dict[str, Any]:
+    """Record an explicit human listening review after inspecting the audio report."""
+    root = Path(build_dir)
+    path = root / "audio_quality_report.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"Audio quality report is missing: {path}")
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(report, dict) or report.get("status") not in {"PASS", "REVIEW"}:
+        raise ValueError("Audio report is invalid or contains blocking failures; fix and rebuild first.")
+    report["human_review_status"] = "reviewed"
+    report["reviewed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    report["reviewer_notes"] = str(reviewer_notes or "")[:2000]
+    fd, temp_name = tempfile.mkstemp(prefix=".audio-review.", suffix=".tmp", dir=str(root))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(report, handle, ensure_ascii=False, indent=2)
+            handle.write("\\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    except Exception:
+        try:
+            os.unlink(temp_name)
+        except OSError:
+            pass
+        raise
+    return report
+
+
+def assert_audio_quality_ready(build_dir: str | Path) -> dict[str, Any]:
+    """Require a passing/reviewable audio report and explicit human listening review."""
+    path = Path(build_dir) / "audio_quality_report.json"
+    if not path.is_file():
+        raise ValueError(
+            f"Audio quality report is missing from {path.parent}. Rebuild the documentary with audio mastering QA."
+        )
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Cannot read audio quality report {path}: {exc}") from exc
+    if not isinstance(report, dict) or report.get("status") not in {"PASS", "REVIEW"}:
+        raise ValueError("Audio QA has blocking failures or an invalid report. Fix the audio and rebuild.")
+    if report.get("human_review_status") != "reviewed":
+        raise ValueError("Audio listening review is pending. Listen to the complete documentary and mark audio reviewed in the dashboard.")
+    return report
