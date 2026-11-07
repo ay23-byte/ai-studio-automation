@@ -84,15 +84,26 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
         provider = str(metadata.get("provider") or "Unknown source")
         asset_type = str(metadata.get("asset_type") or media.get("type") or "unknown")
         is_ai = "ai_generated" in asset_type.lower()
+        is_project_graphic = (
+            asset_type == "programmatic_graphic"
+            and metadata.get("ai_generated") is False
+            and provider == "LabLens/AI Studio local graphic renderer"
+        )
         licensed, licence_status = licence_is_usable(metadata)
         if is_ai:
             licensed = False
             licence_status = "AI-generated; not a real-world source; provider terms require separate review"
+        elif is_project_graphic:
+            licensed = True
+            licence_status = "project_created_original_graphic; inspect font and embedded-element rights"
         url = str(metadata.get("page_url") or metadata.get("url") or "")
         author = str(metadata.get("creator") or metadata.get("author") or metadata.get("user") or "")
-        licence = str(metadata.get("licence") or metadata.get("license") or "")
+        licence = str(metadata.get("licence") or metadata.get("license") or
+                      ("Project-created original graphic" if is_project_graphic else ""))
         licence_url = str(metadata.get("licence_url") or metadata.get("license_url") or "")
         attribution = str(metadata.get("attribution_text") or "")
+        if is_project_graphic and not attribution:
+            attribution = "Original graphic created by the AI Studio Automation project; no external media embedded."
         if licensed and not attribution:
             if _normal(licence).startswith("cc by"):
                 attribution = f"{author or 'Author not supplied'}, {metadata.get('title') or path.name if path else 'Untitled'}, {licence}, {url}"
@@ -103,21 +114,21 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             quality = score_asset(metadata, int(metadata.get("width") or 0), int(metadata.get("height") or 0))["score_0_10"]
         fallback = not (path and path.is_file()) or (not licensed and not is_ai)
         note = licence_status
-        if not url:
+        if not url and not is_project_graphic:
             note += "; source page URL missing"
-        if not licence_url:
+        if not licence_url and not is_project_graphic:
             note += "; licence URL missing"
         if fallback:
             blocked.append({"shot_id": shot_id, "source": provider, "reason": note,
                             "replacement": "Request a licensed asset or route to clearly disclosed AI_IMAGE/AI_VIDEO replacement."})
-        if licensed and url and licence_url and not is_ai:
+        if licensed and not is_ai and (url and licence_url or is_project_graphic):
             credits.append(attribution)
         rows.append({
             "shot_id": shot_id, "source": provider, "url": url, "author": author,
             "licence": licence or ("AI-generated" if is_ai else "UNKNOWN"),
             "attribution_text": attribution, "date_accessed": str(metadata.get("date_accessed") or date.today().isoformat()),
             "licence_url": licence_url, "score_0_10": quality,
-            "use_status": ("ai_reconstruction_disclosure_and_terms_review" if is_ai else ("eligible_pending_human_review" if licensed and url and licence_url else "blocked")),
+            "use_status": ("ai_reconstruction_disclosure_and_terms_review" if is_ai else ("eligible_pending_human_review" if licensed and ((url and licence_url) or is_project_graphic) else "blocked")),
             "human_review_required": True, "fallback_required": fallback,
             "notes": note,
         })
