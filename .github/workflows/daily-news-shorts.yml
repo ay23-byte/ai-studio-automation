@@ -23,7 +23,7 @@ jobs:
       - name: Collect public RSS metadata
         run: python scripts/collect_daily_news.py
       - name: Run pipeline tests
-        run: python -m unittest discover -s tests -p 'test_daily_news_pipeline.py' -v
+        run: python -m unittest discover -s tests -p 'test_*news*.py' -v
       - name: Upload candidate queue for editorial review
         uses: actions/upload-artifact@v4
         with:

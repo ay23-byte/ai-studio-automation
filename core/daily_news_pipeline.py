@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 import xml.etree.ElementTree as ET
+from core.news_editorial import build_review_packets
 
 FEEDS = [
  'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en',
@@ -78,6 +79,7 @@ def prepare_queue(output_dir='output/daily_news', state_dir='state/daily_news', 
     seen = load_seen(state / 'seen.json')
     data['candidates'] = [x for x in data['candidates'] if x['id'] not in seen]
     data['candidate_count'] = len(data['candidates'])
+    data['ranked_story_clusters'] = build_review_packets(data['candidates'])
     data['editorial_status'] = 'awaiting_human_selection_and_source_verification'
     data['required_review'] = [
       'Open original source links; confirm event and publication dates.',

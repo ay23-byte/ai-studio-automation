@@ -25,3 +25,20 @@ The workflow does not access YouTube credentials and cannot publish videos. Keep
 
 ## Artifacts
 Each run uploads latest_candidates.json and a timestamped candidates file for 14 days. Download the artifact from the Actions run to inspect candidates.
+
+## Milestone 2: story clustering, ranking and reviewed script drafts
+
+The discovery queue now groups similar headlines into candidate story clusters and ranks them with an explicitly non-editorial heuristic: 50% recency, 30% distinct publisher domains and 20% headline count. This score is only a triage aid; it is not a reliability score, source verification, or proof of importance. Each cluster includes original links and a human-review checklist.
+
+To draft a Short after reviewing a story, create a JSON packet with:
+- `review_status`: exactly `approved`, set only after a human has opened and reviewed the sources.
+- `sources`: records containing `source_id`, title, publisher and original URL.
+- `verified_facts`: records containing `fact`, `source_ids` and an `evidence_note` describing the inspected passage/data.
+
+Then run:
+```bash
+python scripts/draft_reviewed_news_short.py reviewed_story.json --output output/daily_news/shorts_script_draft.json
+```
+The writer refuses packets that are not approved, lack evidence notes, or reference unknown source IDs. It requests a 35–58 second Hindi/Hinglish script and validates scene count, approximate word count and source references. The generated script remains a draft requiring human review. Model output is not itself fact verification.
+
+This workflow still does not render or upload the news Short. Rendering must be connected only after a reviewed script is accepted by the existing video pipeline and its asset provenance/licensing checks pass.
