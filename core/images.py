@@ -59,6 +59,10 @@ def _cloudflare(prompt, path):
                 "provider": "Cloudflare Workers AI",
                 "model": "@cf/black-forest-labs/flux-1-schnell",
                 "asset_type": "ai_generated_image",
+                "page_url": "https://developers.cloudflare.com/workers-ai/",
+                "licence_url": "https://www.cloudflare.com/terms/",
+                "terms_reviewed": False,
+                "ai_disclosure": True,
                 "licence_status": "Check current Cloudflare AI terms and any applicable model/provider restrictions before commercial publication.",
                 "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
             })
@@ -81,6 +85,10 @@ def _pollinations(prompt, path):
             "provider": "Pollinations",
             "model": "flux",
             "asset_type": "ai_generated_image",
+            "page_url": "https://pollinations.ai/",
+            "licence_url": "https://pollinations.ai/terms",
+            "terms_reviewed": False,
+            "ai_disclosure": True,
             "licence_status": "Check current Pollinations service/model terms and any applicable restrictions before commercial publication.",
             "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
         })
@@ -227,7 +235,7 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
                         if chunk:
                             target.write(chunk)
             if path.stat().st_size > 50_000 and _video_ok(path):
-                used.add(asset_id)
+                used.add(f"{provider}:{asset_id}")
                 _write_source_metadata(path, metadata)
                 print(f"  clip candidate ok ({provider}, relevance {metadata['relevance_score']:.2f}); human visual review required")
                 return True
