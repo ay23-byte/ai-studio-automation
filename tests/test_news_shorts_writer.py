@@ -90,6 +90,9 @@ class ScriptCorrectionPromptTests(unittest.TestCase):
   self.assertIn("निकटतम जलधारा", prompt)
   self.assertIn("Do not weaken scientific guardrails", prompt)
   self.assertNotIn("WORD-COUNT REPAIR", prompt)
+  self.assertIn("same say field MUST contain the complete phrase", prompt)
+  self.assertIn("Do not put the definition only in a caption or another scene", prompt)
+  self.assertIn("108,500 लोग 0–50 मीटर", prompt)
 
 
 if __name__=='__main__': unittest.main()
