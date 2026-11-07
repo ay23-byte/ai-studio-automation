@@ -375,6 +375,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 from core.presenter_quality import write_presenter_metadata
                 write_presenter_metadata(presenter_clip, {
                     "provider": "AI Studio CPU still presenter", "presenter_mode": "still_cpu",
+                    "portrait_asset": Path(presenter_image).name,
+                    "licence_status": "Confirm ownership/permission for the presenter portrait before publication.",
                     "lip_sync_verified": False,
                     "notice": "This mode animates a still portrait; it is not lip-sync.",
                 })
@@ -424,6 +426,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             write_presenter_metadata(avatar_clip, {
                 "provider": "Talking Avatar SDK", "presenter_mode": "talking_avatar",
                 "validation": validation, "lip_sync_verified": False,
+                "licence_status": "Review SDK and built-in avatar licence terms before redistribution or commercial use.",
                 "notice": "The clip includes its driving audio and passes stream/duration checks; phoneme-level lip-sync still requires human review.",
             })
             presenter_shot = dict(sec)
@@ -473,6 +476,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     write_presenter_metadata(presenter_clip, {
                         "provider": "AI Studio CPU still presenter fallback",
                         "presenter_mode": "still_cpu_fallback",
+                        "portrait_asset": Path(presenter_image).name,
+                        "licence_status": "Confirm ownership/permission for the presenter portrait before publication.",
                         "lip_sync_verified": False,
                         "notice": "SadTalker was unavailable; this fallback animates a still portrait and is not lip-sync.",
                     })
