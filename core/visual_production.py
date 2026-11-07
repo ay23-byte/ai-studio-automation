@@ -154,4 +154,7 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
     }
     output = root / "visual_review_report.json"
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Every new manifest starts with explicit pending decisions; nothing is pre-approved.
+    from core.editorial_review import load_reviews
+    load_reviews(output, shots)
     return report
