@@ -6,6 +6,7 @@ from pathlib import Path
 from core.editorial_review import (
     ReviewStoreError, audit_visual_reviews, load_reviews, review_store_path, save_review,
 )
+from core.workflow_audit import build_workflow_report
 
 
 class EditorialReviewTests(unittest.TestCase):
@@ -74,6 +75,12 @@ class EditorialReviewTests(unittest.TestCase):
         result = audit_visual_reviews(self.report, store)
         self.assertFalse(result["publication_ready"])
         self.assertTrue(any("media is missing" in issue["message"] for issue in result["issues"]))
+
+    def test_workflow_report_exposes_mandatory_publication_block(self):
+        report = build_workflow_report({}, [], [], [], visual_review_path=self.report_path)
+        self.assertTrue(report["summary"]["publication_blocked"])
+        self.assertEqual(report["summary"]["publish_recommendation"], "blocked_by_editorial_review")
+        self.assertTrue(any(issue["stage"] == "visual_review" for issue in report["issues"]))
 
     def test_new_shot_is_added_without_resetting_existing_decisions(self):
         load_reviews(self.report_path, self.report["shots"])
