@@ -149,17 +149,14 @@ REVIEWED PACKET:
         if draft_attempt == 0:
             payload['contents'][0]['parts'][0]['text'] = (
                 prompt
-                + '
-
-CORRECTION REQUIRED: Your previous JSON draft failed validation: '
+                + "\n\nCORRECTION REQUIRED: Your previous JSON draft failed validation: "
                 + str(last_error)
-                + '
-Return a corrected complete JSON script. Every scene whose spoken '
-                  'say field contains the term HAND must, in that same say field, explicitly '
-                  'say that HAND means “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. '
-                  'Do not rely on a caption or another scene for this definition. '
-                  'Prefer spelling out the definition rather than saying HAND alone. '
-                  'Preserve all verified figures and scientific caveats.')
+                + "\nReturn a corrected complete JSON script. Every scene whose spoken "
+                  "say field contains the term HAND must, in that same say field, explicitly "
+                  "say that HAND means “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. "
+                  "Do not rely on a caption or another scene for this definition. "
+                  "Prefer spelling out the definition rather than saying HAND alone. "
+                  "Preserve all verified figures and scientific caveats.")
     if script is None:
         raise ValueError(
             'Generated script failed validation after one correction attempt: '
