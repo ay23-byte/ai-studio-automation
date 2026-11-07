@@ -89,14 +89,17 @@ jobs:
           print(f"Editorial package valid: {len(data['sections'])} sections, {len(data['claims'])} claims.")
           PY
         env:
-          SCRIPT_PATH: ${{ inputs.script_path }}
+          SCRIPT_PATH: ${{ inputs.script_path || 'production/disappearing-villages/script.json' }}
 
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
 
       - name: Render prepared documentary
+        env:
+          SCRIPT_PATH: ${{ inputs.script_path || 'production/disappearing-villages/script.json' }}
+          VOICE_GENDER: ${{ inputs.voice_gender || 'female' }}
         run: |
-          python scripts/render_editorial_package.py --script "${{ inputs.script_path }}" --voice-gender "${{ inputs.voice_gender }}" --language hinglish
+          python scripts/render_editorial_package.py --script "$SCRIPT_PATH" --voice-gender "$VOICE_GENDER" --language hinglish
 
       - name: Verify generated MP4 and collect reports
         if: always()
