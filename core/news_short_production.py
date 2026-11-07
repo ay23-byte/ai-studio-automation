@@ -158,7 +158,7 @@ def _render_media_timeline(scenes: list[dict], durations: list[float], output: P
 
     concat_list = workdir / "visual_concat.txt"
     concat_list.write_text(
-        "".join("file '" + str(p.resolve()).replace("'", "'\\''") + "'\\n" for p in segments),
+        "".join("file '" + str(p.resolve()).replace("'", "'\\''") + "'\n" for p in segments),
         encoding="utf-8",
     )
     subprocess.run([
