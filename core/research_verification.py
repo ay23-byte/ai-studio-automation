@@ -312,7 +312,7 @@ def append_source_citations_to_description(script: dict[str, Any]) -> dict[str, 
         published = " ".join(str(source.get("published_at") or "Date not supplied").split())[:80]
         rows.append(f"- {title} — {publisher} ({published}): {url}")
     if rows and "Sources & further reading" not in description:
-        description = (description + "\\n\\nSources & further reading:\\n" + "\\n".join(rows)).strip()
+        description = (description + "\n\nSources & further reading:\n" + "\n".join(rows)).strip()
     script["description"] = description
     return script
 
