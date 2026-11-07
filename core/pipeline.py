@@ -184,11 +184,30 @@ def _visual_beat_durations(narration, beats, section_duration):
     return durations
 
 
-def _quality_check(job_id, video_path, subtitle_path, build_dir):
-    """Run free local post-render checks without discarding a usable export."""
+def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=False):
+    """Run free local post-render checks; long-form exports also receive audio mastering QA."""
     try:
         from core.quality import inspect_video, write_report
         report = inspect_video(video_path, subtitle_path=subtitle_path)
+        if documentary:
+            from core.audio_quality import inspect_audio
+            audio_report = inspect_audio(video_path)
+            write_report(audio_report, Path(build_dir) / "audio_quality_report.json")
+            report["audio_mastering"] = audio_report
+            if audio_report.get("status") == "FAIL":
+                report["issues"].extend(
+                    f"Audio mastering: {message}" for message in audio_report.get("issues", [])
+                )
+                report["status"] = "FAIL"
+                report["score"] = max(0, report["score"] - 20 * max(1, len(audio_report.get("issues", []))))
+            elif audio_report.get("status") in {"REVIEW", "ERROR"}:
+                report["warnings"].extend(
+                    f"Audio mastering: {message}"
+                    for message in (audio_report.get("warnings") or audio_report.get("issues") or [])
+                )
+                if report["status"] == "PASS":
+                    report["status"] = "REVIEW"
+                report["score"] = max(0, report["score"] - 8 * max(1, len(audio_report.get("warnings", []))))
         report_path = write_report(report, Path(build_dir) / "quality_report.json")
         update_video(job_id, quality_report_path=str(report_path),
                      quality_score=report["score"], quality_status=report["status"])
@@ -551,7 +570,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
     lf_render(shot_timeline, voice_path, ass, total, out, music)
-    _quality_check(job_id, out, ass, bd)
+    _quality_check(job_id, out, ass, bd, documentary=True)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
         from core.thumbnail import generate_topic_variants

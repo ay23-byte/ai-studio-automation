@@ -92,6 +92,48 @@ with review_tab:
                         st.error(f"Could not read quality report: {exc}")
                 else:
                     st.info("No quality report yet. New videos are inspected automatically after rendering.")
+            if row.get("format") == "longform":
+                with st.expander("🎧 Documentary audio mastering review"):
+                    from core.audio_quality import mark_audio_reviewed
+                    audio_report_path = BUILD_DIR / f"job_{job_id}" / "audio_quality_report.json"
+                    if audio_report_path.is_file():
+                        try:
+                            audio_report = json.loads(audio_report_path.read_text(encoding="utf-8"))
+                            audio_status = audio_report.get("status", "ERROR")
+                            if audio_status == "FAIL":
+                                st.error("Audio QA failed. Fix the master and rebuild before approval.")
+                            elif audio_status == "REVIEW":
+                                st.warning("Audio QA needs a listening check. Review the full video on headphones and speakers.")
+                            elif audio_status == "PASS":
+                                st.success("Measured audio checks passed. A human listening review is still required.")
+                            st.json(audio_report.get("metrics", {}))
+                            if audio_report.get("issues"):
+                                for item in audio_report["issues"]:
+                                    st.error(item)
+                            if audio_report.get("warnings"):
+                                for item in audio_report["warnings"]:
+                                    st.warning(item)
+                            if audio_report.get("human_review_status") == "reviewed":
+                                st.success(f"Listening review completed: {audio_report.get('reviewed_at') or 'timestamp unavailable'}")
+                                if audio_report.get("reviewer_notes"):
+                                    st.caption(audio_report["reviewer_notes"])
+                            elif audio_status in {"PASS", "REVIEW"}:
+                                audio_notes = st.text_area(
+                                    "Audio listening notes (optional)",
+                                    key=f"audio_notes_{job_id}",
+                                    placeholder="Narration clarity, music balance, harshness, clicks, clipping, pauses…",
+                                )
+                                if st.button("Mark audio listening review complete", key=f"audio_review_{job_id}"):
+                                    try:
+                                        mark_audio_reviewed(BUILD_DIR / f"job_{job_id}", audio_notes)
+                                        st.success("Audio listening review saved.")
+                                        st.rerun()
+                                    except Exception as exc:
+                                        st.error(f"Could not save audio review: {exc}")
+                        except Exception as exc:
+                            st.error(f"Could not read audio quality report: {exc}")
+                    else:
+                        st.warning("Audio quality report is missing. Rebuild this documentary with Milestone 22 audio QA before approval.")
             with st.expander("View generated script and metadata"):
                 st.json(script)
             with st.expander("🖼️ Thumbnail studio", expanded=False):

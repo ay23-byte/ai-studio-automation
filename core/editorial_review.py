@@ -258,4 +258,6 @@ def assert_visual_review_ready(build_dir: str | Path) -> dict[str, Any]:
     if not result["publication_ready"]:
         details = "; ".join(f"{item['shot_id']}: {item['message']}" for item in result["issues"])
         raise ReviewStoreError("Long-form publication is blocked by editorial review: " + details)
+    from core.audio_quality import assert_audio_quality_ready
+    result["audio_quality"] = assert_audio_quality_ready(root)
     return result
