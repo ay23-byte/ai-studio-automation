@@ -65,13 +65,19 @@ def _download(url, path, metadata):
     if not url or not str(url).startswith("https://"):
         return False
     try:
-        with requests.get(url, stream=True, timeout=90,
-                          headers={"User-Agent": USER_AGENT}) as response:
-            response.raise_for_status()
-            with path.open("wb") as target:
-                for chunk in response.iter_content(1024 * 1024):
-                    if chunk:
-                        target.write(chunk)
+        if ".m3u8" in str(url).lower():
+            subprocess.run([
+                "ffmpeg", "-y", "-loglevel", "error", "-i", str(url),
+                "-c", "copy", "-bsf:a", "aac_adtstoasc", str(path)
+            ], check=True, timeout=180)
+        else:
+            with requests.get(url, stream=True, timeout=90,
+                              headers={"User-Agent": USER_AGENT}) as response:
+                response.raise_for_status()
+                with path.open("wb") as target:
+                    for chunk in response.iter_content(1024 * 1024):
+                        if chunk:
+                            target.write(chunk)
         if not _valid_video(path):
             path.unlink(missing_ok=True)
             return False
@@ -297,43 +303,38 @@ def _nara(query):
 
 
 def _dvids(query):
-    """Search DVIDS public-media API; require item-specific copyright/release evidence."""
+    """Search DVIDS video records and use its published commercial-use API terms."""
     api_key = os.getenv("DVIDS_API_KEY", "").strip()
     if not api_key:
         return []
     data = _get_json("https://api.dvidshub.net/search", {
         "api_key": api_key, "q": query, "type": "video", "page": 1, "max_results": 10,
     })
-    payload = data or {}
-    hits = payload.get("results") or payload.get("items") or payload.get("data") or []
-    if isinstance(hits, dict):
-        hits = hits.get("results") or hits.get("items") or []
+    hits = (data or {}).get("results") or []
     results = []
     for hit in hits if isinstance(hits, list) else []:
-        if not isinstance(hit, dict):
+        if not isinstance(hit, dict) or str(hit.get("type", "")).lower() != "video":
             continue
-        rights = " ".join(str(hit.get(k) or "") for k in
-                          ("copyright", "rights", "usage", "release_status", "description"))
-        if not re.search(r"public domain|unrestricted|released for public use", rights, re.I):
-            continue
-        url = hit.get("download_url") or hit.get("downloadUrl") or hit.get("url")
-        page = hit.get("url") or hit.get("page_url") or hit.get("link")
+        asset_id = hit.get("id")
+        page = hit.get("url")
+        url = hit.get("hls_url") or hit.get("download_url") or hit.get("downloadUrl")
         if not isinstance(url, str) or not url.startswith("https://"):
             continue
-        if not re.search(r"\.(mp4|mov|m4v)(?:\?|$)", url, re.I):
+        if not asset_id or not page or not str(page).startswith("https://www.dvidshub.net/"):
             continue
-        asset_id = hit.get("id") or hit.get("asset_id")
-        if not asset_id:
-            continue
+        title = hit.get("title") or "Untitled DVIDS video"
+        credit = hit.get("credit") or ""
+        rights = "DVIDS API Terms of Service: all media assets accessible via the API are free for commercial use."
         results.append((url, {
             "provider": "DVIDS", "asset_id": str(asset_id),
-            "title": hit.get("title") or hit.get("name"),
-            "page_url": page or "https://www.dvidshub.net/",
-            "licence": "Public Domain", "licence_url": page or "https://www.dvidshub.net/about/copyright",
-            "rights_statement": rights[:2000], "query": query,
+            "title": title, "creator": credit, "page_url": page,
+            "licence": "DVIDS API Commercial Use Terms",
+            "licence_url": "https://api.dvidshub.net/docs/tos",
+            "rights_statement": rights, "query": query,
             "date_accessed": date.today().isoformat(),
-            "attribution_text": f"{hit.get('title') or 'Untitled'} — DVIDS; {page or 'https://www.dvidshub.net/'}",
-            "licence_status": "DVIDS item-level rights/release metadata found; verify item page and required DVIDS credit",
+            "attribution_text": f"{title} — {credit or 'DVIDS'}; {page}",
+            "licence_status": "DVIDS API terms allow commercial use; inspect the exact item page, credit and third-party material before publication",
+            "human_visual_inspection_required": True,
         }))
     return results
 
