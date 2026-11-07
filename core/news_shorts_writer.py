@@ -39,7 +39,7 @@ def _validate_scientific_wording(script):
         raise ValueError('Any spoken HAND reference must explain nearest drainage in the same scene.')
     if not any(term in combined for term in ('संभावित', 'potential exposure', 'modelled exposure')):
         raise ValueError('Script must describe the figures as potential/modelled exposure.')
-    if not any(term in combined for term in ('पक्की भविष्यवाणी नहीं', 'forecast नहीं', 'not a flood forecast')):
+    if not any(term in combined for term in ('पक्की भविष्यवाणी नहीं', 'बाढ़ का पूर्वानुमान नहीं', 'forecast नहीं', 'not a flood forecast')):
         raise ValueError('Script must explicitly say this is not a flood forecast.')
     if not any(term in combined for term in ('भवन क्षेत्र', 'भवन-फुटप्रिंट', 'building footprint area', 'building area')):
         raise ValueError('Script must identify the 46%/77% values as building area/footprint area.')
@@ -53,6 +53,20 @@ def _validate_scientific_wording(script):
     for group in required_groups:
         if not any(value in combined for value in group):
             raise ValueError('Script omitted a required study figure: ' + ' / '.join(group))
+    spoken = ' '.join(str(scene.get('say', '')).lower() for scene in scenes)
+    if not re.search(r'(108,500|1,08,500|108500).{0,100}(0–50|0-50).{0,30}hand', spoken):
+        raise ValueError('Spoken narration must identify 108,500 as the Nepal 0–50 m HAND estimate.')
+    if not re.search(r'22,800.{0,100}(0–10|0-10).{0,30}hand', spoken):
+        raise ValueError('Spoken narration must identify 22,800 as the Nepal 0–10 m HAND estimate.')
+    for figure in ('46%', '77%'):
+        matching = [str(scene.get('say', '')).lower() for scene in scenes if figure in str(scene.get('say', ''))]
+        if not matching or not any(('भवन क्षेत्रफल' in s or 'भवन-फुटप्रिंट क्षेत्रफल' in s or 'building footprint area' in s or 'building area' in s) for s in matching):
+            raise ValueError(f'{figure} must be described in spoken narration as building footprint area.')
+    overconfident = ('निर्माण ने बाढ़ की संभावना नहीं बढ़ाई', 'construction did not increase flood probability', 'construction has not increased flood probability')
+    if any(term in combined for term in overconfident):
+        raise ValueError('Caveat overstates the evidence; do not claim construction had no effect.')
+    if not any(term in combined for term in ('अध्ययन यह साबित नहीं करता कि निर्माण', 'अध्ययन यह स्थापित नहीं करता कि निर्माण', 'does not establish that construction', 'does not prove that construction')):
+        raise ValueError('Script must distinguish lack of causal evidence from proof of no effect.')
 
 
 
@@ -124,7 +138,9 @@ CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
 - In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
 - 293,800, 108,500 and 22,800 are modelled potential-exposure estimates, not counts of people already affected and not a prediction that they will be flooded.
 - The 46% and 77% values refer to building footprint area, not the number of buildings.
-- Do not claim that construction caused flooding or that construction itself increased flood probability. Describe the study as measuring potential exposure and building-footprint changes.
+- Do not claim that construction caused flooding. Do not claim that construction did NOT increase flood probability: absence of causal evidence is not proof of no effect. Say the study does not establish whether construction caused flooding or increased its probability.
+- In spoken narration, attach Nepal's 108,500 figure to 0–50 m HAND and 22,800 to 0–10 m HAND; do not leave these bands only in captions.
+- In spoken narration, explicitly identify BOTH 46% and 77% as building footprint area; the 77% measure is within modelled GLOF extents.
 - The GLOF values refer to modelled glacial-lake outburst flood extents, not observed inundation.
 - Include all key measures accurately: 293,800 people / 18%; Nepal 108,500 and 22,800; building footprint area +46%; building footprint area in modelled GLOF extents +77%.
 - State clearly that modelled potential exposure is not a flood forecast. Use numeric figures in captions so editors can verify them quickly.
