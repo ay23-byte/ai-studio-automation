@@ -84,6 +84,21 @@ for shot_id, shot, record in visible:
             st.write(shot.get("narration") or "Not supplied")
             st.write("**Visual prompt**")
             st.write(shot.get("visual_prompt") or "Not supplied")
+            screening = shot.get("semantic_screening") or {"status": "not_run"}
+            st.write("**AI visual-to-narration screening**")
+            screening_status = screening.get("status", "not_run")
+            if screening_status == "match":
+                st.success(f"AI screen suggests a likely match (score: {screening.get('match_score', '—')}). Human approval is still required.")
+            elif screening_status in {"mismatch", "uncertain", "error"}:
+                st.error(f"AI screen: {screening_status}. {screening.get('recommendation') or screening.get('reason') or ''}")
+            else:
+                st.info(f"AI screen: {screening_status}. {screening.get('reason', 'Enable VISUAL_SEMANTIC_CHECK to run the optional vision screen.')}")
+            if screening.get("visible_evidence"):
+                st.caption(f"Visible evidence: {screening['visible_evidence']}")
+            if screening.get("concerns"):
+                st.write("**Screening concerns**")
+                st.write(screening["concerns"])
+            st.caption(screening.get("notice", "AI screening cannot verify truth, history, identity, rights or licensing."))
             st.write("**Media source / provenance**")
             st.json(shot.get("source") or {"notice": "No source sidecar was found."})
         notes = st.text_area("Reviewer notes", value=record.get("reviewer_notes", ""), key=f"notes_{shot_id}")

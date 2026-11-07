@@ -384,3 +384,19 @@ python -m unittest discover -s tests -v
 python scripts/audit_documentary.py --input documentary_audit_input.json
 python scripts/audit_documentary.py --input documentary_audit_input.json --video output/final_documentary.mp4 --subtitles output/subtitles.ass
 ```
+
+
+## Milestone 20: AI visual-to-narration semantic screening
+
+Long-form visual review manifests can optionally run a Gemini vision screen against up to three sampled frames per shot. The model compares visible content with the shot narration and visual prompt, returning a conservative `match`, `mismatch`, or `uncertain` result, a score, visible evidence and concerns. Results appear in the **Visual Editorial Review** page and are saved in `visual_review_report.json`.
+
+Enable it explicitly in `.env`:
+
+```dotenv
+VISUAL_SEMANTIC_CHECK=1
+VISUAL_SEMANTIC_MAX_SHOTS=40
+```
+
+The screen uses the existing `GEMINI_API_KEY` and `GEMINI_MODEL`. It is opt-in because it makes an additional vision-model request per shot and may incur API usage. Set the maximum shot count to control the per-build request budget. If the key, frames or model are unavailable, the report records that state rather than claiming a match.
+
+**Publication behavior:** when semantic screening is enabled, any shot that is not explicitly returned as `match` blocks the long-form publication gate until the issue is resolved and the report is regenerated. A `match` never approves a shot: a human must still approve it in the editorial review page and review its source metadata. This model cannot establish factual truth, historical authenticity, identity, copyright ownership, licensing, or lip-sync.

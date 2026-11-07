@@ -99,5 +99,28 @@ class EditorialReviewTests(unittest.TestCase):
         self.assertEqual(store["shots"]["shot_0002"]["status"], "pending")
 
 
+    def test_semantic_mismatch_blocks_even_human_approved_shot(self):
+        load_reviews(self.report_path, self.report["shots"])
+        save_review(self.report_path, "shot_0001", status="approved", source_review_status="reviewed")
+        report = dict(self.report, semantic_screening_enabled=True, shots=[
+            dict(self.report["shots"][0], semantic_screening={"status": "mismatch"})
+        ])
+        store = load_reviews(self.report_path, report["shots"])
+        result = audit_visual_reviews(report, store)
+        self.assertFalse(result["publication_ready"])
+        self.assertTrue(any("screening is 'mismatch'" in issue["message"]
+                            for issue in result["issues"]))
+
+    def test_semantic_match_does_not_replace_human_editorial_approval(self):
+        report = dict(self.report, semantic_screening_enabled=True, shots=[
+            dict(self.report["shots"][0], semantic_screening={"status": "match", "match_score": 0.9})
+        ])
+        store = load_reviews(self.report_path, report["shots"])
+        result = audit_visual_reviews(report, store)
+        self.assertFalse(result["publication_ready"])
+        self.assertTrue(any("Editorial status is 'pending'" in issue["message"]
+                            for issue in result["issues"]))
+
+
 if __name__ == "__main__":
     unittest.main()
