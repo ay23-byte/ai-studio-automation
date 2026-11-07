@@ -5,6 +5,7 @@ accuracy, historical authenticity, copyright ownership, licensing, or lip-sync.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -53,6 +54,7 @@ def _validate_record(record: dict[str, Any], shot_id: str) -> dict[str, Any]:
         "replacement_requested": replacement,
         "reviewed_at": reviewed_at,
         "source_review_status": source_status,
+        "shot_fingerprint": str(record.get("shot_fingerprint") or ""),
     }
 
 
@@ -101,20 +103,48 @@ def review_store_path(report_path: str | Path) -> Path:
     return Path(report_path).resolve().parent / "visual_review_decisions.json"
 
 
+def _shot_fingerprint(shot: dict[str, Any], chapter: str) -> str:
+    identity = {
+        "chapter_id": chapter,
+        "media_path": shot.get("media_path"),
+        "visual_prompt": shot.get("visual_prompt"),
+        "narration": shot.get("narration"),
+        "media_type": shot.get("media_type"),
+    }
+    encoded = json.dumps(identity, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def load_reviews(report_path: str | Path, shots: list[dict] | None = None) -> dict[str, Any]:
-    """Load persisted decisions, adding pending entries for newly discovered shots."""
+    """Load persisted decisions, adding pending entries for new/changed shots."""
     path = review_store_path(report_path)
     store = _read_store(path)
     changed = False
     for index, shot in enumerate(shots or []):
         shot_id = str(shot.get("shot_id") or f"shot_{index + 1:04d}")
         chapter = str(shot.get("chapter_id") or shot.get("chapter") or shot.get("chapter_index") or "unassigned")
+        fingerprint = _shot_fingerprint(shot, chapter)
         if shot_id not in store["shots"]:
-            store["shots"][shot_id] = _validate_record({"chapter_id": chapter}, shot_id)
+            store["shots"][shot_id] = _validate_record({"chapter_id": chapter, "shot_fingerprint": fingerprint}, shot_id)
             changed = True
-        elif store["shots"][shot_id]["chapter_id"] == "unassigned" and chapter != "unassigned":
-            store["shots"][shot_id]["chapter_id"] = chapter
-            changed = True
+        else:
+            record = store["shots"][shot_id]
+            if record["shot_fingerprint"] and record["shot_fingerprint"] != fingerprint:
+                # Never carry approval across changed narration, prompt, chapter, or media.
+                record.update({
+                    "chapter_id": chapter, "status": "pending",
+                    "reviewer_notes": "Previous review invalidated because this shot's content changed.",
+                    "rejection_reason": "", "replacement_requested": False,
+                    "reviewed_at": None, "source_review_status": "pending",
+                    "shot_fingerprint": fingerprint,
+                })
+                changed = True
+            elif not record["shot_fingerprint"]:
+                record["shot_fingerprint"] = fingerprint
+                changed = True
+            elif record["chapter_id"] == "unassigned" and chapter != "unassigned":
+                record["chapter_id"] = chapter
+                changed = True
     if changed:
         store["updated_at"] = _now()
         _atomic_write(path, store)
