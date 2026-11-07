@@ -107,11 +107,13 @@ class ResearchVerificationTests(unittest.TestCase):
         report = self._write()
         save_source_review(self.root, report, "S1", "reviewed", "Opened the official report.")
         save_claim_review(self.root, report, "C1", "verified", "Checked the evidence on page four.")
+        save_coverage_review(self.root, report, True, "Reviewed the complete narration for missing claims.")
         changed = dict(self.script)
         changed["claims"] = [dict(self.script["claims"][0], text="The programme began in 2021.")]
         changed_report = build_research_verification_report(changed, self.discovery)
         store = load_research_reviews(self.root, changed_report)
         self.assertEqual(store["claims"]["C1"]["status"], "pending")
+        self.assertFalse(store["coverage_reviewed"])
 
 
 if __name__ == "__main__":
