@@ -236,8 +236,8 @@ with review_tab:
                         try:
                             from core.uploader import upload
                             if row.get("format") == "longform":
-                                from core.editorial_review import assert_visual_review_ready
-                                assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
+                                from core.release_certification import assert_release_certified
+                                assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
                             new_id = upload(path, row.get("title") or "Untitled",
                                             script.get("description", "Created with AI Studio."),
                                             script.get("tags", []), privacy_status="unlisted")
@@ -256,8 +256,8 @@ with review_tab:
                 if submit:
                     try:
                         if row.get("format") == "longform":
-                            from core.editorial_review import assert_visual_review_ready
-                            assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
+                            from core.release_certification import assert_release_certified
+                            assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
                         from core.uploader import schedule_video
                         publish_at = datetime.combine(chosen_date, chosen_time).replace(tzinfo=IST)
                         schedule_video(youtube_id, publish_at)
