@@ -91,7 +91,8 @@ def _audit_source_refs(shot_timeline: list[dict], research_sources: list | None)
 
 def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
                         sample_video_frames: bool = True,
-                        research_sources: list | None = None) -> dict:
+                        research_sources: list | None = None,
+                        semantic_verification: bool | None = None) -> dict:
     """Record shot-level prompts, media provenance, duration and review requirements."""
     root = Path(build_dir)
     frame_dir = root / "visual_review_frames"
@@ -140,18 +141,51 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
             "media_path": str(path) if path else None, "visual_prompt": prompt[:700],
             "narration": str(shot.get("narration") or "")[:700],
             "source": source, "sample_frames": frames,
-            "semantic_match_verified": False, "historical_authenticity_verified": False,
+            "semantic_match_verified": False,
+            "semantic_screening": {"status": "not_run", "human_review_required": True},
+            "historical_authenticity_verified": False,
             "human_visual_review_required": True,
         })
+
+    import os
+    if semantic_verification is None:
+        semantic_verification = os.getenv("VISUAL_SEMANTIC_CHECK", "0").strip().lower() in {"1", "true", "yes"}
+    if semantic_verification:
+        from core.visual_semantics import verify_shot_semantics
+        try:
+            max_shots = max(1, int(os.getenv("VISUAL_SEMANTIC_MAX_SHOTS", "40")))
+        except ValueError:
+            max_shots = 40
+        for index, shot in enumerate(shots):
+            if index >= max_shots:
+                shot["semantic_screening"] = {
+                    "status": "skipped", "reason": f"Configured per-build limit is {max_shots} shots.",
+                    "human_review_required": True,
+                }
+            else:
+                shot["semantic_screening"] = verify_shot_semantics(shot)
+            status = shot["semantic_screening"].get("status", "uncertain")
+            if status in {"mismatch", "uncertain", "error", "unavailable", "skipped"}:
+                issues.append({
+                    "level": "warning" if status in {"unavailable", "skipped"} else "error",
+                    "shot": shot["shot_id"],
+                    "message": f"AI visual-to-narration screening status is '{status}'; inspect this shot manually.",
+                })
     report = {
         "shot_count": len(shots), "shots": shots, "issues": issues,
         "research_audit": _audit_source_refs(shot_timeline, research_sources),
-        "automated_vision_verification": False,
+        "automated_vision_verification": bool(semantic_verification),
+        "semantic_screening_enabled": bool(semantic_verification),
+        "semantic_screening_summary": {
+            status: sum(1 for shot in shots
+                        if shot.get("semantic_screening", {}).get("status") == status)
+            for status in ("match", "mismatch", "uncertain", "unavailable", "error", "skipped", "not_run")
+        },
         "shot_type_counts": {kind: sum(1 for shot in shots if shot.get("visual_type") == kind)
                              for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
         "historical_authenticity_verified": False,
         "publication_ready": False,
-        "notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, fact-check source attribution, and approve AI-reconstruction disclosures.",
+        "notice": "AI semantic screening is a fallible triage signal, not fact-checking or proof of historical authenticity, identity, rights, licensing or lip-sync. A human must confirm every visual, inspect provenance, fact-check claims and approve disclosures.",
     }
     output = root / "visual_review_report.json"
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
