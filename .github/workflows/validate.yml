@@ -1,7 +1,7 @@
 name: validate
 on:
   push:
-    branches: [main, feature/visual-editorial-approval]
+    branches: [main, feature/visual-editorial-approval, fix/peer-reviewed-primary-evidence]
   pull_request:
     branches: [main, feature/universal-cinematic-visual-qc]
 permissions:
