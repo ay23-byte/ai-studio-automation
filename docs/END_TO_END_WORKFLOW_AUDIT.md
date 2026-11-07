@@ -75,3 +75,21 @@ when deterministic errors are found. Warnings still require editorial review.
 Do not publish until an editor has checked factual evidence, asset rights, scene
 relevance, subtitle spelling, voice quality, presenter identity/consent and the
 rendered video. The report is an assistant to review, not a replacement for it.
+
+
+## Discovery and rights gates
+
+Live provider discovery must be run with the actual documentary topic. A provider
+returning zero candidates is reported as `no_eligible_results`; the overall check
+fails when the combined eligible-candidate count is below the configured minimum.
+This is a discovery smoke test only: it does not prove that a clip can be downloaded,
+inserted into the final timeline, or cleared for publication.
+
+Creative Commons labels are normalized before matching, including hyphenated
+`CC BY-SA` labels. A recognized licence label remains only a preliminary
+eligibility signal. The exact asset page, licence URL, attribution, restrictions,
+third-party material, and rendered frames still require human review.
+
+Search relevance is scored against the focused scene search query/keywords, not
+the entire prose visual prompt. The prompt remains provenance context; unrelated
+words in a long prompt must not dilute a relevant metadata match.
