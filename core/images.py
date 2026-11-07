@@ -33,6 +33,12 @@ def _ok(p):
         return int(out[0]) >= 200 and int(out[1]) >= 200
     except: return False
 
+def _write_source_metadata(path, metadata):
+    import json
+    sidecar = path.with_suffix(path.suffix + ".source.json")
+    sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _cloudflare(prompt, path):
     if not CF_ACCOUNT_ID or not CF_API_TOKEN: return False
     url = (f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
@@ -46,7 +52,17 @@ def _cloudflare(prompt, path):
             ct = r.headers.get("content-type","")
             data = base64.b64decode((r.json().get("result") or {}).get("image","")) if "json" in ct else r.content
             if not data: return False
-            path.write_bytes(data); return _ok(path)
+            path.write_bytes(data)
+            if not _ok(path):
+                return False
+            _write_source_metadata(path, {
+                "provider": "Cloudflare Workers AI",
+                "model": "@cf/black-forest-labs/flux-1-schnell",
+                "asset_type": "ai_generated_image",
+                "licence_status": "Check current Cloudflare AI terms and any applicable model/provider restrictions before commercial publication.",
+                "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
+            })
+            return True
         except Exception as e: print(f"Cloudflare {attempt+1}: {e}")
     return False
 
@@ -58,7 +74,17 @@ def _pollinations(prompt, path):
                     "seed":random.randint(1,10**6)}, timeout=150)
         r.raise_for_status()
         if "image" not in r.headers.get("content-type","image"): return False
-        path.write_bytes(r.content); return _ok(path)
+        path.write_bytes(r.content)
+        if not _ok(path):
+            return False
+        _write_source_metadata(path, {
+            "provider": "Pollinations",
+            "model": "flux",
+            "asset_type": "ai_generated_image",
+            "licence_status": "Check current Pollinations service/model terms and any applicable restrictions before commercial publication.",
+            "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
+        })
+        return True
     except Exception as e: print(f"Pollinations: {e}"); return False
 
 def generate_image(scene_prompt, path, category="general"):
