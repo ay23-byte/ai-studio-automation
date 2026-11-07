@@ -82,6 +82,14 @@ class EditorialReviewTests(unittest.TestCase):
         self.assertEqual(report["summary"]["publish_recommendation"], "blocked_by_editorial_review")
         self.assertTrue(any(issue["stage"] == "visual_review" for issue in report["issues"]))
 
+    def test_changed_shot_invalidates_previous_approval(self):
+        load_reviews(self.report_path, self.report["shots"])
+        save_review(self.report_path, "shot_0001", status="approved", source_review_status="reviewed")
+        changed = [dict(self.report["shots"][0], visual_prompt="A different scene")]
+        store = load_reviews(self.report_path, changed)
+        self.assertEqual(store["shots"]["shot_0001"]["status"], "pending")
+        self.assertEqual(store["shots"]["shot_0001"]["source_review_status"], "pending")
+
     def test_new_shot_is_added_without_resetting_existing_decisions(self):
         load_reviews(self.report_path, self.report["shots"])
         save_review(self.report_path, "shot_0001", status="approved", source_review_status="reviewed")
