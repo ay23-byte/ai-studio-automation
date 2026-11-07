@@ -1,0 +1,111 @@
+import json
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from core import footage_sources as fs
+
+
+class DocumentarySourceAdapterTests(unittest.TestCase):
+    @patch("core.config.NARA_API_KEY", "nara-test")
+    @patch.object(fs, "_get_json")
+    def test_nara_requires_explicit_public_domain_and_video_object(self, get_json):
+        get_json.return_value = {"body": {"hits": {"hits": [
+            {"_id": "101", "_source": {"record": {
+                "naId": 101, "title": "Government film",
+                "useRestriction": {"status": "Unrestricted"},
+                "copyrightNote": "This is a work of the U.S. Federal Government and is public domain.",
+                "digitalObjects": [{"objectUrl": "https://archives.gov/a.mp4", "objectType": "Video File"}],
+            }}},
+            {"_id": "102", "_source": {"record": {
+                "naId": 102, "title": "Donated film",
+                "useRestriction": {"status": "Unrestricted"},
+                "copyrightNote": "Copyright status not evaluated.",
+                "digitalObjects": [{"objectUrl": "https://archives.gov/b.mp4", "objectType": "Video File"}],
+            }}},
+        ]}}}
+        result = fs._nara("government film")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["asset_id"], "101")
+        self.assertEqual(result[0][1]["licence"], "Public Domain")
+        self.assertEqual(get_json.call_args.args[0], "https://catalog.archives.gov/api/v2/records/search")
+        self.assertEqual(get_json.call_args.kwargs["headers"]["x-api-key"], "nara-test")
+
+    @patch.dict(os.environ, {"DVIDS_API_KEY": "dvids-test"})
+    @patch.object(fs, "_get_json")
+    def test_dvids_requires_item_rights_and_download(self, get_json):
+        get_json.return_value = {"results": [
+            {"id": 7, "title": "Training exercise", "copyright": "Public domain",
+             "download_url": "https://dvidshub.net/video.mp4", "url": "https://dvidshub.net/7"},
+            {"id": 8, "title": "Restricted", "copyright": "Copyright retained",
+             "download_url": "https://dvidshub.net/no.mp4"},
+        ]}
+        result = fs._dvids("training")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["provider"], "DVIDS")
+        self.assertEqual(result[0][1]["licence"], "Public Domain")
+
+    @patch("core.config.EUROPEANA_API_KEY", "eu-test")
+    @patch.object(fs, "_get_json")
+    def test_europeana_accepts_only_supported_cc_rights(self, get_json):
+        get_json.return_value = {"items": [
+            {"id": "/x/1", "guid": "https://europeana.eu/item/1",
+             "title": ["Open film"], "dcCreator": ["Creator"],
+             "rights": ["http://creativecommons.org/licenses/by/4.0/"],
+             "edmIsShownBy": ["https://media.example/film.mp4"]},
+            {"id": "/x/2", "rights": ["http://rightsstatements.org/vocab/InC/1.0/"],
+             "edmIsShownBy": ["https://media.example/restricted.mp4"]},
+        ]}
+        result = fs._europeana_cc("open film")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["licence"], "CC BY 4.0")
+
+    def test_mixkit_manual_import_rejects_restricted_and_records_free(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "clip.mp4"
+            source.write_bytes(b"video-placeholder")
+            with self.assertRaises(ValueError):
+                fs.register_mixkit_asset(source, title="Clip",
+                    source_url="https://mixkit.co/free-stock-video/clip-1/",
+                    licence="Mixkit Restricted License")
+            with patch.object(fs.Path, "mkdir", return_value=None):
+                with patch("core.footage_sources.Path", wraps=Path):
+                    # Use a temporary working directory so the import cannot touch the repo.
+                    old = Path.cwd()
+                    os.chdir(tmp)
+                    try:
+                        target, sidecar = fs.register_mixkit_asset(
+                            source, title="Clip", source_url="https://mixkit.co/free-stock-video/clip-1/",
+                            licence="Mixkit Free License", creator="Creator")
+                    finally:
+                        os.chdir(old)
+            metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+            self.assertEqual(metadata["licence"], "Mixkit Free License")
+            self.assertEqual(metadata["page_url"], "https://mixkit.co/free-stock-video/clip-1/")
+            self.assertTrue(metadata["terms_reviewed"])
+            self.assertFalse(metadata["automated_download"])
+
+    @patch.object(fs, "_download", return_value=True)
+    @patch.object(fs, "_nara")
+    @patch.object(fs, "_dvids")
+    @patch.object(fs, "_loc")
+    @patch.object(fs, "_wikimedia")
+    @patch.object(fs, "_internet_archive")
+    @patch.object(fs, "_europeana_cc")
+    def test_nara_and_other_providers_are_in_discovery_chain(
+        self, europeana, archive, wikimedia, loc, dvids, nara, download
+    ):
+        nara.return_value = [("https://archives.gov/a.mp4", {
+            "provider": "National Archives (NARA)", "asset_id": "1",
+            "title": "Mountain film", "licence": "Public Domain",
+            "licence_url": "https://archives.gov/id/1"})]
+        with patch.object(fs, "_metadata_relevance", return_value=1.0):
+            self.assertTrue(fs.fetch_documentary_clip(["mountain film"], Path("unused.mp4"), set()))
+        self.assertTrue(nara.called)
+        self.assertTrue(download.called)
+
+
+if __name__ == "__main__":
+    unittest.main()
