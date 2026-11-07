@@ -17,14 +17,26 @@ def _validate_scientific_wording(script):
         '50m radius',
         'people are affected',
         'लोग प्रभावित हो सकते हैं',
+        'vertical river height',
+        'वर्टिकल रिवर ऊंचाई',
+        'वर्टिकल रिवर हाइट',
+        'नदी से 50 मीटर',
+        '50 मीटर की दूरी',
     )
     found = [phrase for phrase in forbidden if phrase in combined]
     if found:
         raise ValueError('Script contains unsupported causal, exposure, or distance wording: ' + ', '.join(found))
     if not any(term in combined for term in ('hand', 'nearest drainage', 'ऊँचाई')):
         raise ValueError('Script must explain HAND as a vertical height-above-drainage measure.')
-    if not any(term in combined for term in ('nearest drainage', 'निकटतम जल-निकासी', 'निकटतम नाले', 'निकटतम जलधारा')):
-        raise ValueError('Script must define HAND as vertical height above the nearest drainage, not just say vertical river height.')
+    drainage_terms = ('nearest drainage', 'निकटतम जल-निकासी', 'निकटतम नाले', 'निकटतम जलधारा')
+    if not any(term in combined for term in drainage_terms):
+        raise ValueError('Script must define HAND as vertical height above the nearest drainage.')
+    # The definition must appear in spoken narration/captions, not only in a generated visual prompt.
+    spoken_and_captioned = ' '.join(str(scene.get(key, '')) for scene in scenes for key in ('say', 'caption')).lower()
+    if not any(term in spoken_and_captioned for term in drainage_terms):
+        raise ValueError('HAND nearest-drainage definition must appear in narration or captions.')
+    if any('hand' in str(scene.get('say', '')).lower() and not any(term in str(scene.get('say', '')).lower() for term in drainage_terms) for scene in scenes):
+        raise ValueError('Any spoken HAND reference must explain nearest drainage in the same scene.')
     if not any(term in combined for term in ('संभावित', 'potential exposure', 'modelled exposure')):
         raise ValueError('Script must describe the figures as potential/modelled exposure.')
     if not any(term in combined for term in ('पक्की भविष्यवाणी नहीं', 'forecast नहीं', 'not a flood forecast')):
@@ -70,7 +82,7 @@ def generate_reviewed_shorts(review_path, output_path):
 Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, 10–22 words per scene, about 75–125 spoken words total. Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
 
 CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
-- Define HAND in the narration or captions as vertical height above the nearest drainage (nearest stream/channel). Never replace this with the vague phrase 'vertical river height'. Never describe 0–50 m HAND as a 50-metre horizontal radius, distance, or buffer from a river.
+- In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never describe 0–50 m HAND as a 50-metre horizontal radius, distance, or buffer from a river.
 - 293,800, 108,500 and 22,800 are modelled potential-exposure estimates, not counts of people already affected and not a prediction that they will be flooded.
 - The 46% and 77% values refer to building footprint area, not the number of buildings.
 - Do not claim that construction caused flooding or that construction itself increased flood probability. Describe the study as measuring potential exposure and building-footprint changes.
