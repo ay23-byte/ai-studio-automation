@@ -516,12 +516,12 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
         for provider in providers:
             candidates.extend(provider(query))
         ranked = sorted(candidates, key=lambda item: _metadata_relevance(
-            query + " " + scene_prompt, item[1]), reverse=True)[:5]
+            query, item[1]), reverse=True)[:5]
         for url, metadata in ranked:
             if candidate_count >= 5:
                 return False
             candidate_count += 1
-            score = _metadata_relevance(query + " " + scene_prompt, metadata)
+            score = _metadata_relevance(query, metadata)
             metadata["relevance_score"] = round(score, 3)
             metadata["scene_prompt"] = str(scene_prompt)[:500]
             metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
