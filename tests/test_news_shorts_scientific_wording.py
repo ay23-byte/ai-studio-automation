@@ -4,7 +4,7 @@ from core.news_shorts_writer import _validate_scientific_wording
 
 class ScientificScriptWordingTests(unittest.TestCase):
     def valid_script(self):
-        return {"scenes": [{"say": "यह संभावित exposure है, पक्की भविष्यवाणी नहीं। HAND नदी-नालों से ऊँचाई मापता है। भवन क्षेत्र बढ़ा।",
+        return {"scenes": [{"say": "यह संभावित exposure है, पक्की भविष्यवाणी नहीं। HAND निकटतम जलधारा से ऊर्ध्वाधर ऊँचाई मापता है। भवन क्षेत्र बढ़ा.",
                             "caption": "293,800; 108,500; 22,800; building footprint area 46%; GLOF building area 77%"}]}
 
     def test_accepts_correctly_qualified_study_wording(self):
@@ -20,6 +20,12 @@ class ScientificScriptWordingTests(unittest.TestCase):
         script = self.valid_script()
         script["scenes"][0]["say"] += " अनियंत्रित निर्माण से बाढ़ का खतरा बढ़ता है।"
         with self.assertRaisesRegex(ValueError, "unsupported causal"):
+            _validate_scientific_wording(script)
+
+    def test_rejects_vague_hand_definition(self):
+        script = self.valid_script()
+        script["scenes"][0]["say"] = script["scenes"][0]["say"].replace("निकटतम जलधारा से", "नदी से")
+        with self.assertRaisesRegex(ValueError, "nearest drainage"):
             _validate_scientific_wording(script)
 
     def test_rejects_missing_flood_forecast_caveat(self):
