@@ -124,7 +124,9 @@ CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
 - In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
 - 293,800, 108,500 and 22,800 are modelled potential-exposure estimates, not counts of people already affected and not a prediction that they will be flooded.
 - The 46% and 77% values refer to building footprint area, not the number of buildings.
-- Do not claim that construction caused flooding or that construction itself increased flood probability. Describe the study as measuring potential exposure and building-footprint changes.
+- Do not claim that construction caused flooding. Do not claim that construction did NOT increase flood probability: absence of causal evidence is not proof of no effect. Say the study does not establish whether construction caused flooding or increased its probability.
+- In spoken narration, attach Nepal's 108,500 figure to 0–50 m HAND and 22,800 to 0–10 m HAND; do not leave these bands only in captions.
+- In spoken narration, explicitly identify BOTH 46% and 77% as building footprint area; the 77% measure is within modelled GLOF extents.
 - The GLOF values refer to modelled glacial-lake outburst flood extents, not observed inundation.
 - Include all key measures accurately: 293,800 people / 18%; Nepal 108,500 and 22,800; building footprint area +46%; building footprint area in modelled GLOF extents +77%.
 - State clearly that modelled potential exposure is not a flood forecast. Use numeric figures in captions so editors can verify them quickly.
