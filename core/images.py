@@ -120,6 +120,14 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
             queries.append(query)
         if len(queries) == 3:
             break
+    # Priority 1: public-domain / file-level CC archives before stock libraries.
+    try:
+        from core.footage_sources import fetch_documentary_clip
+        if fetch_documentary_clip(queries, path, used, scene_prompt=scene_prompt):
+            return True
+    except Exception as exc:
+        print(f"  public-domain/CC archive search unavailable: {exc}")
+    # Priority 2: free stock API sources with explicit provider licence terms.
     downloaded = 0
     for q in queries:
         time.sleep(1.2)
@@ -189,14 +197,6 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
                 path.unlink(missing_ok=True)
             except Exception as e:
                 print(f"  clip download: {e}")
-    # Other archives are searched only when their per-item licence is explicitly
-    # recognized by the strict archive adapter. Unknown-rights files are rejected.
-    try:
-        from core.footage_sources import fetch_documentary_clip
-        if fetch_documentary_clip(keywords, path, used, scene_prompt=scene_prompt):
-            return True
-    except Exception as exc:
-        print(f"  additional footage sources unavailable: {exc}")
     return False
 
 
