@@ -397,7 +397,7 @@ def register_mixkit_asset(source_file, *, title, source_url, licence, creator=""
         raise ValueError("source_url must be the exact Mixkit asset page URL.")
     if not title.strip():
         raise ValueError("The exact Mixkit clip title is required.")
-    target_dir = Path("assets/clips/mixkit")
+    target_dir = Path("assets/clips/mixkit").resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / source.name
     if source.resolve() != target.resolve():
