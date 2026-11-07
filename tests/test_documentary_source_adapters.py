@@ -62,6 +62,62 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][1]["licence"], "CC BY 4.0")
 
+    @patch.object(fs, "_get_json")
+    def test_nasa_adapter_checks_video_manifest_and_rights(self, get_json):
+        get_json.side_effect = [
+            {"collection": {"items": [{
+                "data": [{"nasa_id": "N-1", "title": "Apollo launch",
+                          "description": "Public domain NASA footage"}],
+                "links": [{"rel": "canonical", "href": "https://images.nasa.gov/details/N-1"}],
+                "href": "https://images.nasa.gov/asset/N-1/manifest",
+            }]}},
+            ["https://images-assets.nasa.gov/video/N-1.mp4"],
+        ]
+        result = fs._nasa("Apollo launch")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["provider"], "NASA")
+
+    @patch.object(fs, "_get_json")
+    def test_loc_adapter_requires_item_rights_and_video_resource(self, get_json):
+        get_json.return_value = {"results": [{
+            "id": "https://www.loc.gov/item/abc/",
+            "title": "Historic film",
+            "rights": "No known copyright restrictions",
+            "resources": [{"files": [{"url": "https://loc.gov/media/film.mp4"}]}],
+        }]}
+        result = fs._loc("historic film")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["provider"], "Library of Congress")
+
+    @patch.object(fs, "_get_json")
+    def test_wikimedia_requires_file_specific_cc_metadata(self, get_json):
+        get_json.return_value = {"query": {"pages": {"1": {
+            "title": "File:Open film.webm",
+            "imageinfo": [{
+                "url": "https://upload.wikimedia.org/open-film.webm",
+                "descriptionurl": "https://commons.wikimedia.org/wiki/File:Open_film.webm",
+                "extmetadata": {
+                    "LicenseShortName": {"value": "CC BY-SA 4.0"},
+                    "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-sa/4.0/"},
+                    "Artist": {"value": "Example creator"},
+                },
+            }],
+        }}}}
+        result = fs._wikimedia("open film")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["licence"], "CC BY-SA 4.0")
+
+    @patch.object(fs, "_get_json")
+    def test_internet_archive_requires_explicit_item_licence(self, get_json):
+        get_json.side_effect = [
+            {"response": {"docs": [{"identifier": "open-film", "title": "Open film"}]}},
+            {"metadata": {"licenseurl": "https://creativecommons.org/licenses/by/4.0/"},
+             "files": [{"name": "open-film.mp4", "size": "90000"}]},
+        ]
+        result = fs._internet_archive("open film")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1]["licence"], "CC BY 4.0")
+
     def test_mixkit_manual_import_rejects_restricted_and_records_free(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "clip.mp4"
