@@ -230,12 +230,12 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
             + str(sc.get("image") or sc.get("say", ""))
             + ". 9:16 cinematic documentary image, accurate subject and action, no text or logos."
         )
-        if generate_image(scene_prompt, img_p):
+        if generate_image(scene_prompt, img_p, category=script.get("category", "general")):
             media.append({"type":"image","path":img_p})
         else:
             clip_p = bd / f"raw{i}.mp4"
             kws = sc.get("keywords") or [str(sc.get("say", ""))[:100]]
-            if fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
+            if fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_prompt):
                 media.append({"type":"video","path":clip_p})
             else:
                 raise RuntimeError(
@@ -432,7 +432,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             # Long-form documentaries should use moving B-roll by default.
             # Images remain a fallback when no relevant stock clip is found.
             if visual_mode == "video_first":
-                if fetch_clip(kws, clip_p, used_ids):
+                if fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: stock video")
                 elif generate_ai_video(prompt, clip_p):
@@ -460,6 +460,16 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
+
+    # Save a reviewable shot manifest and sample frames before final rendering.
+    try:
+        from core.visual_production import build_visual_review
+        visual_report = build_visual_review(shot_timeline, bd)
+        print(f"Visual review: {visual_report['shot_count']} shots; human approval required.")
+        for issue in visual_report.get("issues", []):
+            print(f"VISUAL REVIEW {issue['level'].upper()}: {issue['message']}")
+    except Exception as exc:
+        print(f"WARNING: visual review report could not be generated: {exc}")
 
     ass = bd / "subs.ass"
     _make_ass_longform(timings, shot_timeline, total, ass, disclaimer)
