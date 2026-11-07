@@ -78,6 +78,11 @@ class ReleaseCertificationSmokeTests(unittest.TestCase):
                 }],
             }
             research = write_research_verification_report(script, [], root)
+            (root / "release_metadata.json").write_text(json.dumps({
+                "title": "Synthetic release test",
+                "description": "Sources & further reading: https://example.org/test-source",
+                "tags": ["test"],
+            }), encoding="utf-8")
             save_source_review(root, research, "S1", "reviewed",
                                "Opened synthetic test source fixture.")
             save_claim_review(root, research, "C1", "verified",
