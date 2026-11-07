@@ -45,6 +45,19 @@
       "publisher": "Press Information Bureau, Government of India",
       "date": "2024",
       "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48"
+    },
+    {
+      "id": "S06",
+      "source_id": "S06",
+      "title": "Executive Summary of Interim Report on Status of Migration",
+      "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
+      "published_at": "April 2018",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "supports": [
+        "734 depopulated revenue villages/toks/majra after 2011; district totals including Pauri Garhwal 186",
+        "State-wise migration reasons: livelihood/employment 50.16%, education 15.21%, health 8.83%, infrastructure 3.74%, agricultural productivity 5.44%, crop damage by wild animals 5.61%",
+        "Migration destinations: nearby towns 19.46%, district headquarters 15.18%, other state districts 35.69%, outside state 28.72%, outside country 0.96%"
+      ]
     }
   ],
   "claims": [
@@ -68,57 +81,63 @@
     },
     {
       "claim_id": "C03",
-      "claim": "A 2018 Uttarakhand Migration Commission survey reported 734 villages becoming uninhabited after 2011.",
+      "claim": "The Commission's 2018 report lists 734 uninhabited revenue villages/toks/majra depopulated after 2011.",
       "claim_type": "reported",
       "source_ids": [
-        "S02"
+        "S06"
       ],
-      "evidence_note": "Research report reproduces the Commission survey finding; original survey table must be inspected."
+      "evidence_note": "Research report reproduces the Commission survey finding; original survey table must be inspected.",
+      "evidence": "District and block-wise table titled 'Number of uninhabited revenue villages/toks/majra ... (De-populated After 2011)', total 734."
     },
     {
       "claim_id": "C04",
       "claim": "Pauri Garhwal had a reported count of 186 depopulated villages.",
       "claim_type": "reported",
       "source_ids": [
-        "S02"
+        "S06"
       ],
-      "evidence_note": "District-wise figures reproduced in the research report."
+      "evidence_note": "District-wise figures reproduced in the research report.",
+      "evidence": "District-wise table lists Pauri Garhwal as 186 and state total as 734."
     },
     {
       "claim_id": "C05",
       "claim": "Lack of livelihood and employment was the leading reported migration reason at 50.16%.",
       "claim_type": "reported",
       "source_ids": [
-        "S02"
+        "S06"
       ],
-      "evidence_note": "Commission data reproduced in report; denominator and question wording require human source inspection."
+      "evidence_note": "Commission data reproduced in report; denominator and question wording require human source inspection.",
+      "evidence": "State-wise main reasons table lists livelihood/employment problems at 50.16%."
     },
     {
       "claim_id": "C06",
-      "claim": "Roughly 70% of migration in the cited Uttarakhand data occurred within the state.",
+      "claim": "Approximately 70.33% of reported migration destinations were within Uttarakhand.",
       "claim_type": "reported",
       "source_ids": [
-        "S02"
+        "S06"
       ],
-      "evidence_note": "Migration destination pattern reproduced in report; retain approximate qualifier."
+      "evidence_note": "Migration destination pattern reproduced in report; retain approximate qualifier.",
+      "evidence": "Destination table: 19.46% nearby towns + 15.18% district headquarters + 35.69% other districts = 70.33%; arithmetic derived from published shares."
     },
     {
       "claim_id": "C07",
-      "claim": "Among the 734 villages, 660 lacked a primary health centre and 482 lacked road connectivity.",
+      "claim": "The 2018 report lists education 15.21%, health 8.83% and infrastructure 3.74% among migration reasons.",
       "claim_type": "reported",
       "source_ids": [
-        "S02"
+        "S06"
       ],
-      "evidence_note": "Infrastructure table reproduced in report; categories overlap."
+      "evidence_note": "Infrastructure table reproduced in report; categories overlap.",
+      "evidence": "State-wise main reasons table; these are reported shares of reasons, not percentages of all villages."
     },
     {
       "claim_id": "C08",
-      "claim": "The same survey listed 399 villages without drinking water within one kilometre and 358 not electrified.",
+      "claim": "The 2018 report lists agricultural productivity/yield decline at 5.44% and crop damage by wild animals at 5.61% among migration reasons.",
       "claim_type": "reported",
       "source_ids": [
-        "S02"
+        "S06"
       ],
-      "evidence_note": "Infrastructure table reproduced in report; categories overlap."
+      "evidence_note": "Infrastructure table reproduced in report; categories overlap.",
+      "evidence": "State-wise main reasons table; percentages are reported shares of migration reasons."
     },
     {
       "claim_id": "C09",
@@ -326,28 +345,28 @@
     },
     {
       "title": "Act 2 — The Himalayan Disappearance",
-      "narration": "Uttarakhand ki mountains ko aksar postcard ki tarah dekha jaata hai. Lekin yahan rehne ki practical realities har jagah ek jaisi nahi hoti. 2018 ke Uttarakhand Migration Commission survey ko cite karne wali research report ke mutabik, 2011 Census ke baad 734 villages uninhabited ho gaye the. Is figure ko current count samajhna galat hoga. Yeh 2018 survey ka reported finding hai. District-wise list mein Pauri Garhwal ka number sabse zyada tha: 186 villages. Bageshwar, Pithoragarh, Uttarkashi aur Champawat bhi report mein aaye. Map par yeh sirf dots lag sakte hain. Lekin har dot ke peeche ek settlement, ek local history aur kabhi ek family network hota hai. Phir bhi humein careful rehna hai. Survey ka term aur definition samajhna zaroori hai. Kya village permanently empty tha? Kya kuch households seasonally absent the? Kya baad mein koi wapas aaya? Yeh questions original survey ko dekhkar hi fully resolve honge. Jo evidence abhi humein milta hai, woh ek serious pattern suggest karta hai. Lekin pattern ko samajhne ke liye sirf map kaafi nahi. Humein poochna hoga ki logon ke saamne kaun se options the. Aur un options mein employment ka role kitna bada tha?",
+      "narration": "Uttarakhand ki mountains ko aksar postcard ki tarah dekha jaata hai. Lekin yahan rehne ki practical realities har jagah ek jaisi nahi hoti. Uttarakhand ke Rural Development and Migration Commission ki April 2018 report ek specific category record karti hai: 2011 ke baad 734 revenue villages, toks aur majra depopulated list kiye gaye. Yeh report ka historical finding hai, current count nahi. District-wise table mein Pauri Garhwal ka count 186 tha. Bageshwar 77, Pithoragarh 75, Uttarkashi 70 aur Champawat 64 bhi listed the. Map par yeh sirf dots lag sakte hain. Lekin har dot ke peeche ek settlement, ek local history aur kabhi ek family network hota hai. Phir bhi humein careful rehna hai. Survey ka term aur definition samajhna zaroori hai. Kya village permanently empty tha? Kya kuch households seasonally absent the? Kya baad mein koi wapas aaya? Yeh questions original survey ko dekhkar hi fully resolve honge. Jo evidence abhi humein milta hai, woh ek serious pattern suggest karta hai. Lekin pattern ko samajhne ke liye sirf map kaafi nahi. Humein poochna hoga ki logon ke saamne kaun se options the. Aur un options mein employment ka role kitna bada tha?",
       "visuals": [
         {
-          "narration_anchor": "2018 ke Uttarakhand Migration Commission survey",
-          "visual_prompt": "Research document visual with report title and highlighted table area only after human verification; do not fabricate document text.",
+          "narration_anchor": "Uttarakhand ke Rural Development and Migration Commission ki April 2018 report",
+          "visual_prompt": "Original Rural Development and Migration Commission 2018 report; show its actual title and verified table only after a human has opened the PDF. Do not fabricate document text.",
           "keywords": [
             "Uttarakhand Migration Commission 2018 report"
           ],
           "visual_type": "document",
           "source_refs": [
-            "S02"
+            "S06"
           ]
         },
         {
-          "narration_anchor": "734 villages uninhabited ho gaye the",
-          "visual_prompt": "Clean evidence graphic showing 734, label 'reported by 2018 survey after Census 2011'; cite S02 and note historical figure.",
+          "narration_anchor": "734 revenue villages, toks aur majra depopulated list kiye gaye.",
+          "visual_prompt": "Clean evidence graphic showing 734 revenue villages/toks/majra, labelled 'depopulated after 2011 — Commission 2018 report'; cite S06 and label as historical.",
           "keywords": [
             "Uttarakhand 734 depopulated villages graphic"
           ],
           "visual_type": "chart",
           "source_refs": [
-            "S02"
+            "S06"
           ],
           "chart_spec": {
             "title": "Villages reported uninhabited after Census 2011",
@@ -358,14 +377,14 @@
           }
         },
         {
-          "narration_anchor": "Pauri Garhwal ka number sabse zyada tha: 186 villages",
-          "visual_prompt": "Uttarakhand district map highlighting Pauri Garhwal; callout 186 with 2018 survey label and source S02.",
+          "narration_anchor": "Pauri Garhwal ka count 186 tha.",
+          "visual_prompt": "Uttarakhand district map highlighting Pauri Garhwal with 186; cite the Commission's 2018 district-wise table S06.",
           "keywords": [
             "Pauri Garhwal district map Uttarakhand"
           ],
           "visual_type": "map",
           "source_refs": [
-            "S02"
+            "S06"
           ],
           "on_screen_text": "Pauri Garhwal: 186"
         },
@@ -381,7 +400,7 @@
     },
     {
       "title": "Act 2 — The Economics of Leaving",
-      "narration": "Kisi ghar ko chhodna aasaan nahi hota. Lekin rukna bhi mushkil ho sakta hai. Agar local employment limited ho, toh young adults ko kaam ke liye doosri jagah jaana pad sakta hai. Agar higher education door ho, toh students aur families move karne ka decision le sakte hain. Agar medical care tak pahunch mushkil ho, toh daily life aur uncertain ho sakti hai. Uttarakhand Migration Commission ke data ko reproduce karne wali 2021 research report mein livelihood aur employment ki kami sabse bada reported reason tha. Iska figure 50.16 percent diya gaya hai. Yeh ek reported survey statistic hai; original survey ki question wording aur denominator ko publication se pehle inspect karna zaroori hai. Report mein education aur medical facilities ki kami bhi reasons ke roop mein listed hain. Ek aur detail migration ko samajhne mein madad karti hai. Cited Uttarakhand data ke mutabik, roughly 70 percent migration state ke andar hua. Yaani har migrant ne Uttarakhand ko permanently alvida nahi kaha. Kai log nearby towns, district headquarters ya doosre districts ki taraf gaye. Gaon unka home reh sakta hai, lekin rozgaar aur services ki wajah se unki daily life kahin aur shift ho jaati hai. Isliye migration ko sirf emotional attachment ke scale par judge karna unfair hoga. Kabhi-kabhi yeh family ke future ka practical decision hota hai. Lekin jab bahut se log ek hi direction mein move karte hain, toh gaon mein peeche reh jaane walon ki zindagi bhi badalti hai.",
+      "narration": "Kisi ghar ko chhodna aasaan nahi hota. Lekin rukna bhi mushkil ho sakta hai. Agar local employment limited ho, toh young adults ko kaam ke liye doosri jagah jaana pad sakta hai. Agar higher education door ho, toh students aur families move karne ka decision le sakte hain. Agar medical care tak pahunch mushkil ho, toh daily life aur uncertain ho sakti hai. Commission ki apni 2018 report mein livelihood aur employment ki problem sabse bada listed migration reason hai. Table mein iska share 50.16 percent diya gaya hai. Yeh gram-panchayat-level survey ka reported reason share hai, individual migrant ke har case ka explanation nahi. Education aur health facilities ki kami bhi table mein alag reasons ke roop mein listed hain. Ek aur detail migration ko samajhne mein madad karti hai. Commission ke destination table mein 19.46 percent nearby towns, 15.18 percent district headquarters aur 35.69 percent state ke doosre districts listed hain. In teen shares ko jodne par 70.33 percent banta hai—yaani roughly 70 percent reported destinations state ke andar the. Yaani har migrant ne Uttarakhand ko permanently alvida nahi kaha. Kai log nearby towns, district headquarters ya doosre districts ki taraf gaye. Gaon unka home reh sakta hai, lekin rozgaar aur services ki wajah se unki daily life kahin aur shift ho jaati hai. Isliye migration ko sirf emotional attachment ke scale par judge karna unfair hoga. Kabhi-kabhi yeh family ke future ka practical decision hota hai. Lekin jab bahut se log ek hi direction mein move karte hain, toh gaon mein peeche reh jaane walon ki zindagi bhi badalti hai.",
       "visuals": [
         {
           "narration_anchor": "local employment limited ho",
@@ -393,13 +412,13 @@
         },
         {
           "narration_anchor": "50.16 percent",
-          "visual_prompt": "Minimal evidence graphic with 50.16% and label 'lack of livelihood/employment — reported reason in cited Uttarakhand data'; cite S02, denominator review warning in notes.",
+          "visual_prompt": "Evidence graphic: 50.16% livelihood/employment problem as leading reported reason in the Commission's 2018 state-wise table; label the survey and cite S06.",
           "keywords": [
             "Uttarakhand migration livelihood employment statistic"
           ],
           "visual_type": "chart",
           "source_refs": [
-            "S02"
+            "S06"
           ],
           "chart_spec": {
             "title": "Leading reported migration reason",
@@ -410,14 +429,14 @@
           }
         },
         {
-          "narration_anchor": "roughly 70 percent migration state ke andar hua",
-          "visual_prompt": "Simple directional map graphic showing within-state migration as an approximate share; do not draw exact individual routes or destinations.",
+          "narration_anchor": "Commission ke destination table mein 19.46 percent nearby towns",
+          "visual_prompt": "Destination stacked bar showing 19.46% nearby towns, 15.18% district headquarters, 35.69% other districts, 28.72% outside state, 0.96% outside country; cite S06 and calculate within-state share 70.33%.",
           "keywords": [
             "Uttarakhand intra state migration diagram"
           ],
           "visual_type": "diagram",
           "source_refs": [
-            "S02"
+            "S06"
           ],
           "on_screen_text": "~70% within the state"
         },
@@ -433,7 +452,7 @@
     },
     {
       "title": "Act 2 — When Essential Services Disappear",
-      "narration": "Ek gaon tab khaali nahi hota jab aakhri insaan chala jaata hai. Kabhi-kabhi woh tab khaali hone lagta hai jab roz ki zindagi mushkil hoti chali jaati hai. Ek road, ek health centre, peene ka paani aur electricity—yeh sab daily life ka foundation hain. 2018 survey ke 734 villages ke baare mein research report ne kuch service gaps list kiye. 660 villages mein primary health centre nahi tha. 482 mein road connectivity nahi thi. 399 villages ke aas-paas ek kilometre ke radius mein drinking water available nahi tha. Aur 358 electrified nahi the. Yeh numbers ek doosre mein overlap kar sakte hain. Inhe jodkar total villages nikalna galat hoga. Lekin individually, yeh gaps ek difficult picture dikhate hain. Agar emergency mein health facility door ho, transport reliable na ho, ya paani laane mein time lage, toh family ke decisions par asar pad sakta hai. Report agriculture aur environmental pressure ka bhi zikr karti hai. Hill farming mein terrain, irrigation, rainfall aur crop damage jaise challenges ho sakte hain. Lekin inmein se kisi ek factor ko har village ke empty hone ka single cause kehna evidence se aage jaana hoga. Humein ek connected system dekhna hoga. Jab livelihoods limited hon aur services weak hon, migration attractive ho sakti hai. Aur jab population kam hoti hai, toh farming aur local community networks par bhi pressure badh sakta hai. Ab hum is cycle ke centre par pahunch rahe hain. Ek aur limitation yaad rakhein: 2018 survey ka snapshot humein us waqt ki situation batata hai. Isse hum yeh nahi jaan sakte ki aaj har listed village ki condition kya hai. Kuch jagah log wapas aaye honge, kuch jagah seasonal activity chalti hogi, aur kuch settlements mein depopulation continue hua ho sakta hai. Current status jaanne ke liye updated village-level records aur field reporting chahiye. Is documentary ka kaam purane number ko present tense mein repeat karna nahi, balki evidence se sahi sawaal poochna hai.",
+      "narration": "Ek gaon tab khaali nahi hota jab aakhri insaan chala jaata hai. Kabhi-kabhi woh tab khaali hone lagta hai jab roz ki zindagi mushkil hoti chali jaati hai. Ek road, ek health centre, peene ka paani aur reliable electricity—yeh sab daily life ka foundation hain. Commission ki 2018 report migration ke reasons ko alag-alag categories mein rakhti hai. Education facilities ki kami 15.21 percent listed hai. Health facilities ki kami 8.83 percent. Roads, electricity, water aur doosre infrastructure ki kami 3.74 percent. Agricultural land ki productivity ya yield mein kami 5.44 percent. Aur wild animals se crops ko nuksaan 5.61 percent. Yeh shares survey ke reported migration reasons hain; inhe villages ke percentage ya har household ke experience ke roop mein nahi padhna chahiye. Pahadi farming mein terrain, irrigation, rainfall aur crop protection jaise challenges ho sakte hain. Lekin inmein se kisi ek factor ko har village ke empty hone ka single cause kehna evidence se aage jaana hoga. Humein ek connected system dekhna hoga. Jab livelihoods limited hon aur services tak pahunch mushkil ho, migration attractive ho sakti hai. Aur jab population kam hoti hai, toh farming aur local community networks par bhi pressure badh sakta hai. Ab hum is cycle ke centre par pahunch rahe hain.",
       "visuals": [
         {
           "narration_anchor": "Ek road, ek health centre, peene ka paani",
@@ -446,14 +465,14 @@
           "visual_type": "stock"
         },
         {
-          "narration_anchor": "660 villages mein primary health centre nahi tha",
-          "visual_prompt": "Evidence graphic with four separate overlapping indicators and a clear note that categories overlap; cite S02.",
+          "narration_anchor": "Education facilities ki kami 15.21 percent listed hai.",
+          "visual_prompt": "Evidence graphic with separate bars: education 15.21%, health 8.83%, infrastructure 3.74%; labels as reported migration reasons in Uttarakhand Commission 2018 table; cite S06.",
           "keywords": [
             "Uttarakhand village service gaps 2018 survey"
           ],
           "visual_type": "chart",
           "source_refs": [
-            "S02"
+            "S06"
           ],
           "chart_spec": {
             "title": "Reported service gaps among 734 villages",
@@ -464,24 +483,27 @@
           }
         },
         {
-          "narration_anchor": "399 villages ke aas-paas ek kilometre ke radius mein drinking water",
-          "visual_prompt": "Show the 399 and 358 figures as separate labelled counters, not additive totals; cite S02.",
+          "narration_anchor": "Agricultural land ki productivity ya yield mein kami 5.44 percent.",
+          "visual_prompt": "Evidence graphic with agriculture productivity/yield 5.44% and crop damage by wild animals 5.61%; reported migration reasons, cite S06.",
           "keywords": [
             "Uttarakhand drinking water village statistics"
           ],
           "visual_type": "chart",
           "source_refs": [
-            "S02"
+            "S06"
           ],
           "on_screen_text": "399: water gap | 358: not electrified"
         },
         {
-          "narration_anchor": "Hill farming mein terrain, irrigation, rainfall",
+          "narration_anchor": "Pahadi farming mein terrain, irrigation, rainfall",
           "visual_prompt": "Wide shot of terraced agriculture on a steep Himalayan slope, water channel and fields; avoid implying a specific surveyed village.",
           "keywords": [
             "Uttarakhand terraced agriculture irrigation"
           ],
-          "visual_type": "location"
+          "visual_type": "location",
+          "source_refs": [
+            "S06"
+          ]
         }
       ]
     },
@@ -500,7 +522,10 @@
             "village water",
             "terraced farming"
           ],
-          "visual_type": "stock"
+          "visual_type": "stock",
+          "source_refs": [
+            "S06"
+          ]
         },
         {
           "narration_anchor": "PLFS 2020-21 ne India ki overall migration rate 28.9 percent",
@@ -663,6 +688,19 @@
       "date": "2024",
       "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
       "source_id": "S05"
+    },
+    {
+      "id": "S06",
+      "source_id": "S06",
+      "title": "Executive Summary of Interim Report on Status of Migration",
+      "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
+      "published_at": "April 2018",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "supports": [
+        "734 depopulated revenue villages/toks/majra after 2011; district totals including Pauri Garhwal 186",
+        "State-wise migration reasons: livelihood/employment 50.16%, education 15.21%, health 8.83%, infrastructure 3.74%, agricultural productivity 5.44%, crop damage by wild animals 5.61%",
+        "Migration destinations: nearby towns 19.46%, district headquarters 15.18%, other state districts 35.69%, outside state 28.72%, outside country 0.96%"
+      ]
     }
   ]
 }
