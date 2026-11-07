@@ -48,8 +48,50 @@ def _sample_frames(media_path: Path, out_dir: Path, shot_id: str, count: int = 3
     return samples
 
 
+def _source_catalog(research_sources: list | None) -> dict:
+    catalog = {}
+    for index, source in enumerate(research_sources or []):
+        if not isinstance(source, dict):
+            continue
+        keys = [source.get(key) for key in ("id", "source_id", "url", "title")]
+        for key in keys:
+            if key:
+                catalog[str(key).strip()] = source
+        catalog.setdefault(f"S{index + 1}", source)
+    return catalog
+
+
+def _audit_source_refs(shot_timeline: list[dict], research_sources: list | None) -> dict:
+    """Check whether shot citations resolve to supplied research records."""
+    catalog = _source_catalog(research_sources)
+    linked, missing, unresolved = [], [], []
+    for index, shot in enumerate(shot_timeline, start=1):
+        refs = shot.get("source_refs") or []
+        if isinstance(refs, str):
+            refs = [refs]
+        refs = [str(ref).strip() for ref in refs if str(ref).strip()]
+        if not refs:
+            if shot.get("chart_spec") or shot.get("timeline_events") or shot.get("on_screen_text"):
+                missing.append(f"shot_{index:04d}")
+            continue
+        unknown = [ref for ref in refs if ref not in catalog]
+        if unknown:
+            unresolved.append({"shot_id": f"shot_{index:04d}", "refs": unknown})
+        else:
+            linked.append(f"shot_{index:04d}")
+    return {
+        "research_source_count": len(catalog),
+        "shots_with_resolved_sources": linked,
+        "evidence_graphics_missing_source_refs": missing,
+        "unresolved_source_refs": unresolved,
+        "citation_coverage_complete": not missing and not unresolved,
+        "human_fact_check_required": True,
+    }
+
+
 def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
-                        sample_video_frames: bool = True) -> dict:
+                        sample_video_frames: bool = True,
+                        research_sources: list | None = None) -> dict:
     """Record shot-level prompts, media provenance, duration and review requirements."""
     root = Path(build_dir)
     frame_dir = root / "visual_review_frames"
@@ -102,12 +144,13 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         })
     report = {
         "shot_count": len(shots), "shots": shots, "issues": issues,
+        "research_audit": _audit_source_refs(shot_timeline, research_sources),
         "automated_vision_verification": False,
         "shot_type_counts": {kind: sum(1 for shot in shots if shot.get("visual_type") == kind)
                              for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
         "historical_authenticity_verified": False,
         "publication_ready": False,
-        "notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, and approve AI-reconstruction disclosures.",
+        ""notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, fact-check source attribution, and approve AI-reconstruction disclosures.",
     }
     output = root / "visual_review_report.json"
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
