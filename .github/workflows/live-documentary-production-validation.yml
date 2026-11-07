@@ -48,6 +48,69 @@ jobs:
       - name: Compile production code
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py scripts
 
+      - name: Verify Gemini credential and model access (no secret output)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import requests
+
+          key = os.environ.get("GEMINI_API_KEY", "")
+          if not key:
+              raise SystemExit("Gemini preflight: GEMINI_API_KEY is empty in this workflow.")
+          if key != key.strip() or key.startswith(('"', "'")) or key.endswith(('"', "'")):
+              raise SystemExit(
+                  "Gemini preflight: secret contains surrounding whitespace or quote characters. "
+                  "Replace it with the raw key value in GitHub Actions secrets."
+              )
+
+          response = requests.get(
+              "https://generativelanguage.googleapis.com/v1beta/models",
+              headers={"x-goog-api-key": key},
+              params={"pageSize": 100},
+              timeout=30,
+          )
+          print(f"Gemini credential preflight HTTP status: {response.status_code}")
+          try:
+              data = response.json()
+          except ValueError:
+              raise SystemExit("Gemini preflight: Google returned a non-JSON response.")
+
+          if response.status_code != 200:
+              error = data.get("error", {}) if isinstance(data, dict) else {}
+              details = error.get("details", []) if isinstance(error, dict) else []
+              reasons = [
+                  item.get("reason") for item in details
+                  if isinstance(item, dict) and item.get("reason")
+              ]
+              print(json.dumps({
+                  "google_status": error.get("status"),
+                  "google_message": error.get("message"),
+                  "google_reasons": reasons,
+              }, ensure_ascii=False))
+              raise SystemExit(
+                  "Gemini preflight failed. Rendering was stopped before footage discovery; "
+                  "Google rejected the configured credential or its project access."
+              )
+
+          models = {
+              item.get("name", "").removeprefix("models/")
+              for item in data.get("models", [])
+              if isinstance(item, dict)
+          }
+          required = "gemini-3.8-flash"
+          if required not in models:
+              print("Gemini preflight: credential accepted, but configured model is not listed.")
+              print("Available Gemini 3 flash models: " + ", ".join(sorted(
+                  name for name in models if name.startswith("gemini-3") and "flash" in name
+              )))
+              raise SystemExit(f"Configured model {required} is not available to this API key.")
+          print(f"Gemini preflight passed: credential accepted and {required} is available.")
+          PY
+
       - name: Run live footage provider discovery
         env:
           PIXABAY_API_KEY: \${{ secrets.PIXABAY_API_KEY }}
