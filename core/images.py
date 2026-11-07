@@ -188,13 +188,11 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
             item = _pexels_candidate(hit, query)
             if item:
                 url, metadata = item
-                metadata["relevance_score"] = max(
-                    _relevance(query, metadata.get("title", "")),
-                    _relevance(scene_prompt, metadata.get("title", "")),
-                )
+                # Pexels search is already ranked by the exact query; its video
+                # response does not expose descriptive title/tags fields.
                 candidates.append((url, metadata, hit.get("id"), "Pexels"))
         for hit in _search_pixabay(query):
-            if hit.get("id") in used or (hit.get("duration") or 0) < 3:
+            if ("Pixabay:" + str(hit.get("id"))) in used or (hit.get("duration") or 0) < 3:
                 continue
             tags = hit.get("tags", "")
             match = max(_relevance(query, tags), _relevance(scene_prompt, tags))
@@ -224,7 +222,7 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
         int(item[1].get("width") or 0) * int(item[1].get("height") or 0)
     ), reverse=True)
     for url, metadata, asset_id, provider in candidates[:20]:
-        if asset_id in used or float(metadata.get("relevance_score") or 0) < 0.45:
+        if (provider + ":" + str(asset_id)) in used or float(metadata.get("relevance_score") or 0) < 0.45:
             continue
         metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
         try:
