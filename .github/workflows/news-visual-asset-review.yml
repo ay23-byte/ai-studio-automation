@@ -39,7 +39,7 @@ jobs:
             const candidates = comments
               .filter(c => c.user?.login === "github-actions[bot]" &&
                 (c.body || "").includes("Script draft generated"))
-              .map(c => ({ body: c.body || "", match: (c.body || "").match(/actions\\/runs\\/(\\d+)\\/artifacts\\/\\d+/) }))
+              .map(c => ({ body: c.body || "", match: (c.body || "").match(/actions\/runs\/(\d+)\/artifacts\/\d+/) }))
               .filter(x => x.match)
               .reverse();
             let selected = null;
@@ -128,7 +128,7 @@ jobs:
                 "This stage prepared visuals only. It did not render the final MP4, upload, or publish.",
                 "Inspect every image/clip for relevance, misleading context, watermarks, people/privacy, provenance, exact licence terms and attribution.",
                 "AI-generated images are illustrative; provider terms must be checked separately. No asset or script has been auto-approved for rendering."
-              ].join("\\n")
+              ].join("\n")
             });
 
       - name: Report asset preparation failure
