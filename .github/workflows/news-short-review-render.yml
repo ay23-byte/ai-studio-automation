@@ -121,8 +121,8 @@ jobs:
               shutil.copy2(source, target)
               shutil.copy2(sidecar, target.with_suffix(target.suffix + ".source.json"))
               scene["asset_path"] = str(target.resolve())
-          # These approvals are separate human actions already recorded in the review
-          # issue: script approval, visual approval, and the font/licence confirmation.
+          # The workflow_dispatch confirmation is the explicit authorization to render
+          # this review copy. It does not authorize upload or publication.
           candidate["editorial_status"] = "approved_for_production"
           (out / "production_candidate.json").write_text(
               json.dumps(candidate, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -194,7 +194,7 @@ jobs:
                 url,
                 "",
                 "This is a private review artifact only. No YouTube upload or publication was attempted.",
-                "Please inspect narration, pronunciation, captions, visual timing, audio and factual context before separately approving any publication."
+                "The workflow dispatch confirmation authorized only this review render. Please inspect narration, pronunciation, captions, visual timing, audio and factual context before any separate publication decision."
               ].join("\n")
             });
 
