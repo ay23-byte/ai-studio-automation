@@ -1,0 +1,123 @@
+name: Render prepared documentary package
+
+on:
+  push:
+    branches:
+      - production-trial/disappearing-villages
+    paths:
+      - "production/disappearing-villages/**"
+      - "scripts/render_editorial_package.py"
+      - ".github/workflows/render-editorial-package.yml"
+  workflow_dispatch:
+    inputs:
+      script_path:
+        description: "Repository path to the prepared documentary JSON"
+        required: true
+        default: "production/disappearing-villages/script.json"
+        type: string
+      voice_gender:
+        description: "Narration voice"
+        required: true
+        default: "female"
+        type: choice
+        options:
+          - female
+          - male
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepared-documentary-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Render prepared documentary (no YouTube upload)
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      FREE_ONLY_MODE: "1"
+      AI_VIDEO_ENABLED: "0"
+      TTS_ENGINE: "chatterbox"
+      CHATTERBOX_TORCH_THREADS: "2"
+      PRESENTER_ENABLED: "1"
+      PRESENTER_MODE: "still_cpu"
+      PRESENTER_IMAGE: "assets/presenter/presenter_female.png"
+      SADTALKER_DEVICE: "cpu"
+      LONGFORM_VISUAL_MODE: "video_first"
+      CHANNEL_NAME: "Engineering Physics"
+      PRIVACY: "private"
+      VISUAL_SEMANTIC_CHECK: "0"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate source and editorial package
+        run: |
+          python -m compileall -q core scripts
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from core.script_engine import validate_longform_storyboard
+          path = Path(os.environ["SCRIPT_PATH"])
+          data = json.loads(path.read_text(encoding="utf-8"))
+          validate_longform_storyboard(data)
+          assert data.get("sources") and data.get("research_sources")
+          assert data.get("claims")
+          print(f"Editorial package valid: {len(data['sections'])} sections, {len(data['claims'])} claims.")
+          PY
+        env:
+          SCRIPT_PATH: ${{ inputs.script_path || 'production/disappearing-villages/script.json' }}
+
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Render prepared documentary
+        env:
+          SCRIPT_PATH: ${{ inputs.script_path || 'production/disappearing-villages/script.json' }}
+          VOICE_GENDER: ${{ inputs.voice_gender || 'female' }}
+        run: |
+          python scripts/render_editorial_package.py --script "$SCRIPT_PATH" --voice-gender "$VOICE_GENDER" --language hinglish
+
+      - name: Verify generated MP4 and collect reports
+        if: always()
+        run: |
+          find output -type f -name '*.mp4' -print 2>/dev/null || true
+          find build/job_* -maxdepth 3 -type f \( -name '*report*.json' -o -name '*licenses*.csv' -o -name '*credits*.txt' -o -name '*decision*.json' -o -name '*metadata*.json' \) -print 2>/dev/null || true
+          find output build -type f -name '*.mp4' -print0 2>/dev/null | while IFS= read -r -d '' file; do
+            ffprobe -v error -show_entries format=duration -show_entries stream=codec_type,width,height -of json "$file"
+          done
+
+      - name: Upload documentary and production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: disappearing-villages-documentary
+          path: |
+            output/**/*.mp4
+            output/*.mp4
+            build/job_*/
+          if-no-files-found: warn
+          retention-days: 14

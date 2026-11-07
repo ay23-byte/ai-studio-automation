@@ -1,0 +1,798 @@
+{
+  "title": "The Mystery of India's Disappearing Villages",
+  "description": "Why are villages becoming uninhabited? An evidence-led Hinglish documentary investigating migration, livelihoods and essential services in Uttarakhand. Historical figures are labelled by their source year.",
+  "category": "india",
+  "format": "longform",
+  "language": "hinglish",
+  "tone": "investigative",
+  "runtime_minutes": 12,
+  "target_runtime_minutes": 12,
+  "voice_persona": "Female Hinglish documentary narrator; calm, confident, warm, investigative; clear Hindi diction; restrained emotion; slow down for key numbers and the central reveal.",
+  "research_file": "production/disappearing-villages/facts.json",
+  "outline_file": "production/disappearing-villages/outline.json",
+  "sources": [
+    {
+      "id": "S01",
+      "title": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "publisher": "Government of India, Lok Sabha",
+      "date": "03 March 2016",
+      "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "published_at": "03 March 2016",
+      "supports": [
+        "Census 2011 recorded 43,324 uninhabited villages in India.",
+        "Census 2011 recorded 1,048 uninhabited villages in Uttarakhand.",
+        "Government reply describes seasonal winter migration in snow-bound Uttarakhand border areas.",
+        "Border Area Development Programme scope includes infrastructure and services in remote border areas."
+      ]
+    },
+    {
+      "id": "S02",
+      "title": "Uttarakhand migration research report citing Migration Commission survey data",
+      "publisher": "Uttarakhand research report",
+      "date": "2021",
+      "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
+      "published_at": "2021",
+      "supports": [
+        "The research report discusses agricultural labour constraints and environmental/agricultural pressures."
+      ]
+    },
+    {
+      "id": "S03",
+      "title": "Annual Report, Periodic Labour Force Survey 2020-21",
+      "publisher": "Ministry of Statistics and Programme Implementation",
+      "date": "2020-2021",
+      "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf",
+      "published_at": "2020-2021",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
+    },
+    {
+      "id": "S04",
+      "title": "Press Information Bureau release reporting PLFS migration indicators",
+      "publisher": "Press Information Bureau, Government of India",
+      "date": "2022",
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48",
+      "published_at": "14 June 2022",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
+    },
+    {
+      "id": "S05",
+      "title": "Press Information Bureau release reporting migration streams and urbanisation projection",
+      "publisher": "Press Information Bureau, Government of India",
+      "date": "2024",
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
+      "published_at": "2024",
+      "supports": [
+        "PLFS migration streams included rural-to-rural, rural-to-urban, urban-to-rural and urban-to-urban movement.",
+        "An Economic Survey projection cited by PIB said more than 40% of India's population could live in urban areas by 2030."
+      ]
+    },
+    {
+      "id": "S06",
+      "source_id": "S06",
+      "title": "Executive Summary of Interim Report on Status of Migration",
+      "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
+      "published_at": "April 2018",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "supports": [
+        "734 depopulated revenue villages/toks/majra after 2011; district totals including Pauri Garhwal 186",
+        "State-wise migration reasons: livelihood/employment 50.16%, education 15.21%, health 8.83%, infrastructure 3.74%, agricultural productivity 5.44%, crop damage by wild animals 5.61%",
+        "Migration destinations: nearby towns 19.46%, district headquarters 15.18%, other state districts 35.69%, outside state 28.72%, outside country 0.96%"
+      ]
+    },
+    {
+      "id": "S07",
+      "source_id": "S07",
+      "title": "Border Infrastructure Development",
+      "publisher": "Ministry of Home Affairs, Government of India (Press Information Bureau)",
+      "published_at": "25 March 2026",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3",
+      "supports": [
+        "As of 25 March 2026, BADP was described as being in its sunset phase",
+        "VVP-I approved for 662 select villages in northern border blocks across four states and one UT",
+        "VVP-II approved for 1,954 select villages in blocks abutting other international land borders"
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "C01",
+      "claim": "Census 2011 recorded 43,324 uninhabited villages in India.",
+      "claim_type": "fact",
+      "source_ids": [
+        "S01"
+      ],
+      "evidence_note": "State-wise table in Lok Sabha annexure; historical Census reference.",
+      "evidence": "State-wise table in Lok Sabha annexure; historical Census reference."
+    },
+    {
+      "claim_id": "C02",
+      "claim": "Census 2011 recorded 1,048 uninhabited villages in Uttarakhand.",
+      "claim_type": "fact",
+      "source_ids": [
+        "S01"
+      ],
+      "evidence_note": "State-wise table in Lok Sabha annexure.",
+      "evidence": "State-wise table in Lok Sabha annexure."
+    },
+    {
+      "claim_id": "C03",
+      "claim": "The Commission's 2018 report lists 734 uninhabited revenue villages/toks/majra depopulated after 2011.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S06"
+      ],
+      "evidence_note": "Research report reproduces the Commission survey finding; original survey table must be inspected.",
+      "evidence": "District and block-wise table titled 'Number of uninhabited revenue villages/toks/majra ... (De-populated After 2011)', total 734."
+    },
+    {
+      "claim_id": "C04",
+      "claim": "Pauri Garhwal had a reported count of 186 depopulated villages.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S06"
+      ],
+      "evidence_note": "District-wise figures reproduced in the research report.",
+      "evidence": "District-wise table lists Pauri Garhwal as 186 and state total as 734."
+    },
+    {
+      "claim_id": "C05",
+      "claim": "Lack of livelihood and employment was the leading reported migration reason at 50.16%.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S06"
+      ],
+      "evidence_note": "Commission data reproduced in report; denominator and question wording require human source inspection.",
+      "evidence": "State-wise main reasons table lists livelihood/employment problems at 50.16%."
+    },
+    {
+      "claim_id": "C06",
+      "claim": "Approximately 70.33% of reported migration destinations were within Uttarakhand.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S06"
+      ],
+      "evidence_note": "Migration destination pattern reproduced in report; retain approximate qualifier.",
+      "evidence": "Destination table: 19.46% nearby towns + 15.18% district headquarters + 35.69% other districts = 70.33%; arithmetic derived from published shares."
+    },
+    {
+      "claim_id": "C07",
+      "claim": "The 2018 report lists education 15.21%, health 8.83% and infrastructure 3.74% among migration reasons.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S06"
+      ],
+      "evidence_note": "Infrastructure table reproduced in report; categories overlap.",
+      "evidence": "State-wise main reasons table; these are reported shares of reasons, not percentages of all villages."
+    },
+    {
+      "claim_id": "C08",
+      "claim": "The 2018 report lists agricultural productivity/yield decline at 5.44% and crop damage by wild animals at 5.61% among migration reasons.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S06"
+      ],
+      "evidence_note": "Infrastructure table reproduced in report; categories overlap.",
+      "evidence": "State-wise main reasons table; percentages are reported shares of migration reasons."
+    },
+    {
+      "claim_id": "C09",
+      "claim": "PLFS 2020-21 estimated India's overall migration rate at 28.9%.",
+      "claim_type": "fact",
+      "source_ids": [
+        "S03",
+        "S04"
+      ],
+      "evidence_note": "National survey estimate; not a count of abandoned villages.",
+      "evidence": "National survey estimate; not a count of abandoned villages."
+    },
+    {
+      "claim_id": "C10",
+      "claim": "PLFS migration streams included rural-to-rural, rural-to-urban, urban-to-rural and urban-to-urban movement.",
+      "claim_type": "fact",
+      "source_ids": [
+        "S05"
+      ],
+      "evidence_note": "Published stream distribution; not evidence that all rural migration is permanent.",
+      "evidence": "Published stream distribution; not evidence that all rural migration is permanent."
+    },
+    {
+      "claim_id": "C11",
+      "claim": "Government reply describes seasonal winter migration in snow-bound Uttarakhand border areas.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S01"
+      ],
+      "evidence_note": "Lok Sabha reply distinguishes seasonal movement and return in spring.",
+      "evidence": "Lok Sabha reply distinguishes seasonal movement and return in spring."
+    },
+    {
+      "claim_id": "C12",
+      "claim": "The research report discusses agricultural labour constraints and environmental/agricultural pressures.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S02"
+      ],
+      "evidence_note": "Qualitative discussion; avoid asserting a single causal mechanism.",
+      "evidence": "Qualitative discussion; avoid asserting a single causal mechanism."
+    },
+    {
+      "claim_id": "C13",
+      "claim": "Border Area Development Programme scope includes infrastructure and services in remote border areas.",
+      "claim_type": "reported",
+      "source_ids": [
+        "S01"
+      ],
+      "evidence_note": "Programme description in Lok Sabha reply; does not establish local programme outcomes.",
+      "evidence": "Programme description in Lok Sabha reply; does not establish local programme outcomes."
+    },
+    {
+      "claim_id": "C14",
+      "claim": "An Economic Survey projection cited by PIB said more than 40% of India's population could live in urban areas by 2030.",
+      "claim_type": "estimate",
+      "source_ids": [
+        "S05"
+      ],
+      "evidence_note": "Projection, not an observed future outcome; optional context only.",
+      "evidence": "Projection, not an observed future outcome; optional context only."
+    },
+    {
+      "claim_id": "C15",
+      "claim": "The Ministry of Home Affairs stated in March 2026 that BADP was in its sunset phase and described VVP-I and VVP-II approvals.",
+      "claim_type": "fact",
+      "source_ids": [
+        "S07"
+      ],
+      "evidence": "PIB release dated 25 March 2026: BADP is stated to be in its sunset phase; VVP-I and VVP-II approval counts and coverage are summarised in the release."
+    }
+  ],
+  "fact_check_notes": [
+    "All migration commission figures are secondary reproductions in the supplied 2021 report; inspect the original report and denominator before publication.",
+    "The 2011 census figures and 2018 survey findings are historical. Do not call them current 2026 counts.",
+    "PLFS migration rate is not a measure of permanently abandoned villages.",
+    "Do not add the infrastructure deficit counts together; categories overlap.",
+    "Do not state that climate change alone caused depopulation.",
+    "No fabricated interviews, quotes, named residents or purportedly real scenes.",
+    "Visual reconstructions of empty villages must be labelled illustrative/AI-generated where applicable."
+  ],
+  "sections": [
+    {
+      "title": "Cold Open — The Village That Went Silent",
+      "narration": "Imagine ek aisa gaon, jahan ghar abhi bhi khade hain. Darwaze abhi bhi lage hain. Raaste abhi bhi wahi hain. Lekin un darwazon ko kholne wala koi nahi. Kabhi yahan subah kheton ki taraf jaate log dikhte honge. Bachchon ki awaazein aati hongi. Shaam ko gharon se roshni nikalti hogi. Aaj, kuch settlements mein, yeh daily rhythm badal chuki hai. Lekin ek khaali ghar dekhkar hum yeh nahi keh sakte ki poora gaon hamesha ke liye chhod diya gaya hai. Humein evidence dekhna hoga. Census 2011 ke records mein India ke 43,324 villages uninhabited record kiye gaye the. Yeh aaj ka live count nahi hai. Lekin yeh ek bada sawaal zaroor khada karta hai. Log apne gaon chhod kyun rahe hain? Kya unhe apna ghar chhodna hai, ya wahan rukna increasingly difficult hota ja raha hai? Is investigation mein hum Uttarakhand ko ek case study ke roop mein dekhenge. Aur jaanenge ki migration, livelihood aur basic services ka connection kya hai.",
+      "visuals": [
+        {
+          "narration_anchor": "Imagine ek aisa gaon",
+          "visual_prompt": "Aerial establishing view of a remote Himalayan settlement at dawn, empty narrow lanes and clustered traditional houses; clearly illustrative, not a verified named village.",
+          "keywords": [
+            "Uttarakhand Himalayan village aerial",
+            "remote mountain village India"
+          ],
+          "visual_type": "location",
+          "location": "Uttarakhand Himalaya",
+          "camera_movement": "slow aerial push-in"
+        },
+        {
+          "narration_anchor": "Lekin un darwazon ko kholne wala koi nahi",
+          "visual_prompt": "Close detail of a weathered wooden house door and quiet courtyard, no people, no visible house number or identifiable private property.",
+          "keywords": [
+            "old wooden house door Himalayan village",
+            "empty village courtyard"
+          ],
+          "visual_type": "ai_reconstruction",
+          "location": "Himalayan village, illustrative"
+        },
+        {
+          "narration_anchor": "Census 2011 ke records mein India ke 43,324 villages",
+          "visual_prompt": "Evidence graphic using the exact sourced figure 43,324 and label Census 2011; source citation S01 on screen.",
+          "keywords": [
+            "Census 2011 uninhabited villages India"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S01"
+          ],
+          "chart_spec": {
+            "title": "Uninhabited villages recorded in Census 2011",
+            "value": 43324,
+            "unit": "villages",
+            "label": "India",
+            "source": "S01"
+          }
+        },
+        {
+          "narration_anchor": "Is investigation mein hum Uttarakhand ko ek case study",
+          "visual_prompt": "Accurate locator map of India highlighting Uttarakhand without implying a boundary dispute; source label and map date.",
+          "keywords": [
+            "Uttarakhand locator map India"
+          ],
+          "visual_type": "map",
+          "location": "India and Uttarakhand",
+          "source_refs": [
+            "S01"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Title Card — The Mystery of India's Disappearing Villages",
+      "narration": "The Mystery of India's Disappearing Villages. Ek investigation migration, livelihoods aur un gaonon ki, jahan rukna kabhi-kabhi mushkil ho jaata hai.",
+      "visuals": [
+        {
+          "narration_anchor": "The Mystery of India's Disappearing Villages",
+          "visual_prompt": "Premium restrained documentary title over a wide Himalayan valley at first light; title text added in editor, not generated in image.",
+          "keywords": [
+            "Himalayan valley sunrise aerial"
+          ],
+          "visual_type": "ai_reconstruction"
+        },
+        {
+          "narration_anchor": "migration, livelihoods",
+          "visual_prompt": "Slow map transition from India to Uttarakhand with a subtle route motif; geographically accurate.",
+          "keywords": [
+            "India Uttarakhand map animation"
+          ],
+          "visual_type": "map"
+        },
+        {
+          "narration_anchor": "jahan rukna kabhi-kabhi mushkil ho jaata hai",
+          "visual_prompt": "Quiet mountain footpath leading past terraced fields towards a small settlement, contemplative mood.",
+          "keywords": [
+            "Uttarakhand terraced fields village path"
+          ],
+          "visual_type": "location"
+        }
+      ]
+    },
+    {
+      "title": "Act 1 — A Country Built on Villages",
+      "narration": "India ki kahani sirf bade shehron ki kahani nahi hai. Is desh ki zindagi ka ek hissa un gaonon mein bhi basa hai jahan kheti, local markets, families aur traditions ek doosre se judi hoti hain. Jab kisi village ko uninhabited record kiya jaata hai, toh iska ek specific administrative meaning hota hai. Lekin migration ki kahani isse zyada complicated hai. Kuch log kaam ke liye jaate hain. Kuch bachchon ki education ke liye. Kuch medical treatment ke liye. Aur kuch log season ke hisaab se move karte hain. Government ke 2016 Lok Sabha reply mein snow-bound Uttarakhand border areas ke seasonal migration ka zikr hai. Wahan kuch residents winter ke dauraan neeche jaate hain aur spring ke aas-paas wapas lautte hain. Isliye winter mein kisi ghar ka band hona apne aap mein permanent abandonment ka proof nahi. Humein teen cheezein alag rakhni hongi: seasonal absence, temporary migration, aur aisa depopulation jahan settlement uninhabited report hota hai. Census 2011 ne Uttarakhand ke 1,048 uninhabited villages record kiye the. Yeh bhi historical figure hai. Lekin is number ko samajhne ke liye humein state ke baad ke survey ko dekhna hoga. Aur yahin se kahani pahadon ke andar jaati hai.",
+      "visuals": [
+        {
+          "narration_anchor": "India ki kahani sirf bade shehron ki kahani nahi hai",
+          "visual_prompt": "Contrastive aerial montage: Indian city skyline dissolving into a rural village landscape, no false claim of a specific place.",
+          "keywords": [
+            "India rural village aerial",
+            "Indian city skyline"
+          ],
+          "visual_type": "location"
+        },
+        {
+          "narration_anchor": "Kuch log kaam ke liye jaate hain",
+          "visual_prompt": "Documentary-style observational footage of people boarding a public bus at a small Indian town bus stand; avoid identifiable close-ups.",
+          "keywords": [
+            "India rural bus station passengers",
+            "Uttarakhand bus travel"
+          ],
+          "visual_type": "stock"
+        },
+        {
+          "narration_anchor": "snow-bound Uttarakhand border areas ke seasonal migration",
+          "visual_prompt": "Snow-covered Himalayan settlement and mountain road in winter, illustrative landscape only.",
+          "keywords": [
+            "Uttarakhand snowbound village winter"
+          ],
+          "visual_type": "location",
+          "location": "Uttarakhand high Himalaya"
+        },
+        {
+          "narration_anchor": "Uttarakhand ke 1,048 uninhabited villages",
+          "visual_prompt": "Evidence card: Uttarakhand 1,048 uninhabited villages, Census 2011; clearly label year and cite source S01.",
+          "keywords": [
+            "Uttarakhand Census 2011 uninhabited village count"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S01"
+          ],
+          "chart_spec": {
+            "title": "Uttarakhand uninhabited villages",
+            "value": 1048,
+            "unit": "villages",
+            "label": "Census 2011",
+            "source": "S01"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Act 2 — The Himalayan Disappearance",
+      "narration": "Uttarakhand ki mountains ko aksar postcard ki tarah dekha jaata hai. Lekin yahan rehne ki practical realities har jagah ek jaisi nahi hoti. Uttarakhand ke Rural Development and Migration Commission ki April 2018 report ek specific category record karti hai: 2011 ke baad 734 revenue villages, toks aur majra depopulated list kiye gaye. Yeh report ka historical finding hai, current count nahi. District-wise table mein Pauri Garhwal ka count 186 tha. Bageshwar 77, Pithoragarh 75, Uttarkashi 70 aur Champawat 64 bhi listed the. Map par yeh sirf dots lag sakte hain. Lekin har dot ke peeche ek settlement, ek local history aur kabhi ek family network hota hai. Phir bhi humein careful rehna hai. Survey ka term aur definition samajhna zaroori hai. Kya village permanently empty tha? Kya kuch households seasonally absent the? Kya baad mein koi wapas aaya? Yeh questions original survey ko dekhkar hi fully resolve honge. Jo evidence abhi humein milta hai, woh ek serious pattern suggest karta hai. Lekin pattern ko samajhne ke liye sirf map kaafi nahi. Humein poochna hoga ki logon ke saamne kaun se options the. Aur un options mein employment ka role kitna bada tha?",
+      "visuals": [
+        {
+          "narration_anchor": "Uttarakhand ke Rural Development and Migration Commission ki April 2018 report",
+          "visual_prompt": "Original Rural Development and Migration Commission 2018 report; show its actual title and verified table only after a human has opened the PDF. Do not fabricate document text.",
+          "keywords": [
+            "Uttarakhand Migration Commission 2018 report"
+          ],
+          "visual_type": "document",
+          "source_refs": [
+            "S06"
+          ]
+        },
+        {
+          "narration_anchor": "734 revenue villages, toks aur majra depopulated list kiye gaye.",
+          "visual_prompt": "Clean evidence graphic showing 734 revenue villages/toks/majra, labelled 'depopulated after 2011 — Commission 2018 report'; cite S06 and label as historical.",
+          "keywords": [
+            "Uttarakhand 734 depopulated villages graphic"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S06"
+          ],
+          "chart_spec": {
+            "title": "Villages reported uninhabited after Census 2011",
+            "value": 734,
+            "unit": "villages",
+            "label": "2018 survey finding",
+            "source": "S02"
+          }
+        },
+        {
+          "narration_anchor": "Pauri Garhwal ka count 186 tha.",
+          "visual_prompt": "Uttarakhand district map highlighting Pauri Garhwal with 186; cite the Commission's 2018 district-wise table S06.",
+          "keywords": [
+            "Pauri Garhwal district map Uttarakhand"
+          ],
+          "visual_type": "map",
+          "source_refs": [
+            "S06"
+          ],
+          "on_screen_text": "Pauri Garhwal: 186"
+        },
+        {
+          "narration_anchor": "har dot ke peeche ek settlement",
+          "visual_prompt": "Wide shot of terraced mountain settlement with a few homes and fields; illustrative B-roll, not claimed as one of the surveyed villages.",
+          "keywords": [
+            "Uttarakhand terraced village landscape"
+          ],
+          "visual_type": "location"
+        }
+      ]
+    },
+    {
+      "title": "Act 2 — The Economics of Leaving",
+      "narration": "Kisi ghar ko chhodna aasaan nahi hota. Lekin rukna bhi mushkil ho sakta hai. Agar local employment limited ho, toh young adults ko kaam ke liye doosri jagah jaana pad sakta hai. Agar higher education door ho, toh students aur families move karne ka decision le sakte hain. Agar medical care tak pahunch mushkil ho, toh daily life aur uncertain ho sakti hai. Commission ki apni 2018 report mein livelihood aur employment ki problem sabse bada listed migration reason hai. Table mein iska share 50.16 percent diya gaya hai. Yeh gram-panchayat-level survey ka reported reason share hai, individual migrant ke har case ka explanation nahi. Education aur health facilities ki kami bhi table mein alag reasons ke roop mein listed hain. Ek aur detail migration ko samajhne mein madad karti hai. Commission ke destination table mein 19.46 percent nearby towns, 15.18 percent district headquarters aur 35.69 percent state ke doosre districts listed hain. In teen shares ko jodne par 70.33 percent banta hai—yaani roughly 70 percent reported destinations state ke andar the. Yaani har migrant ne Uttarakhand ko permanently alvida nahi kaha. Kai log nearby towns, district headquarters ya doosre districts ki taraf gaye. Gaon unka home reh sakta hai, lekin rozgaar aur services ki wajah se unki daily life kahin aur shift ho jaati hai. Isliye migration ko sirf emotional attachment ke scale par judge karna unfair hoga. Kabhi-kabhi yeh family ke future ka practical decision hota hai. Lekin jab bahut se log ek hi direction mein move karte hain, toh gaon mein peeche reh jaane walon ki zindagi bhi badalti hai.",
+      "visuals": [
+        {
+          "narration_anchor": "local employment limited ho",
+          "visual_prompt": "Observational wide shot of a small mountain town market opening in the morning, no staged poverty imagery.",
+          "keywords": [
+            "Uttarakhand small town market morning"
+          ],
+          "visual_type": "stock"
+        },
+        {
+          "narration_anchor": "50.16 percent",
+          "visual_prompt": "Evidence graphic: 50.16% livelihood/employment problem as leading reported reason in the Commission's 2018 state-wise table; label the survey and cite S06.",
+          "keywords": [
+            "Uttarakhand migration livelihood employment statistic"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S06"
+          ],
+          "chart_spec": {
+            "title": "Leading reported migration reason",
+            "value": 50.16,
+            "unit": "percent",
+            "label": "Livelihood/employment",
+            "source": "S02"
+          }
+        },
+        {
+          "narration_anchor": "Commission ke destination table mein 19.46 percent nearby towns",
+          "visual_prompt": "Destination stacked bar showing 19.46% nearby towns, 15.18% district headquarters, 35.69% other districts, 28.72% outside state, 0.96% outside country; cite S06 and calculate within-state share 70.33%.",
+          "keywords": [
+            "Uttarakhand intra state migration diagram"
+          ],
+          "visual_type": "diagram",
+          "source_refs": [
+            "S06"
+          ],
+          "on_screen_text": "~70% within the state"
+        },
+        {
+          "narration_anchor": "nearby towns, district headquarters",
+          "visual_prompt": "A public bus moving from a mountain village road towards a modest Uttarakhand town; documentary B-roll.",
+          "keywords": [
+            "Uttarakhand bus mountain road town"
+          ],
+          "visual_type": "stock"
+        }
+      ]
+    },
+    {
+      "title": "Act 2 — When Essential Services Disappear",
+      "narration": "Ek gaon tab khaali nahi hota jab aakhri insaan chala jaata hai. Kabhi-kabhi woh tab khaali hone lagta hai jab roz ki zindagi mushkil hoti chali jaati hai. Ek road, ek health centre, peene ka paani aur reliable electricity—yeh sab daily life ka foundation hain. Commission ki 2018 report migration ke reasons ko alag-alag categories mein rakhti hai. Education facilities ki kami 15.21 percent listed hai. Health facilities ki kami 8.83 percent. Roads, electricity, water aur doosre infrastructure ki kami 3.74 percent. Agricultural land ki productivity ya yield mein kami 5.44 percent. Aur wild animals se crops ko nuksaan 5.61 percent. Yeh shares survey ke reported migration reasons hain; inhe villages ke percentage ya har household ke experience ke roop mein nahi padhna chahiye. Pahadi farming mein terrain, irrigation, rainfall aur crop protection jaise challenges ho sakte hain. Lekin inmein se kisi ek factor ko har village ke empty hone ka single cause kehna evidence se aage jaana hoga. Humein ek connected system dekhna hoga. Jab livelihoods limited hon aur services tak pahunch mushkil ho, migration attractive ho sakti hai. Aur jab population kam hoti hai, toh farming aur local community networks par bhi pressure badh sakta hai. Ab hum is cycle ke centre par pahunch rahe hain. Is table ko padhte waqt ek aur baat important hai. Yeh reported reasons ka distribution hai, har migrant ke liye ek fixed formula nahi. Ek household employment ke liye move kar sakta hai, jabki doosra health access ke liye. Kisi teesre case mein education aur family decisions saath kaam kar sakte hain. Aur ek hi district ke andar bhi road access, altitude, market distance aur local work options alag ho sakte hain. Isliye state average kisi ek village ki poori story nahi batata. Humein local evidence aur residents ke experiences ko saath dekhna hoga.",
+      "visuals": [
+        {
+          "narration_anchor": "Ek road, ek health centre, peene ka paani",
+          "visual_prompt": "Three carefully matched documentary cutaways: mountain road, exterior of a rural health facility, water tap; no misleading signage.",
+          "keywords": [
+            "Uttarakhand mountain road",
+            "rural health centre India",
+            "village drinking water tap"
+          ],
+          "visual_type": "stock"
+        },
+        {
+          "narration_anchor": "Education facilities ki kami 15.21 percent listed hai.",
+          "visual_prompt": "Evidence graphic with separate bars: education 15.21%, health 8.83%, infrastructure 3.74%; labels as reported migration reasons in Uttarakhand Commission 2018 table; cite S06.",
+          "keywords": [
+            "Uttarakhand village service gaps 2018 survey"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S06"
+          ],
+          "chart_spec": {
+            "title": "Reported service gaps among 734 villages",
+            "value": 660,
+            "unit": "villages",
+            "label": "No primary health centre; other categories overlap",
+            "source": "S02"
+          }
+        },
+        {
+          "narration_anchor": "Agricultural land ki productivity ya yield mein kami 5.44 percent.",
+          "visual_prompt": "Evidence graphic with agriculture productivity/yield 5.44% and crop damage by wild animals 5.61%; reported migration reasons, cite S06.",
+          "keywords": [
+            "Uttarakhand drinking water village statistics"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S06"
+          ],
+          "on_screen_text": "399: water gap | 358: not electrified"
+        },
+        {
+          "narration_anchor": "Pahadi farming mein terrain, irrigation, rainfall",
+          "visual_prompt": "Wide shot of terraced agriculture on a steep Himalayan slope, water channel and fields; avoid implying a specific surveyed village.",
+          "keywords": [
+            "Uttarakhand terraced agriculture irrigation"
+          ],
+          "visual_type": "location",
+          "source_refs": [
+            "S06"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Act 2 — The Big Reveal: It Is Not One Cause",
+      "narration": "Ab tak humne alag-alag reasons dekhe. Employment. Education. Healthcare. Roads. Water. Agriculture. Lekin in sabko ek saath rakhne par picture badal jaati hai. Village depopulation ko ek single villain se explain nahi kiya ja sakta. Yeh pressures ek doosre se connected ho sakte hain. Agar local jobs kam hain, young people move karte hain. Agar population kam hoti hai, toh farms aur local businesses ko chalana mushkil ho sakta hai. Agar services tak access difficult hai, toh families ke liye wapas settle hona aur complicated ho sakta hai. Yeh ek possible reinforcing cycle hai—har village mein same sequence prove nahi hua, lekin available report ke patterns is relationship ko investigate karne ki wajah dete hain. National migration data bhi ek caution deta hai. PLFS 2020-21 ne India ki overall migration rate 28.9 percent estimate ki. Lekin migration rate ka matlab abandoned villages ka percentage nahi hai. Migration ke reasons aur routes bahut diverse hain. Published stream data rural-to-rural movement bhi dikhata hai. Kuch migration seasonal hota hai. Kuch circular. Kuch permanent. Isliye ek winter mein band ghar ko ghost village keh dena misleading ho sakta hai. [PAUSE 0.8s] Yahi is investigation ka big reveal hai: gaon sirf isliye disappear nahi hote ki log apni roots bhool jaate hain. Kabhi-kabhi livelihoods, services, geography aur aspirations milkar aisi conditions banate hain jahan move karna practical choice ban jaata hai. Lekin ek fair question ab bhi baaki hai. Kya migration hamesha tragedy hoti hai?",
+      "visuals": [
+        {
+          "narration_anchor": "Employment. Education. Healthcare. Roads. Water. Agriculture.",
+          "visual_prompt": "Six-part editorial montage, each visual specific to one factor; restrained, not sensational.",
+          "keywords": [
+            "rural employment India",
+            "rural school Uttarakhand",
+            "healthcare mountain village",
+            "Himalayan road",
+            "village water",
+            "terraced farming"
+          ],
+          "visual_type": "stock",
+          "source_refs": [
+            "S06"
+          ]
+        },
+        {
+          "narration_anchor": "PLFS 2020-21 ne India ki overall migration rate 28.9 percent",
+          "visual_prompt": "Evidence card showing 28.9% overall migration rate, survey period 2020-21, source S03/S04; explicitly state it is not abandoned-village share.",
+          "keywords": [
+            "PLFS 2020-21 migration rate 28.9"
+          ],
+          "visual_type": "chart",
+          "source_refs": [
+            "S03",
+            "S04"
+          ],
+          "chart_spec": {
+            "title": "India overall migration rate",
+            "value": 28.9,
+            "unit": "percent",
+            "label": "PLFS 2020-21; not village abandonment",
+            "source": "S03"
+          }
+        },
+        {
+          "narration_anchor": "rural-to-rural movement bhi dikhata hai",
+          "visual_prompt": "Four-way migration flow graphic: rural-rural, rural-urban, urban-rural, urban-urban; use exact published percentages only after verifying table and source S05.",
+          "keywords": [
+            "India migration stream rural rural PLFS"
+          ],
+          "visual_type": "diagram",
+          "source_refs": [
+            "S05"
+          ]
+        },
+        {
+          "narration_anchor": "Yahi is investigation ka big reveal hai",
+          "visual_prompt": "Reveal graphic: interacting factors converge into a cycle, with each arrow labelled 'possible pressure' rather than proven universal causation.",
+          "keywords": [
+            "village depopulation reinforcing cycle infographic"
+          ],
+          "visual_type": "diagram"
+        }
+      ]
+    },
+    {
+      "title": "Act 3 — Can a Village Come Back?",
+      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? 2026 mein Ministry of Home Affairs ne kaha ki Border Area Development Programme sunset phase mein hai. Government ne Vibrant Villages Programme ke do phases bhi approve kiye hain—northern border ke 662 select villages ke liye VVP-I aur doosre international borders ke 1,954 select villages ke liye VVP-II. Lekin approval counts outcomes ka proof nahi hote. Kisi specific village mein kya badla, yeh ground-level evidence se hi pata chalega. Outcomes ko village-level evidence se check karna padega. Sirf road enough nahi agar local livelihood sustainable nahi. Sirf school enough nahi agar quality education tak access nahi. Solution logon ko force karke wapas bulaana nahi. Focus choice par hona chahiye: jo jaana chahe woh ja sake, jo rehna chahe uske paas viable future ho, aur jo wapas aana chahe uske liye basic conditions hon. Local planning bhi geography aur economy ke hisaab se honi chahiye. Ek hi scheme har jagah same result degi, yeh assume nahi kar sakte. Iska matlab policy ka goal sirf population numbers badhana nahi hona chahiye. Goal yeh hona chahiye ki healthcare, education, connectivity aur income ke options reliable hon. Aur success ko sirf naye construction se nahi, balki service quality aur local livelihoods se measure kiya jaaye. Yeh ek policy direction hai, kisi ek programme ke proven result ka claim nahi.",
+      "visuals": [
+        {
+          "narration_anchor": "city jaana better education ka chance ho sakta hai",
+          "visual_prompt": "Students entering a college campus in an Indian town, observational wide shot, no identifiable close-up.",
+          "keywords": [
+            "Indian college students campus"
+          ],
+          "visual_type": "stock"
+        },
+        {
+          "narration_anchor": "Migrants apne ghar par paise bhej sakte hain",
+          "visual_prompt": "Respectful generic family video call at home; no staged distress or identifiable private people.",
+          "keywords": [
+            "Indian family video call home"
+          ],
+          "visual_type": "stock"
+        },
+        {
+          "narration_anchor": "2026 mein Ministry of Home Affairs ne kaha",
+          "visual_prompt": "Show the official 25 March 2026 PIB Ministry of Home Affairs release only after opening and checking it. Highlight BADP sunset phase and VVP-I/VVP-II approvals; distinguish approval counts from outcomes. Cite S07.",
+          "keywords": [
+            "Ministry of Home Affairs Border Infrastructure Development 2026 PIB",
+            "Vibrant Villages Programme official"
+          ],
+          "visual_type": "document",
+          "source_refs": [
+            "S07"
+          ]
+        },
+        {
+          "narration_anchor": "Focus choice par hona chahiye:",
+          "visual_prompt": "Balanced visual: mountain village road leading towards a town, a person walking away in wide silhouette; symbolic and non-identifiable.",
+          "keywords": [
+            "Uttarakhand village road mountain town"
+          ],
+          "visual_type": "location"
+        }
+      ]
+    },
+    {
+      "title": "Closing — The Door That Remains",
+      "narration": "Wapas us darwaze par aate hain. Ek khaali ghar bhi kabhi kisi ka poora jahaan hua karta tha. Us aangan mein kabhi zindagi thi. Ho sakta hai kisi ke liye woh ghar aaj bhi home ho, chahe woh kahin aur kaam karta ho. Aur ho sakta hai kuch settlements permanently uninhabited ho chuki hon. Evidence ko in realities mein farq karna hoga. India ke disappearing villages sirf logon ke jaane ki story nahi. Yeh un choices ki story hai jo logon ke saamne hoti hain. Asli sawaal yeh hai: kya hum aisa future bana sakte hain jahan kisi ko apna ghar chhodna majboori na lage—and jahan kisi ka jaana bhi uski apni choice ho?",
+      "visuals": [
+        {
+          "narration_anchor": "Wapas us darwaze par aate hain",
+          "visual_prompt": "Return to the same illustrative weathered wooden door motif from cold open; match framing and light for callback.",
+          "keywords": [
+            "old wooden Himalayan house door"
+          ],
+          "visual_type": "ai_reconstruction"
+        },
+        {
+          "narration_anchor": "kisi ke liye woh ghar aaj bhi home ho",
+          "visual_prompt": "Quiet wide shot of a mountain home at dusk with a warm light in one window; symbolic, not presented as a documented household.",
+          "keywords": [
+            "Himalayan village house dusk warm light"
+          ],
+          "visual_type": "location"
+        },
+        {
+          "narration_anchor": "kya hum aisa future bana sakte hain",
+          "visual_prompt": "Slow pull-back from a mountain village path towards a broad valley at dawn, reflective ending.",
+          "keywords": [
+            "Uttarakhand valley dawn aerial"
+          ],
+          "visual_type": "location"
+        }
+      ]
+    }
+  ],
+  "word_count_estimate": 1810,
+  "estimated_minutes": "12.07",
+  "narration_rules": {
+    "target_words_per_minute": 150,
+    "pauses": "Add 0.8 second pause before the central reveal and chapter-defining lines during TTS editing.",
+    "no_fabricated_interviews": true,
+    "source_claim_ids": "See claims array; map each visual/evidence card to source ids.",
+    "visual_disclosure": "AI reconstructions are illustrative and must not be presented as archival footage."
+  },
+  "research_sources": [
+    {
+      "id": "S01",
+      "title": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "publisher": "Government of India, Lok Sabha",
+      "date": "03 March 2016",
+      "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "source_id": "S01",
+      "published_at": "03 March 2016",
+      "supports": [
+        "Census 2011 recorded 43,324 uninhabited villages in India.",
+        "Census 2011 recorded 1,048 uninhabited villages in Uttarakhand.",
+        "Government reply describes seasonal winter migration in snow-bound Uttarakhand border areas.",
+        "Border Area Development Programme scope includes infrastructure and services in remote border areas."
+      ]
+    },
+    {
+      "id": "S02",
+      "title": "Uttarakhand migration research report citing Migration Commission survey data",
+      "publisher": "Uttarakhand research report",
+      "date": "2021",
+      "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
+      "source_id": "S02",
+      "published_at": "2021",
+      "supports": [
+        "The research report discusses agricultural labour constraints and environmental/agricultural pressures."
+      ]
+    },
+    {
+      "id": "S03",
+      "title": "Annual Report, Periodic Labour Force Survey 2020-21",
+      "publisher": "Ministry of Statistics and Programme Implementation",
+      "date": "2020-2021",
+      "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf",
+      "source_id": "S03",
+      "published_at": "2020-2021",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
+    },
+    {
+      "id": "S04",
+      "title": "Press Information Bureau release reporting PLFS migration indicators",
+      "publisher": "Press Information Bureau, Government of India",
+      "date": "2022",
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48",
+      "source_id": "S04",
+      "published_at": "14 June 2022",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
+    },
+    {
+      "id": "S05",
+      "title": "Press Information Bureau release reporting migration streams and urbanisation projection",
+      "publisher": "Press Information Bureau, Government of India",
+      "date": "2024",
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
+      "source_id": "S05",
+      "published_at": "2024",
+      "supports": [
+        "PLFS migration streams included rural-to-rural, rural-to-urban, urban-to-rural and urban-to-urban movement.",
+        "An Economic Survey projection cited by PIB said more than 40% of India's population could live in urban areas by 2030."
+      ]
+    },
+    {
+      "id": "S06",
+      "source_id": "S06",
+      "title": "Executive Summary of Interim Report on Status of Migration",
+      "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
+      "published_at": "April 2018",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "supports": [
+        "734 depopulated revenue villages/toks/majra after 2011; district totals including Pauri Garhwal 186",
+        "State-wise migration reasons: livelihood/employment 50.16%, education 15.21%, health 8.83%, infrastructure 3.74%, agricultural productivity 5.44%, crop damage by wild animals 5.61%",
+        "Migration destinations: nearby towns 19.46%, district headquarters 15.18%, other state districts 35.69%, outside state 28.72%, outside country 0.96%"
+      ]
+    },
+    {
+      "id": "S07",
+      "source_id": "S07",
+      "title": "Border Infrastructure Development",
+      "publisher": "Ministry of Home Affairs, Government of India (Press Information Bureau)",
+      "published_at": "25 March 2026",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3",
+      "supports": [
+        "As of 25 March 2026, BADP was described as being in its sunset phase",
+        "VVP-I approved for 662 select villages in northern border blocks across four states and one UT",
+        "VVP-II approved for 1,954 select villages in blocks abutting other international land borders"
+      ]
+    }
+  ]
+}

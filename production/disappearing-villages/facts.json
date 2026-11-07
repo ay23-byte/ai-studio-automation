@@ -1,0 +1,284 @@
+{
+  "topic": "The Mystery of India's Disappearing Villages",
+  "angle": "Investigate village depopulation through the Uttarakhand case study while distinguishing permanent uninhabited status from seasonal and other migration.",
+  "audience": "Indian Hinglish-speaking general audience",
+  "research_status": "editorial research dossier; source pages still require human inspection before publication",
+  "one_line_thesis": "Village depopulation is not explained by one cause; the available Uttarakhand evidence points to interacting livelihood, service-access, agricultural and geographic pressures, while migration can also create opportunities.",
+  "timeline": [
+    {
+      "date": "2011",
+      "event": "Census of India records 43,324 uninhabited villages nationally and 1,048 in Uttarakhand.",
+      "source_url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf"
+    },
+    {
+      "date": "03 March 2016",
+      "event": "Lok Sabha reply publishes state-wise Census 2011 uninhabited-village counts and describes seasonal migration in snow-bound border areas.",
+      "source_url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf"
+    },
+    {
+      "date": "2018",
+      "event": "Uttarakhand Migration Commission survey reports 734 villages that became uninhabited after Census 2011.",
+      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf"
+    },
+    {
+      "date": "2020-2021",
+      "event": "PLFS annual report provides national migration estimates and patterns; these are not a count of permanently abandoned villages.",
+      "source_url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf"
+    },
+    {
+      "date": "2021",
+      "event": "Research report discusses Uttarakhand migration drivers, service gaps and agricultural pressures using Migration Commission data.",
+      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf"
+    }
+  ],
+  "key_people_orgs": [
+    {
+      "name": "Office of the Registrar General & Census Commissioner, India",
+      "role": "Census data source",
+      "public_info_only": true
+    },
+    {
+      "name": "Ministry of Rural Development, Government of India",
+      "role": "Ministry issuing the 2016 Lok Sabha reply",
+      "public_info_only": true
+    },
+    {
+      "name": "Uttarakhand Migration Commission",
+      "role": "State migration survey source",
+      "public_info_only": true
+    },
+    {
+      "name": "Ministry of Statistics and Programme Implementation",
+      "role": "PLFS migration statistics publisher",
+      "public_info_only": true
+    }
+  ],
+  "facts": [
+    {
+      "id": "F01",
+      "claim": "India recorded 43,324 uninhabited villages in Census 2011.",
+      "value": "43,324 villages",
+      "source_url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "source_name": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "date": "03 March 2016 (reply; Census reference year 2011)",
+      "confidence": "reported"
+    },
+    {
+      "id": "F02",
+      "claim": "Uttarakhand recorded 1,048 uninhabited villages in Census 2011.",
+      "value": "1,048 villages",
+      "source_url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "source_name": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "date": "03 March 2016 (reply; Census reference year 2011)",
+      "confidence": "reported"
+    },
+    {
+      "id": "F03",
+      "claim": "The Commission's 2018 report lists 734 uninhabited revenue villages/toks/majra depopulated after 2011.",
+      "value": "734 revenue villages/toks/majra",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
+      "confidence": "reported"
+    },
+    {
+      "id": "F04",
+      "claim": "Pauri Garhwal had the highest district count in the Commission's list of depopulated revenue villages/toks/majra.",
+      "value": "186",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
+      "confidence": "reported"
+    },
+    {
+      "id": "F05",
+      "claim": "Livelihood/employment problems were the leading listed migration reason in the Commission's 2018 state-wise table.",
+      "value": "50.16%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
+      "confidence": "reported"
+    },
+    {
+      "id": "F06",
+      "claim": "Approximately 70.33% of reported migration destinations were within Uttarakhand.",
+      "value": "19.46% nearby towns + 15.18% district headquarters + 35.69% other districts = 70.33%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
+      "confidence": "reported"
+    },
+    {
+      "id": "F07",
+      "claim": "The Commission's 2018 state-wise table lists education, health, infrastructure, agricultural productivity and crop damage by wild animals among migration reasons.",
+      "value": "Education 15.21%; health 8.83%; infrastructure 3.74%; agricultural productivity 5.44%; crop damage by wild animals 5.61%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
+      "confidence": "reported"
+    },
+    {
+      "id": "F08",
+      "claim": "The report describes reduced agricultural labour availability and additional burdens on remaining residents in affected hill communities.",
+      "value": "Qualitative finding",
+      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
+      "source_name": "Uttarakhand migration research report",
+      "date": "2021",
+      "confidence": "reported"
+    },
+    {
+      "id": "F09",
+      "claim": "PLFS 2020-21 estimated India's overall migration rate at 28.9%.",
+      "value": "28.9%",
+      "source_url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48",
+      "source_name": "Press Information Bureau release on PLFS migration indicators",
+      "date": "2022 release reporting July 2020-June 2021 survey",
+      "confidence": "reported"
+    },
+    {
+      "id": "F10",
+      "claim": "The PLFS migration statistics include diverse reasons and migration types; they should not be treated as a measure of permanently abandoned villages.",
+      "value": "Interpretive limitation",
+      "source_url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf",
+      "source_name": "Annual Report, Periodic Labour Force Survey 2020-21",
+      "date": "2020-2021",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "F11",
+      "claim": "The 2016 Lok Sabha reply describes seasonal migration from snow-bound Uttarakhand border areas during winter, with residents returning around spring.",
+      "value": "October-November departure; April return (as described in reply)",
+      "source_url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "source_name": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "date": "03 March 2016",
+      "confidence": "reported"
+    },
+    {
+      "id": "F12",
+      "claim": "PLFS migration-stream statistics show migration is not simply a one-way village-to-city process.",
+      "value": "Rural-rural 55%; rural-urban 18.9%; urban-rural 10.2%; urban-urban 15.9% (reported 2020-21 stream distribution)",
+      "source_url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
+      "source_name": "Press Information Bureau release reporting PLFS migration streams",
+      "date": "2024 release reporting 2020-21 data",
+      "confidence": "reported"
+    },
+    {
+      "id": "F13",
+      "claim": "The Commission's 2018 table lists agricultural productivity/yield decline and crop damage by wild animals among reported migration reasons.",
+      "value": "5.44%; 5.61%",
+      "source_url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf",
+      "source_name": "Rural Development and Migration Commission, Interim Report on Status of Migration",
+      "date": "2018",
+      "confidence": "reported"
+    },
+    {
+      "id": "F14",
+      "claim": "The 2016 Lok Sabha reply describes Border Area Development Programme support for infrastructure and services in remote border areas.",
+      "value": "Programme scope includes roads, water, education, health and skill development",
+      "source_url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "source_name": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
+      "date": "03 March 2016",
+      "confidence": "reported"
+    },
+    {
+      "id": "F15",
+      "claim": "An Economic Survey projection cited by PIB said more than 40% of India's population could live in urban areas by 2030.",
+      "value": "More than 40% (projection)",
+      "source_url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
+      "source_name": "Press Information Bureau release citing Economic Survey projection",
+      "date": "2024",
+      "confidence": "estimated"
+    },
+    {
+      "id": "F16",
+      "claim": "The Ministry of Home Affairs stated in March 2026 that the Border Area Development Programme was in its sunset phase; it also described Vibrant Villages Programme-I and II coverage and approvals.",
+      "value": "BADP: sunset phase; VVP-I: 662 select villages; VVP-II: 1,954 select villages",
+      "source_url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3",
+      "source_name": "PIB release: Border Infrastructure Development, Ministry of Home Affairs",
+      "date": "25 March 2026",
+      "confidence": "reported"
+    }
+  ],
+  "conflicts": [
+    {
+      "issue": "National uninhabited-village count versus migration estimates",
+      "version_a": "Census 2011 records 43,324 uninhabited villages.",
+      "version_b": "PLFS migration rates measure migration during a survey reference period and do not count permanently abandoned villages.",
+      "editorial_resolution": "Keep these indicators separate and label their dates and definitions."
+    },
+    {
+      "issue": "Seasonal absence versus permanent depopulation",
+      "version_a": "Some snow-bound border villages experience seasonal winter migration.",
+      "version_b": "The 2018 Migration Commission survey reports villages that became uninhabited after 2011.",
+      "editorial_resolution": "Do not call a seasonally empty settlement permanently abandoned."
+    }
+  ],
+  "counter_arguments": [
+    "Migration can improve access to employment, education, healthcare and income; it is not automatically a failure.",
+    "Some migration is seasonal or circular, and many migration streams are rural-to-rural rather than village-to-city.",
+    "Not every village must return to its historical population; policy should prioritise meaningful choices, essential services and sustainable livelihoods."
+  ],
+  "expert_perspectives": [
+    {
+      "who": "Uttarakhand Migration Commission",
+      "stance": "Its survey data, as reproduced in the research report, identifies livelihood and employment as the leading reported migration reason.",
+      "source_url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf"
+    },
+    {
+      "who": "Ministry of Statistics and Programme Implementation",
+      "stance": "PLFS provides a broader national picture of migration and helps prevent equating all migration with village abandonment.",
+      "source_url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf"
+    }
+  ],
+  "visual_leads": [
+    {
+      "description": "State-wise Census 2011 uninhabited-village table in the Lok Sabha annexure.",
+      "where_to_find": "Lok Sabha PDF annexure, table headed State wise number of uninhabited Villages-Census-2011",
+      "license": "Government document; verify reuse terms and reproduce only necessary excerpts with attribution.",
+      "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf"
+    },
+    {
+      "description": "Uttarakhand Migration Commission survey tables and research discussion.",
+      "where_to_find": "Uttarakhand migration research report PDF",
+      "license": "Report copyright/reuse terms not established; cite facts, do not reproduce report pages wholesale.",
+      "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf"
+    },
+    {
+      "description": "PLFS migration definitions and tables.",
+      "where_to_find": "MoSPI Annual Report PLFS 2020-21",
+      "license": "Government publication; verify reuse terms and attribute.",
+      "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf"
+    },
+    {
+      "description": "Original Rural Development and Migration Commission 2018 report with methods, reasons for migration, destination and district-wise depopulated revenue village/tok/majra tables.",
+      "where_to_find": "Official report PDF; methodology around pages 3-4; reasons around pages 29-31; destinations around page 33; depopulated revenue villages/toks/majra around pages 34-37.",
+      "license": "Government report; cite and verify reuse terms before reproducing page images.",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf"
+    }
+  ],
+  "open_questions": [
+    "Find current, comparable official data on village occupancy; do not extrapolate 2011 or 2018 figures to 2026.",
+    "Verify the exact question wording and denominator behind the 50.16% livelihood/employment figure.",
+    "Verify whether the reported infrastructure deficits are village counts, household-level indicators or survey classifications.",
+    "Find attributable interviews or published expert analysis; do not simulate interviews.",
+    "Check current government programme implementation and outcomes in the specific districts before claiming success or failure.",
+    "Inspect the original Commission report's field-survey method and exact wording for each reported migration reason; distinguish gram-panchayat-level responses from individual migrant motives.",
+    "Check the latest official status and implementation data for Vibrant Villages Programme in Uttarakhand before making any claim about local outcomes."
+  ],
+  "sources": [
+    {
+      "id": "S06",
+      "title": "Executive Summary of Interim Report on Status of Migration",
+      "publisher": "Rural Development and Migration Commission, Government of Uttarakhand",
+      "date": "April 2018",
+      "url": "https://www.uttarakhandpalayanayog.com/pdf/Palayan%20Ayog%20Report_English.pdf"
+    },
+    {
+      "id": "S07",
+      "title": "Border Infrastructure Development",
+      "publisher": "Ministry of Home Affairs, Government of India (Press Information Bureau)",
+      "date": "25 March 2026",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3"
+    }
+  ]
+}
