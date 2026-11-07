@@ -15,12 +15,12 @@ class WriterGateTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'unsupported causal, exposure, or distance wording'):
    _validate_scientific_wording(script)
  def test_requires_nepal_hand_ranges_in_spoken_narration(self):
-  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। नेपाल में 108,500 और 22,800 लोग हैं। 46% भवन क्षेत्रफल और 77% भवन क्षेत्रफल बढ़ा। यह संभावित जोखिम है, बाढ़ का पूर्वानुमान नहीं। अध्ययन यह स्थापित नहीं करता कि निर्माण ने बाढ़ कराई।','caption':'108,500: 0–50 m HAND; 22,800: 0–10 m HAND'}]}
+  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 293,800 लोग संभावित exposure में हैं। नेपाल में 108,500 और 22,800 लोग हैं। 46% भवन क्षेत्रफल और 77% भवन क्षेत्रफल बढ़ा। यह संभावित जोखिम है, बाढ़ का पूर्वानुमान नहीं। अध्ययन यह स्थापित नहीं करता कि निर्माण ने बाढ़ कराई।','caption':'108,500: 0–50 m HAND; 22,800: 0–10 m HAND'}]}
   with self.assertRaisesRegex(ValueError,'108,500 as the Nepal 0–50 m HAND estimate'):
    _validate_scientific_wording(script)
 
  def test_rejects_claim_that_construction_had_no_effect(self):
-  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 46% भवन क्षेत्रफल और 77% भवन क्षेत्रफल बढ़ा। यह संभावित जोखिम है, बाढ़ का पूर्वानुमान नहीं। अध्ययन के अनुसार निर्माण ने बाढ़ की संभावना नहीं बढ़ाई।','caption':'building footprint area'}]}
+  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 293,800 लोग संभावित exposure में हैं। 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 46% भवन क्षेत्रफल और 77% भवन क्षेत्रफल बढ़ा। यह संभावित जोखिम है, बाढ़ का पूर्वानुमान नहीं। अध्ययन के अनुसार निर्माण ने बाढ़ की संभावना नहीं बढ़ाई।','caption':'building footprint area'}]}
   with self.assertRaisesRegex(ValueError,'Caveat overstates the evidence'):
    _validate_scientific_wording(script)
 
