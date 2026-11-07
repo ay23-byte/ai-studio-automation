@@ -157,9 +157,25 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     final_path = outdir / "review_short.mp4"
     render(media, durations, cuts, voice_path, ass_path, total, final_path,
            music=None, sfx_vol=0.0)
+    shot_manifest = []
+    shot_cursor = 0.0
+    for index, (scene, duration) in enumerate(zip(scenes, durations), start=1):
+        shot_manifest.append({
+            "shot_id": f"shot_{index:02d}",
+            "start_seconds": round(shot_cursor, 3),
+            "duration_seconds": round(duration, 3),
+            "narration": str(scene.get("say", "")),
+            "visual_prompt": str(scene.get("image") or scene.get("visual_prompt") or ""),
+            "visual_type": str(scene.get("asset_type") or "unknown"),
+            "caption": str(scene.get("caption", "")),
+            "source_ids": scene.get("source_ids", []),
+        })
+        shot_cursor += duration + (0.25 if index < len(scenes) else 0.0)
+
     manifest = {
         "status": "rendered_for_human_review",
         "video_path": str(final_path),
+        "shots": shot_manifest,
         "duration_seconds": round(total + 0.6, 2),
         "resolution": "1080x1920",
         "fps": 30,
