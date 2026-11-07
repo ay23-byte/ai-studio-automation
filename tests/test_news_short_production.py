@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.news_short_production import validate_render_inputs, _ass_time
+from core.news_short_production import validate_render_inputs, _ass_time, _subtitle_text, _write_ass
 
 
 class NewsShortProductionTests(unittest.TestCase):
@@ -87,6 +87,24 @@ class NewsShortProductionTests(unittest.TestCase):
             }), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "font licence labels"):
                 validate_render_inputs(script, {"status": "approved"})
+
+    def test_subtitles_follow_hindi_narration_not_english_graphic_caption(self):
+        scene = {"say": "यह हिंदी में बोली गई पंक्ति है।", "caption": "English graphic heading"}
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "captions.ass"
+            _write_ass([scene], [4.0], output)
+            rendered = output.read_text(encoding="utf-8")
+        self.assertIn("यह हिंदी में बोली गई पंक्ति है।", rendered)
+        self.assertNotIn("English graphic heading", rendered)
+
+    def test_subtitle_style_uses_compact_lower_safe_band(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "captions.ass"
+            _write_ass([{"say": "हिंदी narration"}], [4.0], output)
+            rendered = output.read_text(encoding="utf-8")
+        self.assertIn("Noto Sans Devanagari,46", rendered)
+        self.assertIn(",90,90,300,1", rendered)
+        self.assertIn("BorderStyle", rendered)
 
     def test_ass_time_format(self):
         self.assertEqual(_ass_time(65.239), "0:01:05.24")
