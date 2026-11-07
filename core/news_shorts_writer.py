@@ -131,7 +131,7 @@ REVIEWED PACKET:
         else:
             candidate_scenes = candidate_script.get('scenes', [])
             candidate_words = sum(
-                len(re.findall(r'\\S+', scene.get('say', '')))
+                len(re.findall(r'\S+', scene.get('say', '')))
                 for scene in candidate_scenes)
             try:
                 if not 4 <= len(candidate_scenes) <= 6:
@@ -149,9 +149,12 @@ REVIEWED PACKET:
         if draft_attempt == 0:
             payload['contents'][0]['parts'][0]['text'] = (
                 prompt
-                + '\\n\\nCORRECTION REQUIRED: Your previous JSON draft failed validation: '
+                + '
+
+CORRECTION REQUIRED: Your previous JSON draft failed validation: '
                 + str(last_error)
-                + '\\nReturn a corrected complete JSON script. Every scene whose spoken '
+                + '
+Return a corrected complete JSON script. Every scene whose spoken '
                   'say field contains the term HAND must, in that same say field, explicitly '
                   'say that HAND means “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. '
                   'Do not rely on a caption or another scene for this definition. '
@@ -162,7 +165,8 @@ REVIEWED PACKET:
             'Generated script failed validation after one correction attempt: '
             + str(last_error)
         )
-    scenes = script.get('scenes', [])\n    known={s['source_id'] for s in sources}
+    scenes = script.get('scenes', [])
+    known={s['source_id'] for s in sources}
     for claim in script.get('claims',[]):
         if not set(claim.get('source_ids',[])).issubset(known): raise ValueError('Generated claim has unknown source IDs.')
     for scene in scenes:
