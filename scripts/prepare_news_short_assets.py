@@ -218,7 +218,7 @@ def prepare_candidate_script(script: dict, packet: dict, scene_assets: list[dict
     candidate["visual_review_status"] = "pending_human_visual_and_rights_review"
     candidate["scenes"] = [
         {**scene, **asset}
-        for scene, asset in zip(script["scenes"], scene_assets)
+        for scene, asset in zip(reviewed_script["scenes"], scene_assets)
     ]
     return candidate
 
