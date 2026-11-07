@@ -18,6 +18,24 @@ def _normalize_spoken_hand_definitions(script):
     return script
 
 
+def _normalize_spoken_building_footprint_labels(script):
+    """Make each spoken 46%/77% claim name building-footprint area before validation.
+
+    This only adds the metric's already-verified unit to the same spoken scene.
+    The strict scientific validator still checks the figures, context, caveats,
+    and scene-level wording after normalization.
+    """
+    area_terms = ('भवन क्षेत्रफल', 'भवन-फुटप्रिंट क्षेत्रफल',
+                  'building footprint area', 'building area')
+    for scene in script.get('scenes', []):
+        say = str(scene.get('say', ''))
+        lower_say = say.lower()
+        if any(figure in say for figure in ('46%', '77%')) and not any(
+                term in lower_say for term in area_terms):
+            scene['say'] = 'भवन-फुटप्रिंट क्षेत्रफल में ' + say
+    return script
+
+
 def _validate_scientific_wording(script):
     """Reject common overclaims and unit/metric confusions before artifact creation."""
     scenes = script.get('scenes', [])
@@ -241,6 +259,7 @@ REVIEWED PACKET:
         else:
             candidate_scenes = candidate_script.get('scenes', [])
             _normalize_spoken_hand_definitions(candidate_script)
+            _normalize_spoken_building_footprint_labels(candidate_script)
             candidate_scenes = candidate_script.get('scenes', [])
             candidate_words = sum(
                 len(re.findall(r'\S+', scene.get('say', '')))
