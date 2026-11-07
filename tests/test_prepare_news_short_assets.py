@@ -6,6 +6,8 @@ from scripts.prepare_news_short_assets import (
     prepare_candidate_script,
     validate_draft,
     find_one,
+    visual_plan,
+    create_story_graphic,
 )
 
 
