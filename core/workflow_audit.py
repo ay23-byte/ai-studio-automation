@@ -165,7 +165,8 @@ def audit_presenter_timing(chapters: list[dict] | None, tolerance_seconds: float
 def build_workflow_report(research: dict | None, scenes: list[dict] | None,
                           assets: list[dict] | None, chapters: list[dict] | None,
                           video_path: str | None = None, subtitle_path: str | None = None,
-                          visual_review_path: str | Path | None = None) -> dict:
+                          visual_review_path: str | Path | None = None,
+                          research_verification_path: str | Path | None = None) -> dict:
     """Create a combined JSON report; final export checks use core.quality when requested."""
     report = {
         "research": audit_research(research),
@@ -175,10 +176,23 @@ def build_workflow_report(research: dict | None, scenes: list[dict] | None,
         "presenter": audit_presenter_timing(chapters),
         "video": None,
         "visual_review": None,
+        "research_verification": None,
     }
     if video_path:
         from core.quality import inspect_video
         report["video"] = inspect_video(video_path, subtitle_path=subtitle_path)
+    if research_verification_path:
+        from core.research_verification import audit_research_reviews, load_research_reviews
+        try:
+            research_path = Path(research_verification_path)
+            research_manifest = json.loads(research_path.read_text(encoding="utf-8"))
+            research_store = load_research_reviews(research_path.parent, research_manifest)
+            report["research_verification"] = audit_research_reviews(research_manifest, research_store)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            report["research_verification"] = {
+                "publication_ready": False,
+                "issues": [{"level": "error", "message": f"Research verification could not be verified: {exc}"}],
+            }
     if visual_review_path:
         from core.editorial_review import ReviewStoreError, audit_visual_reviews, load_reviews
         try:
@@ -195,6 +209,10 @@ def build_workflow_report(research: dict | None, scenes: list[dict] | None,
     issues = []
     for stage in ("research", "storyboard", "footage", "presenter"):
         issues.extend(report[stage]["issues"])
+    if report["research_verification"]:
+        issues.extend({"level": item.get("level", "error"), "stage": "research_verification",
+                       "message": item.get("message", "Research review required")}
+                      for item in report["research_verification"].get("issues", []))
     if report["visual_review"]:
         issues.extend({"level": item.get("level", "error"), "stage": "visual_review",
                        "message": f"{item.get('shot_id', 'shot')}: {item.get('message', 'Review required')}"}
@@ -205,12 +223,18 @@ def build_workflow_report(research: dict | None, scenes: list[dict] | None,
         issues.extend({"level": "error", "stage": "video", "message": message}
                       for message in report["video"].get("issues", []))
     report["issues"] = issues
+    visual_blocked = bool(report["visual_review"] and not report["visual_review"].get("publication_ready"))
+    research_blocked = bool(report["research_verification"] and not report["research_verification"].get("publication_ready"))
     report["summary"] = {
         "error_count": sum(x["level"] == "error" for x in issues),
         "warning_count": sum(x["level"] == "warning" for x in issues),
         "human_review_required": True,
-        "publish_recommendation": "blocked_by_editorial_review" if report["visual_review"] and not report["visual_review"].get("publication_ready") else ("review_required" if issues else "technical_checks_passed_editor_review_required"),
-        "publication_blocked": bool(report["visual_review"] and not report["visual_review"].get("publication_ready")),
+        "publish_recommendation": (
+            "blocked_by_research_verification" if research_blocked else
+            ("blocked_by_editorial_review" if visual_blocked else
+             ("review_required" if issues else "technical_checks_passed_editor_review_required"))
+        ),
+        "publication_blocked": visual_blocked or research_blocked,
     }
     return report
 
