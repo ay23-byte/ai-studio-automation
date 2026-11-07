@@ -70,17 +70,15 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
                 fs.register_mixkit_asset(source, title="Clip",
                     source_url="https://mixkit.co/free-stock-video/clip-1/",
                     licence="Mixkit Restricted License")
-            with patch.object(fs.Path, "mkdir", return_value=None):
-                with patch("core.footage_sources.Path", wraps=Path):
-                    # Use a temporary working directory so the import cannot touch the repo.
-                    old = Path.cwd()
-                    os.chdir(tmp)
-                    try:
-                        target, sidecar = fs.register_mixkit_asset(
-                            source, title="Clip", source_url="https://mixkit.co/free-stock-video/clip-1/",
-                            licence="Mixkit Free License", creator="Creator")
-                    finally:
-                        os.chdir(old)
+            # Use a temporary working directory so the import cannot touch the repo.
+            old = Path.cwd()
+            os.chdir(tmp)
+            try:
+                target, sidecar = fs.register_mixkit_asset(
+                    source, title="Clip", source_url="https://mixkit.co/free-stock-video/clip-1/",
+                    licence="Mixkit Free License", creator="Creator")
+            finally:
+                os.chdir(old)
             metadata = json.loads(sidecar.read_text(encoding="utf-8"))
             self.assertEqual(metadata["licence"], "Mixkit Free License")
             self.assertEqual(metadata["page_url"], "https://mixkit.co/free-stock-video/clip-1/")
