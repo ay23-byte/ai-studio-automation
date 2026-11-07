@@ -12,15 +12,15 @@
       "id": "Q02",
       "area": "facts",
       "status": "review_required",
-      "detail": "Uttarakhand 2018 survey figures are reproduced in a 2021 report.",
-      "required_action": "Inspect original Migration Commission survey and confirm denominator, definitions and district table."
+      "detail": "The 734 total, Pauri Garhwal 186, and migration-reason/destination percentages are sourced to the original Rural Development and Migration Commission April 2018 report.",
+      "required_action": "Inspect the original report's methodology, tables, survey definitions and denominators."
     },
     {
       "id": "Q03",
       "area": "facts",
       "status": "review_required",
-      "detail": "50.16% livelihood/employment reason and approximately 70% intra-state migration are secondary-reported statistics.",
-      "required_action": "Verify question wording, denominator and table in original report."
+      "detail": "50.16% livelihood/employment and destination shares are sourced to the Commission's original 2018 report; the within-state 70.33% is calculated from three published destination categories.",
+      "required_action": "Verify the table headings and calculate 19.46 + 15.18 + 35.69 = 70.33 before publication."
     },
     {
       "id": "Q04",
@@ -33,8 +33,8 @@
       "id": "Q05",
       "area": "facts",
       "status": "editorial_guardrail",
-      "detail": "Service deficit categories overlap.",
-      "required_action": "Never add 660, 482, 399 and 358 together."
+      "detail": "Secondary service-gap counts have been removed from the narration; migration-reason percentages from the original Commission table are used instead.",
+      "required_action": "Keep the denominator and table category clear; do not describe reason shares as village percentages."
     },
     {
       "id": "Q06",
