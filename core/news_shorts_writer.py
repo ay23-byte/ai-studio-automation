@@ -128,8 +128,10 @@ def _build_correction_prompt(prompt, error):
             correction += (
                 f"\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
                 "the hard maximum is 140. Rewrite more concisely and target 105–120 "
-                "spoken words. Remove repetition and shorten transitions, not verified "
-                "figures, HAND definitions, Nepal ranges, percentage meanings, or caveats."
+                "spoken words. Keep each scene's say field to at most 22 whitespace-separated "
+                "words. Remove repetition and shorten transitions, not verified figures, "
+                "HAND definitions, Nepal ranges, percentage meanings, or caveats. Count all "
+                "say fields before returning JSON; the total MUST be 70–140."
             )
         elif count < 70:
             correction += (
