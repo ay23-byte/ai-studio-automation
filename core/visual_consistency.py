@@ -72,6 +72,8 @@ def audit_visual_consistency(visual_report: dict[str, Any],
             row_issues.append("Large portions of the frame are clipped to near-black or near-white.")
         if average["contrast"] < 8:
             row_issues.append("Visual has very low contrast; inspect readability and detail.")
+        if average["sharpness_proxy"] < 1.2:
+            row_issues.append("Visual appears unusually soft or blurred; inspect focus and source quality.")
         rows.append({
             "shot_id": shot_id, "status": "fail" if row_issues else "pass",
             "frame_count": len(metrics), "metrics": average, "issues": row_issues,
