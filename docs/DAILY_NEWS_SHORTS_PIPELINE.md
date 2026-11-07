@@ -112,3 +112,10 @@ python scripts/upload_approved_news_short.py metadata.json upload_approval.json
 The script calls the existing YouTube uploader with `privacy_status="private"` and an explicit `disable_scheduling` safety flag. This bypasses `PUBLISH_AT_IST` and guarantees that this upload request does not include `publishAt`; the command has no public/unlisted mode. The rendered MP4 is encoded with 48 kHz AAC to match the QA profile. YouTube credentials must be configured separately. Never put credentials in these JSON files or commit them.
 
 This is an opt-in manual step, not part of the scheduled discovery workflow. Do not upload until the reviewer has watched the complete MP4 on a phone, checked every factual claim against the cited sources, confirmed asset rights and credits, checked synthetic-media disclosure, and approved the metadata. YouTube API audit restrictions may still limit uploads to private. Public publishing is intentionally not automated.
+
+
+## Milestone: combined technical, visual and audio QA
+
+The Shorts QA command now combines codec/profile checks with FFmpeg black-frame and silence scans, integrated loudness/true-peak/clipping analysis, and three evenly spaced rendered-frame samples (15%, 50%, 85%). It uses the existing `core.audio_quality` and `core.visual_consistency` modules and writes separate `audio_quality_report.json` and `visual_quality_report.json` reports under `advanced_qa/` beside the technical report.
+
+A technical QA status is PASS only when the encoding profile, audio analysis and sampled-frame analysis all pass. Missing frame samples or failed audio/visual analysis block the gate; warnings produce REVIEW. Neither PASS nor REVIEW sets `publication_ready` to true. These checks do not perform semantic visual matching, fact-checking, historical-authenticity verification or rights clearance. The reviewer must still inspect all scenes, captions, source provenance, credits and the complete video on a phone and listen to the audio.
