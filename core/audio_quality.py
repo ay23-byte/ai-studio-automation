@@ -145,7 +145,7 @@ def mark_audio_reviewed(build_dir: str | Path, reviewer_notes: str = "") -> dict
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(report, handle, ensure_ascii=False, indent=2)
-            handle.write("\\n")
+            handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temp_name, path)
