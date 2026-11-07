@@ -10,6 +10,7 @@ on:
       - "scripts/verify_rendered_media.py"
       - "scripts/check_footage_sources_live.py"
       - "tests/test_documentary_source_adapters.py"
+      - "tests/test_media_timeline_integration.py"
       - ".github/workflows/footage-source-validation.yml"
   workflow_dispatch:
 
@@ -25,10 +26,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install test dependencies
-        run: python -m pip install --upgrade pip requests Pillow google-api-python-client
+      - name: Install FFmpeg and test dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip requests Pillow google-api-python-client
       - name: Run provider adapter unit tests
         run: python -m unittest tests.test_documentary_source_adapters -v
+      - name: Run real FFmpeg media timeline integration test
+        run: python -m unittest tests.test_media_timeline_integration -v
       - name: Run repository test suite
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax
