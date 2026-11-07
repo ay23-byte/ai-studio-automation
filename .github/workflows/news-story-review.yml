@@ -1,0 +1,113 @@
+name: News story approval — create review request
+
+on:
+  workflow_dispatch:
+    inputs:
+      story_id:
+        description: "Candidate ID from latest_candidates.json"
+        required: true
+        type: string
+      title:
+        description: "Exact candidate headline"
+        required: true
+        type: string
+      source_url:
+        description: "Original source URL"
+        required: true
+        type: string
+      publisher:
+        description: "Publisher name"
+        required: true
+        type: string
+      published:
+        description: "Original publication time in ISO-8601, e.g. 2026-10-28T23:11:59Z"
+        required: true
+        type: string
+
+permissions:
+  issues: write
+
+jobs:
+  create-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create editorial review issue
+        uses: actions/github-script@v7
+        env:
+          STORY_ID: \${{ inputs.story_id }}
+          STORY_TITLE: \${{ inputs.title }}
+          SOURCE_URL: \${{ inputs.source_url }}
+          PUBLISHER: \${{ inputs.publisher }}
+          PUBLISHED: \${{ inputs.published }}
+        with:
+          script: |
+            const id = process.env.STORY_ID.trim();
+            const title = process.env.STORY_TITLE.trim();
+            const url = process.env.SOURCE_URL.trim();
+            const publisher = process.env.PUBLISHER.trim();
+            const published = process.env.PUBLISHED.trim();
+            if (!/^[a-f0-9]{8,40}$/i.test(id)) core.setFailed("Invalid story_id.");
+            let parsed;
+            try { parsed = new URL(url); } catch { core.setFailed("source_url must be a valid URL."); }
+            if (!["http:", "https:"].includes(parsed.protocol)) core.setFailed("source_url must use HTTP or HTTPS.");
+            if (!title || !publisher || !published || Number.isNaN(Date.parse(published))) {
+              core.setFailed("Title, publisher and an ISO-8601 publication timestamp are required.");
+            }
+            const packet = {
+              review_status: "pending_human_verification",
+              story_type: "breaking",
+              story_id: id,
+              story_title: title,
+              sources: [{
+                source_id: "S1",
+                title: title,
+                url: url,
+                published: new Date(published).toISOString(),
+                origin: "",
+                wire: "",
+                text_snippet: ""
+              }],
+              verified_facts: []
+            };
+            const body = [
+              "## Editorial review request",
+              "",
+              "Status: Pending human source verification. This issue is not approval to produce a video.",
+              "",
+              "### Candidate",
+              "- Candidate ID: " + id,
+              "- Publisher: " + publisher,
+              "- Original source: " + url,
+              "- Published: " + new Date(published).toISOString(),
+              "",
+              "### Required human review",
+              "- [ ] Opened the original source and inspected the relevant passages/data.",
+              "- [ ] Checked the event date, publication date, geography, units and context.",
+              "- [ ] Added at least two independent eligible sources (including one tier-2 source), or one eligible tier-1 primary source.",
+              "- [ ] Added each verified fact in my own words with source IDs and a specific evidence note.",
+              "- [ ] Recorded uncertainty, limitations and material unknowns.",
+              "",
+              "The breaking-news gate uses a 48-hour freshness window. Old discovery links may remain as context, but stale sources cannot confirm a breaking-news fact.",
+              "",
+              "### Reviewed source packet",
+              "Edit the JSON below after opening the sources. Do not set review_status to approved until the checklist above is complete. Dates must be ISO-8601 with timezone. Every fact needs source_ids and an evidence_note.",
+              "",
+              "~~~json",
+              JSON.stringify(packet, null, 2),
+              "~~~",
+              "",
+              "### Request script drafting",
+              "After the source packet is complete and human-reviewed, set review_status to approved, save this issue, then add a new issue comment containing exactly:",
+              "",
+              "/approve-script",
+              "",
+              "That command can only create a script draft. It cannot approve production, render a video, upload to YouTube, or publish."
+            ].join("\n");
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "News story review: " + id + " — " + title,
+              body: body
+            });
+            core.notice("Created editorial review issue #" + issue.data.number + ": " + issue.data.html_url);
+            core.setOutput("issue_url", issue.data.html_url);
