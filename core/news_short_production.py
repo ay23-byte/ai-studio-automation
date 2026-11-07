@@ -151,6 +151,7 @@ def _render_media_timeline(scenes: list[dict], durations: list[float], output: P
         segments.append(segment)
         report.append({
             "shot": index, "asset_type": kind, "asset_path": str(source),
+            "source_sha256": __import__("hashlib").sha256(source.read_bytes()).hexdigest(),
             "duration_seconds": round(duration, 3),
             "renderer": "ffmpeg_media_asset",
         })
