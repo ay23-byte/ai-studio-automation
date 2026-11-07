@@ -654,6 +654,28 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             research_sources=script.get("sources") or script.get("research_sources", [])
         )
         consistency_report = audit_visual_consistency(visual_report, bd)
+        from core.asset_licensing import build_licence_register
+        licence_report = build_licence_register(shot_timeline, bd)
+        visual_report["licence_register"] = licence_report
+        (bd / "visual_review_report.json").write_text(
+            json.dumps(visual_report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(
+            f"Asset rights register: {licence_report['asset_count']} assets; "
+            f"{licence_report['eligible_pending_human_review']} eligible pending human review; "
+            f"{licence_report['blocked_count']} blocked."
+        )
+        for item in licence_report["blocked_assets"]:
+            print(f"ASSET RIGHTS BLOCKED: {item['shot_id']}: {item['reason']}")
+        # Append verified asset credits to the YouTube description metadata.
+        release_path = bd / "release_metadata.json"
+        if release_path.is_file():
+            release_data = json.loads(release_path.read_text(encoding="utf-8"))
+            description = str(release_data.get("description") or "").strip()
+            credits_text = Path(licence_report["credits_path"]).read_text(encoding="utf-8").strip()
+            release_data["description"] = (description + "\\n\\n" + credits_text).strip()
+            release_data["asset_licence_register"] = "licenses.csv"
+            release_path.write_text(json.dumps(release_data, ensure_ascii=False, indent=2), encoding="utf-8")
         quality_by_id = {row["shot_id"]: row for row in consistency_report.get("shots", [])}
         for shot in visual_report.get("shots", []):
             shot["visual_quality"] = quality_by_id.get(shot.get("shot_id"), {"status": "unavailable"})
