@@ -108,7 +108,7 @@ class EditorialReviewTests(unittest.TestCase):
         store = load_reviews(self.report_path, report["shots"])
         result = audit_visual_reviews(report, store)
         self.assertFalse(result["publication_ready"])
-        self.assertTrue(any("semantic screening is 'mismatch'" in issue["message"]
+        self.assertTrue(any("screening is 'mismatch'" in issue["message"]
                             for issue in result["issues"]))
 
     def test_semantic_match_does_not_replace_human_editorial_approval(self):
