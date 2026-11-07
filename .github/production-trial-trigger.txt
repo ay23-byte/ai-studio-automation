@@ -1,0 +1,14 @@
+One-time production trial trigger.
+Topic: The Mystery of India's Disappearing Villages
+Target: 12-minute Hinglish documentary
+Voice: female
+Presenter: still_cpu (not lip-synced)
+YouTube upload: disabled
+
+Retry after PR #29 merged: narration-anchored visual-beat repair.
+
+Branch synchronized with main storyboard repair commit d1eb6ff.
+
+Cinematic polish trial: slow B-roll drift, expanded visual beats, muted editorial graphics.
+
+Narration-locked EDL enabled for this trial.
