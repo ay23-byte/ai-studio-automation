@@ -1,9 +1,9 @@
 name: validate
 on:
   push:
-    branches: [main]
+    branches: [main, feature/visual-editorial-approval]
   pull_request:
-    branches: [main]
+    branches: [main, feature/universal-cinematic-visual-qc]
 permissions:
   contents: read
 jobs:
