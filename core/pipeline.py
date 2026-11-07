@@ -697,7 +697,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
-    lf_render(shot_timeline, voice_path, ass, total, out, music)
+    credits_file = bd / "credits.txt"
+    lf_render(shot_timeline, voice_path, ass, total, out, music, credits_path=credits_file if credits_file.is_file() else None)
     _quality_check(job_id, out, ass, bd, documentary=True)
     # Create topic-based thumbnail options automatically; no MP4 download is needed.
     try:
