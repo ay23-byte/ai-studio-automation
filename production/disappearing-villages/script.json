@@ -671,8 +671,8 @@
       ]
     }
   ],
-  "word_count_estimate": 9,
-  "estimated_minutes": "0.06",
+  "word_count_estimate": 1796,
+  "estimated_minutes": "11.97",
   "narration_rules": {
     "target_words_per_minute": 150,
     "pauses": "Add 0.8 second pause before the central reveal and chapter-defining lines during TTS editing.",
