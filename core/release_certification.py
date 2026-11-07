@@ -235,7 +235,16 @@ def assert_release_certified(build_dir: str | Path, video_path: str | Path) -> d
         raise ValueError("Release certificate status is BLOCKED; resolve every listed blocker and recertify.")
     if str(Path(video_path).resolve()) != certificate.get("video_path"):
         raise ValueError("The video path differs from the certified release artifact.")
-    for artifact_path, expected in (certificate.get("artifact_hashes") or {}).items():
+    recorded = certificate.get("artifact_hashes") or {}
+    required_paths = {
+        str((root / name).resolve()) for name in REQUIRED_REPORTS
+    } | {
+        str(review_store_path(root / "visual_review_report.json").resolve()),
+        str(Path(video_path).resolve()),
+    }
+    if not required_paths.issubset(set(recorded)):
+        raise ValueError("Release certificate is missing one or more required artifact hashes; recertify.")
+    for artifact_path, expected in recorded.items():
         path = Path(artifact_path)
         if not path.is_file() or _hash_file(path) != expected.get("sha256"):
             raise ValueError(f"Certified artifact changed or is missing: {path.name}. Re-run release certification.")
