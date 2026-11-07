@@ -16,35 +16,59 @@
       "title": "Lok Sabha Unstarred Question No. 1156, Ministry of Rural Development",
       "publisher": "Government of India, Lok Sabha",
       "date": "03 March 2016",
-      "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf"
+      "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
+      "published_at": "03 March 2016",
+      "supports": [
+        "Census 2011 recorded 43,324 uninhabited villages in India.",
+        "Census 2011 recorded 1,048 uninhabited villages in Uttarakhand.",
+        "Government reply describes seasonal winter migration in snow-bound Uttarakhand border areas.",
+        "Border Area Development Programme scope includes infrastructure and services in remote border areas."
+      ]
     },
     {
       "id": "S02",
       "title": "Uttarakhand migration research report citing Migration Commission survey data",
       "publisher": "Uttarakhand research report",
       "date": "2021",
-      "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf"
+      "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
+      "published_at": "2021",
+      "supports": [
+        "The research report discusses agricultural labour constraints and environmental/agricultural pressures."
+      ]
     },
     {
       "id": "S03",
       "title": "Annual Report, Periodic Labour Force Survey 2020-21",
       "publisher": "Ministry of Statistics and Programme Implementation",
       "date": "2020-2021",
-      "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf"
+      "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf",
+      "published_at": "2020-2021",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
     },
     {
       "id": "S04",
       "title": "Press Information Bureau release reporting PLFS migration indicators",
       "publisher": "Press Information Bureau, Government of India",
       "date": "2022",
-      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48"
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48",
+      "published_at": "14 June 2022",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
     },
     {
       "id": "S05",
       "title": "Press Information Bureau release reporting migration streams and urbanisation projection",
       "publisher": "Press Information Bureau, Government of India",
       "date": "2024",
-      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48"
+      "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
+      "published_at": "2024",
+      "supports": [
+        "PLFS migration streams included rural-to-rural, rural-to-urban, urban-to-rural and urban-to-urban movement.",
+        "An Economic Survey projection cited by PIB said more than 40% of India's population could live in urban areas by 2030."
+      ]
     },
     {
       "id": "S06",
@@ -68,7 +92,8 @@
       "source_ids": [
         "S01"
       ],
-      "evidence_note": "State-wise table in Lok Sabha annexure; historical Census reference."
+      "evidence_note": "State-wise table in Lok Sabha annexure; historical Census reference.",
+      "evidence": "State-wise table in Lok Sabha annexure; historical Census reference."
     },
     {
       "claim_id": "C02",
@@ -77,7 +102,8 @@
       "source_ids": [
         "S01"
       ],
-      "evidence_note": "State-wise table in Lok Sabha annexure."
+      "evidence_note": "State-wise table in Lok Sabha annexure.",
+      "evidence": "State-wise table in Lok Sabha annexure."
     },
     {
       "claim_id": "C03",
@@ -147,7 +173,8 @@
         "S03",
         "S04"
       ],
-      "evidence_note": "National survey estimate; not a count of abandoned villages."
+      "evidence_note": "National survey estimate; not a count of abandoned villages.",
+      "evidence": "National survey estimate; not a count of abandoned villages."
     },
     {
       "claim_id": "C10",
@@ -156,7 +183,8 @@
       "source_ids": [
         "S05"
       ],
-      "evidence_note": "Published stream distribution; not evidence that all rural migration is permanent."
+      "evidence_note": "Published stream distribution; not evidence that all rural migration is permanent.",
+      "evidence": "Published stream distribution; not evidence that all rural migration is permanent."
     },
     {
       "claim_id": "C11",
@@ -165,7 +193,8 @@
       "source_ids": [
         "S01"
       ],
-      "evidence_note": "Lok Sabha reply distinguishes seasonal movement and return in spring."
+      "evidence_note": "Lok Sabha reply distinguishes seasonal movement and return in spring.",
+      "evidence": "Lok Sabha reply distinguishes seasonal movement and return in spring."
     },
     {
       "claim_id": "C12",
@@ -174,7 +203,8 @@
       "source_ids": [
         "S02"
       ],
-      "evidence_note": "Qualitative discussion; avoid asserting a single causal mechanism."
+      "evidence_note": "Qualitative discussion; avoid asserting a single causal mechanism.",
+      "evidence": "Qualitative discussion; avoid asserting a single causal mechanism."
     },
     {
       "claim_id": "C13",
@@ -183,7 +213,8 @@
       "source_ids": [
         "S01"
       ],
-      "evidence_note": "Programme description in Lok Sabha reply; does not establish local programme outcomes."
+      "evidence_note": "Programme description in Lok Sabha reply; does not establish local programme outcomes.",
+      "evidence": "Programme description in Lok Sabha reply; does not establish local programme outcomes."
     },
     {
       "claim_id": "C14",
@@ -192,7 +223,8 @@
       "source_ids": [
         "S05"
       ],
-      "evidence_note": "Projection, not an observed future outcome; optional context only."
+      "evidence_note": "Projection, not an observed future outcome; optional context only.",
+      "evidence": "Projection, not an observed future outcome; optional context only."
     }
   ],
   "fact_check_notes": [
@@ -569,7 +601,7 @@
     },
     {
       "title": "Act 3 — Can a Village Come Back?",
-      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Aur kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin is argument ka doosra hissa bhi hai. Kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? Government ka Border Area Development Programme remote border areas mein roads, water, education, health aur skill development jaise infrastructure areas ko support karne ke liye describe kiya gaya hai. Programme ka hona apne aap mein yeh prove nahi karta ki har village ki problem solve ho gayi. Outcomes ko village-level evidence se check karna padega. Sirf road bana dena enough nahi agar local livelihood sustainable nahi. Sirf school hona enough nahi agar quality education tak access nahi. Aur sirf logon ko wapas bula lena enough nahi agar unke paas income aur services nahi. Isliye solution ka focus return migration ko force karna nahi hona chahiye. Focus hona chahiye choice par. Jo jaana chahe, woh ja sake. Jo rehna chahe, uske paas bhi ek viable future ho. Aur jo wapas aana chahe, uske liye bhi basic conditions hon. Is decision ko samajhne ke liye migration ko sirf loss ya success ke label mein fit nahi kar sakte. Ek household ke liye income badh sakti hai, lekin usi waqt elderly parents ke liye care ka arrangement mushkil ho sakta hai. Ek student ko better college mil sakta hai, lekin family ka local support network door ho sakta hai. Yeh outcomes har family ke liye same nahi hote. Isliye policy aur storytelling dono ko individual experiences aur local data ke beech farq rakhna chahiye.",
+      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Aur kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin is argument ka doosra hissa bhi hai. Kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? Government ka Border Area Development Programme remote border areas mein roads, water, education, health aur skill development jaise infrastructure areas ko support karne ke liye describe kiya gaya hai. Programme ka hona apne aap mein yeh prove nahi karta ki har village ki problem solve ho gayi. Outcomes ko village-level evidence se check karna padega. Sirf road bana dena enough nahi agar local livelihood sustainable nahi. Sirf school hona enough nahi agar quality education tak access nahi. Aur sirf logon ko wapas bula lena enough nahi agar unke paas income aur services nahi. Isliye solution ka focus return migration ko force karna nahi hona chahiye. Focus hona chahiye choice par. Jo jaana chahe, woh ja sake. Jo rehna chahe, uske paas bhi ek viable future ho. Aur jo wapas aana chahe, uske liye bhi basic conditions hon. Is decision ko samajhne ke liye migration ko sirf loss ya success ke label mein fit nahi kar sakte. Ek household ke liye income badh sakti hai, lekin usi waqt elderly parents ke liye care ka arrangement mushkil ho sakta hai. Ek student ko better college mil sakta hai, lekin family ka local support network door ho sakta hai. Yeh outcomes har family ke liye same nahi hote. Isliye policy aur storytelling dono ko individual experiences aur local data ke beech farq rakhna chahiye. Local planning ko bhi village ke context mein dekhna hoga. Har district ki geography, access aur economy alag hai. Ek hi scheme ya ek hi solution sab jagah kaam kare, yeh maan lena sahi nahi. Isliye local residents ki priorities, transparent data aur long-term maintenance ko decision ka hissa banana zaroori hai.",
       "visuals": [
         {
           "narration_anchor": "city jaana better education ka chance ho sakta hai",
@@ -639,8 +671,8 @@
       ]
     }
   ],
-  "word_count_estimate": 1837,
-  "estimated_minutes": "12.25",
+  "word_count_estimate": 9,
+  "estimated_minutes": "0.06",
   "narration_rules": {
     "target_words_per_minute": 150,
     "pauses": "Add 0.8 second pause before the central reveal and chapter-defining lines during TTS editing.",
@@ -655,7 +687,14 @@
       "publisher": "Government of India, Lok Sabha",
       "date": "03 March 2016",
       "url": "https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf",
-      "source_id": "S01"
+      "source_id": "S01",
+      "published_at": "03 March 2016",
+      "supports": [
+        "Census 2011 recorded 43,324 uninhabited villages in India.",
+        "Census 2011 recorded 1,048 uninhabited villages in Uttarakhand.",
+        "Government reply describes seasonal winter migration in snow-bound Uttarakhand border areas.",
+        "Border Area Development Programme scope includes infrastructure and services in remote border areas."
+      ]
     },
     {
       "id": "S02",
@@ -663,7 +702,11 @@
       "publisher": "Uttarakhand research report",
       "date": "2021",
       "url": "https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf",
-      "source_id": "S02"
+      "source_id": "S02",
+      "published_at": "2021",
+      "supports": [
+        "The research report discusses agricultural labour constraints and environmental/agricultural pressures."
+      ]
     },
     {
       "id": "S03",
@@ -671,7 +714,11 @@
       "publisher": "Ministry of Statistics and Programme Implementation",
       "date": "2020-2021",
       "url": "https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf",
-      "source_id": "S03"
+      "source_id": "S03",
+      "published_at": "2020-2021",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
     },
     {
       "id": "S04",
@@ -679,7 +726,11 @@
       "publisher": "Press Information Bureau, Government of India",
       "date": "2022",
       "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48",
-      "source_id": "S04"
+      "source_id": "S04",
+      "published_at": "14 June 2022",
+      "supports": [
+        "PLFS 2020-21 estimated India's overall migration rate at 28.9%."
+      ]
     },
     {
       "id": "S05",
@@ -687,7 +738,12 @@
       "publisher": "Press Information Bureau, Government of India",
       "date": "2024",
       "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48",
-      "source_id": "S05"
+      "source_id": "S05",
+      "published_at": "2024",
+      "supports": [
+        "PLFS migration streams included rural-to-rural, rural-to-urban, urban-to-rural and urban-to-urban movement.",
+        "An Economic Survey projection cited by PIB said more than 40% of India's population could live in urban areas by 2030."
+      ]
     },
     {
       "id": "S06",
