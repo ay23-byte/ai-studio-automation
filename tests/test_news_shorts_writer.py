@@ -17,4 +17,40 @@ class WriterGateTests(unittest.TestCase):
   ]}
   with self.assertRaisesRegex(ValueError,'same scene'):
    _validate_scientific_wording(script)
+
+from unittest.mock import patch, Mock
+from core.news_shorts_writer import _post_gemini_with_retries
+
+class GeminiRetryTests(unittest.TestCase):
+ def test_retries_503_then_succeeds(self):
+  first=Mock(status_code=503)
+  second=Mock(status_code=200)
+  second.raise_for_status.return_value=None
+  with patch('core.news_shorts_writer.requests.post', side_effect=[first,second]) as post, \
+       patch('core.news_shorts_writer.time.sleep') as sleep:
+   result=_post_gemini_with_retries('https://example.test','key',{})
+  self.assertIs(result,second)
+  self.assertEqual(post.call_count,2)
+  sleep.assert_called_once_with(2)
+
+ def test_uses_three_attempts_before_failing(self):
+  responses=[Mock(status_code=503) for _ in range(3)]
+  with patch('core.news_shorts_writer.requests.post', side_effect=responses) as post, \
+       patch('core.news_shorts_writer.time.sleep'):
+   with self.assertRaisesRegex(RuntimeError,'after 3 attempts'):
+    _post_gemini_with_retries('https://example.test','key',{})
+  self.assertEqual(post.call_count,3)
+
+ def test_does_not_retry_nontransient_http_error(self):
+  response=Mock(status_code=400)
+  from requests import HTTPError
+  response.raise_for_status.side_effect=HTTPError('bad request',response=response)
+  with patch('core.news_shorts_writer.requests.post',return_value=response) as post, \
+       patch('core.news_shorts_writer.time.sleep') as sleep:
+   with self.assertRaises(HTTPError):
+    _post_gemini_with_retries('https://example.test','key',{})
+  post.assert_called_once()
+  sleep.assert_not_called()
+
+
 if __name__=='__main__': unittest.main()
