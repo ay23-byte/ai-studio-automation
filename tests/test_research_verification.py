@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 from core.research_verification import (
-    assert_research_review_ready, audit_research_reviews,
-    build_research_verification_report, load_research_reviews,
+    append_source_citations_to_description, assert_research_review_ready,
+    audit_research_reviews, build_research_verification_report, load_research_reviews,
     save_claim_review, save_coverage_review, save_source_review,
     write_research_verification_report,
 )
@@ -38,6 +38,13 @@ class ResearchVerificationTests(unittest.TestCase):
         self.assertEqual(report["claims"][0]["traceability_status"],
                          "source_linked_pending_human_review")
         self.assertFalse(report["fact_check_complete"])
+
+    def test_generated_description_contains_source_citation_links(self):
+        script = dict(self.script, description="A documentary overview.")
+        append_source_citations_to_description(script)
+        self.assertIn("Sources & further reading", script["description"])
+        self.assertIn("https://example.org/report", script["description"])
+        self.assertIn("\\n\\nSources", script["description"])
 
     def test_claim_without_evidence_or_known_source_is_not_traceable(self):
         script = {
