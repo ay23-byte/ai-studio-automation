@@ -36,6 +36,7 @@ class ScientificScriptWordingTests(unittest.TestCase):
 
     def test_rejects_missing_nepal_22800_figure(self):
         script = self.valid_script()
+        script["scenes"][0]["say"] = script["scenes"][0]["say"].replace("22,800 लोग 0–10 m HAND में", "लोग 0–10 m HAND में")
         script["scenes"][0]["caption"] = "293,800; 108,500; building footprint area 46%; GLOF building area 77%"
         with self.assertRaisesRegex(ValueError, "22,800"):
             _validate_scientific_wording(script)
