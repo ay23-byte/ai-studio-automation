@@ -4,3 +4,5 @@ Target: 12-minute Hinglish documentary
 Voice: female
 Presenter: still_cpu (not lip-synced)
 YouTube upload: disabled
+
+Retry after PR #29 merged: narration-anchored visual-beat repair.
