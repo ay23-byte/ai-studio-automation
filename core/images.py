@@ -86,7 +86,7 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
         hits = _search_pixabay(q)
         fresh = [h for h in hits if h.get("id") not in used and (h.get("duration") or 0) >= 3]
         for h in fresh:
-            h["_relevance"] = _relevance(q + " " + scene_prompt, h.get("tags", ""), h.get("user", ""))
+            h["_relevance"] = _relevance(q, h.get("tags", ""), h.get("user", ""))
         # Reject weak matches instead of using unrelated high-resolution footage.
         candidates = [h for h in fresh if h["_relevance"] >= 0.18]
         candidates.sort(key=lambda h: (h["_relevance"],
