@@ -125,6 +125,7 @@ jobs:
           LONGFORM_VISUAL_MODE: ${{ inputs.visual_mode }}
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_PYTHON: ${{ runner.temp }}/sadtalker-venv/bin/python
+          SADTALKER_DEVICE: cpu
           PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "unlisted"
