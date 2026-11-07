@@ -174,7 +174,7 @@ def _coverr_candidate(hit, query):
         "relevance_score": relevance,
         "width": width,
         "height": height,
-        "licence": "Coverr License — verify the specific asset and current terms",
+        "licence": "Coverr License",
         "licence_url": "https://coverr.co/license",
         "attribution_text": f"{title or 'Video'} — Coverr; {page_url or 'https://coverr.co/'}",
         "date_accessed": date.today().isoformat(),

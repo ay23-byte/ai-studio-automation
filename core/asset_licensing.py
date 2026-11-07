@@ -33,6 +33,13 @@ def licence_is_usable(metadata: dict) -> tuple[bool, str]:
     label = _normal(metadata.get("licence") or metadata.get("license"))
     if label in PUBLIC_DOMAIN or label in CC_BY:
         return True, "verified_label_requires_human_file_page_check"
+    if label in {"ncaa written permission", "prasar bharati licensed footage"}:
+        scope = _normal(metadata.get("usage_scope"))
+        has_youtube = "youtube" in scope
+        has_commercial = any(term in scope for term in ("commercial", "monetized", "monetised"))
+        if metadata.get("licence_document_ref") and has_youtube and has_commercial:
+            return True, "written_permission_reference_and_commercial_youtube_scope_recorded"
+        return False, "indian_archive_permission_reference_or_commercial_youtube_scope_missing"
     if label in STOCK:
         return True, "stock_terms_apply_human_restrictions_check_required"
     return False, "unclear_or_unrecognized_licence"

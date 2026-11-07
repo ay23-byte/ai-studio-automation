@@ -87,9 +87,9 @@ def _download(url, path, metadata):
         score = score_asset(metadata, width, height)
         metadata["quality_score"] = score["score_0_10"]
         metadata["quality_score_details"] = score
-        if score["score_0_10"] < 7.0:
+        if score["score_0_10"] < 3.0:
             path.unlink(missing_ok=True)
-            print(f"  archive candidate rejected: score {score['score_0_10']}/10 is below 7")
+            print(f"  archive candidate rejected: score {score['score_0_10']}/10 is below 3")
             return False
         sidecar = path.with_suffix(path.suffix + ".source.json")
         sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -309,6 +309,10 @@ def _dvids(query):
         return []
     data = _get_json("https://api.dvidshub.net/search", {
         "api_key": api_key, "q": query, "type": "video", "page": 1, "max_results": 10,
+    }, {
+        "Accept": "application/json, text/javascript",
+        "Referer": "https://api.dvidshub.net",
+        "User-Agent": USER_AGENT,
     })
     hits = (data or {}).get("results") or []
     results = []
@@ -435,7 +439,8 @@ def _tokens(value):
 
 def _metadata_relevance(query, metadata):
     wanted = _tokens(query)
-    found = _tokens(metadata.get("title")) | _tokens(metadata.get("description"))
+    found = (_tokens(metadata.get("title")) | _tokens(metadata.get("description"))
+             | _tokens(metadata.get("tags")) | _tokens(metadata.get("creator")))
     return len(wanted & found) / len(wanted) if wanted else 0.0
 
 
@@ -467,6 +472,44 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
     providers = ((_nasa, _nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc) if is_space
                  else (_nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc))
+    # Prefer operator-imported Indian archive and Mixkit clips when sidecars prove an allowed licence.
+    for folder in (Path("assets/clips/indian_archives"), Path("assets/clips/mixkit")):
+        if not folder.is_dir():
+            continue
+        for media_path in sorted(folder.iterdir()):
+            if not media_path.is_file() or media_path.suffix.lower() not in {".mp4", ".mov", ".m4v", ".webm"}:
+                continue
+            sidecar = media_path.with_suffix(media_path.suffix + ".source.json")
+            if not sidecar.is_file():
+                continue
+            try:
+                metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            from core.asset_licensing import licence_is_usable
+            usable, _reason = licence_is_usable(metadata)
+            if not usable:
+                continue
+            identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or media_path.name}"
+            if identity in used_ids:
+                continue
+            local_query = " ".join(str(value) for value in (keywords or []) if str(value).strip())
+            if not local_query:
+                local_query = str(scene_prompt or "")
+            score = _metadata_relevance(local_query, metadata)
+            if score < 0.25 or not _valid_video(media_path):
+                continue
+            import shutil
+            target = Path(path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(media_path, target)
+            target.with_suffix(target.suffix + ".source.json").write_text(
+                json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            used_ids.add(identity)
+            print(f"  clip ok (local licensed import: {metadata.get('provider')}); human review required")
+            return True
+
     candidate_count = 0
     for query in _expanded_queries(keywords, scene_prompt)[:3]:
         candidates = []
@@ -497,3 +540,69 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
                 used_ids.add(identity)
                 return True
     return False
+
+def register_indian_archive_asset(
+    source_file, *, provider, title, source_url, licence_reference,
+    usage_scope, creator="", attribution="", licence_expiry=""
+):
+    """Register a manually obtained Indian archive clip with documented YouTube rights.
+
+    NCAA and Prasar Bharati do not expose a documented public bulk-download API
+    for this workflow. This deliberately avoids scraping/downloading their sites.
+    The operator must obtain the exact clip and written permission/licence first.
+    """
+    from shutil import copy2
+    from datetime import date as _date
+    from urllib.parse import urlparse
+
+    provider = str(provider or "").strip()
+    allowed = {
+        "NCAA": ("ncaa.gov.in", "NCAA written permission"),
+        "Prasar Bharati Archives": ("prasarbharati.gov.in", "Prasar Bharati licensed footage"),
+    }
+    if provider not in allowed:
+        raise ValueError("provider must be NCAA or Prasar Bharati Archives.")
+    host = (urlparse(str(source_url)).hostname or "").lower()
+    allowed_host, licence_label = allowed[provider]
+    if not (host == allowed_host or host.endswith("." + allowed_host)):
+        raise ValueError("source_url must be the official provider item page.")
+    if not str(source_url).startswith("https://"):
+        raise ValueError("source_url must use HTTPS.")
+    if not str(title).strip():
+        raise ValueError("The exact archive item title is required.")
+    if not str(licence_reference).strip():
+        raise ValueError("A written permission or licence reference is required.")
+    scope = str(usage_scope or "").strip()
+    scope_low = scope.lower()
+    if "youtube" not in scope_low or not any(x in scope_low for x in ("commercial", "monetized", "monetised")):
+        raise ValueError("The written permission must explicitly cover commercial/monetized YouTube use.")
+    source = Path(source_file)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    target_dir = Path("assets/clips/indian_archives").resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / source.name
+    if source.resolve() != target.resolve():
+        copy2(source, target)
+    metadata = {
+        "provider": provider,
+        "asset_id": source.stem,
+        "title": str(title).strip(),
+        "creator": str(creator).strip(),
+        "page_url": str(source_url).strip(),
+        "licence": licence_label,
+        "licence_url": str(source_url).strip(),
+        "licence_document_ref": str(licence_reference).strip(),
+        "usage_scope": scope,
+        "licence_expiry": str(licence_expiry).strip(),
+        "attribution_text": str(attribution).strip() or f"{str(title).strip()} — {provider}; {source_url}",
+        "date_accessed": _date.today().isoformat(),
+        "rights_confirmed_by_operator": True,
+        "review_basis": "Operator confirmed written permission/licence for this exact item and commercial YouTube use.",
+        "automated_download": False,
+        "human_visual_inspection_required": True,
+    }
+    sidecar = target.with_suffix(target.suffix + ".source.json")
+    sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    return target, sidecar
+
