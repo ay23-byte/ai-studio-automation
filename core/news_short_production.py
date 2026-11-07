@@ -66,7 +66,8 @@ def validate_render_inputs(script: dict[str, Any], approval: dict[str, Any] | No
         else:
             if not metadata.get("licence") and not metadata.get("license"):
                 raise ValueError(f"Scene {index} real asset needs an explicit licence label.")
-            if not metadata.get("licence_url") and not metadata.get("license_url"):
+            has_licence_url = metadata.get("licence_url") or metadata.get("license_url")
+            if not has_licence_url and not (project_graphic and metadata.get("font_licence_url")):
                 raise ValueError(f"Scene {index} real asset needs a licence URL.")
     return scenes
 
