@@ -123,7 +123,8 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         if not source:
             issues.append({"level": "warning", "shot": shot_id, "message": "No source metadata sidecar; provenance and match cannot be assessed automatically."})
         shots.append({
-            "shot_id": shot_id, "start_seconds": shot.get("_start"),
+            "shot_id": shot_id, "chapter_id": str(shot.get("chapter_id") or shot.get("chapter") or shot.get("_chapter_index") or "unassigned"),
+            "start_seconds": shot.get("_start"),
             "duration_seconds": shot.get("_dur"), "media_type": media_type,
             "visual_type": shot.get("visual_type", "unknown"),
             "subject": shot.get("subject", ""), "location": shot.get("location", ""),
@@ -150,8 +151,11 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
                              for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
         "historical_authenticity_verified": False,
         "publication_ready": False,
-        ""notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, fact-check source attribution, and approve AI-reconstruction disclosures.",
+        "notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, fact-check source attribution, and approve AI-reconstruction disclosures.",
     }
     output = root / "visual_review_report.json"
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Every new manifest starts with explicit pending decisions; nothing is pre-approved.
+    from core.editorial_review import load_reviews
+    load_reviews(output, shots)
     return report

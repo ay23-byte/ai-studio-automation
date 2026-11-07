@@ -74,6 +74,10 @@ def upload_latest(video_format=None):
                 desc += "\n\n#Shorts" if row.get("format") == "shorts" else ""
                 print(f"Uploading: {title}")
                 try:
+                    if row.get("format") == "longform":
+                        from core.config import BUILD_DIR
+                        from core.editorial_review import assert_visual_review_ready
+                        assert_visual_review_ready(BUILD_DIR / f"job_{row['id']}")
                     vid = upload(vpath, title, desc, seo["tags"],
                                  contains_synthetic=True)
                     update_video(row["id"], youtube_id=vid, status="uploaded")

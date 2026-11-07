@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--input", required=True, help="JSON file containing research/scenes/assets/chapters.")
     parser.add_argument("--video", help="Optional rendered MP4 to inspect with FFmpeg/FFprobe.")
     parser.add_argument("--subtitles", help="Optional subtitle file to inspect with the rendered MP4.")
+    parser.add_argument("--visual-review", help="Optional visual_review_report.json; enables the mandatory editorial publication gate.")
     parser.add_argument("--output", default="output/workflow_audit.json", help="Report JSON destination.")
     args = parser.parse_args()
 
@@ -34,11 +35,12 @@ def main():
         chapters=data.get("chapters"),
         video_path=args.video,
         subtitle_path=args.subtitles,
+        visual_review_path=args.visual_review,
     )
     path = save_workflow_report(report, args.output)
     print(json.dumps(report["summary"], indent=2))
     print(f"Audit report saved: {path}")
-    return 1 if report["summary"]["error_count"] else 0
+    return 1 if report["summary"]["error_count"] or report["summary"].get("publication_blocked") else 0
 
 
 if __name__ == "__main__":

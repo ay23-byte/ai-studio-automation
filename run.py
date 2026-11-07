@@ -111,6 +111,10 @@ def cmd_upload(args):
     conn.close()
     if not row: print(f"Job #{args.id} not found"); return
     row = dict(row)
+    if row.get("format") == "longform":
+        from core.config import BUILD_DIR
+        from core.editorial_review import assert_visual_review_ready
+        assert_visual_review_ready(BUILD_DIR / f"job_{args.id}")
     script = json.loads(row.get("script_json") or "{}")
     seo = generate_seo(script)
     title = row.get("title","") + " #Shorts" if row.get("format")=="shorts" else row.get("title","")
