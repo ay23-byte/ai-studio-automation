@@ -449,7 +449,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             else:
                 if generate_image(prompt, img_p, category=script.get("category", "general")):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
-                elif fetch_clip(kws, clip_p, used_ids):
+                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                 else:
                     raise RuntimeError(
