@@ -164,7 +164,8 @@ def audit_presenter_timing(chapters: list[dict] | None, tolerance_seconds: float
 
 def build_workflow_report(research: dict | None, scenes: list[dict] | None,
                           assets: list[dict] | None, chapters: list[dict] | None,
-                          video_path: str | None = None, subtitle_path: str | None = None) -> dict:
+                          video_path: str | None = None, subtitle_path: str | None = None,
+                          visual_review_path: str | Path | None = None) -> dict:
     """Create a combined JSON report; final export checks use core.quality when requested."""
     report = {
         "research": audit_research(research),
@@ -173,13 +174,31 @@ def build_workflow_report(research: dict | None, scenes: list[dict] | None,
                                                 for i, s in enumerate(scenes or [])]),
         "presenter": audit_presenter_timing(chapters),
         "video": None,
+        "visual_review": None,
     }
     if video_path:
         from core.quality import inspect_video
         report["video"] = inspect_video(video_path, subtitle_path=subtitle_path)
+    if visual_review_path:
+        from core.editorial_review import ReviewStoreError, audit_visual_reviews, load_reviews
+        try:
+            visual_path = Path(visual_review_path)
+            visual_manifest = json.loads(visual_path.read_text(encoding="utf-8"))
+            review_store = load_reviews(visual_path, visual_manifest.get("shots") or [])
+            report["visual_review"] = audit_visual_reviews(visual_manifest, review_store)
+        except (OSError, ValueError, json.JSONDecodeError, ReviewStoreError) as exc:
+            report["visual_review"] = {
+                "publication_ready": False,
+                "issues": [{"level": "error", "shot_id": "manifest",
+                            "message": f"Visual editorial review could not be verified: {exc}"}],
+            }
     issues = []
     for stage in ("research", "storyboard", "footage", "presenter"):
         issues.extend(report[stage]["issues"])
+    if report["visual_review"]:
+        issues.extend({"level": item.get("level", "error"), "stage": "visual_review",
+                       "message": f"{item.get('shot_id', 'shot')}: {item.get('message', 'Review required')}"}
+                      for item in report["visual_review"].get("issues", []))
     if report["video"]:
         issues.extend({"level": "warning", "stage": "video", "message": message}
                       for message in report["video"].get("warnings", []))
@@ -190,7 +209,8 @@ def build_workflow_report(research: dict | None, scenes: list[dict] | None,
         "error_count": sum(x["level"] == "error" for x in issues),
         "warning_count": sum(x["level"] == "warning" for x in issues),
         "human_review_required": True,
-        "publish_recommendation": "review_required" if issues else "technical_checks_passed_editor_review_required",
+        "publish_recommendation": "blocked_by_editorial_review" if report["visual_review"] and not report["visual_review"].get("publication_ready") else ("review_required" if issues else "technical_checks_passed_editor_review_required"),
+        "publication_blocked": bool(report["visual_review"] and not report["visual_review"].get("publication_ready")),
     }
     return report
 
