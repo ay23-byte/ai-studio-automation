@@ -89,7 +89,68 @@ def _seg(src, idx, dur, is_image, bd):
               "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out
 
-def render(sections, voice, ass, total, out, music=None, music_vol=0.18):
+
+def _append_credits_card(video_path, credits_path):
+    """Append a restrained source-credit slate to the rendered documentary."""
+    import textwrap
+
+    credits_file = Path(credits_path)
+    if not credits_file.is_file():
+        return video_path
+    raw_lines = [
+        line.strip() for line in credits_file.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("DOCUMENTARY SOURCE CREDITS")
+        and not line.strip().startswith("Human rights and context review")
+    ]
+    if not raw_lines:
+        return video_path
+    display_lines = []
+    for line in raw_lines:
+        display_lines.extend(textwrap.wrap(line, width=100) or [""])
+    duration = max(10.0, 6.0 + len(display_lines) * 0.48)
+
+    def ass_time(seconds):
+        centiseconds = int(round(seconds * 100))
+        return f"{centiseconds // 360000}:{(centiseconds // 6000) % 60:02d}:{(centiseconds % 6000) / 100:05.2f}"
+
+    body = r"\N".join(line.replace("{", "(").replace("}", ")") for line in display_lines)
+    ass_path = Path(video_path).parent / "source_credits.ass"
+    ass_content = "\n".join([
+        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1920",
+        "PlayResY: 1080", "WrapStyle: 2", "", "[V4+ Styles]",
+        "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding",
+        "Style: Heading,Noto Sans,48,&H00D6C39A,&H000000FF,&H0010151D,&H0010151D,1,0,0,0,100,100,0,0,1,0,0,8,110,110,70,1",
+        "Style: Credit,Noto Sans,25,&H00F2F2F2,&H000000FF,&H0010151D,&H0010151D,0,0,0,0,100,100,0,0,1,0,0,7,120,120,170,1",
+        "", "[Events]",
+        "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text",
+        f"Dialogue: 0,0:00:00.00,{ass_time(duration)},Heading,,0,0,0,,SOURCE CREDITS",
+        f"Dialogue: 0,0:00:00.00,{ass_time(duration)},Credit,,0,0,0,,{body}",
+        "",
+    ])
+    ass_path.write_text(ass_content, encoding="utf-8")
+    temp_out = Path(video_path).with_name(Path(video_path).stem + "_with_credits.mp4")
+    args = [
+        "ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path),
+        "-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}",
+        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}",
+        "-filter_complex",
+        f"[1:v]subtitles='{ass_path.as_posix()}',format=yuv420p,setpts=PTS-STARTPTS[cv];"
+        "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=44100,asetpts=PTS-STARTPTS[a0];"
+        "[2:a]asetpts=PTS-STARTPTS[ca];[v0][a0][cv][ca]concat=n=2:v=1:a=1[v][a]",
+        "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium",
+        "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac",
+        "-b:a", "256k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart",
+        str(temp_out),
+    ]
+    try:
+        _run(args)
+        if temp_out.is_file() and temp_out.stat().st_size > 100_000:
+            temp_out.replace(video_path)
+    finally:
+        temp_out.unlink(missing_ok=True)
+    return video_path
+
+def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits_path=None):
     T = total + 1.5; bd = out.parent
     valid = []
     for i, sec in enumerate(sections):
@@ -134,4 +195,6 @@ def render(sections, voice, ass, total, out, music=None, music_vol=0.18):
     _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
           "-c:a","aac","-b:a","256k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
+    if credits_path:
+        _append_credits_card(out, credits_path)
     return out

@@ -107,43 +107,90 @@ def _search_pixabay(q):
     return []
 
 def fetch_clip(keywords, path, used, scene_prompt=""):
-    for q in keywords:
+    """Search three focused API queries; download at most five scored candidates.
+
+    Pixabay's Content License is recorded explicitly. Visual cleanliness, watermark
+    and privacy still require human inspection and are never inferred from metadata.
+    """
+    from datetime import date
+    queries = []
+    for value in list(keywords or []) + [scene_prompt]:
+        query = str(value or "").strip()
+        if query and query not in queries:
+            queries.append(query)
+        if len(queries) == 3:
+            break
+    downloaded = 0
+    for q in queries:
         time.sleep(1.2)
         hits = _search_pixabay(q)
         fresh = [h for h in hits if h.get("id") not in used and (h.get("duration") or 0) >= 3]
+        candidates = []
         for h in fresh:
-            h["_relevance"] = _relevance(q, h.get("tags", ""), h.get("user", ""))
-        # Reject weak matches instead of using unrelated high-resolution footage.
-        candidates = [h for h in fresh if h["_relevance"] >= 0.18]
-        candidates.sort(key=lambda h: (h["_relevance"],
-            max((v.get("width") or 0) * (v.get("height") or 0)
-                for v in (h.get("videos") or {}).values()),
-            min(h.get("duration") or 0, 60), h.get("views") or 0), reverse=True)
-        for h in candidates[:5]:
+            tags = h.get("tags", "")
+            match = max(_relevance(q, tags), _relevance(scene_prompt, tags))
+            variants = h.get("videos") or {}
+            best = max(variants.values(), key=lambda v: (v.get("width") or 0) * (v.get("height") or 0), default={})
+            width, height = int(best.get("width") or 0), int(best.get("height") or 0)
+            resolution_points = 2.0 if width >= 1920 and height >= 1080 else (1.0 if width >= 1280 and height >= 720 else 0.0)
+            score = round(min(10.0, match * 5.0 + resolution_points + 2.0), 2)
+            h["_match"] = match
+            h["_score"] = score
+            h["_dimensions"] = (width, height)
+            candidates.append(h)
+        candidates.sort(key=lambda h: (h["_score"], h.get("views") or 0), reverse=True)
+        for h in candidates:
+            if downloaded >= 5:
+                return False
+            downloaded += 1
+            if h["_score"] < 7.0:
+                continue
             url = None
-            for s in ("small","medium","tiny"):
-                v = h.get("videos",{}).get(s,{})
-                if v.get("url") and (v.get("size") or 0) < 60_000_000:
-                    url = v["url"]; break
-            if not url: continue
+            for size in ("large", "medium", "small"):
+                v = (h.get("videos") or {}).get(size) or {}
+                if v.get("url") and (v.get("size") or 0) < 100_000_000:
+                    url = v["url"]
+                    break
+            if not url:
+                continue
             try:
                 with requests.get(url, stream=True, timeout=120) as resp:
-                    resp.raise_for_status(); path.write_bytes(resp.content)
+                    resp.raise_for_status()
+                    with path.open("wb") as target:
+                        for chunk in resp.iter_content(1024 * 1024):
+                            if chunk:
+                                target.write(chunk)
                 if path.stat().st_size > 50_000 and _video_ok(path):
                     used.add(h.get("id"))
                     import json
-                    path.with_suffix(path.suffix + ".source.json").write_text(json.dumps({
-                        "provider": "Pixabay", "asset_id": h.get("id"), "title": h.get("tags", ""),
-                        "creator": h.get("user"), "page_url": h.get("pageURL"), "query": q,
-                        "relevance_score": round(h.get("_relevance", 0), 3),
-                        "licence_status": "Pixabay licence; verify asset-specific terms and attribution"
-                    }, ensure_ascii=False, indent=2), encoding="utf-8")
-                    print(f"  clip ok (Pixabay '{q}', relevance {h.get('_relevance', 0):.2f})")
+                    width, height = h["_dimensions"]
+                    creator = str(h.get("user") or "")
+                    title = str(h.get("tags") or "")
+                    page_url = str(h.get("pageURL") or "")
+                    metadata = {
+                        "provider": "Pixabay", "asset_id": h.get("id"),
+                        "title": title, "creator": creator, "page_url": page_url,
+                        "query": q, "relevance_score": round(h["_match"], 3),
+                        "quality_score": h["_score"], "width": width, "height": height,
+                        "licence": "Pixabay Content License",
+                        "licence_url": "https://pixabay.com/service/license-summary/",
+                        "attribution_text": f"{title} by {creator} — Pixabay Content License; {page_url}",
+                        "date_accessed": date.today().isoformat(),
+                        "human_visual_inspection_required": True,
+                        "visual_checks": {
+                            "steady_clean": "not_automatically_verified",
+                            "watermark_logo": "not_automatically_verified",
+                            "private_person_privacy": "not_automatically_verified"
+                        }
+                    }
+                    _write_source_metadata(path, metadata)
+                    print(f"  clip candidate ok (Pixabay '{q}', score {h['_score']}/10); human visual review required")
                     return True
-            except Exception as e: print(f"  clip download: {e}")
-    # Expand beyond Pixabay when it has no usable scene match. These public
-    # libraries are searched without requiring a paid provider; Pexels is
-    # enabled only when its optional API key is configured.
+                path.unlink(missing_ok=True)
+            except Exception as e:
+                print(f"  clip download: {e}")
+    # Other archives are searched only when their per-item licence is explicitly
+    # recognized by the strict archive adapter. Unknown-rights files are rejected.
     try:
         from core.footage_sources import fetch_documentary_clip
         if fetch_documentary_clip(keywords, path, used, scene_prompt=scene_prompt):
