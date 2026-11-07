@@ -235,7 +235,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         else:
             clip_p = bd / f"raw{i}.mp4"
             kws = sc.get("keywords") or [str(sc.get("say", ""))[:100]]
-            if fetch_clip(kws, clip_p, used_ids):
+            if fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
                 media.append({"type":"video","path":clip_p})
             else:
                 raise RuntimeError(
@@ -438,7 +438,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 elif generate_ai_video(prompt, clip_p):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: AI-generated video")
-                elif generate_image(prompt, img_p):
+                elif generate_image(prompt, img_p, category=script.get("category", "general")):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
                     print(f"  long-form visual {i+1}.{j+1}: generated image fallback")
                 else:
@@ -447,7 +447,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                         "Configure PIXABAY_API_KEY and an image provider; refusing unrelated filler."
                     )
             else:
-                if generate_image(prompt, img_p):
+                if generate_image(prompt, img_p, category=script.get("category", "general")):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
                 elif fetch_clip(kws, clip_p, used_ids):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
