@@ -309,6 +309,10 @@ def _dvids(query):
         return []
     data = _get_json("https://api.dvidshub.net/search", {
         "api_key": api_key, "q": query, "type": "video", "page": 1, "max_results": 10,
+    }, {
+        "Accept": "application/json, text/javascript",
+        "Referer": "https://api.dvidshub.net",
+        "User-Agent": USER_AGENT,
     })
     hits = (data or {}).get("results") or []
     results = []
