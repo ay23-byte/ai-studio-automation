@@ -41,6 +41,10 @@ class ReleaseCertificationTests(unittest.TestCase):
             "metrics": {"integrated_lufs": -16.0, "true_peak_dbfs": -1.5},
         })
         self._write_json("quality_report.json", {"status": "PASS", "score": 98})
+        self._write_json("release_metadata.json", {
+            "title": "Sample documentary", "description": "Sources & further reading: https://example.org/port-report",
+            "tags": ["documentary"],
+        })
         self._prepare_visual_approval()
         self._prepare_research_approval()
 
