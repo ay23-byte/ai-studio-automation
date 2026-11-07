@@ -409,3 +409,12 @@ Long-form documentary rendering now applies one consistent colour-grade preset t
 Each long-form build also writes `visual_consistency_report.json` and adds per-shot technical metrics to `visual_review_report.json`. Sampled frames are checked for source resolution, exposure, contrast, saturation, clipped highlights/shadows and a sharpness proxy. Shots with severe technical failures block the editorial publication gate; relative colour/exposure outliers are flagged for human review.
 
 These are deterministic image-quality diagnostics, not a replacement for a colourist or a semantic/factual review. Source footage may legitimately vary by scene; use the report to find unintended inconsistencies, not to force every scene to look identical.
+
+
+## Milestone 22: Documentary audio mastering and listening QA
+
+Long-form documentary mixes now receive a final FFmpeg loudness master after narration/music mixing and ducking. Defaults target **-16 LUFS integrated loudness**, **-1.5 dBFS true peak**, and **11 LU loudness range**. Override with `DOCUMENTARY_TARGET_LUFS`, `DOCUMENTARY_TRUE_PEAK_DBFS` and `DOCUMENTARY_TARGET_LRA`. Shorts audio rendering is unchanged.
+
+After rendering, the system writes `audio_quality_report.json` with measured integrated loudness, true peak, loudness range, clipped-sample count and long near-silent intervals. The main `quality_report.json` also includes the audio mastering result.
+
+**Human listening review is required before long-form approval or upload.** Open the dashboard's **Documentary audio mastering review** section, listen to the complete export on headphones and speakers, inspect any warnings, and mark the listening review complete with optional notes. Blocking peak/clipping failures cannot be waived by the listening-review button; fix the audio and rebuild. A passing meter report is not a substitute for listening.
