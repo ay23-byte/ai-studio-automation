@@ -19,6 +19,7 @@ REQUIRED_REPORTS = (
     "audio_quality_report.json",
     "research_verification_report.json",
     "research_review_decisions.json",
+    "release_metadata.json",
     "quality_report.json",
 )
 
@@ -146,6 +147,18 @@ def certify_documentary(build_dir: str | Path, video_path: str | Path) -> dict[s
         checks.append({"name": "visual_manifest", "status": "FAIL"})
     else:
         checks.append({"name": "visual_manifest", "status": "PASS", "shot_count": len(shots)})
+    metadata = reports.get("release_metadata.json", {})
+    title = str(metadata.get("title") or "").strip()
+    description = str(metadata.get("description") or "").strip()
+    if not title or not description:
+        blockers.append("Release metadata must contain a non-empty title and description.")
+    research_manifest = reports.get("research_verification_report.json", {})
+    for source in research_manifest.get("sources") or []:
+        source_url = str(source.get("url") or "").strip()
+        if source.get("url_valid") and source_url not in description:
+            blockers.append(
+                f"Source citation {source.get('source_id')} is missing from the release description."
+            )
     consistency = reports.get("visual_consistency_report.json", {})
     consistency_summary = consistency.get("summary") or {}
     if consistency.get("status") not in {"PASS", "REVIEW"}:
