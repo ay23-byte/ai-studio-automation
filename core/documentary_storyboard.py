@@ -103,5 +103,12 @@ def enrich_visual_beat(beat: dict, category: str = "general") -> dict:
 def plan_section_visuals(section: dict, category: str = "general") -> list[dict]:
     raw = section.get("visuals") or [{"visual_prompt": section.get("image") or section.get("title") or "documentary establishing shot",
                                     "keywords": section.get("keywords") or []}]
-    return [enrich_visual_beat(item if isinstance(item, dict) else {"visual_prompt": str(item)},
-                               category) for item in raw if item]
+    planned = []
+    for item in raw:
+        if not item:
+            continue
+        structured = isinstance(item, dict)
+        beat = enrich_visual_beat(item if structured else {"visual_prompt": str(item)}, category)
+        beat["_structured_input"] = structured
+        planned.append(beat)
+    return planned
