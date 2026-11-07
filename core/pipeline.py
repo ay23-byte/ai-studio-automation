@@ -524,6 +524,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     # Save a reviewable shot manifest and sample frames before final rendering.
     try:
+        import json
         from core.visual_production import build_visual_review
         from core.visual_consistency import audit_visual_consistency
         visual_report = build_visual_review(shot_timeline, bd, research_sources=script.get("research_sources", []))
