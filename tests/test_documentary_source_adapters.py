@@ -29,7 +29,7 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         result = fs._nara("government film")
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][1]["asset_id"], "101")
-        self.assertEqual(result[0][1]["licence"], "DVIDS API Commercial Use Terms")
+        self.assertEqual(result[0][1]["licence"], "Public Domain")
         self.assertEqual(get_json.call_args.args[0], "https://catalog.archives.gov/api/v2/records/search")
         self.assertEqual(get_json.call_args.args[2]["x-api-key"], "nara-test")
 
@@ -46,7 +46,7 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         result = fs._dvids("training")
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][1]["provider"], "DVIDS")
-        self.assertEqual(result[0][1]["licence"], "Public Domain")
+        self.assertEqual(result[0][1]["licence"], "DVIDS API Commercial Use Terms")
 
     @patch("core.config.EUROPEANA_API_KEY", "eu-test")
     @patch.object(fs, "_get_json")
