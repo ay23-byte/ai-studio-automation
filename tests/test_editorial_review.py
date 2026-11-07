@@ -103,6 +103,7 @@ class EditorialReviewTests(unittest.TestCase):
         store = load_reviews(self.report_path, self.report["shots"])
         self.assertEqual(store["schema_version"], 2)
         self.assertEqual(store["shots"]["shot_0001"]["status"], "approved")
+        self.assertEqual(store["shots"]["shot_0001"]["source_review_status"], "reviewed")
         self.assertEqual(store["shots"]["shot_0001"]["rights_review_status"], "pending")
         saved = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(saved["schema_version"], 2)
