@@ -161,7 +161,7 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
         draw.text((x, 1110), "IS NOT A", font=medium, fill=muted)
         draw.text((x, 1220), "FLOOD", font=large, fill=(255, 190, 115))
         draw.text((x, 1360), "FORECAST", font=large, fill=(255, 190, 115))
-        disclaimer = "The study does not prove construction caused flooding."
+        disclaimer = "The study does not establish whether construction caused flooding or increased flood probability."
         import textwrap
         draw.multiline_text(
             (x, 1580), "\n".join(textwrap.wrap(disclaimer, width=34)),
