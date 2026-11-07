@@ -2,6 +2,22 @@
 import json, os, re, time, requests
 from core.news_source_verification import verify_packet
 
+def _normalize_spoken_hand_definitions(script):
+    """Deterministically add the required same-scene HAND definition before validation.
+
+    This is a wording normalization, not a scientific bypass: the exact definition
+    is inserted into narration wherever HAND is spoken, then every strict validator
+    and the final word-count limit still run on the normalized script.
+    """
+    definition = 'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई'
+    drainage_terms = ('nearest drainage', 'निकटतम जल-निकासी', 'निकटतम नाले', 'निकटतम जलधारा')
+    for scene in script.get('scenes', []):
+        say = str(scene.get('say', ''))
+        if 'hand' in say.lower() and not any(term in say.lower() for term in drainage_terms):
+            scene['say'] = definition + '। ' + say
+    return script
+
+
 def _validate_scientific_wording(script):
     """Reject common overclaims and unit/metric confusions before artifact creation."""
     scenes = script.get('scenes', [])
@@ -134,7 +150,7 @@ def _build_correction_prompt(prompt, error):
         if count > 140:
             correction += (
                 f"\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
-                "the hard maximum is 140. Rewrite more concisely and target 105–120 "
+                "the hard maximum is 140. Rewrite more concisely and target 85–100 "
                 "spoken words. Keep each scene's say field to at most 22 whitespace-separated "
                 "words. Remove repetition and shorten transitions, not verified figures, "
                 "HAND definitions, Nepal ranges, percentage meanings, or caveats. Count all "
@@ -144,7 +160,7 @@ def _build_correction_prompt(prompt, error):
             correction += (
                 f"\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
                 "the minimum is 70. Expand only with concise context supported by the "
-                "reviewed packet; target 105–120 words. Do not invent facts."
+                "reviewed packet; target 85–100 words. Do not invent facts."
             )
     return prompt + correction
 
@@ -173,7 +189,7 @@ def generate_reviewed_shorts(review_path, output_path):
     if not key: raise RuntimeError('GEMINI_API_KEY is required to draft a script.')
     model=os.getenv('GEMINI_MODEL','gemini-3.8-flash')
     prompt='''Write a 35–58 second Hindi/Hinglish YouTube news Short based ONLY on this human-reviewed packet.
-Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, ideally 12–20 words per scene, target 105–120 spoken words total (hard validation range 70–140 words). Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
+Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, ideally 10–16 words per scene, target 85–100 spoken words total (hard validation range 70–140 words). Leave room for deterministic same-scene HAND definition normalization before final word-count validation. Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
 
 CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
 - HAND is a strict same-scene spoken requirement: if a scene's say field contains “HAND”, that same say field MUST contain the full phrase “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. A definition in another scene or in a caption does NOT satisfy this rule. Do not say HAND in any other narration scene unless the full definition is repeated there. In the Nepal metrics scene, put the definition and both Nepal estimates together in one concise spoken sentence: “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई; नेपाल में 108,500 लोग 0–50 मीटर और 22,800 लोग 0–10 मीटर HAND सीमा में हैं.” Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
@@ -223,6 +239,8 @@ REVIEWED PACKET:
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
             last_error = ValueError('Gemini returned no usable JSON script candidate.')
         else:
+            candidate_scenes = candidate_script.get('scenes', [])
+            _normalize_spoken_hand_definitions(candidate_script)
             candidate_scenes = candidate_script.get('scenes', [])
             candidate_words = sum(
                 len(re.findall(r'\S+', scene.get('say', '')))
