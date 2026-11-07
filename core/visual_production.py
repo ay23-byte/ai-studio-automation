@@ -82,7 +82,7 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
             issues.append({"level": "warning", "shot": shot_id, "message": "No source metadata sidecar; provenance and match cannot be assessed automatically."})
         shots.append({
             "shot_id": shot_id, "start_seconds": shot.get("_start"),
-            "duration_seconds": shot.get("_dur"), "media_type": media_type,
+            "duration_seconds": shot.get("_dur"), "media_type": media_type,\n            "visual_type": shot.get("visual_type", "unknown"),\n            "subject": shot.get("subject", ""), "location": shot.get("location", ""),\n            "time_period": shot.get("time_period", ""),\n            "shot_size": shot.get("shot_size", ""),\n            "camera_movement": shot.get("camera_movement", ""),\n            "visual_guardrail": shot.get("visual_guardrail", ""),
             "media_path": str(path) if path else None, "visual_prompt": prompt[:700],
             "narration": str(shot.get("narration") or "")[:700],
             "source": source, "sample_frames": frames,
@@ -91,7 +91,7 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         })
     report = {
         "shot_count": len(shots), "shots": shots, "issues": issues,
-        "automated_vision_verification": False,
+        "automated_vision_verification": False,\n        "shot_type_counts": {kind: sum(1 for shot in shots if shot.get("visual_type") == kind)\n                             for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
         "historical_authenticity_verified": False,
         "publication_ready": False,
         "notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, and approve AI-reconstruction disclosures.",
