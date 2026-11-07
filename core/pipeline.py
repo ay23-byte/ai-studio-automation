@@ -312,6 +312,17 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     import subprocess
     bd = build_dir or (cfg.BUILD_DIR / f"job_{job_id}")
     bd.mkdir(parents=True, exist_ok=True)
+    import json
+    release_metadata = {
+        "title": str(script.get("title") or script.get("video_title") or "").strip(),
+        "description": str(script.get("description") or "").strip(),
+        "tags": script.get("tags") or [],
+        "sources": script.get("sources") or [],
+        "claims": script.get("claims") or [],
+    }
+    (bd / "release_metadata.json").write_text(
+        json.dumps(release_metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     sections = script.get("sections", [])
     if not sections:
         raise ValueError("Long-form script must contain at least one section.")
