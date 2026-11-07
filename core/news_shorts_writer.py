@@ -53,6 +53,20 @@ def _validate_scientific_wording(script):
     for group in required_groups:
         if not any(value in combined for value in group):
             raise ValueError('Script omitted a required study figure: ' + ' / '.join(group))
+    spoken = ' '.join(str(scene.get('say', '')).lower() for scene in scenes)
+    if not re.search(r'(108,500|1,08,500|108500).{0,100}(0–50|0-50).{0,30}hand', spoken):
+        raise ValueError('Spoken narration must identify 108,500 as the Nepal 0–50 m HAND estimate.')
+    if not re.search(r'22,800.{0,100}(0–10|0-10).{0,30}hand', spoken):
+        raise ValueError('Spoken narration must identify 22,800 as the Nepal 0–10 m HAND estimate.')
+    for figure in ('46%', '77%'):
+        matching = [str(scene.get('say', '')).lower() for scene in scenes if figure in str(scene.get('say', ''))]
+        if not matching or not any(('भवन क्षेत्रफल' in s or 'भवन-फुटप्रिंट क्षेत्रफल' in s or 'building footprint area' in s or 'building area' in s) for s in matching):
+            raise ValueError(f'{figure} must be described in spoken narration as building footprint area.')
+    overconfident = ('निर्माण ने बाढ़ की संभावना नहीं बढ़ाई', 'construction did not increase flood probability', 'construction has not increased flood probability')
+    if any(term in combined for term in overconfident):
+        raise ValueError('Caveat overstates the evidence; do not claim construction had no effect.')
+    if not any(term in combined for term in ('अध्ययन यह साबित नहीं करता कि निर्माण', 'अध्ययन यह स्थापित नहीं करता कि निर्माण', 'does not establish that construction', 'does not prove that construction')):
+        raise ValueError('Script must distinguish lack of causal evidence from proof of no effect.')
 
 
 
