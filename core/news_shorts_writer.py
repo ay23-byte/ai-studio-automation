@@ -114,7 +114,7 @@ def generate_reviewed_shorts(review_path, output_path):
 Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, 10–22 words per scene, about 75–125 spoken words total. Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
 
 CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
-- In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never describe 0–50 m HAND as a 50-metre horizontal radius, distance, or buffer from a river.
+- In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
 - 293,800, 108,500 and 22,800 are modelled potential-exposure estimates, not counts of people already affected and not a prediction that they will be flooded.
 - The 46% and 77% values refer to building footprint area, not the number of buildings.
 - Do not claim that construction caused flooding or that construction itself increased flood probability. Describe the study as measuring potential exposure and building-footprint changes.
@@ -183,9 +183,12 @@ REVIEWED PACKET:
                 + "\nReturn a corrected complete JSON script. Every scene whose spoken "
                   "say field contains the term HAND must, in that same say field, explicitly "
                   "say that HAND means “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. "
-                  "Do not rely on a caption or another scene for this definition. "
-                  "Prefer spelling out the definition rather than saying HAND alone. "
-                  "Preserve all verified figures and scientific caveats.")
+                  "Do not use the rejected phrase “50 मीटर दायरे” or any radius, "
+                  "horizontal distance, or river-buffer wording for HAND. Use "
+                  "“0–50 मीटर HAND सीमा” only after defining the vertical measure "
+                  "in that same scene. Do not rely on a caption or another scene "
+                  "for this definition. Prefer spelling out the definition rather "
+                  "than saying HAND alone. Preserve all verified figures and caveats.")
     if script is None:
         raise ValueError(
             'Generated script failed validation after one correction attempt: '

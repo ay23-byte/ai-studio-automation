@@ -6,6 +6,10 @@ class WriterGateTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    p=Path(tmp)/'packet.json'; p.write_text(json.dumps({'review_status':'pending_human_verification'}))
    with self.assertRaisesRegex(ValueError,'review_status'): generate_reviewed_shorts(p,Path(tmp)/'out.json')
+ def test_rejects_50_metre_radius_wording(self):
+  script={'scenes':[{'say':'लोग 50 मीटर दायरे में रहते हैं।','caption':'50 मीटर दायरे'}]}
+  with self.assertRaisesRegex(ValueError,'unsupported causal, exposure, or distance wording'):
+   _validate_scientific_wording(script)
  def test_rejects_vertical_river_height_wording(self):
   script={'scenes':[{'say':'293,800 लोग 0 से 50 मीटर वर्टिकल रिवर ऊंचाई में हैं।','caption':'0-50 m HAND'}]}
   with self.assertRaisesRegex(ValueError,'unsupported causal, exposure, or distance wording'):
