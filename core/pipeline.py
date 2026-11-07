@@ -129,24 +129,33 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _visual_beats_for_section(section):
-    raw = section.get("visuals") or [section.get("image", "documentary establishing shot")]
+def _visual_beats_for_section(section, category="general"):
+    from core.documentary_storyboard import plan_section_visuals
+    planned = plan_section_visuals(section, category)
     beats = []
-    for item in raw:
-        if len(beats) >= 6:
-            break
-        if isinstance(item, dict):
-            prompt = str(item.get("visual_prompt") or item.get("prompt") or item.get("description") or "").strip()
-            anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
-            keywords = item.get("keywords") or section.get("keywords") or []
-        else:
-            prompt, anchor, keywords = str(item).strip(), "", section.get("keywords") or []
-        if prompt:
-            if isinstance(keywords, str): keywords = [keywords]
-            beats.append({"prompt":prompt,"anchor":anchor,
-                          "keywords":[str(k).strip() for k in keywords if str(k).strip()][:5]})
-    return beats or [{"prompt":str(section.get("image") or section.get("title") or "documentary establishing shot"),
-                      "anchor":"","keywords":section.get("keywords") or ["documentary"]}]
+    for item in planned[:6]:
+        # Preserve the original concise prompt for legacy string storyboards;
+        # structured visual beats receive the full production prompt.
+        is_structured = bool(item.get("_structured_input"))
+        prompt = str((item.get("production_prompt") if is_structured else item.get("visual_prompt")) or item.get("visual_prompt") or "").strip()
+        anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
+        keywords = item.get("search_queries") or item.get("keywords") or section.get("keywords") or []
+        beats.append({
+            "prompt": prompt, "anchor": anchor,
+            "keywords": [str(k).strip() for k in keywords if str(k).strip()][:8],
+            "visual_type": item.get("visual_type", "stock"),
+            "subject": item.get("subject", ""), "location": item.get("location", ""),
+            "time_period": item.get("time_period", ""),
+            "shot_size": item.get("shot_size", "medium or wide establishing shot"),
+            "camera_movement": item.get("camera_movement", ""),
+            "visual_guardrail": item.get("visual_guardrail", ""),
+            "source_refs": item.get("source_refs", []),
+            "chart_spec": item.get("chart_spec"),
+            "timeline_events": item.get("timeline_events", []),
+            "on_screen_text": item.get("on_screen_text", ""),
+            "sound_design": item.get("sound_design", ""),
+        })
+    return beats
 
 
 def _visual_beat_durations(narration, beats, section_duration):
@@ -230,12 +239,12 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
             + str(sc.get("image") or sc.get("say", ""))
             + ". 9:16 cinematic documentary image, accurate subject and action, no text or logos."
         )
-        if generate_image(scene_prompt, img_p):
+        if generate_image(scene_prompt, img_p, category=script.get("category", "general")):
             media.append({"type":"image","path":img_p})
         else:
             clip_p = bd / f"raw{i}.mp4"
             kws = sc.get("keywords") or [str(sc.get("say", ""))[:100]]
-            if fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
+            if fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_prompt):
                 media.append({"type":"video","path":clip_p})
             else:
                 raise RuntimeError(
@@ -323,7 +332,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     presenter_image = os.getenv("PRESENTER_IMAGE", "assets/presenter/presenter_master.png")
     for i, sec in enumerate(sections):
         narration = str(sec.get("narration", ""))
-        beats = _visual_beats_for_section(sec)
+        beats = _visual_beats_for_section(sec, script.get('category', 'general'))
         durations = _visual_beat_durations(narration, beats, sec["_dur"])
         shot_cursor = sec["_start"]
         if presenter_enabled and presenter_mode == "still_cpu":
@@ -412,10 +421,31 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 durations = [value * scale for value in durations]
         elif presenter_enabled and presenter_mode not in {"still_cpu", "off", "none"}:
             raise ValueError(f"Unsupported PRESENTER_MODE: {presenter_mode}. Use still_cpu, sadtalker, or off.")
+        # A short animated chapter slate establishes clear documentary structure.
+        title_duration = min(2.4, max(0.0, sec["_dur"] * 0.12))
+        if title_duration >= 1.5:
+            try:
+                from core.graphic_scenes import render_chapter_title
+                title_clip = render_chapter_title(sec.get("title", f"Chapter {i+1}"),
+                                                  i + 1, title_duration, bd / "chapter_slates")
+            except Exception as exc:
+                print(f"WARNING: chapter title slate skipped: {exc}")
+                title_clip = None
+            if title_clip:
+                title_shot = dict(sec)
+                title_shot.update({"_chapter_index": i, "visual_type": "chapter_title",
+                                   "_start": shot_cursor, "_dur": title_duration,
+                                   "_media": {"type": "video", "path": str(title_clip)}})
+                shot_timeline.append(title_shot)
+                shot_cursor += title_duration
+                remaining = max(sec["_dur"] - title_duration, 0.0)
+                scale = remaining / max(sum(durations), 0.001)
+                durations = [value * scale for value in durations]
         for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""
             shot["_start"] = shot_cursor
+            shot["_chapter_index"] = i
             shot["_dur"] = shot_dur
             shot_cursor += shot_dur
             img_p = bd / f"limg{i}_{j}.jpg"
@@ -424,6 +454,35 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                       "Photorealistic premium 16:9 B-roll, clear focal subject, realistic lighting, "
                       "no text, labels, watermarks or logos. Narration anchor: " + beat.get("anchor", "") +
                       ". Visual direction: " + beat["prompt"])
+            shot.update({
+                "narration": beat.get("anchor") or narration,
+                "visual_prompt": prompt,
+                "visual_type": beat.get("visual_type", "stock"),
+                "subject": beat.get("subject", ""),
+                "location": beat.get("location", ""),
+                "time_period": beat.get("time_period", ""),
+                "shot_size": beat.get("shot_size", ""),
+                "camera_movement": beat.get("camera_movement", ""),
+                "visual_guardrail": beat.get("visual_guardrail", ""),
+                "source_refs": beat.get("source_refs", []),
+                "chart_spec": beat.get("chart_spec"),
+                "timeline_events": beat.get("timeline_events", []),
+                "on_screen_text": beat.get("on_screen_text", ""),
+                "sound_design": beat.get("sound_design", ""),
+            })
+            # Render structured data/evidence beats locally before requesting B-roll.
+            # The renderer consumes only supplied values; unsupported specs fall through.
+            graphic_path = None
+            try:
+                from core.graphic_scenes import render_graphic_scene
+                graphic_path = render_graphic_scene(shot, shot_dur, bd, f"graphic_{i}_{j}")
+            except Exception as exc:
+                print(f"WARNING: graphic scene {i+1}.{j+1} failed; trying B-roll: {exc}")
+            if graphic_path:
+                shot["_media"] = {"type": "video", "path": str(graphic_path)}
+                shot_timeline.append(shot)
+                print(f"  long-form visual {i+1}.{j+1}: animated {beat.get('visual_type')} graphic")
+                continue
             clip_p = bd / f"lraw{i}_{j}.mp4"
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
             visual_mode = os.getenv("LONGFORM_VISUAL_MODE", "video_first").strip().lower()
@@ -432,7 +491,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             # Long-form documentaries should use moving B-roll by default.
             # Images remain a fallback when no relevant stock clip is found.
             if visual_mode == "video_first":
-                if fetch_clip(kws, clip_p, used_ids):
+                if fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: stock video")
                 elif generate_ai_video(prompt, clip_p):
@@ -449,7 +508,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             else:
                 if generate_image(prompt, img_p, category=script.get("category", "general")):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
-                elif fetch_clip(kws, clip_p, used_ids):
+                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                 else:
                     raise RuntimeError(
@@ -460,6 +519,16 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
+
+    # Save a reviewable shot manifest and sample frames before final rendering.
+    try:
+        from core.visual_production import build_visual_review
+        visual_report = build_visual_review(shot_timeline, bd, research_sources=script.get("research_sources", []))
+        print(f"Visual review: {visual_report['shot_count']} shots; human approval required.")
+        for issue in visual_report.get("issues", []):
+            print(f"VISUAL REVIEW {issue['level'].upper()}: {issue['message']}")
+    except Exception as exc:
+        print(f"WARNING: visual review report could not be generated: {exc}")
 
     ass = bd / "subs.ass"
     _make_ass_longform(timings, shot_timeline, total, ass, disclaimer)
