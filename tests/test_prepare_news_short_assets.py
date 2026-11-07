@@ -6,6 +6,8 @@ from scripts.prepare_news_short_assets import (
     prepare_candidate_script,
     validate_draft,
     find_one,
+    visual_plan,
+    create_story_graphic,
 )
 
 
@@ -61,6 +63,23 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
         self.assertEqual(candidate["editorial_status"], "draft_assets_require_human_visual_and_rights_review")
         self.assertEqual(candidate["visual_review_status"], "pending_human_visual_and_rights_review")
         self.assertEqual(len(candidate["sources"]), 1)
+
+    def test_himalayan_story_uses_curated_visuals_instead_of_generic_research_search(self):
+        self.assertEqual(visual_plan(1, 5, True)["queries"][0], "Himalaya mountain")
+        self.assertEqual(visual_plan(2, 5, True)["graphic"], "building_growth")
+        self.assertEqual(visual_plan(4, 5, True)["graphic"], "not_forecast")
+        self.assertEqual(visual_plan(5, 5, True)["graphic"], "outro")
+        self.assertEqual(visual_plan(5, 5, False), {})
+
+    def test_story_graphics_are_local_and_have_provenance_sidecars(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "metric.jpg"
+            metadata = create_story_graphic(path, "building_growth")
+            self.assertTrue(path.is_file())
+            self.assertEqual(metadata["asset_type"], "programmatic_graphic")
+            self.assertFalse(metadata["ai_generated"])
+            sidecar = path.with_suffix(".jpg.source.json")
+            self.assertTrue(sidecar.is_file())
 
     def test_find_one_requires_exactly_one_match(self):
         with tempfile.TemporaryDirectory() as temp:

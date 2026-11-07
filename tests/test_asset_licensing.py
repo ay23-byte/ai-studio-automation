@@ -48,6 +48,27 @@ class AssetLicensingTests(unittest.TestCase):
             self.assertEqual(rows[1]["use_status"], "blocked")
             self.assertEqual(result["blocked_count"], 1)
 
+    def test_project_created_graphic_is_eligible_without_external_stock_url(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            graphic = root / "metric.jpg"
+            graphic.write_bytes(b"placeholder image")
+            graphic.with_suffix(".jpg.source.json").write_text(json.dumps({
+                "provider": "LabLens/AI Studio local graphic renderer",
+                "asset_type": "programmatic_graphic",
+                "ai_generated": False,
+                "licence_status": "Created by this project",
+                "graphic_kind": "building_growth",
+            }), encoding="utf-8")
+            result = build_licence_register([
+                {"_start": 0, "_media": {"path": str(graphic), "type": "image"}}
+            ], root / "build")
+            with open(result["csv_path"], newline="", encoding="utf-8-sig") as handle:
+                row = next(csv.DictReader(handle))
+            self.assertEqual(row["use_status"], "eligible_pending_human_review")
+            self.assertFalse(result["blocked_assets"])
+            self.assertIn("Original graphic created", Path(result["credits_path"]).read_text(encoding="utf-8"))
+
     def test_score_does_not_claim_unobserved_visual_checks(self):
         score = score_asset({"relevance_score": 0.9, "licence": "CC BY 4.0",
                              "licence_url": "https://creativecommons.org/licenses/by/4.0/"}, 1920, 1080)
