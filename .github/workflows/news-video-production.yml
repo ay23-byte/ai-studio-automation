@@ -1,0 +1,158 @@
+name: News Short video production — separate human approval required
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: news-video-production-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    if: >-
+      ${{ github.event.issue.pull_request == null &&
+          startsWith(github.event.issue.title, 'News story review:') &&
+          github.event.issue.state == 'open' &&
+          github.event.comment.body == 'Approve script for video production' &&
+          github.event.comment.author_association == 'OWNER' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the latest successful script-draft artifact
+        id: source
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issueNumber = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: issueNumber, per_page: 100
+            });
+            const candidates = comments
+              .filter(c => c.user?.login === "github-actions[bot]" &&
+                (c.body || "").includes("Script draft generated"))
+              .map(c => ({ comment: c, match: (c.body || "").match(/actions\\/runs\\/(\\d+)\\/artifacts\\/\\d+/) }))
+              .filter(x => x.match)
+              .reverse();
+            if (!candidates.length) {
+              core.setFailed("No script-draft artifact link was found on this issue.");
+              return;
+            }
+            let selected = null;
+            for (const candidate of candidates) {
+              const runId = Number(candidate.match[1]);
+              const run = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
+              if (run.data.conclusion !== "success") continue;
+              const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                owner, repo, run_id: runId, per_page: 100
+              });
+              const expectedName = `news-script-draft-issue-${issueNumber}`;
+              const artifact = artifacts.find(a => a.name === expectedName && !a.expired);
+              if (artifact) { selected = { runId, artifactId: artifact.id }; break; }
+            }
+            if (!selected) {
+              core.setFailed("No unexpired script-draft artifact from a successful run is available.");
+              return;
+            }
+            core.setOutput("run_id", String(selected.runId));
+            core.setOutput("artifact_id", String(selected.artifactId));
+            core.info(`Using approved script artifact from workflow run ${selected.runId}.`);
+
+      - name: Download the approved script and evidence packet
+        uses: actions/download-artifact@v4
+        with:
+          name: news-script-draft-issue-${{ github.event.issue.number }}
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: source-artifact
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install FFmpeg and Hindi fonts
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core
+
+      - name: Install lightweight rendering dependencies
+        run: python -m pip install edge-tts requests Pillow python-dotenv
+
+      - name: Render the already-approved script (no script rewrite, no upload)
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+          TTS_ENGINE: "edge"
+          CHANNEL_NAME: "Engineering Physics"
+          SUBTITLE_PRESET: "bold"
+          POLLINATIONS_GAP: "8"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: |
+          python -m compileall -q core scripts/render_reviewed_news_short.py
+          python -m unittest tests.test_render_reviewed_news_short -v
+          python -m scripts.render_reviewed_news_short --artifact-dir source-artifact --output-dir output --voice-gender female
+
+      - name: Upload MP4 and human-review package
+        id: production-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-video-review-issue-${{ github.event.issue.number }}
+          path: |
+            output/shorts_*.mp4
+            build/job_*/quality_report.json
+            build/job_*/visual_review_report.json
+            build/job_*/visual_review_decisions.json
+            build/job_*/production_manifest.json
+            build/job_*/reviewed_script.json
+            build/job_*/reviewed_evidence_packet.json
+            build/job_*/subs.ass
+            build/job_*/img*.jpg
+            build/job_*/img*.jpg.source.json
+            build/job_*/raw*.mp4
+            build/job_*/raw*.mp4.source.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Report video draft for human review
+        if: success()
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: ${{ steps.production-artifact.outputs.artifact-url }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                "## News Short video draft rendered",
+                "",
+                "The MP4 and review package are ready:",
+                process.env.ARTIFACT_URL,
+                "",
+                "This run used the previously approved script without rewriting it. It did not upload or publish anything.",
+                "Review the MP4, narration, captions, visual-review report, every visual asset and its licence/provenance before deciding whether to approve upload.",
+                "AI-generated visuals and stock footage are not automatically cleared for commercial use. Human review remains mandatory."
+              ].join("\\n")
+            });
+
+      - name: Report production failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "News video rendering failed or was blocked. Inspect this workflow run; no YouTube upload or publication was attempted."
+            });
