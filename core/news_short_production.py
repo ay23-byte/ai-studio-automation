@@ -169,15 +169,25 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     ass_path = outdir / "captions.ass"
     _write_ass(scenes, durations, ass_path)
 
-    from core.editor_shorts import render
-    media = [{"path": scene["asset_path"], "type": scene["asset_type"]} for scene in scenes]
-    cuts, cursor = [], 0.0
-    for duration in durations[:-1]:
-        cursor += duration + 0.25
-        cuts.append(cursor)
+    # Build original, animated documentary graphics from reviewed scene copy.
+    # Existing licensed media and provenance remain validated above; the new
+    # renderer intentionally does not pretend those assets are animated footage.
+    from core.cinematic_renderer import render_cinematic_video
+    visual_path = build_dir / "cinematic_visuals.mp4"
+    visual_report = render_cinematic_video(scenes, durations, visual_path)
     final_path = outdir / "review_short.mp4"
-    render(media, durations, cuts, voice_path, ass_path, total, final_path,
-           music=None, sfx_vol=0.0)
+    subtitle_filter = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+    mux_duration = total + 0.6
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual_path),
+        "-i", str(voice_path), "-vf", f"subtitles={subtitle_filter}",
+        "-map", "0:v:0", "-map", "1:a:0",
+        "-af", f"aresample=44100,apad,atrim=duration={mux_duration:.3f},"
+               f"afade=t=out:st={max(mux_duration-1.2, 0):.3f}:d=1.2",
+        "-t", f"{mux_duration:.3f}", "-c:v", "libx264", "-preset", "fast",
+        "-crf", "19", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+        "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(final_path)
+    ], check=True)
     shot_manifest = []
     shot_cursor = 0.0
     for index, (scene, duration) in enumerate(zip(scenes, durations), start=1):
@@ -200,6 +210,8 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         "duration_seconds": round(total + 0.6, 2),
         "resolution": "1080x1920",
         "fps": 30,
+        "visual_renderer": visual_report,
+        "visual_style": "code_generated_visual_investigation_and_broadcast_news",
         "voice": str(voice_path),
         "captions": str(ass_path),
         "licence_register": licence["csv_path"],

@@ -182,7 +182,7 @@ jobs:
           GITHUB_ACTIONS: "true"
         run: |
           python -m compileall -q core scripts/render_reviewed_news_short.py
-          python -m unittest discover -s tests -p 'test_news_short_production.py' -v
+          python -m unittest discover -s tests -v
 
       - name: Render review MP4 (no upload)
         env:
