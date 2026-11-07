@@ -271,7 +271,7 @@ def _nara(query):
         # explicit public-domain / US-government-work statement in item metadata.
         if str(restriction).lower() not in {"unrestricted", "unrestricted use"}:
             continue
-        if not re.search(r"public domain|work of the u\\.s\\. federal government|\\bu\\.s\\. government work\\b", notes, re.I):
+        if not re.search(r"public domain|work of the u\.s\. federal government|\bu\.s\. government work\b", notes, re.I):
             continue
         naid = record.get("naId") or hit.get("_id")
         page = f"https://catalog.archives.gov/id/{naid}" if naid else ""
@@ -320,7 +320,7 @@ def _dvids(query):
         page = hit.get("url") or hit.get("page_url") or hit.get("link")
         if not isinstance(url, str) or not url.startswith("https://"):
             continue
-        if not re.search(r"\\.(mp4|mov|m4v)(?:\\?|$)", url, re.I):
+        if not re.search(r"\.(mp4|mov|m4v)(?:\?|$)", url, re.I):
             continue
         asset_id = hit.get("id") or hit.get("asset_id")
         if not asset_id:
@@ -355,9 +355,9 @@ def _europeana_cc(query):
         low = rights_url.lower()
         if "creativecommons.org/publicdomain/zero" in low:
             licence = "CC0 1.0"
-        elif re.search(r"creativecommons\\.org/licenses/by/(?:[0-9.]+)", low):
+        elif re.search(r"creativecommons\.org/licenses/by/(?:[0-9.]+)", low):
             licence = "CC BY 4.0"
-        elif re.search(r"creativecommons\\.org/licenses/by-sa/(?:[0-9.]+)", low):
+        elif re.search(r"creativecommons\.org/licenses/by-sa/(?:[0-9.]+)", low):
             licence = "CC BY-SA 4.0"
         else:
             continue
@@ -365,7 +365,7 @@ def _europeana_cc(query):
         if isinstance(objects, str):
             objects = [objects]
         url = next((str(x) for x in objects if isinstance(x, str) and
-                    re.search(r"\\.(mp4|mov|webm|m4v)(?:\\?|$)", x, re.I)), None)
+                    re.search(r"\.(mp4|mov|webm|m4v)(?:\?|$)", x, re.I)), None)
         if not url or not url.startswith("https://"):
             continue
         page = item.get("guid") or item.get("edmIsShownAt") or ""
