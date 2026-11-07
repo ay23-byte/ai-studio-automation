@@ -108,6 +108,38 @@ def _gemini_model_candidates(configured_model):
     return list(dict.fromkeys(model.strip() for model in ordered if model and model.strip()))
 
 
+def _build_correction_prompt(prompt, error):
+    """Build a targeted second-pass instruction without relaxing validation."""
+    message = str(error)
+    correction = (
+        "\\n\\nCORRECTION REQUIRED: Your previous JSON draft failed validation: "
+        + message
+        + "\\nReturn a corrected complete JSON script. Preserve all verified facts, "
+          "figures, source IDs, scientific caveats, and 4–6 scenes. Do not weaken "
+          "scientific guardrails. Every spoken HAND reference must define HAND in "
+          "that same scene as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. Do not use "
+          "radius, horizontal-distance, or river-buffer wording. Keep all required "
+          "Nepal ranges and identify both percentages as building footprint area."
+    )
+    match = re.search(r'Script word count outside safe target: (\\d+)', message)
+    if match:
+        count = int(match.group(1))
+        if count > 140:
+            correction += (
+                f"\\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
+                "the hard maximum is 140. Rewrite more concisely and target 105–120 "
+                "spoken words. Remove repetition and shorten transitions, not verified "
+                "figures, HAND definitions, Nepal ranges, percentage meanings, or caveats."
+            )
+        elif count < 70:
+            correction += (
+                f"\\nWORD-COUNT REPAIR: The previous narration has {count} spoken words; "
+                "the minimum is 70. Expand only with concise context supported by the "
+                "reviewed packet; target 105–120 words. Do not invent facts."
+            )
+    return prompt + correction
+
+
 def generate_reviewed_shorts(review_path, output_path):
     packet=json.loads(open(review_path,encoding='utf-8').read())
     if packet.get('review_status')!='approved':
@@ -132,7 +164,7 @@ def generate_reviewed_shorts(review_path, output_path):
     if not key: raise RuntimeError('GEMINI_API_KEY is required to draft a script.')
     model=os.getenv('GEMINI_MODEL','gemini-3.8-flash')
     prompt='''Write a 35–58 second Hindi/Hinglish YouTube news Short based ONLY on this human-reviewed packet.
-Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, 10–22 words per scene, about 75–125 spoken words total. Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
+Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, ideally 12–20 words per scene, target 105–120 spoken words total (hard validation range 70–140 words). Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
 
 CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
 - In spoken Hindi, define HAND as “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई” (vertical height above the nearest drainage). Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
@@ -200,19 +232,7 @@ REVIEWED PACKET:
                 words = candidate_words
                 break
         if draft_attempt == 0:
-            payload['contents'][0]['parts'][0]['text'] = (
-                prompt
-                + "\n\nCORRECTION REQUIRED: Your previous JSON draft failed validation: "
-                + str(last_error)
-                + "\nReturn a corrected complete JSON script. Every scene whose spoken "
-                  "say field contains the term HAND must, in that same say field, explicitly "
-                  "say that HAND means “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. "
-                  "Do not use the rejected phrase “50 मीटर दायरे” or any radius, "
-                  "horizontal distance, or river-buffer wording for HAND. Use "
-                  "“0–50 मीटर HAND सीमा” only after defining the vertical measure "
-                  "in that same scene. Do not rely on a caption or another scene "
-                  "for this definition. Prefer spelling out the definition rather "
-                  "than saying HAND alone. Preserve all verified figures and caveats.")
+            payload['contents'][0]['parts'][0]['text'] = _build_correction_prompt(prompt, last_error)
     if script is None:
         raise ValueError(
             'Generated script failed validation after one correction attempt: '
