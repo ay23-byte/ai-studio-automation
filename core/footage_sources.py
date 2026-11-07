@@ -192,7 +192,7 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
             ranked = sorted(provider(query), key=lambda item: _metadata_relevance(
                 query + " " + scene_prompt, item[1]), reverse=True)
             for url, metadata in ranked:
-                score = _metadata_relevance(query + " " + scene_prompt, metadata)
+                score = _metadata_relevance(query, metadata)
                 metadata["relevance_score"] = round(score, 3)
                 metadata["scene_prompt"] = str(scene_prompt)[:500]
                 if score < 0.12:
