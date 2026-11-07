@@ -149,6 +149,11 @@ def _visual_beats_for_section(section, category="general"):
             "shot_size": item.get("shot_size", "medium or wide establishing shot"),
             "camera_movement": item.get("camera_movement", ""),
             "visual_guardrail": item.get("visual_guardrail", ""),
+            "source_refs": item.get("source_refs", []),
+            "chart_spec": item.get("chart_spec"),
+            "timeline_events": item.get("timeline_events", []),
+            "on_screen_text": item.get("on_screen_text", ""),
+            "sound_design": item.get("sound_design", ""),
         })
     return beats
 
@@ -444,6 +449,19 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "on_screen_text": beat.get("on_screen_text", ""),
                 "sound_design": beat.get("sound_design", ""),
             })
+            # Render structured data/evidence beats locally before requesting B-roll.
+            # The renderer consumes only supplied values; unsupported specs fall through.
+            graphic_path = None
+            try:
+                from core.graphic_scenes import render_graphic_scene
+                graphic_path = render_graphic_scene(shot, shot_dur, bd, f"graphic_{i}_{j}")
+            except Exception as exc:
+                print(f"WARNING: graphic scene {i+1}.{j+1} failed; trying B-roll: {exc}")
+            if graphic_path:
+                shot["_media"] = {"type": "video", "path": str(graphic_path)}
+                shot_timeline.append(shot)
+                print(f"  long-form visual {i+1}.{j+1}: animated {beat.get('visual_type')} graphic")
+                continue
             clip_p = bd / f"lraw{i}_{j}.mp4"
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
             visual_mode = os.getenv("LONGFORM_VISUAL_MODE", "video_first").strip().lower()
