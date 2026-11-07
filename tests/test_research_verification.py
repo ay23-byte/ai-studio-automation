@@ -44,7 +44,7 @@ class ResearchVerificationTests(unittest.TestCase):
         append_source_citations_to_description(script)
         self.assertIn("Sources & further reading", script["description"])
         self.assertIn("https://example.org/report", script["description"])
-        self.assertIn("\\n\\nSources", script["description"])
+        self.assertIn("\n\nSources", script["description"])
 
     def test_claim_without_evidence_or_known_source_is_not_traceable(self):
         script = {
