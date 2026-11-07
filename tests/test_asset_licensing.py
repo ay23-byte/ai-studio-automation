@@ -21,6 +21,16 @@ class AssetLicensingTests(unittest.TestCase):
         })
         self.assertTrue(ok)
 
+    def test_cc_by_sa_labels_are_normalized_and_accepted(self):
+        for label in ("CC BY-SA", "CC BY-SA 2.0", "CC BY-SA 3.0",
+                      "CC BY-SA 4.0", "CC BY SA 4.0"):
+            with self.subTest(label=label):
+                ok, _ = licence_is_usable({
+                    "licence": label,
+                    "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+                })
+                self.assertTrue(ok)
+
     def test_register_writes_csv_and_credits_and_blocks_missing_provenance(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

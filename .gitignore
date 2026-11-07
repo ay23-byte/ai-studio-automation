@@ -22,7 +22,7 @@ assets/music/*
 assets/clips/*
 !assets/clips/.gitkeep
 
-# Local database (GitHub Actions explicitly force-adds its state database)
+# Local runtime database (never commit user/job state)
 db/*.sqlite
 db/*.sqlite3
 db/*.db

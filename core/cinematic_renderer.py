@@ -64,6 +64,28 @@ def _text_block(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int],
     return y
 
 
+def _fit_text_block(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int],
+                    max_width: int, max_height: int, start_size: int = 65,
+                    min_size: int = 32) -> int:
+    """Draw every headline line while shrinking the font to stay in its reserved area."""
+    x, y = xy
+    for size in range(start_size, min_size - 1, -2):
+        font = _font(size, True)
+        lines = _wrap(draw, text, font, max_width)
+        line_gap = max(8, size // 4)
+        if len(lines) * (size + line_gap) <= max_height:
+            for line in lines:
+                draw.text((x, y), line, font=font, fill=WHITE, stroke_width=0)
+                y += size + line_gap
+            return y
+    font = _font(min_size, True)
+    line_gap = max(8, min_size // 4)
+    for line in _wrap(draw, text, font, max_width):
+        draw.text((x, y), line, font=font, fill=WHITE, stroke_width=0)
+        y += min_size + line_gap
+    return y
+
+
 def _scene_frame(scene: dict[str, Any], index: int, elapsed: float,
                  duration: float, total_elapsed: float) -> Image.Image:
     """Pure frame function: identical scene/time inputs produce identical pixels."""
@@ -103,27 +125,28 @@ def _scene_frame(scene: dict[str, Any], index: int, elapsed: float,
     d.rectangle((64, top, 78, 1090), fill=accent)
     d.text((112, top + 64), "KEY DEVELOPMENT" if style == "broadcast_news" else "EVIDENCE FILE",
            font=_font(28, True), fill=accent)
-    y = _text_block(d, headline, (112, top + 142), _font(65, True), WHITE, 820, 22, 6)
+    # Reserve a fixed headline area so long facts never collide with graphic elements.
+    _fit_text_block(d, headline, (112, top + 142), 820, 340, 65, 32)
 
     if style == "visual_investigation":
         # Original evidence-board motif: source cards and connecting lines, not a real map.
-        board_y = max(y + 35, top + 500)
-        board_y = min(board_y, 900)
-        d.line((190, board_y + 88, 540, board_y + 88), fill=(*accent, 210), width=5)
-        d.line((540, board_y + 88, 870, board_y + 88), fill=(*accent, 210), width=5)
+        # Keep circles below the headline and the descriptor below the circles.
+        center_y = 900
+        d.line((190, center_y, 540, center_y), fill=(*accent, 210), width=5)
+        d.line((540, center_y, 870, center_y), fill=(*accent, 210), width=5)
         for j, (cx, title) in enumerate(((190, "CLAIM"), (540, "CONTEXT"), (870, "SOURCE"))):
             r = 68 if j != 1 else 82
-            d.ellipse((cx-r, board_y+88-r, cx+r, board_y+88+r),
+            d.ellipse((cx-r, center_y-r, cx+r, center_y+r),
                       fill=(23, 43, 62, 255), outline=(*accent, 240), width=5)
             box = d.textbbox((0, 0), title, font=_font(22, True))
-            d.text((cx-(box[2]-box[0])/2, board_y+78), title, font=_font(22, True), fill=WHITE)
-        d.text((112, 1030), "TRACE THE EVIDENCE", font=_font(25, True), fill=MUTED)
+            d.text((cx-(box[2]-box[0])/2, center_y-10), title, font=_font(22, True), fill=WHITE)
+        d.text((112, 1010), "TRACE THE EVIDENCE", font=_font(25, True), fill=MUTED)
     else:
         # Broadcast lower-third and animated progress rail.
-        d.rounded_rectangle((112, 770, 968, 930), radius=22,
+        d.rounded_rectangle((112, 790, 968, 950), radius=22,
                             fill=(34, 43, 56, 255), outline=(*accent, 180), width=2)
-        d.text((148, 798), "THE STORY SO FAR", font=_font(25, True), fill=accent)
-        _text_block(d, label, (148, 842), _font(31, True), WHITE, 770, 10, 2)
+        d.text((148, 812), "THE STORY SO FAR", font=_font(25, True), fill=accent)
+        _text_block(d, label, (148, 852), _font(31, True), WHITE, 770, 10, 2)
         d.text((112, 1000), "FIELD NOTES  /  VERIFIED CONTEXT", font=_font(25, True), fill=MUTED)
 
     # Source reference band, persistent and legible.
@@ -138,10 +161,7 @@ def _scene_frame(scene: dict[str, Any], index: int, elapsed: float,
     d.text((64, 1430), f"AI STUDIO  /  {index + 1:02d}", font=_font(24, True), fill=MUTED)
     d.text((1016, 1430), f"{int(progress * 100):02d}%", font=_font(24, True),
            fill=WHITE, anchor="ra")
-    # Safe empty lower band reserved for spoken Hindi subtitles.
-    d.line((64, 1530, 1016, 1530), fill=(65, 210, 224, 90), width=2)
-    d.text((64, 1570), "EDITORIAL GRAPHICS  •  NOT PHOTOGRAPHIC EVIDENCE",
-           font=_font(20, True), fill=(133, 151, 171))
+    # Keep the lower subtitle-safe band completely clear; captions are composited here.
     return im
 
 
