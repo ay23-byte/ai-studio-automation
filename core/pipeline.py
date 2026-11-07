@@ -425,6 +425,17 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                       "Photorealistic premium 16:9 B-roll, clear focal subject, realistic lighting, "
                       "no text, labels, watermarks or logos. Narration anchor: " + beat.get("anchor", "") +
                       ". Visual direction: " + beat["prompt"])
+            shot.update({
+                "narration": beat.get("anchor") or narration,
+                "visual_prompt": prompt,
+                "visual_type": beat.get("visual_type", "stock"),
+                "subject": beat.get("subject", ""),
+                "location": beat.get("location", ""),
+                "time_period": beat.get("time_period", ""),
+                "shot_size": beat.get("shot_size", ""),
+                "camera_movement": beat.get("camera_movement", ""),
+                "visual_guardrail": beat.get("visual_guardrail", ""),
+            })
             clip_p = bd / f"lraw{i}_{j}.mp4"
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
             visual_mode = os.getenv("LONGFORM_VISUAL_MODE", "video_first").strip().lower()
