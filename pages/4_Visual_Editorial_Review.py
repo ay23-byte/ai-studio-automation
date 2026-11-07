@@ -80,6 +80,13 @@ for shot_id, shot, record in visible:
             st.write(f"**Chapter:** {record.get('chapter_id', 'unassigned')}")
             st.write(f"**Duration:** {shot.get('duration_seconds', '—')} seconds")
             st.write(f"**Media type:** {shot.get('media_type', 'unknown')}")
+            if shot.get("presenter_mode"):
+                st.write(f"**Presenter mode:** {shot.get('presenter_mode')}")
+                st.write(f"**Presenter A/V status:** {shot.get('presenter_sync_status') or 'not checked'}")
+                if shot.get("presenter_lip_sync_verified") is True:
+                    st.success("Lip-sync verified.")
+                else:
+                    st.warning("Phoneme-level lip-sync is not machine-verified. Inspect mouth movement against the narration.")
             st.write("**Narration**")
             st.write(shot.get("narration") or "Not supplied")
             st.write("**Visual prompt**")
