@@ -89,6 +89,8 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
             disclaimer = Path(temp) / "disclaimer.jpg"
             create_story_graphic(disclaimer, "not_forecast")
             self.assertTrue(disclaimer.is_file())
+            rendered = Image.open(disclaimer).convert("RGB")
+            self.assertEqual(rendered.size, (1080, 1920))
             sidecar = path.with_suffix(".jpg.source.json")
             self.assertTrue(sidecar.is_file())
 
