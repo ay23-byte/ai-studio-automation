@@ -619,6 +619,31 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
 
+    # Produce a deterministic editorial EDL before final rendering so every
+    # shot, music cue, overlay and missing visual is reviewable alongside the MP4.
+    try:
+        from core.documentary_edl import build_edit_decision_list
+        tone = str(script.get("tone") or script.get("category") or "investigative")
+        requested_runtime = script.get("runtime_minutes") or script.get("target_runtime_minutes")
+        edl = build_edit_decision_list(
+            shot_timeline, sections, total, tone=tone,
+            target_platform="YouTube 16:9",
+            requested_runtime_minutes=float(requested_runtime) if requested_runtime else None,
+        )
+        edl_path = bd / "edit_decision_list.json"
+        edl_path.write_text(json.dumps(edl, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(
+            f"Documentary EDL: {len(edl['timeline'])} timeline events, "
+            f"{len(edl['music'])} chapter music cues, "
+            f"{len(edl['missing_asset_requests'])} missing-asset/review requests."
+        )
+        for warning in edl["qa_report"]["fixes_applied"]:
+            print(f"EDL QA: {warning}")
+    except Exception as exc:
+        # The EDL is a review deliverable; preserve the existing render path,
+        # but make the missing EDL explicit in the build log.
+        print(f"WARNING: documentary EDL generation failed: {exc}")
+
     # Save a reviewable shot manifest and sample frames before final rendering.
     try:
         import json
