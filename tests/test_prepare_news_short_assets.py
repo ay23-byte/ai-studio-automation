@@ -65,7 +65,7 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
         self.assertEqual(len(candidate["sources"]), 1)
 
     def test_himalayan_story_uses_curated_visuals_instead_of_generic_research_search(self):
-        self.assertEqual(visual_plan(1, 5, True)["queries"][0], "Himalaya mountain")
+        self.assertEqual(visual_plan(1, 5, True)["graphic"], "hand_explainer")
         self.assertEqual(visual_plan(2, 5, True)["graphic"], "building_growth")
         self.assertEqual(visual_plan(3, 5, True)["graphic"], "nepal_breakdown")
         self.assertEqual(visual_plan(4, 5, True)["graphic"], "not_forecast")
@@ -79,6 +79,10 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
             self.assertTrue(path.is_file())
             self.assertEqual(metadata["asset_type"], "programmatic_graphic")
             self.assertFalse(metadata["ai_generated"])
+            hand = Path(temp) / "hand.jpg"
+            hand_meta = create_story_graphic(hand, "hand_explainer")
+            self.assertTrue(hand.is_file())
+            self.assertEqual(hand_meta["graphic_kind"], "hand_explainer")
             nepal = Path(temp) / "nepal.jpg"
             create_story_graphic(nepal, "nepal_breakdown")
             self.assertTrue(nepal.is_file())
