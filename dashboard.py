@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from core.db import list_videos, update_video, create_channel_profile, list_channel_profiles, update_channel_profile, save_video
+from core.config import BUILD_DIR
 
 IST = timezone(timedelta(hours=5, minutes=30))
 st.set_page_config(page_title="AI Studio", page_icon="🎬", layout="wide")
@@ -149,7 +150,7 @@ with review_tab:
                     try:
                         if row.get("format") == "longform":
                             from core.editorial_review import assert_visual_review_ready
-                            assert_visual_review_ready(Path("build") / f"job_{job_id}")
+                            assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
                         update_video(job_id, approved=1, status="approved")
                         st.rerun()
                     except Exception as exc:
@@ -161,7 +162,7 @@ with review_tab:
                             from core.uploader import upload
                             if row.get("format") == "longform":
                                 from core.editorial_review import assert_visual_review_ready
-                                assert_visual_review_ready(Path("build") / f"job_{job_id}")
+                                assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
                             new_id = upload(path, row.get("title") or "Untitled",
                                             script.get("description", "Created with AI Studio."),
                                             script.get("tags", []), privacy_status="unlisted")
@@ -181,7 +182,7 @@ with review_tab:
                     try:
                         if row.get("format") == "longform":
                             from core.editorial_review import assert_visual_review_ready
-                            assert_visual_review_ready(Path("build") / f"job_{job_id}")
+                            assert_visual_review_ready(BUILD_DIR / f"job_{job_id}")
                         from core.uploader import schedule_video
                         publish_at = datetime.combine(chosen_date, chosen_time).replace(tzinfo=IST)
                         schedule_video(youtube_id, publish_at)
