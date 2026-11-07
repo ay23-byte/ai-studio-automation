@@ -26,10 +26,13 @@ def audit_research(research: dict | None) -> dict:
     issues = []
     source_ids = set()
     for index, source in enumerate(sources):
-        sid = str(source.get("id") or f"source-{index + 1}")
+        sid = str(source.get("source_id") or source.get("id") or f"source-{index + 1}")
         source_ids.add(sid)
-        if not source.get("url"):
-            issues.append(_issue("warning", "research", "Source has no URL.", source_id=sid))
+        url = str(source.get("url") or "").strip()
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            issues.append(_issue("warning", "research", "Source has no valid HTTP(S) URL.", source_id=sid))
         if not source.get("publisher") and not source.get("title"):
             issues.append(_issue("warning", "research", "Source has no publisher or title.", source_id=sid))
         if not source.get("published_at"):
