@@ -3,6 +3,9 @@ from pathlib import Path
 import requests
 from core.config import CF_ACCOUNT_ID, CF_API_TOKEN, POLLINATIONS_GAP, PIXABAY_API_KEY, COVERR_API_KEY
 
+# Authorization failures are stable for the lifetime of one production run.
+_DISABLED_VIDEO_PROVIDERS = set()
+
 def _tokens(value):
     import re
     stop = {"the","and","for","with","from","that","this","into","over","under","about","scene","shot","video","image","documentary","historical","history"}
@@ -103,7 +106,7 @@ def generate_image(scene_prompt, path, category="general"):
 
 def _search_coverr(q):
     """Search Coverr's official API. Returns raw hits; no scraping is used."""
-    if not COVERR_API_KEY:
+    if not COVERR_API_KEY or "coverr" in _DISABLED_VIDEO_PROVIDERS:
         return []
     for attempt in range(3):
         try:
@@ -116,6 +119,13 @@ def _search_coverr(q):
             if response.status_code == 429:
                 time.sleep(15 * (attempt + 1))
                 continue
+            if response.status_code in (401, 403):
+                _DISABLED_VIDEO_PROVIDERS.add("coverr")
+                print(f"  Coverr disabled for this run: HTTP {response.status_code}")
+                return []
+            if response.status_code in (400, 404):
+                print(f"  Coverr query unsupported (HTTP {response.status_code}); skipping retries")
+                return []
             response.raise_for_status()
             payload = response.json()
             hits = payload.get("hits", [])
