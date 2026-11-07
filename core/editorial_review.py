@@ -116,6 +116,19 @@ def review_store_path(report_path: str | Path) -> Path:
     return Path(report_path).resolve().parent / "visual_review_decisions.json"
 
 
+def _legacy_shot_fingerprint(shot: dict[str, Any], chapter: str) -> str:
+    """Fingerprint algorithm used by schema version 1, for safe migration."""
+    identity = {
+        "chapter_id": chapter,
+        "media_path": shot.get("media_path"),
+        "visual_prompt": shot.get("visual_prompt"),
+        "narration": shot.get("narration"),
+        "media_type": shot.get("media_type"),
+    }
+    encoded = json.dumps(identity, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _shot_fingerprint(shot: dict[str, Any], chapter: str) -> str:
     source = shot.get("source") if isinstance(shot.get("source"), dict) else {}
     source_identity = {
@@ -140,7 +153,8 @@ def load_reviews(report_path: str | Path, shots: list[dict] | None = None) -> di
     """Load persisted decisions, adding pending entries for new/changed shots."""
     path = review_store_path(report_path)
     store = _read_store(path)
-    changed = bool(store.pop("_migrated", False))
+    migrated = bool(store.pop("_migrated", False))
+    changed = migrated
     for index, shot in enumerate(shots or []):
         shot_id = str(shot.get("shot_id") or f"shot_{index + 1:04d}")
         chapter = str(shot.get("chapter_id") or shot.get("chapter") or shot.get("chapter_index") or "unassigned")
@@ -151,16 +165,25 @@ def load_reviews(report_path: str | Path, shots: list[dict] | None = None) -> di
         else:
             record = store["shots"][shot_id]
             if record["shot_fingerprint"] and record["shot_fingerprint"] != fingerprint:
-                # Never carry approval across changed narration, prompt, chapter, or media.
-                record.update({
-                    "chapter_id": chapter, "status": "pending",
-                    "reviewer_notes": "Previous review invalidated because this shot's content changed.",
-                    "rejection_reason": "", "replacement_requested": False,
-                    "reviewed_at": None, "source_review_status": "pending",
-                    "rights_review_status": "pending", "rights_notes": "",
-                    "licence_name": "", "attribution_text": "",
-                    "shot_fingerprint": fingerprint,
-                })
+                if migrated and record["shot_fingerprint"] == _legacy_shot_fingerprint(shot, chapter):
+                    # Preserve the old editorial decision during schema migration, but require
+                    # fresh rights clearance because v1 did not persist that separate decision.
+                    record.update({
+                        "chapter_id": chapter, "rights_review_status": "pending",
+                        "rights_notes": "", "licence_name": "", "attribution_text": "",
+                        "shot_fingerprint": fingerprint,
+                    })
+                else:
+                    # Never carry approval across changed narration, prompt, chapter, media or provenance.
+                    record.update({
+                        "chapter_id": chapter, "status": "pending",
+                        "reviewer_notes": "Previous review invalidated because this shot's content or provenance changed.",
+                        "rejection_reason": "", "replacement_requested": False,
+                        "reviewed_at": None, "source_review_status": "pending",
+                        "rights_review_status": "pending", "rights_notes": "",
+                        "licence_name": "", "attribution_text": "",
+                        "shot_fingerprint": fingerprint,
+                    })
                 changed = True
             elif not record["shot_fingerprint"]:
                 record["shot_fingerprint"] = fingerprint
