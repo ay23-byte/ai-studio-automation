@@ -37,10 +37,11 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
     @patch.object(fs, "_get_json")
     def test_dvids_requires_item_rights_and_download(self, get_json):
         get_json.return_value = {"results": [
-            {"id": 7, "title": "Training exercise", "copyright": "Public domain",
-             "download_url": "https://dvidshub.net/video.mp4", "url": "https://dvidshub.net/7"},
-            {"id": 8, "title": "Restricted", "copyright": "Copyright retained",
-             "download_url": "https://dvidshub.net/no.mp4"},
+            {"id": "video:7", "type": "video", "title": "Training exercise", "credit": "Creator",
+             "hls_url": "https://api.dvidshub.net/hls/video/7.m3u8?api_key=test",
+             "url": "https://www.dvidshub.net/video/7/training"},
+            {"id": "image:8", "type": "image", "title": "Not video",
+             "url": "https://www.dvidshub.net/image/8/restricted"},
         ]}
         result = fs._dvids("training")
         self.assertEqual(len(result), 1)
