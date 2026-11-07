@@ -53,12 +53,12 @@ def visual_plan(scene_number: int, scene_count: int, is_himalayan: bool) -> dict
     if not is_himalayan:
         return {}
     if scene_number == 1:
-        # A deterministic HAND cross-section is more explanatory than generic mountain B-roll.
-        return {"kind": "graphic", "graphic": "hand_explainer"}
+        return {"kind": "graphic", "graphic": "population_exposure"}
     if scene_number == 2:
-        return {"kind": "graphic", "graphic": "building_growth"}
+        # Define HAND in the same scene as the Nepal exposure figures.
+        return {"kind": "graphic", "graphic": "hand_explainer"}
     if scene_number == 3:
-        return {"kind": "graphic", "graphic": "nepal_breakdown"}
+        return {"kind": "graphic", "graphic": "building_growth"}
     if scene_number == 4:
         return {"kind": "graphic", "graphic": "not_forecast"}
     if scene_number == scene_count:
@@ -100,10 +100,21 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
     small = _font(38)
     x = 82
 
-    if graphic == "hand_explainer":
+    if graphic == "population_exposure":
+        draw.text((x, 190), "HIMALAYAN STUDY", font=medium, fill=accent)
+        draw.text((x, 390), "293,800", font=_font(132), fill=white)
+        draw.text((x, 570), "PEOPLE", font=large, fill=white)
+        draw.rounded_rectangle((70, 850, 1010, 1190), radius=34, fill=(24, 47, 64), outline=(55, 87, 105), width=3)
+        draw.text((120, 920), "18% OF STUDY-AREA", font=medium, fill=accent)
+        draw.text((120, 1010), "CATCHMENT POPULATION", font=small, fill=white)
+        draw.text((x, 1320), "WITHIN 0–50 m HAND IN 2026", font=small, fill=muted)
+        draw.text((x, 1410), "MODELLED POTENTIAL EXPOSURE", font=small, fill=muted)
+    elif graphic == "hand_explainer":
         draw.text((x, 170), "WHAT DOES HAND MEAN?", font=medium, fill=accent)
-        draw.text((x, 300), "VERTICAL HEIGHT", font=large, fill=white)
-        draw.text((x, 425), "ABOVE DRAINAGE", font=large, fill=white)
+        # Keep long headings inside the 9:16 safe area.
+        hand_title = _font(82)
+        draw.text((x, 300), "VERTICAL HEIGHT", font=hand_title, fill=white)
+        draw.text((x, 410), "ABOVE DRAINAGE", font=hand_title, fill=white)
         # Schematic terrain cross-section, not a geographic map.
         terrain = [(70, 1160), (220, 900), (390, 1040), (560, 760),
                    (730, 1010), (880, 900), (1010, 1130)]
@@ -185,7 +196,21 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
 
 
 def prepare_candidate_script(script: dict, packet: dict, scene_assets: list[dict]) -> dict:
-    candidate = dict(script)
+    # Carry the user's approved editorial corrections into the production candidate.
+    # The original generated artifact remains unchanged for auditability.
+    reviewed_script = json.loads(json.dumps(script))
+    if is_himalayan_story(packet, reviewed_script) and len(reviewed_script.get("scenes", [])) >= 4:
+        reviewed_script["scenes"][2]["say"] = (
+            "2016 से 2023 के बीच, नदी के पास 0–50 मीटर HAND क्षेत्र में "
+            "इमारतों का कुल ज़मीनी footprint 46% बढ़ा। मॉडल किए गए GLOF "
+            "क्षेत्रों के भीतर यह वृद्धि 77% रही।"
+        )
+        reviewed_script["scenes"][3]["say"] = (
+            "यह मॉडल से निकला संभावित exposure है, बाढ़ की भविष्यवाणी नहीं। "
+            "अध्ययन निर्माण और जोखिम के बीच कारण-परिणाम साबित नहीं करता—"
+            "यह भी नहीं बताता कि निर्माण से बाढ़ की संभावना बढ़ी या नहीं।"
+        )
+    candidate = dict(reviewed_script)
     candidate["sources"] = packet["sources"]
     candidate["language"] = "hindi"
     candidate["voice_gender"] = "female"
@@ -193,7 +218,7 @@ def prepare_candidate_script(script: dict, packet: dict, scene_assets: list[dict
     candidate["visual_review_status"] = "pending_human_visual_and_rights_review"
     candidate["scenes"] = [
         {**scene, **asset}
-        for scene, asset in zip(script["scenes"], scene_assets)
+        for scene, asset in zip(reviewed_script["scenes"], scene_assets)
     ]
     return candidate
 
