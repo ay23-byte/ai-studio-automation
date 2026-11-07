@@ -42,3 +42,25 @@ python scripts/draft_reviewed_news_short.py reviewed_story.json --output output/
 The writer refuses packets that are not approved, lack evidence notes, or reference unknown source IDs. It requests a 35–58 second Hindi/Hinglish script and validates scene count, approximate word count and source references. The generated script remains a draft requiring human review. Model output is not itself fact verification.
 
 This workflow still does not render or upload the news Short. Rendering must be connected only after a reviewed script is accepted by the existing video pipeline and its asset provenance/licensing checks pass.
+
+
+## Milestone 3: deterministic source-tier gate
+
+The script writer now runs a deterministic source verification check before calling Gemini. The rules live in version-controlled `config/trusted_sources.json` and `config/blocklist_sources.json`; unknown, blocked and social domains cannot confirm facts. Breaking-story sources must have publication timestamps within 48 hours; explainers use a seven-day window. A primary tier-1 source is sufficient only as a primary source for its own statement. Otherwise, the packet needs two independent eligible sources, including at least one tier-2 outlet. Repeated wire-origin coverage counts once.
+
+### Required reviewed-packet source metadata
+
+Each `sources` entry must include:
+- `source_id`, `url`, and `published` (ISO-8601 timestamp with timezone)
+- Optional `origin`, `wire`, `text_snippet`, and `title` to identify syndicated reporting
+
+Each `verified_facts` entry still requires `fact`, `source_ids`, and a human-written `evidence_note`. Set `story_type` to `explainer` only for a genuine explainer; otherwise the 48-hour breaking-news freshness rule applies.
+
+The generated script includes a `source_verification` report showing accepted and rejected source metadata for each fact. A failed fact blocks script generation before any LLM request. This is a provenance and metadata gate—not an automated fact-checker: it cannot prove that a cited article supports the claim, detect coordinated misinformation, or replace human inspection of the cited passage. The human reviewer remains responsible for those checks.
+
+Tests:
+```bash
+python -m unittest tests.test_news_source_verification -v
+```
+
+This milestone does not enable unattended publication. The current daily workflow remains a discovery/review queue; the news writer still requires a human-approved packet, and video QA plus YouTube upload remain separate, gated work.
