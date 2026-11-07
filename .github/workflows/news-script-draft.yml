@@ -1,0 +1,112 @@
+name: News script draft — human approval required
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: news-script-draft-issue-\${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    if: >-
+      \${{ github.event.issue.pull_request == null &&
+          github.event.comment.body == '/approve-script' &&
+          (github.event.comment.author_association == 'OWNER' ||
+           github.event.comment.author_association == 'MEMBER' ||
+           github.event.comment.author_association == 'COLLABORATOR') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Extract the reviewed JSON packet from the issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+            const matches = [...body.matchAll(/~~~json\s*([\s\S]*?)~~~/gi)];
+            if (matches.length !== 1) core.setFailed("Issue must contain exactly one JSON packet between ~~~json fences.");
+            let packet;
+            try { packet = JSON.parse(matches[0][1]); }
+            catch (error) { core.setFailed("The issue JSON packet is invalid: " + error.message); }
+            if (packet.review_status !== "approved") {
+              core.setFailed("Script drafting blocked: review_status must be approved after human source inspection.");
+            }
+            if (!Array.isArray(packet.sources) || !packet.sources.length ||
+                !Array.isArray(packet.verified_facts) || !packet.verified_facts.length) {
+              core.setFailed("Script drafting blocked: add inspected sources and verified_facts.");
+            }
+            require("fs").mkdirSync("output/daily_news", { recursive: true });
+            require("fs").writeFileSync(
+              "output/daily_news/reviewed_story.json",
+              JSON.stringify(packet, null, 2) + "\n",
+              "utf8"
+            );
+
+      - name: Install script-drafting dependency
+        run: python -m pip install requests
+
+      - name: Generate a script draft (source-verification gate runs first)
+        env:
+          GEMINI_API_KEY: \${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: \${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+        run: |
+          python -m scripts.draft_reviewed_news_short \
+            output/daily_news/reviewed_story.json \
+            --output output/daily_news/shorts_script_draft.json
+
+      - name: Upload script draft for human review
+        id: draft-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-script-draft-issue-\${{ github.event.issue.number }}
+          path: |
+            output/daily_news/reviewed_story.json
+            output/daily_news/shorts_script_draft.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Report draft artifact on the issue
+        if: success()
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: \${{ steps.draft-artifact.outputs.artifact-url }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                "## Script draft generated",
+                "",
+                "The source-verification gate passed and a draft artifact is ready:",
+                process.env.ARTIFACT_URL,
+                "",
+                "This is a draft only. Review every factual claim, attribution, duration, narration and caption. No video was rendered and nothing was uploaded or published.",
+                "",
+                "A separate human script approval and a separate production approval are still required."
+              ].join("\n")
+            });
+
+      - name: Report a blocked or failed draft
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "Script drafting was blocked or failed. Check the News script draft workflow logs. Source-verification failures must be corrected with inspected, eligible evidence; do not bypass the gate."
+            });
