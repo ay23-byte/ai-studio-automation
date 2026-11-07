@@ -203,6 +203,50 @@ def _internet_archive(query):
     return results
 
 
+def _loc(query):
+    """Search Library of Congress video collections and accept only explicit rights metadata."""
+    data = _get_json("https://www.loc.gov/videos/", {
+        "fo": "json", "q": query, "c": 10,
+    })
+    results = []
+    for item in (data or {}).get("results", []):
+        rights = str(item.get("rights") or item.get("rights_advisory") or "")
+        rights_low = rights.lower()
+        if not any(term in rights_low for term in (
+            "public domain", "no known restrictions", "no known copyright restrictions"
+        )):
+            continue
+        resources = item.get("resources") or []
+        urls = []
+        for resource in resources:
+            if isinstance(resource, dict):
+                urls.extend([resource.get("url"), resource.get("video")])
+                for file_item in resource.get("files", []) if isinstance(resource.get("files"), list) else []:
+                    if isinstance(file_item, dict):
+                        urls.append(file_item.get("url"))
+        url = next((u for u in urls if isinstance(u, str) and
+                    u.lower().split("?")[0].endswith((".mp4", ".mov", ".webm"))), None)
+        if not url:
+            continue
+        page = str(item.get("id") or item.get("url") or "")
+        if page.startswith("/"):
+            page = "https://www.loc.gov" + page
+        results.append((url, {
+            "provider": "Library of Congress",
+            "asset_id": item.get("id") or page,
+            "title": item.get("title"),
+            "page_url": page,
+            "licence": "Public Domain" if "public domain" in rights_low else "No known copyright restrictions",
+            "licence_url": page,
+            "rights_advisory": rights,
+            "query": query,
+            "date_accessed": date.today().isoformat(),
+            "attribution_text": f"{item.get('title', 'Untitled')} — Library of Congress; {rights}; {page}",
+            "licence_status": "LOC item-level rights advisory found; verify item notes and third-party restrictions",
+        }))
+    return results
+
+
 def _tokens(value):
     stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",
             "scene", "footage", "video", "documentary", "file"}
@@ -242,8 +286,8 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     used_ids = used_ids if used_ids is not None else set()
     context = " ".join(str(x) for x in (keywords or [])) + " " + str(scene_prompt or "")
     is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
-    providers = ((_nasa, _wikimedia, _internet_archive) if is_space
-                 else (_wikimedia, _internet_archive))
+    providers = ((_nasa, _loc, _wikimedia, _internet_archive) if is_space
+                 else (_loc, _wikimedia, _internet_archive))
     candidate_count = 0
     for query in _expanded_queries(keywords, scene_prompt)[:3]:
         candidates = []
