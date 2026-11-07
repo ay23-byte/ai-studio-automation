@@ -25,57 +25,77 @@ RULES:
 Return ONLY valid JSON:
 {{"title":"Roman Hinglish title max 80 chars","hook":"Roman hook question max 50 chars","category":"{category}","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
 
-LONGFORM_PROMPT = """You are an exceptional documentary filmmaker, senior subject researcher, Hindi/Hinglish educator, and retention-focused YouTube writer.
+LONGFORM_PROMPT = """You are the showrunner, investigative journalist, fact-checking researcher, documentary scriptwriter and cinematic visual director for a premium YouTube documentary.
 
-Create a complete, original long-form YouTube documentary/explainer about: "{topic}"
+Create a rigorous, emotionally engaging investigative documentary about: "{topic}"
 Category: {category}
 Target runtime: {duration_min}-{duration_max} minutes
 Narration language: {language}
 
-STORY STRUCTURE:
-1. Cold open with a surprising question, vivid moment, puzzle, or consequence. No generic greeting.
-2. Promise what viewers will understand and why it matters.
-3. Establish context with a simple relatable analogy.
-4. Build 6-10 logically ordered chapters (adjust to runtime), each adding a new idea.
-5. Include concrete examples, thought experiments, comparisons and step-by-step explanations where useful.
-6. Use honest open loops and resolve them later. Add natural chapter transitions, not fake hype.
-7. Explain uncertainty, limitations and common misconceptions.
-8. End by answering the opening question, summarizing the mental model and giving a meaningful CTA.
+EDITORIAL IDENTITY:
+- First-person host-led investigation: curious, observant, skeptical, fair and conversational.
+- The host explains what they investigated, what the evidence shows, what remains uncertain and why it matters.
+- Use a cinematic investigative tone: restrained tension, precise reveals, human consequences and clear explanations. No fake urgency, conspiracy framing or unsupported accusations.
+- The documentary should feel like a carefully researched premium video essay, not a generic classroom lecture or listicle.
 
-RUNTIME AND DEPTH:
-- Aim for 125-145 spoken words per minute.
-- Total narration target is approximately runtime_minutes × 130 words. Never pad with repetition.
-- Each chapter must explain its idea fully; normally 120-220 words per chapter depending on target runtime.
-- Make this a substantial educational experience, not a short summary stretched across minutes.
+REQUIRED STORY ARC:
+1. COLD OPEN (first 15-25 seconds): open on a concrete contradiction, surprising verified fact, unresolved question or consequence. Do not greet the audience.
+2. TITLE/PROMISE: state the central question and what the investigation will establish.
+3. CHAPTER 1 — ORIGINS & CONTEXT: explain how the subject emerged, key actors, timeline and the system around it.
+4. CHAPTER 2 — NAMED CASE STUDY: investigate one specific, well-documented case, organization, event, person or place. Explain what happened and what primary/credible evidence establishes it.
+5. CHAPTER 3 — HOW THE SYSTEM/MONEY WORKS: explain the mechanism step by step. If financial or quantitative data exists, include a transparent worked calculation with inputs, units, formula, source and assumptions. If not, explain the mechanism qualitatively; never invent example data and pass it off as real.
+6. CHAPTER 4 — EXPERT PERSPECTIVES: create two clearly labelled expert-perspective segments with useful questions and the evidence or published positions that can be attributed. Do NOT invent an interview, quote, answer, endorsement, voice, footage or meeting. If no recorded interview/transcript is supplied, write these as "questions I would put to an expert" plus a careful summary of attributable published research—not as a real interview.
+7. CHAPTER 5 — PEOPLE, COSTS & CONSEQUENCES: show implications for ordinary people, smaller creators/businesses/workers/communities or other directly affected groups, plus realistic barriers and entry costs where relevant. Do not force creator economics into unrelated topics.
+8. OUTRO: resolve the opening question, distinguish what is known from what remains open, and end with a memorable but proportionate takeaway and CTA.
 
-NARRATION:
-- Write natural spoken Hindi in Devanagari when language is Hindi or Hinglish. Use English only for necessary technical terms and explain them simply.
-- Use a confident, warm documentary voice with varied sentence length.
-- Explain each technical term at first use. Analogies are aids, not proof.
-- Use correct examples and calculations only.
-- No headings, bullets, markdown, stage directions or camera instructions inside narration.
-- Do not invent statistics, studies, quotes, dates, citations, people or facts. Flag claims needing verification in fact_check_notes.
-- Finance: education only, no personalized advice, guarantees or buy/sell recommendations.
+Adapt chapter content to the topic; retain the five-chapter investigative spine where relevant. For topics where a section is genuinely irrelevant, replace it with a topic-appropriate investigation and explain the editorial choice in fact_check_notes.
 
-VISUAL STORYBOARD:
-- Every chapter must contain 3-5 distinct "visuals" objects in chronological order, each tied to the exact spoken narration.
-- Each visual object must contain "narration_anchor" (an exact short phrase copied verbatim from this chapter's narration), "visual_prompt" (a standalone 16:9 documentary shot description), and "keywords" (2-4 precise stock-footage search terms for that exact moment).
-- The narration_anchor phrases must appear verbatim in the narration, in the same order, and be spread across the chapter from beginning to end.
-- The visual_prompt must depict the specific subject, action, concept, place or process explained at that anchor. Do not use generic space, city, technology or people footage unless the narration is actually about those things.
-- Add optional fields to every visual: "subject", "location", "time_period", "visual_type" (archival, stock, ai_reconstruction, diagram, map), and "search_queries" (3-5 specific search phrases). Keep these consistent with narration.
-- For Indian history, name the exact Indian region/city, ruler/company/person, battle/event, and period where supported by narration. Prefer period photographs, maps, paintings, buildings, documents and named archival collections.
-- Never label an AI reconstruction as archival footage. For events before photography, request period paintings, engravings, maps, archaeological remains or clearly disclosed AI reconstructions.
-- Search phrases must include proper nouns and the relevant period/event, not broad terms such as "India history" or "old city".
-- When evidence is uncertain, use a neutral historically plausible illustration and mark period/location as requiring editor review.
-- For scientific explanations, depict the actual object/process being discussed; if literal depiction is difficult, use a clearly relevant scientific visualization or physical analogy, never unrelated cinematic filler.
-- Vary wide shots, close-ups, macro details, accurate unlabeled diagrams and relevant environments.
-- No readable text, captions, logos, watermarks or recognizable real-person likenesses.
-- "image" is a fallback key visual prompt. "keywords" contains 2-4 chapter-level backup terms.
+RESEARCH & EVIDENCE RULES:
+- Use the supplied research context as leads, not unquestionable truth. Prefer primary sources, official datasets, court/regulatory filings, peer-reviewed research, company filings and direct institutional publications; use reputable journalism for context.
+- Never invent statistics, dates, names, quotes, interviews, documents, studies, URLs, source titles or causal claims.
+- Every material factual/numeric claim must be traceable to one or more source records. Include source title, publisher, publication date (if known), URL and claim supported. If publication date is unavailable, say so.
+- Distinguish measured fact, attributed claim, estimate, inference and allegation. Attribute allegations and include relevant response/context when available.
+- For calculations, show formula, source values, units, assumptions and result; mark illustrative calculations as illustrative and never disguise assumptions as observed facts.
+- Put unsupported or disputed claims in fact_check_notes and avoid presenting them as established narration.
+- No defamatory or accusatory language beyond what reliable evidence supports. Explain uncertainty and limitations.
 
-Return ONLY valid JSON:
-{{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"fact_check_notes":["Claims requiring verification, or empty array"],"sections":[{{"title":"Chapter title","narration":"Complete spoken narration in natural paragraphs","visuals":[{{"narration_anchor":"Exact short phrase copied verbatim from this narration","visual_prompt":"Specific 16:9 visual that illustrates the exact narration at this phrase","keywords":["precise stock search term one","precise stock search term two"]}},{{"narration_anchor":"Another exact later phrase copied from this narration","visual_prompt":"A different visual accurately illustrating that later narration moment","keywords":["specific search term"]}},{{"narration_anchor":"A third exact phrase from later in the narration","visual_prompt":"A third specific matching visual","keywords":["specific search term"]}}],"image":"Fallback key visual prompt","keywords":["chapter backup term one","chapter backup term two"]}}]}}
+RUNTIME & NARRATION:
+- Aim for approximately 145-155 spoken words per minute; total narration should fit the selected runtime, not include visual directions.
+- Do not pad. Give each chapter enough space to explain its argument, evidence and implications.
+- Write natural spoken narration in the requested language. For Hindi/Hinglish, use conversational Devanagari Hindi with necessary English technical terms explained at first use.
+- First-person host narration is welcome ("मैंने इस रिपोर्ट में...", "जब मैंने आंकड़े देखे...") only when it describes the research process, not a fictional real-world visit, call, interview or firsthand observation.
+- No headings, bullets, markdown, camera directions or production notes inside narration.
+- Vary sentence length, use transitions and resolve open loops.
 
-No markdown fences or commentary. Ensure the JSON parses."""
+CINEMATIC VISUAL STORYBOARD:
+- Each chapter must contain 3-6 structured visual beats in chronological order. Each beat needs an exact short narration_anchor copied verbatim from that chapter's narration, visual_prompt, and 2-4 precise stock keywords.
+- Spread anchors from the beginning to the end of the chapter. They must be exact substrings in order.
+- Aim for a new visual idea every 4-8 seconds where practical. Use distinct shot types and purposeful cutaways; do not simply repeat one generic image for an entire chapter.
+- Include visual_type from: stock, archival, ai_reconstruction, diagram, map, chart, timeline, document, person, location, interview, presenter.
+- Include subject, location, time_period, shot_size, camera_movement, search_queries (2-5), and visual_guardrail where useful.
+- Prefer real scene-matched stock footage, verified archival material, accurate maps, period-specific art, document close-ups, macro details, environmental wides, process shots, evidence boards and purposeful presenter moments.
+- For charts, provide chart_spec with chart_title, unit, labels, values, source_refs and notes. Only populate numeric values when supported by cited research. Otherwise request a qualitative graphic with no fabricated data.
+- For timelines, provide timeline_events with date, event and source_refs. Never invent dates.
+- For maps, specify named locations and the relevant historical/current boundary context; do not invent borders.
+- For documents, use only verified source material; never create fake readable headlines, court records, contracts, screenshots or quotations.
+- Archival material must be labelled archival only when its provenance is verified. Before photography, prefer period paintings, engravings, maps, artifacts or a clearly disclosed AI reconstruction.
+- AI reconstructions must be disclosed and must never impersonate real people or be passed off as documentary evidence.
+- Interview scenes must use supplied genuine recordings only. Without supplied recordings, render a question card, research note or presenter narration—not a fake talking expert.
+- No celebrity likenesses, fake logos, watermarks or fabricated legible text in generated imagery.
+- Use varied wide, medium, close-up and macro compositions; camera movement should support the information rather than decorate it.
+- Visual prompts must depict the exact narration moment. No generic city/technology/space filler unless the narration is actually about it.
+
+SOUND & EDITORIAL:
+- Suggest restrained cinematic sound design: low room tone, subtle impacts, paper handling, mechanical ambience, risers only at genuine transitions, and music that leaves narration intelligible.
+- Do not use constant trailer booms or manipulate viewers with alarmist sound.
+- Give every chapter a distinct visual/emotional progression while maintaining a coherent warm, dark, investigative palette with restrained deep red and amber accents.
+- On-screen text must be short, accurate and sourced. Numeric claims need a visible source cue in the scene metadata.
+
+OUTPUT:
+Return ONLY valid JSON with this structure:
+{{"title":"Accurate compelling title","description":"Natural SEO description","tags":["..."],"hook":"Cold-open line","category":"{category}","format":"longform","estimated_minutes":{duration_max},"editorial_style":"first_person_investigative","fact_check_notes":["..."],"sources":[{{"source_id":"S1","title":"Source title","publisher":"Publisher","published_at":"date or unknown","url":"https://...","supports":["specific claim"]}}],"sections":[{{"title":"Chapter title","section_type":"cold_open|context|case_study|mechanism|expert_perspective|consequences|outro","narration":"Complete spoken narration in natural paragraphs","visuals":[{{"narration_anchor":"Exact short phrase copied verbatim from this narration","visual_prompt":"Specific cinematic 16:9 shot depicting this exact narration moment","visual_type":"stock","subject":"Specific subject","location":"Named location or unknown","time_period":"Supported period or unknown","shot_size":"close-up, medium, wide or macro","camera_movement":"subtle push-in, tracking, locked-off, etc.","keywords":["precise stock term one","precise stock term two"],"search_queries":["specific search phrase one","specific search phrase two"],"source_refs":["S1"],"chart_spec":null,"timeline_events":[],"on_screen_text":"Short sourced text or empty string","sound_design":"Subtle scene-specific sound cue","visual_guardrail":"Evidence and authenticity constraints"}}],"image":"Fallback key visual prompt","keywords":["chapter backup term one","chapter backup term two"]}}]}}
+
+Return raw JSON only. No markdown fences or commentary. Ensure valid JSON and complete narration. Do not invent missing evidence to satisfy the requested structure."""
 
 
 def _ask_model(prompt: str, model: str, attempts: int = 4):
