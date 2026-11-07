@@ -5,7 +5,34 @@ W, H = 1920, 1080
 FADE = 0.4
 ENC = ["-c:v","libx264","-preset","slow","-crf","18","-profile:v","high",
        "-level","4.1","-pix_fmt","yuv420p","-r","30","-video_track_timescale","15360"]
-TRANSITIONS = ["fade","smoothleft","fade","circlecrop","fade","wipeleft"]
+TRANSITIONS = ["fade", "smoothleft", "fade", "circlecrop", "fade", "wipeleft"]
+# Keep documentary transitions restrained; reserve directional wipes for chapter changes.
+TRANSITION_BY_TYPE = {
+    "chart": "fade", "timeline": "fade", "document": "fade",
+    "evidence": "fade", "interview": "smoothleft", "presenter": "fade",
+    "map": "smoothleft", "archival": "fade", "ai_reconstruction": "fade",
+}
+
+
+def _transition_for(previous, current, index):
+    prev_type = str(previous.get("visual_type") or "").lower()
+    curr_type = str(current.get("visual_type") or "").lower()
+    if previous.get("_chapter_index") != current.get("_chapter_index"):
+        return "wipeleft"
+    if curr_type in {"chart", "timeline", "document", "evidence"} or prev_type in {"chart", "timeline", "document", "evidence"}:
+        return "fade"
+    return TRANSITION_BY_TYPE.get(curr_type, TRANSITIONS[index % len(TRANSITIONS)])
+
+
+def _pacing_duration(shot):
+    """Bound individual B-roll beats to a documentary-friendly visual rhythm."""
+    duration = max(float(shot.get("_dur", 8.0)), 0.1)
+    kind = str(shot.get("visual_type") or "").lower()
+    if kind in {"chart", "timeline", "document", "evidence", "map", "diagram"}:
+        return min(max(duration, 4.0), 10.0)
+    if kind in {"interview", "presenter"}:
+        return min(max(duration, 5.0), 14.0)
+    return min(max(duration, 3.5), 8.0)
 
 def _run(cmd): subprocess.run(cmd, check=True)
 
@@ -34,23 +61,25 @@ def render(sections, voice, ass, total, out, music=None, music_vol=0.18):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
         if src and src.exists():
             d = sec.get("_dur",10.0)+FADE
-            valid.append((i, _seg(src, i, d, m.get("type")=="image", bd), sec.get("_dur",10.0)))
+            valid.append((i, _seg(src, i, d, m.get("type")=="image", bd), sec.get("_dur",10.0), sec))
     if not valid: raise RuntimeError("No visual segments")
     if len(valid)==1:
-        _, p, _ = valid[0]
+        _, p, _, _shot = valid[0]
         filt = f"subtitles={ass}[vout];"; inputs=["-i",str(p),"-i",str(voice)]
     else:
         offsets, acc = [], 0.0
         for j in range(len(valid)-1):
             acc += valid[j][2]; offsets.append(acc)
         chain, prev = [], "[0:v]"
-        for k, (off, (_, p2, _)) in enumerate(zip(offsets, valid[1:])):
-            lab = f"[x{k}]"; tr = TRANSITIONS[k%len(TRANSITIONS)]
+        for k, (off, (_, p2, _, current_shot)) in enumerate(zip(offsets, valid[1:])):
+            lab = f"[x{k}]"
+            previous_shot = valid[k][3]
+            tr = _transition_for(previous_shot, current_shot, k)
             chain.append(f"{prev}[{k+1}:v]xfade=transition={tr}:duration={FADE}:offset={off:.3f}{lab}")
             prev = lab
         filt = ";".join(chain+[f"{prev}subtitles={ass}[vout]"])+";"
         inputs = []
-        for _, p2, _ in valid: inputs += ["-i",str(p2)]
+        for _, p2, _, _shot in valid: inputs += ["-i",str(p2)]
         inputs += ["-i",str(voice)]
     n = len(valid); norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
     afilt = [f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va]"]
