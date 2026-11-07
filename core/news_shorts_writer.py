@@ -1,5 +1,5 @@
 """Generate a short Hinglish news script only from a human-reviewed evidence packet."""
-import json, os, re, requests
+import json, os, re, time, requests
 from core.news_source_verification import verify_packet
 
 def _validate_scientific_wording(script):
@@ -53,6 +53,38 @@ def _validate_scientific_wording(script):
     for group in required_groups:
         if not any(value in combined for value in group):
             raise ValueError('Script omitted a required study figure: ' + ' / '.join(group))
+
+
+
+def _post_gemini_with_retries(url, key, payload, *, attempts=3):
+    """Retry transient Gemini API failures before moving to the fallback model."""
+    retryable_statuses = {408, 429, 500, 502, 503, 504}
+    delays = (2, 5)
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            response = requests.post(
+                url, params={'key': key}, json=payload, timeout=(15, 75))
+            if response.status_code in retryable_statuses:
+                last_error = requests.HTTPError(
+                    f'Gemini temporarily unavailable (HTTP {response.status_code}).',
+                    response=response)
+                if attempt + 1 < attempts:
+                    time.sleep(delays[min(attempt, len(delays) - 1)])
+                    continue
+                raise last_error
+            response.raise_for_status()
+            return response
+        except requests.RequestException as exc:
+            last_error = exc
+            status = getattr(getattr(exc, 'response', None), 'status_code', None)
+            if status is not None and status not in retryable_statuses:
+                raise
+            if attempt + 1 < attempts:
+                time.sleep(delays[min(attempt, len(delays) - 1)])
+    raise RuntimeError(
+        f'Gemini request failed after {attempts} attempts: {last_error}'
+    ) from last_error
 
 
 def generate_reviewed_shorts(review_path, output_path):
@@ -109,12 +141,9 @@ REVIEWED PACKET:
         for candidate_model in model_candidates:
             url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
             try:
-                candidate_response = requests.post(
-                    url, params={'key': key}, json=payload, timeout=(15, 75))
-                candidate_response.raise_for_status()
-                response = candidate_response
+                response = _post_gemini_with_retries(url, key, payload)
                 break
-            except requests.RequestException as exc:
+            except (requests.RequestException, RuntimeError) as exc:
                 last_error = exc
         if response is None:
             raise RuntimeError(
