@@ -64,3 +64,25 @@ python -m unittest tests.test_news_source_verification -v
 ```
 
 This milestone does not enable unattended publication. The current daily workflow remains a discovery/review queue; the news writer still requires a human-approved packet, and video QA plus YouTube upload remain separate, gated work.
+
+
+## Milestone 4: reviewed script → voice → vertical review render
+
+A new local/runner command connects a separately approved script to the existing TTS engine and FFmpeg Shorts renderer:
+
+```bash
+python scripts/render_reviewed_news_short.py approved_script.json production_approval.json --output-dir output/daily_news/rendered
+```
+
+Before synthesis or rendering, it requires:
+- `editorial_status: "approved_for_production"` on the script, separate from the writer's draft status.
+- A separate approval JSON containing `{"status":"approved"}`.
+- Four to six scenes, narration and captions, and known source IDs on every scene.
+- A local image/video file and adjacent `.source.json` provenance record for every scene.
+- Real assets to carry an explicit recognized licence and licence URL. AI illustrations must be labelled as AI-generated, have `ai_disclosure: true`, and record `terms_reviewed: true` in their sidecar.
+
+The command synthesizes each scene with the existing voice engine, creates caption subtitles, builds `licenses.csv` and `credits.txt`, then uses the existing 1080×1920/30 fps FFmpeg renderer. Outputs include `review_short.mp4`, `voice.wav`, `captions.ass` and `production_manifest.json`.
+
+**Hard boundary:** this is a review render only. It does not call the YouTube uploader, set privacy, schedule, or publish. Licence metadata is not legal advice or proof of rights; every asset still requires human inspection for exact licence terms, attribution, visual relevance, watermarks and context. Human fact, script, visual, audio and phone playback review remain mandatory. The existing scheduled GitHub workflow remains discovery-only and does not invoke TTS/rendering or upload.
+
+The production approval file is intentionally separate from the generated script so an AI-generated draft cannot approve itself.
