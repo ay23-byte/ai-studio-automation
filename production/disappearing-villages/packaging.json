@@ -1,0 +1,104 @@
+{
+  "titles": [
+    "Why Are India's Villages Disappearing?",
+    "Inside India's Disappearing Villages",
+    "Why People Are Leaving Himalayan Villages",
+    "The Mystery Behind India's Empty Villages",
+    "When a Village Slowly Falls Silent"
+  ],
+  "thumbnail_concepts": [
+    {
+      "idea": "A quiet Himalayan settlement with one empty house in the foreground; strong contrast, no fabricated people.",
+      "subject": "Empty mountain house and village",
+      "text": "EMPTY VILLAGES",
+      "ai_image_prompt": "16:9 premium investigative documentary thumbnail, photorealistic remote Himalayan village in Uttarakhand, one weathered empty house in foreground, layered mountain valley behind, moody early morning mist, restrained cinematic contrast, realistic architecture, no people, no text, no logos, no watermark; leave clean negative space for editor-added title."
+    },
+    {
+      "idea": "Aerial village path leading into mist, suggesting unanswered questions rather than disaster.",
+      "subject": "Mountain village path",
+      "text": "WHY LEAVE?",
+      "ai_image_prompt": "16:9 photorealistic documentary thumbnail, narrow path through a remote Himalayan village, terraced fields and traditional houses, misty mountain background, atmospheric but realistic, no abandoned props or invented signage, no text, no logos, no watermark; reserve space for title."
+    },
+    {
+      "idea": "Split composition between village homes and a distant town bus, illustrating migration choices.",
+      "subject": "Village and departing bus",
+      "text": "A VANISHING HOME",
+      "ai_image_prompt": "16:9 cinematic documentary thumbnail, wide split-depth composition with Uttarakhand-style mountain village in foreground and a public bus travelling on a winding road in the distance, natural dawn light, realistic documentary photography, no identifiable people, no text, no logos, no watermark."
+    }
+  ],
+  "description": "Why are people leaving India's villages? This investigative Hinglish documentary examines historical Census records and Uttarakhand migration research to understand the pressures behind village depopulation.\n\nWe distinguish permanent uninhabited status from seasonal migration, examine reported livelihood and service gaps, and consider the strongest counter-argument: migration can also create opportunity. Historical figures are labelled with their source years and are not presented as current 2026 counts.\n\nCHAPTERS\n00:00 The Village That Went Silent\n01:04 Title Card\n01:13 A Country Built on Villages\n02:32 The Himalayan Disappearance\n03:49 The Economics of Leaving\n05:26 When Essential Services Disappear\n07:35 The Big Reveal: It Is Not One Cause\n09:11 Can a Village Come Back?\n11:24 The Door That Remains\n\nRESEARCH SOURCES\n- Government of India, Lok Sabha Unstarred Question No. 1156 (03 March 2016): https://sansad.in/getFile/loksabhaquestions/annex/7/AU1156.pdf\n- Uttarakhand migration research report (2021): https://www.uttarakhandcan.in/_files/ugd/2954ee_ffb687cd337b44c08da3c8976c7ee013.pdf\n- MoSPI, Annual Report PLFS 2020-21: https://mospi.gov.in/sites/default/files/publication_reports/Annual_Report_PLFS_2020%2021_0.pdf\n- PIB release reporting PLFS migration indicators: https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1833854&lang=2&reg=48\n- PIB release reporting migration streams: https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2042542&lang=2&reg=48\n\nEDITORIAL NOTE\nThe 2011 Census and 2018 Uttarakhand survey figures are historical. Migration statistics are not counts of permanently abandoned villages. The cited 2021 research report reproduces Migration Commission figures; original tables and denominators require human source inspection before publication. AI-generated or reconstructed visuals are illustrative, not archival evidence.\n\nAI DISCLOSURE\nIf the final video contains realistic AI-generated or altered scenes, disclose this using YouTube's altered or synthetic content setting and identify illustrative reconstructions in the description.\n\nHuman review is required for factual accuracy, exact source passages, asset licences, credits, visual-to-narration match, presenter portrait permissions and final audio/video quality.",
+  "chapters": [
+    {
+      "timestamp": "00:00",
+      "title": "The Village That Went Silent"
+    },
+    {
+      "timestamp": "01:04",
+      "title": "Title Card"
+    },
+    {
+      "timestamp": "01:13",
+      "title": "A Country Built on Villages"
+    },
+    {
+      "timestamp": "02:32",
+      "title": "The Himalayan Disappearance"
+    },
+    {
+      "timestamp": "03:49",
+      "title": "The Economics of Leaving"
+    },
+    {
+      "timestamp": "05:26",
+      "title": "When Essential Services Disappear"
+    },
+    {
+      "timestamp": "07:35",
+      "title": "The Big Reveal"
+    },
+    {
+      "timestamp": "09:11",
+      "title": "Can a Village Come Back?"
+    },
+    {
+      "timestamp": "11:24",
+      "title": "The Door That Remains"
+    }
+  ],
+  "tags": [
+    "India villages",
+    "disappearing villages",
+    "Uttarakhand migration",
+    "ghost villages India",
+    "rural migration",
+    "Himalayan villages",
+    "village depopulation",
+    "Uttarakhand",
+    "Indian villages",
+    "migration in India",
+    "rural development",
+    "Hinglish documentary",
+    "Indian documentary",
+    "village life",
+    "Engineering Physics"
+  ],
+  "pinned_comment": "What do you think matters most if people are to have a real choice to stay in their villages: local jobs, education, healthcare, roads, or something else? Please share a specific example or a reliable source.",
+  "shorts_clips": [
+    {
+      "start": "00:00",
+      "end": "00:52",
+      "hook_line": "Census 2011 recorded 43,324 uninhabited villages in India—but what does that number really mean?"
+    },
+    {
+      "start": "04:15",
+      "end": "05:05",
+      "hook_line": "The leading reported reason for migration in the cited Uttarakhand data was lack of livelihood and employment."
+    },
+    {
+      "start": "07:35",
+      "end": "08:25",
+      "hook_line": "A village doesn't disappear for one single reason. The causes can reinforce one another."
+    }
+  ],
+  "editorial_status": "Packaging draft; final timestamps must be regenerated from the rendered narration duration before publication."
+}
