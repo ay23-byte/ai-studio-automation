@@ -94,41 +94,74 @@ Every material factual statement in each scene must map to source_ids. Mark visu
 REVIEWED PACKET:
 '''+json.dumps(packet,ensure_ascii=False)
     # Retry the configured model once through a second supported Flash model.
-    # GitHub-hosted runners can occasionally hit transient Gemini API read timeouts.
+    # A second generation attempt also repairs validator feedback (for example,
+    # a spoken HAND reference that omits the nearest-drainage definition).
     model_candidates = [model]
     if model != 'gemini-3.6-flash':
         model_candidates.append('gemini-3.6-flash')
     payload = {'contents': [{'parts': [{'text': prompt}]}],
                'generationConfig': {'responseMimeType': 'application/json',
                                     'temperature': 0.3}}
-    response = None
+    script = None
     last_error = None
-    for candidate_model in model_candidates:
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
+    for draft_attempt in range(2):
+        response = None
+        for candidate_model in model_candidates:
+            url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
+            try:
+                candidate_response = requests.post(
+                    url, params={'key': key}, json=payload, timeout=(15, 75))
+                candidate_response.raise_for_status()
+                response = candidate_response
+                break
+            except requests.RequestException as exc:
+                last_error = exc
+        if response is None:
+            raise RuntimeError(
+                'Gemini script generation failed on configured and fallback models. '
+                'Check Google AI API availability and the GEMINI_MODEL setting.'
+            ) from last_error
+        data = response.json()
         try:
-            candidate_response = requests.post(
-                url, params={'key': key}, json=payload, timeout=(15, 75))
-            candidate_response.raise_for_status()
-            response = candidate_response
-            break
-        except requests.RequestException as exc:
-            last_error = exc
-    if response is None:
-        raise RuntimeError(
-            'Gemini script generation failed on configured and fallback models. '
-            'Check Google AI API availability and the GEMINI_MODEL setting.'
-        ) from last_error
-    data=response.json()
-    try:
-        text=''.join(p.get('text','') for p in data['candidates'][0]['content']['parts'])
-    except (KeyError, IndexError, TypeError) as exc:
-        raise ValueError('Gemini returned no usable text candidate for the script.') from exc
-    script=json.loads(text)
-    scenes=script.get('scenes',[])
-    words=sum(len(re.findall(r'\S+',s.get('say',''))) for s in scenes)
-    if not 4<=len(scenes)<=6: raise ValueError('Generated script must contain 4–6 scenes.')
-    if not 70<=words<=140: raise ValueError(f'Script word count outside safe target: {words}.')
-    _validate_scientific_wording(script)
+            candidate_text = ''.join(
+                p.get('text', '') for p in data['candidates'][0]['content']['parts'])
+            candidate_script = json.loads(candidate_text)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            last_error = ValueError('Gemini returned no usable JSON script candidate.')
+        else:
+            candidate_scenes = candidate_script.get('scenes', [])
+            candidate_words = sum(
+                len(re.findall(r'\\S+', scene.get('say', '')))
+                for scene in candidate_scenes)
+            try:
+                if not 4 <= len(candidate_scenes) <= 6:
+                    raise ValueError('Generated script must contain 4–6 scenes.')
+                if not 70 <= candidate_words <= 140:
+                    raise ValueError(
+                        f'Script word count outside safe target: {candidate_words}.')
+                _validate_scientific_wording(candidate_script)
+            except ValueError as exc:
+                last_error = exc
+            else:
+                script = candidate_script
+                words = candidate_words
+                break
+        if draft_attempt == 0:
+            payload['contents'][0]['parts'][0]['text'] = (
+                prompt
+                + '\\n\\nCORRECTION REQUIRED: Your previous JSON draft failed validation: '
+                + str(last_error)
+                + '\\nReturn a corrected complete JSON script. Every scene whose spoken '
+                  'say field contains the term HAND must, in that same say field, explicitly '
+                  'say that HAND means “निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. '
+                  'Do not rely on a caption or another scene for this definition. '
+                  'Prefer spelling out the definition rather than saying HAND alone. '
+                  'Preserve all verified figures and scientific caveats.')
+    if script is None:
+        raise ValueError(
+            'Generated script failed validation after one correction attempt: '
+            + str(last_error)
+        )
     known={s['source_id'] for s in sources}
     for claim in script.get('claims',[]):
         if not set(claim.get('source_ids',[])).issubset(known): raise ValueError('Generated claim has unknown source IDs.')
