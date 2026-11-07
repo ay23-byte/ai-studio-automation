@@ -133,7 +133,7 @@ def _visual_beats_for_section(section, category="general"):
     from core.documentary_storyboard import plan_section_visuals
     planned = plan_section_visuals(section, category)
     beats = []
-    for item in planned[:6]:
+    for item in planned[:10]:
         # Preserve the original concise prompt for legacy string storyboards;
         # structured visual beats receive the full production prompt.
         is_structured = bool(item.get("_structured_input"))

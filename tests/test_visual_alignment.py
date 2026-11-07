@@ -26,12 +26,12 @@ class VisualNarrationAlignmentTests(unittest.TestCase):
         durations = _visual_beat_durations("A short narration with several words.", beats, 20)
         self.assertAlmostEqual(sum(durations), 20, places=6)
 
-    def test_visuals_are_limited_and_empty_prompts_are_ignored(self):
+    def test_visuals_are_capped_at_ten_and_empty_prompts_are_ignored(self):
         visuals = [{"visual_prompt": f"Shot {i}", "narration_anchor": f"anchor {i}",
-                    "keywords": [f"term {i}"]} for i in range(8)]
+                    "keywords": [f"term {i}"]} for i in range(12)]
         visuals.insert(0, {"visual_prompt": " "})
         beats = _visual_beats_for_section({"visuals": visuals})
-        self.assertEqual(len(beats), 6)
+        self.assertEqual(len(beats), 10)
         self.assertTrue(all(beat["prompt"] for beat in beats))
 
     def test_anchor_positions_produce_ordered_positive_shots(self):
