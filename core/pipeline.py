@@ -523,7 +523,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # Save a reviewable shot manifest and sample frames before final rendering.
     try:
         from core.visual_production import build_visual_review
-        visual_report = build_visual_review(shot_timeline, bd)
+        visual_report = build_visual_review(shot_timeline, bd, research_sources=script.get("research_sources", []))
         print(f"Visual review: {visual_report['shot_count']} shots; human approval required.")
         for issue in visual_report.get("issues", []):
             print(f"VISUAL REVIEW {issue['level'].upper()}: {issue['message']}")
