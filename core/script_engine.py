@@ -413,6 +413,8 @@ def generate_longform_script(topic: str, category: str = "finance",
     script["format"] = "longform"
     script["category"] = category
     script["research_sources"] = research_sources
+    from core.research_verification import append_source_citations_to_description
+    script = append_source_citations_to_description(script)
     script = _repair_longform_visual_anchors(script)
     return validate_longform_storyboard(script)
 
