@@ -216,6 +216,13 @@ def audit_visual_reviews(report: dict[str, Any], store: dict[str, Any]) -> dict[
                         "resolve the screening concern and regenerate/review this shot before publication."
                     ),
                 })
+        visual_quality = shot.get("visual_quality") or {}
+        if visual_quality.get("status") == "fail":
+            messages = visual_quality.get("issues") or ["Resolve the technical visual-quality failure."]
+            issues.append({
+                "level": "error", "shot_id": shot_id,
+                "message": "Visual quality check failed: " + "; ".join(str(item) for item in messages),
+            })
         media_path = shot.get("media_path")
         if not media_path or not Path(media_path).is_file():
             issues.append({"level": "error", "shot_id": shot_id, "message": "Referenced media is missing; restore or replace it."})
