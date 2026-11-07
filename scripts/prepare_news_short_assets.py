@@ -59,9 +59,7 @@ def visual_plan(scene_number: int, scene_count: int, is_himalayan: bool) -> dict
     if scene_number == 2:
         return {"kind": "graphic", "graphic": "building_growth"}
     if scene_number == 3:
-        return {"kind": "stock", "queries": [
-            "Nepal glacier", "Himalaya glacier", "Nepal river"
-        ]}
+        return {"kind": "graphic", "graphic": "nepal_breakdown"}
     if scene_number == 4:
         return {"kind": "graphic", "graphic": "not_forecast"}
     if scene_number == scene_count:
@@ -114,6 +112,18 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
         draw.text((120, 1160), "+77%", font=large, fill=accent)
         draw.text((120, 1300), "within modelled GLOF extents", font=small, fill=white)
         draw.text((x, 1570), "2016–2023  •  AREA, NOT BUILDING COUNT", font=small, fill=muted)
+    elif graphic == "nepal_breakdown":
+        draw.text((x, 190), "NEPAL BREAKDOWN", font=medium, fill=accent)
+        draw.text((x, 390), "MODELLED", font=large, fill=white)
+        draw.text((x, 520), "POTENTIAL", font=large, fill=white)
+        draw.text((x, 650), "EXPOSURE", font=large, fill=white)
+        draw.rounded_rectangle((70, 850, 1010, 1190), radius=34, fill=(24, 47, 64), outline=(55, 87, 105), width=3)
+        draw.text((120, 900), "108,500", font=large, fill=accent)
+        draw.text((120, 1040), "within 0–50 m HAND", font=small, fill=white)
+        draw.rounded_rectangle((70, 1260, 1010, 1530), radius=34, fill=(24, 47, 64), outline=(55, 87, 105), width=3)
+        draw.text((120, 1290), "22,800", font=large, fill=accent)
+        draw.text((120, 1430), "within 0–10 m HAND", font=small, fill=white)
+        draw.text((x, 1660), "HAND = VERTICAL HEIGHT ABOVE NEAREST DRAINAGE", font=_font(30), fill=muted)
     elif graphic == "not_forecast":
         draw.text((x, 280), "IMPORTANT CONTEXT", font=medium, fill=accent)
         draw.text((x, 520), "MODELLED", font=large, fill=white)
@@ -123,7 +133,12 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
         draw.text((x, 1110), "IS NOT A", font=medium, fill=muted)
         draw.text((x, 1220), "FLOOD", font=large, fill=(255, 190, 115))
         draw.text((x, 1360), "FORECAST", font=large, fill=(255, 190, 115))
-        draw.text((x, 1600), "The study does not prove construction caused flooding.", font=small, fill=muted)
+        disclaimer = "The study does not prove construction caused flooding."
+        import textwrap
+        draw.multiline_text(
+            (x, 1580), "\n".join(textwrap.wrap(disclaimer, width=34)),
+            font=small, fill=muted, spacing=12
+        )
     elif graphic == "outro":
         draw.text((x, 360), "SCIENCE", font=large, fill=white)
         draw.text((x, 500), "WITHOUT", font=large, fill=white)
