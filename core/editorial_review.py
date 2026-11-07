@@ -205,6 +205,17 @@ def audit_visual_reviews(report: dict[str, Any], store: dict[str, Any]) -> dict[
         if record["source_review_status"] != "reviewed":
             issues.append({"level": "error", "shot_id": shot_id,
                            "message": f"Source review status is '{record['source_review_status']}'; inspect provenance and rights separately."})
+        if report.get("semantic_screening_enabled"):
+            screening = shot.get("semantic_screening") or {}
+            screening_status = screening.get("status", "not_run")
+            if screening_status != "match":
+                issues.append({
+                    "level": "error", "shot_id": shot_id,
+                    "message": (
+                        f"AI visual-to-narration screening is '{screening_status}'; "
+                        "resolve the screening concern and regenerate/review this shot before publication."
+                    ),
+                })
         media_path = shot.get("media_path")
         if not media_path or not Path(media_path).is_file():
             issues.append({"level": "error", "shot_id": shot_id, "message": "Referenced media is missing; restore or replace it."})
