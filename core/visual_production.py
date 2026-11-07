@@ -91,7 +91,8 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         })
     report = {
         "shot_count": len(shots), "shots": shots, "issues": issues,
-        "automated_vision_verification": False,\n        "shot_type_counts": {kind: sum(1 for shot in shots if shot.get("visual_type") == kind)\n                             for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
+        "automated_vision_verification": False,
+        "shot_type_counts": {kind: sum(1 for shot in shots if shot.get("visual_type") == kind)\n                             for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
         "historical_authenticity_verified": False,
         "publication_ready": False,
         "notice": "Frame samples and metadata support review only. A human must confirm every visual matches the narration, verify historical context and asset rights, and approve AI-reconstruction disclosures.",
