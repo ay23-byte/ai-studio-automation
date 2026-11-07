@@ -21,7 +21,7 @@ CSV_FIELDS = [
 PUBLIC_DOMAIN = {"public domain", "cc0", "cc0 1.0", "creative commons zero"}
 CC_BY = {"cc by", "cc by 2.0", "cc by 3.0", "cc by 4.0",
          "cc by-sa", "cc by-sa 2.0", "cc by-sa 3.0", "cc by-sa 4.0"}
-STOCK = {"pixabay content license", "coverr license", "mixkit free license"}
+STOCK = {"pixabay content license", "coverr license", "mixkit free license", "dvids api commercial use terms"}
 
 
 def _normal(value: object) -> str:
