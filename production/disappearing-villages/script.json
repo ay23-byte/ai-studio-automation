@@ -82,6 +82,19 @@
         "State-wise migration reasons: livelihood/employment 50.16%, education 15.21%, health 8.83%, infrastructure 3.74%, agricultural productivity 5.44%, crop damage by wild animals 5.61%",
         "Migration destinations: nearby towns 19.46%, district headquarters 15.18%, other state districts 35.69%, outside state 28.72%, outside country 0.96%"
       ]
+    },
+    {
+      "id": "S07",
+      "source_id": "S07",
+      "title": "Border Infrastructure Development",
+      "publisher": "Ministry of Home Affairs, Government of India (Press Information Bureau)",
+      "published_at": "25 March 2026",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3",
+      "supports": [
+        "As of 25 March 2026, BADP was described as being in its sunset phase",
+        "VVP-I approved for 662 select villages in northern border blocks across four states and one UT",
+        "VVP-II approved for 1,954 select villages in blocks abutting other international land borders"
+      ]
     }
   ],
   "claims": [
@@ -225,6 +238,15 @@
       ],
       "evidence_note": "Projection, not an observed future outcome; optional context only.",
       "evidence": "Projection, not an observed future outcome; optional context only."
+    },
+    {
+      "claim_id": "C15",
+      "claim": "The Ministry of Home Affairs stated in March 2026 that BADP was in its sunset phase and described VVP-I and VVP-II approvals.",
+      "claim_type": "fact",
+      "source_ids": [
+        "S07"
+      ],
+      "evidence": "PIB release dated 25 March 2026: BADP is stated to be in its sunset phase; VVP-I and VVP-II approval counts and coverage are summarised in the release."
     }
   ],
   "fact_check_notes": [
@@ -601,7 +623,7 @@
     },
     {
       "title": "Act 3 — Can a Village Come Back?",
-      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? Government ka Border Area Development Programme remote border areas mein roads, water, education, health aur skill development jaise infrastructure ko support karne ke liye describe kiya gaya hai. Programme ka hona yeh prove nahi karta ki har village ki problem solve ho gayi. Outcomes ko village-level evidence se check karna padega. Sirf road enough nahi agar local livelihood sustainable nahi. Sirf school enough nahi agar quality education tak access nahi. Solution logon ko force karke wapas bulaana nahi. Focus choice par hona chahiye: jo jaana chahe woh ja sake, jo rehna chahe uske paas viable future ho, aur jo wapas aana chahe uske liye basic conditions hon. Local planning bhi geography aur economy ke hisaab se honi chahiye. Ek hi scheme har jagah same result degi, yeh assume nahi kar sakte. Iska matlab policy ka goal sirf population numbers badhana nahi hona chahiye. Goal yeh hona chahiye ki healthcare, education, connectivity aur income ke options reliable hon. Aur success ko sirf naye construction se nahi, balki service quality aur local livelihoods se measure kiya jaaye. Yeh ek policy direction hai, kisi ek programme ke proven result ka claim nahi.",
+      "narration": "Ab ek counter-argument ko honestly dekhna zaroori hai. Kya migration hamesha buri cheez hai? Nahi. Kisi young person ke liye city jaana better education ka chance ho sakta hai. Kisi family ke liye stable employment aur healthcare access ka raasta. Migrants apne ghar par paise bhej sakte hain. Kuch log season ke hisaab se move karke wapas aate hain. Isliye har migrant ko ek tragic figure ki tarah dikhana unfair hoga. Har village ko uski historical population tak wapas le jaana bhi zaroori ya practical nahi hota. Lekin kya kisi insaan ke paas apne gaon mein rehne ka real option hona chahiye? 2026 mein Ministry of Home Affairs ne kaha ki Border Area Development Programme sunset phase mein hai. Government ne Vibrant Villages Programme ke do phases bhi approve kiye hain—northern border ke 662 select villages ke liye VVP-I aur doosre international borders ke 1,954 select villages ke liye VVP-II. Lekin approval counts outcomes ka proof nahi hote. Kisi specific village mein kya badla, yeh ground-level evidence se hi pata chalega. Outcomes ko village-level evidence se check karna padega. Sirf road enough nahi agar local livelihood sustainable nahi. Sirf school enough nahi agar quality education tak access nahi. Solution logon ko force karke wapas bulaana nahi. Focus choice par hona chahiye: jo jaana chahe woh ja sake, jo rehna chahe uske paas viable future ho, aur jo wapas aana chahe uske liye basic conditions hon. Local planning bhi geography aur economy ke hisaab se honi chahiye. Ek hi scheme har jagah same result degi, yeh assume nahi kar sakte. Iska matlab policy ka goal sirf population numbers badhana nahi hona chahiye. Goal yeh hona chahiye ki healthcare, education, connectivity aur income ke options reliable hon. Aur success ko sirf naye construction se nahi, balki service quality aur local livelihoods se measure kiya jaaye. Yeh ek policy direction hai, kisi ek programme ke proven result ka claim nahi.",
       "visuals": [
         {
           "narration_anchor": "city jaana better education ka chance ho sakta hai",
@@ -620,14 +642,15 @@
           "visual_type": "stock"
         },
         {
-          "narration_anchor": "Border Area Development Programme",
-          "visual_prompt": "Government document or official programme page on screen only after human verification; cite S01, no fabricated policy screenshot.",
+          "narration_anchor": "2026 mein Ministry of Home Affairs ne kaha",
+          "visual_prompt": "Show the official 25 March 2026 PIB Ministry of Home Affairs release only after opening and checking it. Highlight BADP sunset phase and VVP-I/VVP-II approvals; distinguish approval counts from outcomes. Cite S07.",
           "keywords": [
-            "Border Area Development Programme India official"
+            "Ministry of Home Affairs Border Infrastructure Development 2026 PIB",
+            "Vibrant Villages Programme official"
           ],
           "visual_type": "document",
           "source_refs": [
-            "S01"
+            "S07"
           ]
         },
         {
@@ -671,8 +694,8 @@
       ]
     }
   ],
-  "word_count_estimate": 1784,
-  "estimated_minutes": "11.89",
+  "word_count_estimate": 1810,
+  "estimated_minutes": "12.07",
   "narration_rules": {
     "target_words_per_minute": 150,
     "pauses": "Add 0.8 second pause before the central reveal and chapter-defining lines during TTS editing.",
@@ -756,6 +779,19 @@
         "734 depopulated revenue villages/toks/majra after 2011; district totals including Pauri Garhwal 186",
         "State-wise migration reasons: livelihood/employment 50.16%, education 15.21%, health 8.83%, infrastructure 3.74%, agricultural productivity 5.44%, crop damage by wild animals 5.61%",
         "Migration destinations: nearby towns 19.46%, district headquarters 15.18%, other state districts 35.69%, outside state 28.72%, outside country 0.96%"
+      ]
+    },
+    {
+      "id": "S07",
+      "source_id": "S07",
+      "title": "Border Infrastructure Development",
+      "publisher": "Ministry of Home Affairs, Government of India (Press Information Bureau)",
+      "published_at": "25 March 2026",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2245022&lang=1&reg=+3",
+      "supports": [
+        "As of 25 March 2026, BADP was described as being in its sunset phase",
+        "VVP-I approved for 662 select villages in northern border blocks across four states and one UT",
+        "VVP-II approved for 1,954 select villages in blocks abutting other international land borders"
       ]
     }
   ]
