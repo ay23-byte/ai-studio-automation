@@ -128,7 +128,7 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
         candidates = []
         for h in fresh:
             tags = h.get("tags", "")
-            match = _relevance(scene_prompt or q, tags)
+            match = max(_relevance(q, tags), _relevance(scene_prompt, tags))
             variants = h.get("videos") or {}
             best = max(variants.values(), key=lambda v: (v.get("width") or 0) * (v.get("height") or 0), default={})
             width, height = int(best.get("width") or 0), int(best.get("height") or 0)
@@ -139,9 +139,10 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
             h["_dimensions"] = (width, height)
             candidates.append(h)
         candidates.sort(key=lambda h: (h["_score"], h.get("views") or 0), reverse=True)
-        for h in candidates[:5]:
+        for h in candidates:
             if downloaded >= 5:
                 return False
+            downloaded += 1
             if h["_score"] < 7.0:
                 continue
             url = None
