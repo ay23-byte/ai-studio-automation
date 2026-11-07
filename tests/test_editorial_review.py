@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -80,6 +81,15 @@ class EditorialReviewTests(unittest.TestCase):
 
     def test_schema_v1_migrates_preserving_approval_but_rights_pending(self):
         path = review_store_path(self.report_path)
+        shot = self.report["shots"][0]
+        legacy_identity = {
+            "chapter_id": "chapter_1", "media_path": shot.get("media_path"),
+            "visual_prompt": shot.get("visual_prompt"), "narration": shot.get("narration"),
+            "media_type": shot.get("media_type"),
+        }
+        legacy_fingerprint = hashlib.sha256(
+            json.dumps(legacy_identity, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
         path.write_text(json.dumps({
             "schema_version": 1, "updated_at": None,
             "shots": {"shot_0001": {
@@ -87,7 +97,7 @@ class EditorialReviewTests(unittest.TestCase):
                 "status": "approved", "reviewer_notes": "old review",
                 "rejection_reason": "", "replacement_requested": False,
                 "reviewed_at": None, "source_review_status": "reviewed",
-                "shot_fingerprint": "",
+                "shot_fingerprint": legacy_fingerprint,
             }},
         }), encoding="utf-8")
         store = load_reviews(self.report_path, self.report["shots"])
