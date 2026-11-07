@@ -5,6 +5,9 @@ from core import images
 
 
 class CoverrAdapterTests(unittest.TestCase):
+    def setUp(self):
+        images._DISABLED_VIDEO_PROVIDERS.discard("coverr")
+
     @patch.object(images.requests, "get")
     def test_search_uses_official_api_and_api_key(self, get):
         images.COVERR_API_KEY = "test-key"
@@ -15,6 +18,16 @@ class CoverrAdapterTests(unittest.TestCase):
         self.assertEqual(args[0], "https://api.coverr.co/videos")
         self.assertEqual(kwargs["headers"]["x-api-key"], "test-key")
         self.assertEqual(kwargs["params"]["query"], "mountain village")
+        images.COVERR_API_KEY = ""
+
+    @patch.object(images.requests, "get")
+    def test_forbidden_response_disables_coverr_for_remaining_scenes(self, get):
+        images.COVERR_API_KEY = "test-key"
+        get.return_value = Mock(status_code=403)
+        self.assertEqual(images._search_coverr("first scene"), [])
+        self.assertEqual(images._search_coverr("second scene"), [])
+        get.assert_called_once()
+        self.assertIn("coverr", images._DISABLED_VIDEO_PROVIDERS)
         images.COVERR_API_KEY = ""
 
     def test_candidate_requires_secure_download_url_and_id(self):
