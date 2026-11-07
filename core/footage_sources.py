@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import requests
+from datetime import date
 
 TIMEOUT = 35
 USER_AGENT = "AIStudioDocumentary/1.0 (educational video research)"
@@ -84,12 +85,15 @@ def _nasa(query):
         candidates = manifest if isinstance(manifest, list) else []
         url = next((x for x in candidates if isinstance(x, str) and
                     x.lower().endswith((".mp4", ".mov")) and "~" not in x), None)
-        if url:
+        rights_text = " ".join(str(meta.get(key) or "") for key in ("description", "keywords", "center"))
+        # Do not infer public-domain status from NASA hosting alone.
+        if url and re.search(r"public domain", rights_text, re.I):
             results.append((url, {
                 "provider": "NASA", "asset_id": meta.get("nasa_id"),
                 "title": meta.get("title"), "page_url": page,
+                "licence": "Public Domain",
                 "licence_url": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
-                "query": query, "licence_status": "Check NASA media usage guidance and third-party credits"
+                "query": query, "licence_status": "Public-domain statement found in item metadata; inspect third-party credits"
             }))
     return results
 
@@ -110,12 +114,25 @@ def _wikimedia(query):
         ext = info.get("extmetadata") or {}
         def val(key):
             return re.sub("<[^>]+>", "", str((ext.get(key) or {}).get("value") or ""))
+        licence = val("LicenseShortName")
+        licence_url = val("LicenseUrl")
+        if not licence or not licence_url:
+            continue
+        normalized = licence.lower().replace("-", " ").strip()
+        if not (normalized.startswith("cc0") or normalized.startswith("public domain")
+                or normalized.startswith("cc by") or normalized.startswith("cc by sa")):
+            continue
+        creator = val("Artist")
+        title = page.get("title")
+        page_url = info.get("descriptionurl")
         results.append((url, {
-            "provider": "Wikimedia Commons", "asset_id": page.get("title"),
-            "title": page.get("title"), "page_url": info.get("descriptionurl"),
-            "creator": val("Artist"), "licence": val("LicenseShortName"),
-            "licence_url": val("LicenseUrl"), "query": query,
-            "licence_status": "Follow the file-specific licence and attribution"
+            "provider": "Wikimedia Commons", "asset_id": title,
+            "title": title, "page_url": page_url,
+            "creator": creator, "licence": licence,
+            "licence_url": licence_url, "query": query,
+            "attribution_text": f"{creator or 'Author not listed'}, {title}, {licence}, {page_url}",
+            "date_accessed": date.today().isoformat(),
+            "licence_status": "File-specific licence metadata found; verify attribution and restrictions"
         }))
     return results
 
@@ -133,6 +150,17 @@ def _internet_archive(query):
             continue
         meta = _get_json(f"https://archive.org/metadata/{quote(identifier)}")
         files = (meta or {}).get("files", [])
+        item_meta = (meta or {}).get("metadata", {})
+        rights = str(item_meta.get("rights") or "")
+        licence_url = str(item_meta.get("licenseurl") or item_meta.get("license_url") or "")
+        licence = str(item_meta.get("license") or "")
+        normalized = (licence + " " + rights).lower()
+        if not (licence_url and (
+            "public domain" in normalized or "creativecommons.org/publicdomain/zero" in licence_url.lower()
+            or "creativecommons.org/licenses/by/" in licence_url.lower()
+            or "creativecommons.org/licenses/by-sa/" in licence_url.lower()
+        )):
+            continue
         candidates = [f for f in files if str(f.get("name", "")).lower().endswith(".mp4")
                       and int(f.get("size") or 0) > 50000]
         candidates.sort(key=lambda f: int(f.get("size") or 0), reverse=True)
@@ -140,8 +168,10 @@ def _internet_archive(query):
             results.append((f"https://archive.org/download/{quote(identifier)}/{quote(candidates[0]['name'])}", {
                 "provider": "Internet Archive", "asset_id": identifier,
                 "title": doc.get("title"), "page_url": f"https://archive.org/details/{identifier}",
-                "licence_url": f"https://archive.org/details/{identifier}",
-                "query": query, "licence_status": "Check item metadata and rights statement; not all archive items are public domain"
+                "licence": licence or rights, "licence_url": licence_url,
+                "query": query, "date_accessed": date.today().isoformat(),
+                "attribution_text": f"{doc.get('title')} — Internet Archive item {identifier}; {licence or rights}; https://archive.org/details/{identifier}",
+                "licence_status": "Explicit item-level rights and licence URL found; verify restrictions"
             }))
     return results
 
@@ -187,20 +217,33 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
     providers = ((_nasa, _wikimedia, _internet_archive) if is_space
                  else (_wikimedia, _internet_archive))
-    for query in _expanded_queries(keywords, scene_prompt):
+    candidate_count = 0
+    for query in _expanded_queries(keywords, scene_prompt)[:3]:
+        candidates = []
         for provider in providers:
-            ranked = sorted(provider(query), key=lambda item: _metadata_relevance(
-                query + " " + scene_prompt, item[1]), reverse=True)
-            for url, metadata in ranked:
-                score = _metadata_relevance(query, metadata)
-                metadata["relevance_score"] = round(score, 3)
-                metadata["scene_prompt"] = str(scene_prompt)[:500]
-                if score < 0.12:
-                    continue
-                identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or url}"
-                if identity in used_ids:
-                    continue
-                if _download(url, path, metadata):
-                    used_ids.add(identity)
-                    return True
+            candidates.extend(provider(query))
+        ranked = sorted(candidates, key=lambda item: _metadata_relevance(
+            query + " " + scene_prompt, item[1]), reverse=True)[:5]
+        for url, metadata in ranked:
+            if candidate_count >= 5:
+                return False
+            candidate_count += 1
+            score = _metadata_relevance(query + " " + scene_prompt, metadata)
+            metadata["relevance_score"] = round(score, 3)
+            metadata["scene_prompt"] = str(scene_prompt)[:500]
+            metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
+            licence = str(metadata.get("licence") or "").lower()
+            licence_url = str(metadata.get("licence_url") or "")
+            known = bool(licence and licence_url and (
+                "public domain" in licence or licence.startswith("cc0")
+                or licence.startswith("cc by") or licence.startswith("cc by-sa")
+            ))
+            if not known or score < 0.25:
+                continue
+            identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or url}"
+            if identity in used_ids:
+                continue
+            if _download(url, path, metadata):
+                used_ids.add(identity)
+                return True
     return False
