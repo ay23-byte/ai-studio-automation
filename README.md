@@ -425,3 +425,14 @@ After rendering, the system writes `audio_quality_report.json` with measured int
 Audio-driven presenter clips now receive a technical A/V validation report covering embedded audio/video streams, resolution, frame rate, clip duration and audio/video duration delta. SadTalker checkpoint validation now matches the official model files downloaded by the GitHub Actions workflow, and the adapter records a hash of the exact narration segment used to drive the animation. The editorial review page identifies the actual presenter mode, including when SadTalker falls back to a still portrait.
 
 A passing A/V check means the streams and durations align; it does **not** certify mouth-shape accuracy, identity, likeness or phoneme-level lip-sync. Human review remains mandatory. The `still_cpu` presenter is explicitly marked as not lip-synced.
+
+
+## Milestone 24: Research verification, citations and source rights
+
+Every new long-form build writes `research_verification_report.json` and a persistent `research_review_decisions.json`. The dossier includes source title, publisher, date, URL, whether the URL was among the retrieved discovery leads, claim-level source IDs and the evidence note supplied by the script model.
+
+Open **Research, citations & rights verification** in the Streamlit Pages navigation. A human reviewer must open each original source, record inspection notes, verify every claim, resolve disputed/unsupported claims, and attest that the complete narration has no material factual claims missing from the claim ledger. A URL that parses correctly or matches a GDELT discovery lead is not proof that the source supports a claim; this workflow does not automatically fetch/validate article contents or establish truth.
+
+The **Visual Editorial Review** page now has a separate per-shot copyright/licence decision, licence basis, attribution and reviewer notes. A source/provenance check is not a rights clearance. Mark rights reviewed only after checking the actual asset terms, commercial-use restrictions, attribution requirements and any permissions. The editorial decision store migrates version-1 records to version 2 while preserving old decisions; all migrated shots start with rights review pending.
+
+Long-form publication now requires all of the following: approved shot reviews, reviewed provenance, documented rights review for every shot, no unresolved visual/semantic/presenter technical failures, a completed audio QA report plus human listening review, and a human-verified claim ledger with coverage attestation. These controls are workflow gates, not legal advice or independent certification.

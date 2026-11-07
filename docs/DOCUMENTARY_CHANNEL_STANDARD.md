@@ -12,7 +12,7 @@
 
 1. **Topic brief:** define the viewer question, why it matters, geography/time period and what the video will not claim.
 2. **Research dossier:** collect primary documents and reputable reporting. Record title, publisher, publication date, URL, relevant passage/data and the exact claim it supports. Prefer primary sources for official figures, laws, speeches and datasets.
-3. **Claim ledger:** split the script into checkable claims. Mark each as supported, disputed, context-needed or unverified. Never turn an AI-generated suggestion into a fact.
+3. **Claim ledger:** split the script into checkable claims. Link each material factual/numeric assertion to source IDs and evidence notes. Mark each as pending, verified, disputed or unsupported only after a human opens the source. Never turn an AI-generated suggestion into a fact.
 4. **Narrative:** cold open, promise, context, chronological/logical chapters, examples, counterarguments, uncertainty and a resolved conclusion. Aim for approximately 125–145 spoken words per minute, then measure the actual narration duration.
 5. **Storyboard:** every shot must support the sentence being spoken. Specify shot purpose, exact narration anchor, visual description, asset type, source/credit and expected duration.
 6. **Presenter plan:** use the presenter for greeting-free hooks, chapter bridges and direct explanations. Use documentary voiceover over evidence, maps, charts and B-roll. Do not use a synthetic presenter to impersonate a real person.
@@ -52,14 +52,15 @@ SADTALKER_DIR=/path/to/SadTalker
 PRESENTER_IMAGE=/path/to/your-licensed-presenter-portrait.png
 ```
 
-**Deployment limitation:** ordinary GitHub-hosted Actions runners do not provide a supported NVIDIA GPU. The adapter is intended for a GPU workstation or self-hosted GPU Actions runner with SadTalker and its checkpoints already installed. It is disabled by default and is not an instant cloud-avatar service. SadTalker code is open source, but check the current upstream code, model-weight and portrait licensing before commercial use. If no GPU runner is available, keep the video voiceover-led rather than using a fake or unrelated presenter shot.
+**Deployment limitation:** ordinary GitHub-hosted Actions runners do not provide a supported NVIDIA GPU. The long-form workflow can provision SadTalker in a separate Python 3.8 CPU environment, but CPU inference is very slow; use `SADTALKER_DEVICE=cuda` only on a compatible GPU workstation/self-hosted runner. The adapter is opt-in and is not an instant cloud-avatar service. It validates media streams and A/V duration, but does not certify phoneme-perfect lip-sync. Check the current upstream code, model-weight and portrait licensing before commercial use. If presenter generation is unavailable, the system clearly labels the still-portrait fallback as not lip-synced.
 
 ## Minimum release gate
 
 - [ ] Research dossier and claim ledger reviewed
-- [ ] Every high-impact claim has a source
+- [ ] Every material factual/numeric claim appears in the claim ledger and is verified against the original source
+- [ ] Complete narration checked for uncited or omitted factual claims
 - [ ] Presenter/voice is not impersonating a real person
-- [ ] Visuals match narration and have usage rights
+- [ ] Visuals match narration and have a documented asset-specific rights/licence and attribution review
 - [ ] Captions and Hindi pronunciation checked
 - [ ] Audio and full video reviewed end-to-end
 - [ ] Thumbnail/title accurately represent the episode
@@ -75,3 +76,10 @@ PRESENTER_IMAGE=
 ```
 
 Only enable after installing SadTalker and its required checkpoints on a GPU-capable machine/runner. Use a portrait you own or have permission to animate. The adapter creates short chapter-opening presenter shots; the rest of each chapter remains matched documentary B-roll.
+
+
+## Research and rights review implementation
+
+The production app writes `research_verification_report.json` and `research_review_decisions.json` for each long-form build. Use the **Research, citations & rights verification** Streamlit page to open original sources, record claim-level verification notes and attest that the complete narration is represented. Source URLs and GDELT discovery matches are not proof of claim support.
+
+Use the **Visual Editorial Review** page to record a separate per-shot rights decision, licence basis, attribution and notes. Provenance review and rights clearance are different checks. The release gate requires both; changed source metadata invalidates previous shot and rights approval.

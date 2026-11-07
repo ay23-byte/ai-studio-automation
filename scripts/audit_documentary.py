@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--video", help="Optional rendered MP4 to inspect with FFmpeg/FFprobe.")
     parser.add_argument("--subtitles", help="Optional subtitle file to inspect with the rendered MP4.")
     parser.add_argument("--visual-review", help="Optional visual_review_report.json; enables the mandatory editorial publication gate.")
+    parser.add_argument("--research-verification", help="Optional research_verification_report.json; enables the mandatory claim/source review gate.")
     parser.add_argument("--output", default="output/workflow_audit.json", help="Report JSON destination.")
     args = parser.parse_args()
 
@@ -36,6 +37,7 @@ def main():
         video_path=args.video,
         subtitle_path=args.subtitles,
         visual_review_path=args.visual_review,
+        research_verification_path=args.research_verification,
     )
     path = save_workflow_report(report, args.output)
     print(json.dumps(report["summary"], indent=2))

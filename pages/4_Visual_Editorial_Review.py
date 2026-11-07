@@ -31,15 +31,26 @@ except (OSError, json.JSONDecodeError, ValueError, ReviewStoreError) as exc:
     st.stop()
 
 gate = audit_visual_reviews(report, store)
+release_issues = list(gate["issues"])
+try:
+    from core.audio_quality import assert_audio_quality_ready
+    assert_audio_quality_ready(report_path.parent)
+except Exception as exc:
+    release_issues.append({"shot_id": "audio", "message": str(exc)})
+try:
+    from core.research_verification import assert_research_review_ready
+    assert_research_review_ready(report_path.parent)
+except Exception as exc:
+    release_issues.append({"shot_id": "research", "message": str(exc)})
 a, b, c, d = st.columns(4)
 a.metric("Shots", gate["shot_count"])
 b.metric("Approved", gate["approved_count"])
 c.metric("Pending", gate["pending_count"])
 d.metric("Needs replacement", gate["replacement_count"])
-if gate["publication_ready"]:
-    st.success("Editorial workflow gate passed. Separate fact-checking, historical-context, and legal rights checks are still required.")
+if not release_issues:
+    st.success("Combined long-form review gate passed: editorial, source, rights, audio listening and claim verification are complete.")
 else:
-    st.error(f"Publication blocked: {len(gate['issues'])} review issue(s) remain.")
+    st.error(f"Publication blocked: {len(release_issues)} review issue(s) remain across visual, rights, audio or research checks.")
 
 records = store["shots"]
 chapters = sorted({records.get(str(s.get("shot_id")), {}).get("chapter_id", "unassigned") for s in shots})
@@ -132,36 +143,67 @@ for shot_id, shot, record in visible:
             ["pending", "needs_review", "reviewed"],
             index=["pending", "needs_review", "reviewed"].index(record.get("source_review_status", "pending")),
             key=f"source_{shot_id}",
-            help="Reviewed means a human inspected the source details. It does not establish legal permission to publish.",
+            help="This checks where the asset came from; it is separate from the rights/licence decision below.",
         )
+        rights_state = st.selectbox(
+            "Copyright / licence review",
+            ["pending", "reviewed", "needs_permission"],
+            index=["pending", "reviewed", "needs_permission"].index(record.get("rights_review_status", "pending")),
+            key=f"rights_{shot_id}",
+        )
+        licence_name = st.text_input(
+            "Licence / permission basis",
+            value=record.get("licence_name", ""),
+            key=f"licence_{shot_id}",
+            placeholder="e.g. Pixabay Content License, CC BY 4.0, written permission, original AI-generated asset",
+        )
+        attribution_text = st.text_input(
+            "Required attribution / credit",
+            value=record.get("attribution_text", ""),
+            key=f"attribution_{shot_id}",
+            placeholder="Creator and credit line, or 'No attribution required' with basis",
+        )
+        rights_notes = st.text_area(
+            "Rights review notes (required to mark reviewed)",
+            value=record.get("rights_notes", ""),
+            key=f"rights_notes_{shot_id}",
+            placeholder="What terms did you inspect? Is commercial use allowed? Are attribution or restrictions required?",
+        )
+        rights_args = {
+            "rights_review_status": rights_state, "rights_notes": rights_notes,
+            "licence_name": licence_name, "attribution_text": attribution_text,
+        }
         x1, x2, x3, x4 = st.columns(4)
         try:
             if x1.button("Approve shot", key=f"approve_{shot_id}", type="primary"):
                 save_review(report_path, shot_id, status="approved", reviewer_notes=notes,
-                            source_review_status=source_state, chapter_id=record.get("chapter_id"))
+                            source_review_status=source_state, chapter_id=record.get("chapter_id"),
+                            **rights_args)
                 st.rerun()
             if x2.button("Reject shot", key=f"reject_btn_{shot_id}"):
                 save_review(report_path, shot_id, status="rejected", rejection_reason=rejection,
                             reviewer_notes=notes, source_review_status=source_state,
-                            chapter_id=record.get("chapter_id"))
+                            chapter_id=record.get("chapter_id"), **rights_args)
                 st.rerun()
             if x3.button("Request replacement", key=f"replace_{shot_id}"):
                 save_review(report_path, shot_id, status="needs_replacement",
                             replacement_requested=True, reviewer_notes=notes,
-                            source_review_status=source_state, chapter_id=record.get("chapter_id"))
+                            source_review_status=source_state, chapter_id=record.get("chapter_id"),
+                            **rights_args)
                 st.rerun()
             if x4.button("Save notes / source", key=f"save_{shot_id}"):
                 save_review(report_path, shot_id, reviewer_notes=notes,
-                            source_review_status=source_state, chapter_id=record.get("chapter_id"))
+                            source_review_status=source_state, chapter_id=record.get("chapter_id"),
+                            **rights_args)
                 st.rerun()
         except ReviewStoreError as exc:
             st.error(str(exc))
 
 with st.expander("Publication gate details"):
-    if gate["issues"]:
-        for issue in gate["issues"]:
-            st.error(f"{issue['shot_id']}: {issue['message']}")
+    if release_issues:
+        for issue in release_issues:
+            st.error(f"{issue.get('shot_id', 'Review')}: {issue['message']}")
     else:
-        st.success("All manifest shots have approved editorial decisions, reviewed source metadata, and existing media files.")
+        st.success("All manifest shots, rights decisions, audio listening review and research claims have passed their required checks.")
     st.caption(gate["notice"])
 st.caption(f"Decision file: {review_store_path(report_path)}")
