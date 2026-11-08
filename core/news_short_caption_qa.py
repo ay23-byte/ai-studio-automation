@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def _seconds(value: str) -> float:
-    match = re.fullmatch(r"(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})", value.strip())
+    match = re.fullmatch(r"(\d+):(\d{2}):(\d{2})\\.(\d{2})", value.strip())
     if not match:
         raise ValueError(f"Invalid ASS timestamp: {value!r}")
     hours, minutes, seconds, centiseconds = map(int, match.groups())
@@ -15,7 +15,7 @@ def _seconds(value: str) -> float:
 
 
 def _normalise(value: str) -> str:
-    value = re.sub(r"\\{[^}]*\\}", "", value)
+    value = re.sub(r"\{[^}]*\}", "", value)
     return " ".join(value.replace("\\N", " ").replace("\\n", " ").split())
 
 
@@ -35,27 +35,37 @@ def audit_captions(manifest_path: str | Path) -> dict:
         return {"status": "FAIL", "errors": [f"{type(exc).__name__}: {exc}"],
                 "warnings": [], "caption_count": 0, "human_review_required": True}
 
-    if not re.search(r"(?m)^PlayResX:\\s*1080\\s*$", raw):
+    if not re.search(r"(?m)^PlayResX:\s*1080\s*$", raw):
         errors.append("ASS PlayResX must be 1080.")
-    if not re.search(r"(?m)^PlayResY:\\s*1920\\s*$", raw):
+    if not re.search(r"(?m)^PlayResY:\s*1920\s*$", raw):
         errors.append("ASS PlayResY must be 1920.")
-    if not re.search(r"(?m)^Style: News,.*?,2,90,90,300,1\\s*$", raw):
+    if not re.search(r"(?m)^Style: News,.*?,2,90,90,300,1\s*$", raw):
         warnings.append("Expected compact lower-safe-band News subtitle style was not found.")
 
     events = []
+    pending = None
     for line in raw.splitlines():
-        if not line.startswith("Dialogue:"):
-            continue
-        fields = line.split(",", 9)
-        if len(fields) != 10:
-            errors.append("Malformed ASS Dialogue event.")
-            continue
-        try:
-            start, end = _seconds(fields[1]), _seconds(fields[2])
-        except ValueError as exc:
-            errors.append(str(exc))
-            continue
-        events.append({"start": start, "end": end, "text": _normalise(fields[9])})
+        if line.startswith("Dialogue:"):
+            if pending is not None:
+                events.append(pending)
+            fields = line.split(",", 9)
+            if len(fields) != 10:
+                errors.append("Malformed ASS Dialogue event.")
+                pending = None
+                continue
+            try:
+                start, end = _seconds(fields[1]), _seconds(fields[2])
+            except ValueError as exc:
+                errors.append(str(exc))
+                pending = None
+                continue
+            pending = {"start": start, "end": end, "text": fields[9]}
+        elif pending is not None and line and not line.startswith("["):
+            pending["text"] += " " + line.strip()
+    if pending is not None:
+        events.append(pending)
+    for event in events:
+        event["text"] = _normalise(event["text"])
 
     if len(events) != len(shots):
         errors.append(f"Expected one caption event per scene ({len(shots)}); found {len(events)}.")
