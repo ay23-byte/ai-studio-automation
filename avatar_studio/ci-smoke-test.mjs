@@ -53,11 +53,24 @@ try {
   // Arm the download listener before recording starts: the app triggers the
   // download synchronously inside MediaRecorder.onstop, before the status text
   // is updated. Waiting for the status first misses the one-time download event.
-  const downloadPromise = page.waitForEvent("download", { timeout: 45000 });
+  const downloadPromise = page.waitForEvent("download", { timeout: 60000 }).catch(error => ({ downloadError: error }));
   await page.locator("#record").click();
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Recording avatar and narration together"), null, { timeout: 15000 });
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("Saved talking_presenter.webm"), null, { timeout: 30000 });
+  await page.waitForFunction(() => {
+    const status = document.querySelector("#status")?.textContent || "";
+    return status.includes("Recording avatar and narration together") ||
+      status.includes("Could not record") || status.includes("Recording error");
+  }, null, { timeout: 20000 });
+  await page.waitForFunction(() => {
+    const status = document.querySelector("#status")?.textContent || "";
+    return status.includes("Saved talking_presenter.webm") ||
+      status.includes("Could not record") || status.includes("Recording error");
+  }, null, { timeout: 60000 });
+  const recordingStatus = await page.locator("#status").textContent();
+  if (!recordingStatus?.includes("Saved talking_presenter.webm")) {
+    throw new Error("Avatar recording did not complete: " + recordingStatus);
+  }
   const download = await downloadPromise;
+  if (download.downloadError) throw new Error("Avatar recording status was saved but browser download failed: " + download.downloadError.message);
   const recordingPath = path.join(outputDir, "talking_presenter.webm");
   await download.saveAs(recordingPath);
   const recordingBytes = fs.statSync(recordingPath).size;

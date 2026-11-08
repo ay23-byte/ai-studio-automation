@@ -26,6 +26,12 @@ If FFmpeg is installed:
 ffmpeg -y -i talking_presenter.webm -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k talking_presenter.mp4
 ```
 
+## Automatic 3D avatar generation in GitHub Actions
+
+The `make-longform` workflow now offers `talking_avatar_auto` and selects it by default. It generates the narration first, splits the continuous narration at the calculated chapter boundaries, opens this Studio in headless Chromium, records one 3D avatar clip per chapter, converts each WebM to MP4, and passes the clips into the existing `talking_avatar` renderer. No manual chapter-by-chapter download or repository commit is required. The generated clips are included in the workflow artifact for inspection.
+
+This mode requires GitHub Actions network access to jsDelivr and the Talking Avatar SDK. It fails the build if any chapter clip cannot be recorded or validated; it does not silently fall back to a still portrait. Hinglish lip-sync remains approximate and requires human review.
+
 ## Use clips in the long-form pipeline
 
 Create one clip from the exact narration audio for each chapter. Convert the downloaded WebM files to MP4 with FFmpeg, then place them in the repository at `assets/presenter_clips/` using the names `presenter_section_01.mp4`, `presenter_section_02.mp4`, and so on. Commit those clips to the repository before running **Actions → make-longform** and select **talking_avatar**. Choose the same male/female voice used to prepare the clips. The long-form renderer inserts each presenter clip at the start of its matching chapter, mutes clip audio, and preserves the single continuous narration track. Clips longer than the chapter narration are rejected.

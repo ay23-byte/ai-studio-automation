@@ -368,6 +368,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     presenter_mode = os.getenv("PRESENTER_MODE", "still_cpu").strip().lower()
     presenter_enabled = os.getenv("PRESENTER_ENABLED", "1").strip().lower() in {"1", "true", "yes"}
     presenter_image = os.getenv("PRESENTER_IMAGE", "assets/presenter/presenter_master.png")
+    if presenter_enabled and presenter_mode == "talking_avatar_auto":
+        from core.avatar_clip_generation import generate_chapter_avatar_clips
+        generate_chapter_avatar_clips(voice_path, sections, voice_gender, bd)
+        presenter_mode = "talking_avatar"
     for i, sec in enumerate(sections):
         narration = str(sec.get("narration", ""))
         beats = _visual_beats_for_section(sec, script.get('category', 'general'))
@@ -519,7 +523,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 scale = remaining / max(sum(durations), 0.001)
                 durations = [value * scale for value in durations]
         elif presenter_enabled and presenter_mode not in {"still_cpu", "off", "none"}:
-            raise ValueError(f"Unsupported PRESENTER_MODE: {presenter_mode}. Use still_cpu, sadtalker, or off.")
+            raise ValueError(f"Unsupported PRESENTER_MODE: {presenter_mode}. Use talking_avatar_auto, talking_avatar, still_cpu, sadtalker, or off.")
         # A short animated chapter slate establishes clear documentary structure.
         title_duration = min(2.4, max(0.0, sec["_dur"] * 0.12))
         if title_duration >= 1.5:
