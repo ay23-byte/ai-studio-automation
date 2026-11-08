@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
-      - name: Check out current production branch
+      - name: Check out current main after PR #88
         uses: actions/checkout@v4
         with:
-          ref: production-trial/live-footage-e2e-v2
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
