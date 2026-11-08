@@ -115,6 +115,37 @@ def post_comment(vid: str, text: str):
         body={"snippet": {"videoId": vid,
                           "topLevelComment": {"snippet": {"textOriginal": text}}}}).execute()
 
+
+def find_private_video_by_marker(marker: str) -> str | None:
+    """Find an existing private upload carrying this immutable source-run marker.
+    
+    Search failures are raised to the caller: uncertainty must never trigger a duplicate upload.
+    """
+    marker = str(marker or "").strip()
+    if not marker:
+        raise ValueError("An upload idempotency marker is required.")
+    yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
+    response = yt.search().list(
+        part="id", forMine=True, type="video", q=marker, maxResults=50
+    ).execute(num_retries=5)
+    for item in response.get("items", []):
+        video_id = (item.get("id") or {}).get("videoId")
+        if not video_id:
+            continue
+        details = yt.videos().list(part="snippet,status", id=video_id).execute(num_retries=5)
+        for video in details.get("items", []):
+            description = str((video.get("snippet") or {}).get("description") or "")
+            if marker not in description:
+                continue
+            privacy = str((video.get("status") or {}).get("privacyStatus") or "")
+            if privacy != "private":
+                raise RuntimeError(
+                    f"Existing video {video_id} has the source-run marker but is not private; "
+                    "refusing another upload. Review its privacy manually."
+                )
+            return video_id
+    return None
+
 def wait_processed(vid: str, max_wait: int = 600) -> str:
     yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
     start = time.time()

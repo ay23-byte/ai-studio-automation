@@ -146,12 +146,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("query", nargs="?", default=DEFAULT_QUERY)
     parser.add_argument("--min-total", type=int, default=1)
+    parser.add_argument("--diagnostic-only", action="store_true", help="Report title-level provider availability without blocking scene-specific rendering.")
     args = parser.parse_args()
-    if args.min_total < 1:
-        parser.error("--min-total must be at least 1")
+    if args.min_total < 0 or (args.min_total == 0 and not args.diagnostic_only):
+        parser.error("--min-total must be positive unless --diagnostic-only is set")
     result = run_checks(args.query, args.min_total)
+    if args.diagnostic_only and result["status"] != "passed":
+        result["status"] = "diagnostic_warning"
+        result["note"] = "Topic-title discovery is diagnostic only; each rendered scene still needs its own valid, relevant visual."
     print(json.dumps(result, indent=2))
-    if result["status"] != "passed":
+    if result["status"] == "failed":
         raise SystemExit(
             f"Footage discovery produced {result['total_eligible_candidates']} "
             f"eligible candidates; {args.min_total} required."

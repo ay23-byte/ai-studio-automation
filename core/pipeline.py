@@ -218,6 +218,8 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
             print(f"QUALITY ERROR: {issue}")
     except Exception as exc:
         print(f"Video quality inspection could not complete: {exc}")
+        if documentary:
+            raise RuntimeError("Documentary quality inspection is a required release artifact; refusing an unverified render.") from exc
 
 
 def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
@@ -644,9 +646,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         for warning in edl["qa_report"]["fixes_applied"]:
             print(f"EDL QA: {warning}")
     except Exception as exc:
-        # The EDL is a review deliverable; preserve the existing render path,
-        # but make the missing EDL explicit in the build log.
-        print(f"WARNING: documentary EDL generation failed: {exc}")
+        print(f"ERROR: documentary EDL generation failed: {exc}")
+        raise RuntimeError("Documentary edit-decision list is required for editorial review.") from exc
 
     # Save a reviewable shot manifest and sample frames before final rendering.
     try:
@@ -694,7 +695,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         for issue in visual_report.get("issues", []):
             print(f"VISUAL REVIEW {issue['level'].upper()}: {issue['message']}")
     except Exception as exc:
-        print(f"WARNING: visual review report could not be generated: {exc}")
+        print(f"ERROR: visual review report could not be generated: {exc}")
+        raise RuntimeError("Documentary visual-review and licensing evidence are required; refusing an unreviewable render.") from exc
 
     ass = bd / "subs.ass"
     _make_ass_longform(timings, shot_timeline, total, ass, disclaimer)

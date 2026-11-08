@@ -49,6 +49,25 @@ class LiveFootageValidationTests(unittest.TestCase):
         self.assertEqual(result["providers"][0]["status"], "error")
         self.assertIn("provider offline", result["providers"][0]["errors"][0])
 
+    def test_diagnostic_only_reports_warning_without_weakening_strict_default(self):
+        from scripts.check_footage_sources_live import main
+        import sys
+        failed = {"status": "failed", "total_eligible_candidates": 0, "providers": [], "minimum_total_candidates": 1}
+        with patch.object(sys, "argv", ["check_footage_sources_live", "North Korea", "--diagnostic-only"]):
+            with patch("scripts.check_footage_sources_live.run_checks", return_value=dict(failed)):
+                with patch("builtins.print") as output:
+                    main()
+        self.assertTrue(output.called)
+
+    def test_strict_default_still_fails_when_no_candidates_are_found(self):
+        from scripts.check_footage_sources_live import main
+        import sys
+        failed = {"status": "failed", "total_eligible_candidates": 0, "providers": [], "minimum_total_candidates": 1}
+        with patch.object(sys, "argv", ["check_footage_sources_live", "topic"]):
+            with patch("scripts.check_footage_sources_live.run_checks", return_value=dict(failed)):
+                with self.assertRaises(SystemExit):
+                    main()
+
 
 if __name__ == "__main__":
     unittest.main()
