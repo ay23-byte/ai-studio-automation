@@ -15,6 +15,13 @@ on:
         description: "Type exactly: I approve a review-only MP4 render"
         required: true
         type: string
+      presenter_gender:
+        description: "3D news presenter"
+        required: true
+        type: choice
+        options:
+          - female
+          - male
 
 permissions:
   contents: read
@@ -91,6 +98,16 @@ jobs:
         # also load existing application modules that require requests and the
         # Google API client. Avoid installing heavyweight optional UI/TTS packages.
         run: python -m pip install --upgrade pip edge-tts Pillow requests google-api-python-client
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install browser runtime for the required 3D presenter
+        run: |
+          cd avatar_studio
+          npm install --no-save playwright@1.52.0
+          npx playwright install --with-deps chromium
 
       - name: Prepare explicitly approved render inputs
         env:
@@ -202,6 +219,7 @@ jobs:
         run: |
           python -m scripts.render_reviewed_news_short render-input/production_candidate.json render-input/render_approval.json --output-dir output/daily_news/rendered
           test -s output/daily_news/rendered/review_short.mp4
+          python -m core.news_short_avatar output/daily_news/rendered --gender "${{ inputs.presenter_gender }}"
           python -m scripts.verify_rendered_media output/daily_news/rendered/production_manifest.json
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of json output/daily_news/rendered/review_short.mp4
           ffprobe -v error -show_entries format=duration -of json output/daily_news/rendered/review_short.mp4
