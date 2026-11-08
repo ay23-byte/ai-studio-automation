@@ -463,7 +463,9 @@ def count_longform_narration_words(script: dict) -> int:
         str(section.get("narration") or "")
         for section in sections if isinstance(section, dict)
     )
-    return len(re.findall(r"[^\W_]+", narration, flags=re.UNICODE))
+    # Whitespace tokenization preserves Devanagari combining marks and hyphenated
+    # compounds, matching the narration's spoken token boundaries.
+    return len(narration.split())
 
 
 def validate_longform_runtime(script: dict, target_minutes: float,
