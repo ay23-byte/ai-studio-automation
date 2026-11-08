@@ -25,10 +25,10 @@ on:
         options: [male, female]
         default: male
       presenter_mode:
-        description: "Presenter animation (Talking Avatar uses saved chapter clips; SadTalker is CPU-heavy)"
+        description: "Presenter animation (auto 3D avatar records each chapter from its narration)"
         type: choice
-        options: [talking_avatar, sadtalker, still_cpu, off]
-        default: still_cpu
+        options: [talking_avatar_auto, talking_avatar, sadtalker, still_cpu, off]
+        default: talking_avatar_auto
       visual_mode:
         description: "Long-form B-roll source preference"
         type: choice
@@ -98,6 +98,18 @@ jobs:
 
       - name: Validate Python syntax
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
+
+      - name: Install Playwright Chromium for automatic 3D avatar recording
+        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install browser automation dependencies
+        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
 
       - name: Build long-form video
         env:
