@@ -1,0 +1,206 @@
+name: Manual live documentary end-to-end validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: Documentary topic
+        required: true
+        default: "The Mystery of India's Disappearing Villages"
+        type: string
+      category:
+        description: Content category
+        required: true
+        default: india
+        type: string
+      minutes:
+        description: Target runtime (10–15 minutes)
+        required: true
+        default: "10"
+        type: choice
+        options:
+          - "10"
+          - "11"
+          - "12"
+          - "13"
+          - "14"
+          - "15"
+      language:
+        description: Narration language
+        required: true
+        default: hinglish
+        type: choice
+        options:
+          - hinglish
+          - hindi
+          - english
+      voice_gender:
+        description: Narrator voice
+        required: true
+        default: female
+        type: choice
+        options:
+          - female
+          - male
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-live-documentary-validation
+  cancel-in-progress: false
+
+jobs:
+  production-render:
+    name: Live research, render and inspect MP4
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      TOPIC: ${{ inputs.topic }}
+      CATEGORY: ${{ inputs.category }}
+      MINUTES: ${{ inputs.minutes }}
+      LANGUAGE: ${{ inputs.language }}
+      VOICE_GENDER: ${{ inputs.voice_gender }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: gemini-3.8-flash
+      GEMINI_FALLBACK_MODELS: gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+      DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+      NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+      EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+      FREE_ONLY_MODE: "1"
+      AI_VIDEO_ENABLED: "0"
+      TTS_ENGINE: chatterbox
+      CHATTERBOX_TORCH_THREADS: "2"
+      PRESENTER_ENABLED: "1"
+      PRESENTER_MODE: still_cpu
+      PRESENTER_IMAGE: assets/presenter/presenter_female.png
+      SADTALKER_DEVICE: cpu
+      LONGFORM_VISUAL_MODE: video_first
+      VISUAL_SEMANTIC_CHECK: "0"
+
+    steps:
+      - name: Check out current main-based code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-noto-core fonts-dejavu-core
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Verify required API configuration
+        run: |
+          test -n "$GEMINI_API_KEY" || {
+            echo "::error::Add GEMINI_API_KEY to repository Actions secrets before running this validation."
+            exit 1
+          }
+          test -f "$PRESENTER_IMAGE" || {
+            echo "::error::Configured presenter image is missing: $PRESENTER_IMAGE"
+            exit 1
+          }
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Compile production code
+        run: python -m compileall -q core scripts run.py
+
+      - name: Run focused production and renderer tests
+        run: |
+          python -m unittest discover -s tests -p 'test_*footage*.py' -v
+          python -m unittest discover -s tests -p 'test_*cinematic*.py' -v
+          python -m unittest discover -s tests -p 'test_*visual*.py' -v
+
+      - name: Discover live footage candidates
+        run: |
+          mkdir -p build/live_documentary_validation
+          python -m scripts.check_footage_sources_live "$TOPIC" --min-total 1 \
+            2>&1 | tee build/live_documentary_validation/provider-live-checks.log
+
+      - name: Render documentary (no upload or publication)
+        run: |
+          python run.py long "$TOPIC" --category "$CATEGORY" \
+            --minutes "$MINUTES" --language "$LANGUAGE" \
+            --voice-gender "$VOICE_GENDER" \
+            2>&1 | tee build/live_documentary_validation/render.log
+
+      - name: Probe MP4 and enforce basic production checks
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          target_minutes = int(__import__("os").environ["MINUTES"])
+          candidates = sorted(
+              (p for p in Path("output").rglob("*.mp4") if p.is_file()),
+              key=lambda p: p.stat().st_mtime,
+              reverse=True,
+          ) if Path("output").exists() else []
+          report = {"target_minutes": target_minutes, "videos": []}
+          for path in candidates:
+              raw = subprocess.check_output([
+                  "ffprobe", "-v", "error", "-show_entries",
+                  "format=duration:stream=codec_type,width,height,codec_name",
+                  "-of", "json", str(path)
+              ], text=True)
+              probe = json.loads(raw)
+              streams = probe.get("streams", [])
+              duration = float(probe.get("format", {}).get("duration", 0))
+              report["videos"].append({
+                  "path": str(path),
+                  "bytes": path.stat().st_size,
+                  "duration_seconds": duration,
+                  "has_video": any(s.get("codec_type") == "video" for s in streams),
+                  "has_audio": any(s.get("codec_type") == "audio" for s in streams),
+                  "probe": probe,
+              })
+          evidence_dir = Path("build/live_documentary_validation")
+          evidence_dir.mkdir(parents=True, exist_ok=True)
+          (evidence_dir / "mp4-probe-report.json").write_text(
+              json.dumps(report, indent=2), encoding="utf-8"
+          )
+          valid = [
+              v for v in report["videos"]
+              if v["bytes"] > 100_000
+              and v["has_video"] and v["has_audio"]
+              and v["duration_seconds"] >= target_minutes * 60 * 0.80
+          ]
+          print(json.dumps({
+              "mp4_count": len(report["videos"]),
+              "valid_mp4_count": len(valid),
+              "target_minutes": target_minutes,
+              "evidence": str(evidence_dir / "mp4-probe-report.json"),
+          }, indent=2))
+          if not valid:
+              raise SystemExit(
+                  "No rendered MP4 passed file-size, audio/video-stream and minimum-duration checks."
+              )
+          PY
+
+      - name: Upload render and diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-documentary-validation-${{ github.run_id }}
+          path: |
+            output/**
+            build/live_documentary_validation/**
+            assets/clips/**
+          if-no-files-found: warn
+          retention-days: 14
