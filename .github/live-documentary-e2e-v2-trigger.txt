@@ -1,0 +1,11 @@
+One-time trigger for current-main live documentary production validation.
+Topic: The Mystery of India's Disappearing Villages.
+Target: 12-minute Hinglish documentary with female narration and female still-image presenter.
+Validation: live footage discovery, real MP4 stream/runtime probe, shot manifest, licence register and sampled-frame evidence.
+YouTube upload: disabled; human editorial and rights review remains mandatory.
+
+Retry after discovery query and provider diagnostics improvements.
+
+Fresh validation after GEMINI_API_KEY secret replacement — 2026-11-08.
+Gemini preflight and production render attempt — 2026-11-08.
+Secret expression interpolation fix validation — 2026-11-08
