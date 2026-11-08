@@ -71,6 +71,19 @@ def run(video, report_dir=None, manifest_path=None):
     elif scene_footage.get("status") in {"REVIEW","NOT_RUN"}:
         warnings.append("Per-scene footage integrity needs human review; see scene_footage_qa_report.json.")
     if semantic_manifest.is_file():
+        from core.news_short_asset_provenance_qa import audit_scene_asset_provenance
+        asset_provenance = audit_scene_asset_provenance(semantic_manifest, root)
+    else:
+        asset_provenance = {"status": "REVIEW",
+                            "reason": "No production manifest supplied; scene-to-source provenance could not be audited.",
+                            "human_review_required": True, "publication_ready": False}
+    (root/"scene_asset_provenance_report.json").write_text(
+        json.dumps(asset_provenance,ensure_ascii=False,indent=2),encoding="utf-8")
+    if asset_provenance.get("status") == "FAIL":
+        errors.append("Scene-to-source provenance QA detected a missing, changed, or unlicensed asset record.")
+    elif asset_provenance.get("status") in {"REVIEW","NOT_RUN"}:
+        warnings.append("Scene-to-source provenance requires human review; see scene_asset_provenance_report.json.")
+    if semantic_manifest.is_file():
         from core.news_short_presenter_qa import audit_presenter
         presenter = audit_presenter(semantic_manifest, video, root)
     else:
