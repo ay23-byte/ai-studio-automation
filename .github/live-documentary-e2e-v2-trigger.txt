@@ -8,3 +8,4 @@ Retry after discovery query and provider diagnostics improvements.
 
 Fresh validation after GEMINI_API_KEY secret replacement — 2026-11-08.
 Gemini preflight and production render attempt — 2026-11-08.
+Secret expression interpolation fix validation — 2026-11-08
