@@ -119,3 +119,12 @@ This is an opt-in manual step, not part of the scheduled discovery workflow. Do 
 The Shorts QA command now combines codec/profile checks with FFmpeg black-frame and silence scans, integrated loudness/true-peak/clipping analysis, and three evenly spaced rendered-frame samples (15%, 50%, 85%). It uses the existing `core.audio_quality` and `core.visual_consistency` modules and writes separate `audio_quality_report.json` and `visual_quality_report.json` reports under `advanced_qa/` beside the technical report.
 
 A technical QA status is PASS only when the encoding profile, audio analysis and sampled-frame analysis all pass. Missing frame samples or failed audio/visual analysis block the gate; warnings produce REVIEW. Neither PASS nor REVIEW sets `publication_ready` to true. These checks do not perform semantic visual matching, fact-checking, historical-authenticity verification or rights clearance. The reviewer must still inspect all scenes, captions, source provenance, credits and the complete video on a phone and listen to the audio.
+
+
+## 3D presenter integration for review Shorts
+
+The review-only render workflow now requires the repository Talking Avatar Studio after the scene footage and narration have rendered. Choose a male or female 3D presenter at workflow dispatch. The workflow creates one avatar clip from each scene's exact synthesized narration, then composites the presenter as a portrait picture-in-picture over the matching approved scene footage. The original narration remains the final master audio; the avatar recording's audio is used for lip-sync generation and is not mixed a second time.
+
+This stage is fail-closed: if the browser SDK, avatar recording, clip validation, or composite render fails, the workflow fails and does not fall back to a 2D presenter image. The final artifact remains a review-only MP4; no upload or publication is performed.
+
+**Current SDK limitation:** the included MIT-licensed Talking Avatar SDK provides stylized 3D head-and-shoulders presenters with mouth movement, blinks and brow animation. It does not provide photorealistic human rendering or full-body gestures. Hindi/Hinglish lip-sync is approximate and requires human review. The 3D presenter is a visual improvement over static 2D presenter portraits, not a claim of photorealistic digital-human quality.
