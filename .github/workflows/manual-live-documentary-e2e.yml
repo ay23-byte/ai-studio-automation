@@ -165,18 +165,12 @@ jobs:
           import subprocess
           from pathlib import Path
 
-          build_roots = sorted(Path("build").glob("job_*"), key=lambda p: p.stat().st_mtime, reverse=True)
-          sections = []
-          if build_roots:
-              script_path = build_roots[0] / "script.json"
-              if script_path.is_file():
-                  try:
-                      sections = json.loads(script_path.read_text(encoding="utf-8")).get("sections", [])
-                  except (OSError, ValueError):
-                      pass
+          chapter_audio = sorted(Path("build").glob("job_*/avatar_chapter_audio/chapter_*.wav"))
           clips = sorted(Path("assets/presenter_clips").glob("presenter_section_*.mp4"))
+          expected_count = len(chapter_audio)
           report = {"required_mode": "talking_avatar_auto", "clip_count": len(clips),
-                    "expected_chapter_count": len(sections), "clips": []}
+                    "expected_chapter_count": expected_count, "chapter_audio_count": expected_count,
+                    "clips": []}
           failures = []
           if not clips:
               failures.append("No 3D presenter clips were generated.")
@@ -191,8 +185,10 @@ jobs:
               report["clips"].append(item)
               if item["bytes"] < 10000 or not item["has_video"] or not item["has_audio"]:
                   failures.append(f"Invalid avatar clip: {clip.name}")
-          if sections and len(clips) != len(sections):
-              failures.append(f"Expected {len(sections)} chapter clips, found {len(clips)}.")
+          if expected_count == 0:
+              failures.append("No chapter narration audio slices were created for avatar generation.")
+          elif len(clips) != expected_count:
+              failures.append(f"Expected {expected_count} chapter clips, found {len(clips)}.")
           evidence = Path("build/live_documentary_validation")
           evidence.mkdir(parents=True, exist_ok=True)
           (evidence / "3d-presenter-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
