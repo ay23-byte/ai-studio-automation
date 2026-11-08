@@ -53,10 +53,11 @@ class SceneFootageQATests(unittest.TestCase):
             self.assertEqual(result["status"], "REVIEW")
             self.assertTrue(any("nearly identical" in warning for warning in result["warnings"]))
 
+    @patch("core.news_short_scene_qa._frame_difference", return_value=0.0)
     @patch("core.news_short_scene_qa._frame_metrics", return_value={"mean_luma": 0, "pixel_stddev": 0})
     @patch("core.news_short_scene_qa._extract_frame", return_value=True)
     @patch("core.news_short_scene_qa._probe_duration", return_value=20.0)
-    def test_black_scene_blocks(self, probe, extract, metrics):
+    def test_black_scene_blocks(self, probe, extract, metrics, difference):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             manifest, video = self._manifest(root)
@@ -64,8 +65,9 @@ class SceneFootageQATests(unittest.TestCase):
             self.assertEqual(result["status"], "FAIL")
             self.assertTrue(any("Near-black" in error for error in result["errors"]))
 
+    @patch("core.news_short_scene_qa._extract_frame", return_value=False)
     @patch("core.news_short_scene_qa._probe_duration", return_value=10.0)
-    def test_scene_overrun_blocks(self, probe):
+    def test_scene_overrun_blocks(self, probe, extract):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             manifest, video = self._manifest(root, shots=[
