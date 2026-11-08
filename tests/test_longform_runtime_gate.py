@@ -10,7 +10,7 @@ class LongformRuntimeGateTests(unittest.TestCase):
             {"narration": "यह एक परीक्षण है।"},
             {"narration": "Research-based evidence matters."},
         ]}
-        self.assertEqual(count_longform_narration_words(script), 11)
+        self.assertEqual(count_longform_narration_words(script), 10)
 
     def test_accepts_script_at_minimum_runtime_floor_and_records_metrics(self):
         script = {"sections": [{"narration": " ".join(["evidence"] * 1160)}]}

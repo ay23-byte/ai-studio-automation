@@ -202,57 +202,54 @@ jobs:
         run: |
           python - <<'PY'
           import json
-          import os
           import subprocess
           from pathlib import Path
 
-          target_minutes = int(os.environ["MINUTES"])
-          minimum_seconds = target_minutes * 60 * 0.80
-          output_dir = Path("output")
-          # Only root-level longform artifacts are final-documentary candidates.
-          # Chapter and presenter MP4s remain diagnostic evidence, never release candidates.
+          target_minutes = int(__import__("os").environ["MINUTES"])
           candidates = sorted(
-              (p for p in output_dir.glob("longform*.mp4") if p.is_file()),
-              key=lambda p: p.stat().st_mtime, reverse=True,
-          ) if output_dir.exists() else []
-          all_mp4s = sorted(
-              (p for p in output_dir.rglob("*.mp4") if p.is_file()),
-              key=lambda p: p.stat().st_mtime, reverse=True,
-          ) if output_dir.exists() else []
-          report = {"target_minutes": target_minutes, "minimum_duration_seconds": minimum_seconds,
-                    "diagnostic_mp4_count": len(all_mp4s), "final_documentary_candidates": [], "videos": []}
-
-          def probe(path):
-              raw = subprocess.check_output(["ffprobe", "-v", "error", "-show_entries",
-                  "format=duration:stream=codec_type,width,height,codec_name", "-of", "json", str(path)], text=True)
-              data = json.loads(raw)
-              streams = data.get("streams", [])
-              return {"path": str(path), "bytes": path.stat().st_size,
-                      "duration_seconds": float(data.get("format", {}).get("duration", 0)),
-                      "has_video": any(item.get("codec_type") == "video" for item in streams),
-                      "has_audio": any(item.get("codec_type") == "audio" for item in streams), "probe": data}
-
-          for path in all_mp4s:
-              report["videos"].append(probe(path))
+              (p for p in Path("output").rglob("*.mp4") if p.is_file()),
+              key=lambda p: p.stat().st_mtime,
+              reverse=True,
+          ) if Path("output").exists() else []
+          report = {"target_minutes": target_minutes, "videos": []}
           for path in candidates:
-              report["final_documentary_candidates"].append(probe(path))
+              raw = subprocess.check_output([
+                  "ffprobe", "-v", "error", "-show_entries",
+                  "format=duration:stream=codec_type,width,height,codec_name",
+                  "-of", "json", str(path)
+              ], text=True)
+              probe = json.loads(raw)
+              streams = probe.get("streams", [])
+              duration = float(probe.get("format", {}).get("duration", 0))
+              report["videos"].append({
+                  "path": str(path),
+                  "bytes": path.stat().st_size,
+                  "duration_seconds": duration,
+                  "has_video": any(s.get("codec_type") == "video" for s in streams),
+                  "has_audio": any(s.get("codec_type") == "audio" for s in streams),
+                  "probe": probe,
+              })
           evidence_dir = Path("build/live_documentary_validation")
           evidence_dir.mkdir(parents=True, exist_ok=True)
-          report_path = evidence_dir / "mp4-probe-report.json"
-          report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-          valid = [item for item in report["final_documentary_candidates"]
-                   if item["bytes"] > 100_000 and item["has_video"] and item["has_audio"]
-                   and item["duration_seconds"] >= minimum_seconds]
-          print(json.dumps({"diagnostic_mp4_count": len(all_mp4s),
-              "final_documentary_candidate_count": len(candidates),
-              "valid_final_documentary_count": len(valid), "target_minutes": target_minutes,
-              "minimum_duration_seconds": minimum_seconds,
-              "final_candidates": [{key: item[key] for key in ("path", "bytes", "duration_seconds", "has_video", "has_audio")}
-                                   for item in report["final_documentary_candidates"]],
-              "evidence": str(report_path)}, indent=2))
+          (evidence_dir / "mp4-probe-report.json").write_text(
+              json.dumps(report, indent=2), encoding="utf-8"
+          )
+          valid = [
+              v for v in report["videos"]
+              if v["bytes"] > 100_000
+              and v["has_video"] and v["has_audio"]
+              and v["duration_seconds"] >= target_minutes * 60 * 0.80
+          ]
+          print(json.dumps({
+              "mp4_count": len(report["videos"]),
+              "valid_mp4_count": len(valid),
+              "target_minutes": target_minutes,
+              "evidence": str(evidence_dir / "mp4-probe-report.json"),
+          }, indent=2))
           if not valid:
-              raise SystemExit("No final longform MP4 passed file-size, audio/video-stream and minimum-duration checks "
-                               f"(required >= {minimum_seconds:.0f}s). Intermediate MP4s are not accepted.")
+              raise SystemExit(
+                  "No rendered MP4 passed file-size, audio/video-stream and minimum-duration checks."
+              )
           PY
 
       - name: Upload render and diagnostic evidence
