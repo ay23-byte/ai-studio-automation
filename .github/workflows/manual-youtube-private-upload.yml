@@ -1,0 +1,78 @@
+name: Manual YouTube private documentary upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: GitHub Actions run ID that produced the documentary artifact
+        required: true
+        type: string
+      human_reviewed:
+        description: I have watched the complete MP4 and reviewed visuals, audio, facts and rights
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: manual-youtube-private-upload
+  cancel-in-progress: false
+
+jobs:
+  upload-private:
+    name: Upload reviewed documentary as Private
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      HUMAN_REVIEWED: ${{ inputs.human_reviewed }}
+    steps:
+      - name: Require explicit human review confirmation
+        shell: bash
+        run: |
+          if [[ "$HUMAN_REVIEWED" != "true" ]]; then
+            echo "::error::Watch and review the complete documentary before enabling this upload."
+            exit 1
+          fi
+          test -n "$YT_CLIENT_ID" || { echo "::error::Missing YT_CLIENT_ID Actions secret."; exit 1; }
+          test -n "$YT_CLIENT_SECRET" || { echo "::error::Missing YT_CLIENT_SECRET Actions secret."; exit 1; }
+          test -n "$YT_REFRESH_TOKEN" || { echo "::error::Missing YT_REFRESH_TOKEN Actions secret."; exit 1; }
+          [[ "${{ inputs.source_run_id }}" =~ ^[0-9]+$ ]] || {
+            echo "::error::source_run_id must be a numeric GitHub Actions run ID."
+            exit 1
+          }
+
+      - name: Check out uploader code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install upload dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install google-api-python-client google-auth requests python-dotenv
+
+      - name: Download documentary artifact from selected render run
+        uses: actions/download-artifact@v4
+        with:
+          name: live-documentary-validation-${{ inputs.source_run_id }}
+          run-id: ${{ inputs.source_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: source-artifact
+
+      - name: Upload the single validated documentary as Private
+        run: |
+          python scripts/upload_documentary_artifact.py \
+            --artifact-dir source-artifact \
+            --source-run-id "${{ inputs.source_run_id }}" \
+            --human-reviewed
