@@ -224,6 +224,23 @@ jobs:
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of json output/daily_news/rendered/review_short.mp4
           ffprobe -v error -show_entries format=duration -of json output/daily_news/rendered/review_short.mp4
 
+      - name: Run automated technical, audio, frame and semantic QA
+        env:
+          CI: "true"
+          GITHUB_ACTIONS: "true"
+        run: |
+          python -m scripts.qa_news_short output/daily_news/rendered/review_short.mp4 --manifest output/daily_news/rendered/production_manifest.json --report output/daily_news/rendered/technical_qa.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("output/daily_news/rendered/technical_qa.json").read_text(encoding="utf-8"))
+          print("News Short QA status:", report.get("status"))
+          print("Blocking errors:", len(report.get("errors", [])))
+          print("Human-review warnings:", len(report.get("warnings", [])))
+          if report.get("publication_ready") is not False or report.get("human_review_required") is not True:
+              raise SystemExit("QA report must preserve the mandatory human-review boundary.")
+          PY
+
       - name: Upload review-only MP4 and audit files
         uses: actions/upload-artifact@v4
         with:
@@ -235,6 +252,8 @@ jobs:
             output/daily_news/rendered/credits.txt
             output/daily_news/rendered/captions.ass
             output/daily_news/rendered/build/avatar_clips/*.mp4
+            output/daily_news/rendered/technical_qa.json
+            output/daily_news/rendered/advanced_qa/**
           if-no-files-found: error
           retention-days: 14
 
@@ -260,7 +279,7 @@ jobs:
                 url,
                 "",
                 "This is a private review artifact only. No YouTube upload or publication was attempted.",
-                "The workflow dispatch confirmation authorized only this review render. Please inspect narration, pronunciation, captions, visual timing, audio and factual context before any separate publication decision."
+                "The workflow dispatch confirmation authorized only this review render. Automated QA reports are included in the artifact; REVIEW means human inspection is still required. Please inspect narration, pronunciation, captions, visual timing, audio, shot relevance and factual context before any separate publication decision."
               ].join("\n")
             });
 
