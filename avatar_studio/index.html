@@ -149,7 +149,8 @@
       };
       recorder.start(500);enable("finish",true);
       status("Recording avatar and narration together…");
-      await sourceAudio.play();
+      // Register the completion handler before playback. Very short clips can
+      // otherwise reach "ended" before the listener is attached.
       sourceAudio.addEventListener("ended",()=>{
         // Allow the final video frame/audio packet to reach MediaRecorder before
         // stopping. requestData() flushes the current segment; the short tail
@@ -159,6 +160,7 @@
           setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},350);
         }
       },{once:true});
+      await sourceAudio.play();
     }catch(error){
       canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
       canvasStream=null;sourceStream=null;avatar?.detachStream();
