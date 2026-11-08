@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from core.uploader import upload, wait_processed
+from core.uploader import find_private_video_by_marker, upload, wait_processed
 
 
 def _load_json(path: Path) -> dict:
@@ -64,6 +64,50 @@ def _find_video(root: Path) -> tuple[Path, dict]:
     return candidates[0]
 
 
+def _validate_release_evidence(build_dir: Path) -> dict:
+    """Require the generated documentary QA dossier before any upload attempt."""
+    required = [
+        "visual_review_report.json", "visual_consistency_report.json",
+        "audio_quality_report.json", "research_verification_report.json",
+        "research_review_decisions.json", "quality_report.json", "licenses.csv",
+    ]
+    reports = {}
+    missing = [name for name in required if not (build_dir / name).is_file()]
+    if missing:
+        raise ValueError("Release evidence is incomplete; missing: " + ", ".join(missing))
+    for name in required[:-1]:
+        reports[name] = _load_json(build_dir / name)
+    visual = reports["visual_review_report.json"]
+    if not isinstance(visual.get("shots"), list) or not visual["shots"]:
+        raise ValueError("Visual review report contains no shot manifest.")
+    if any(item.get("level") == "error" for item in visual.get("issues", [])):
+        raise ValueError("Visual review report contains unresolved media errors.")
+    consistency = reports["visual_consistency_report.json"]
+    summary = consistency.get("summary") or {}
+    if consistency.get("status") not in {"PASS", "REVIEW"} or int(summary.get("fail_count") or 0):
+        raise ValueError("Visual consistency report is failed or incomplete.")
+    audio = reports["audio_quality_report.json"]
+    if audio.get("status") not in {"PASS", "REVIEW"}:
+        raise ValueError("Audio quality report is failed or incomplete.")
+    quality = reports["quality_report.json"]
+    if quality.get("status") not in {"PASS", "REVIEW"}:
+        raise ValueError("Final video quality report is failed or incomplete.")
+    research = reports["research_verification_report.json"]
+    if int(research.get("claim_count") or 0) < 1 or int(research.get("source_count") or 0) < 1:
+        raise ValueError("Research dossier must contain at least one traceable claim and source.")
+    import csv
+    with (build_dir / "licenses.csv").open(encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if len(rows) != len(visual["shots"]):
+        raise ValueError("Asset licence register does not cover every visual-review shot.")
+    blocked = [row.get("shot_id", "unknown") for row in rows if row.get("use_status") == "blocked"]
+    if blocked:
+        raise ValueError("Asset licence register contains blocked assets: " + ", ".join(blocked[:12]))
+    return {"shot_count": len(visual["shots"]), "licence_rows": len(rows),
+            "research_claim_count": research.get("claim_count"),
+            "research_source_count": research.get("source_count")}
+
+
 def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_reviewed: bool) -> dict:
     if not human_reviewed:
         raise ValueError("Human review confirmation is required before upload.")
@@ -73,19 +117,28 @@ def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_revie
     if not root.is_dir():
         raise FileNotFoundError(f"Artifact directory does not exist: {root}")
 
-    _, metadata = _find_release_metadata(root)
+    metadata_path, metadata = _find_release_metadata(root)
     video_path, probe = _find_video(root)
+    evidence = _validate_release_evidence(metadata_path.parent)
     digest = hashlib.sha256(video_path.read_bytes()).hexdigest()
 
-    # Hard-code privacy and disable scheduling: this workflow must never publish.
-    video_id = upload(
-        video_path,
-        metadata["title"],
-        metadata["description"],
-        metadata["tags"],
-        privacy_status="private",
-        disable_scheduling=True,
-    )
+    # A stable source-run marker makes retries idempotent. Search errors fail closed.
+    marker = f"AI_STUDIO_SOURCE_RUN_ID:{source_run_id}"
+    existing_video_id = find_private_video_by_marker(marker)
+    if existing_video_id:
+        video_id = existing_video_id
+        print(f"Found existing private upload for source run {source_run_id}; skipping duplicate upload.")
+    else:
+        # Hard-code privacy and disable scheduling: this workflow must never publish.
+        description = (metadata["description"].rstrip() + "\n\n" + marker).strip()
+        video_id = upload(
+            video_path,
+            metadata["title"],
+            description,
+            metadata["tags"],
+            privacy_status="private",
+            disable_scheduling=True,
+        )
     processing = wait_processed(video_id, max_wait=600)
     result = {
         "source_run_id": source_run_id,
@@ -98,12 +151,13 @@ def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_revie
         "size_bytes": video_path.stat().st_size,
         "sha256": digest,
         "duration_seconds": probe.get("duration_seconds"),
+        "release_evidence": evidence,
     }
     output = root / "youtube-upload-result.json"
     output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, ensure_ascii=False))
-    if processing not in {"ok", "timeout"}:
-        raise RuntimeError(f"YouTube processing ended with status: {processing}")
+    if processing != "ok":
+        raise RuntimeError(f"YouTube processing did not complete successfully: {processing}")
     return result
 
 
