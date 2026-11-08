@@ -76,7 +76,7 @@ def _query_variants(query):
     # Keep stable order and avoid redundant requests.
     # Bound the number of API requests per provider. Broad discovery is useful,
     # but ten variants across every archive causes avoidable rate limiting.
-    return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:6]
+    return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:8]
 
 
 def run_checks(query, min_total=1, providers=None):
