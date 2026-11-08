@@ -103,7 +103,7 @@ def add_3d_presenter(
         input_index = index
         filters.append(
             f"[{input_index}:v]setpts=PTS-STARTPTS+{start:.3f}/TB,"
-            "crop=405:720:(iw-405)/2:0,"
+            "scale=-1:720:flags=lanczos,crop=405:720:(iw-405)/2:0,"
             "scale=320:568:flags=lanczos,setsar=1,"
             "drawbox=x=0:y=0:w=iw:h=ih:color=white@0.92:t=4"
             f"[{label}]"
@@ -155,3 +155,12 @@ def add_3d_presenter(
         "presenter_clips": len(clips),
         "fallback_to_2d_presenter": False,
     }
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate and composite required 3D news presenter clips.")
+    parser.add_argument("output_dir")
+    parser.add_argument("--gender", choices=("female", "male"), default="female")
+    args = parser.parse_args()
+    print(json.dumps(add_3d_presenter(args.output_dir, gender=args.gender), ensure_ascii=False, indent=2))
