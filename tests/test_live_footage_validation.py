@@ -30,6 +30,14 @@ class LiveFootageValidationTests(unittest.TestCase):
         self.assertIn("India village rural life", seen)
         self.assertGreater(len(seen), 1)
 
+    def test_north_korea_title_expands_to_grounded_stock_search_terms(self):
+        from scripts.check_footage_sources_live import _query_variants
+        queries = _query_variants("North Korea: The Country That Hides Itself")
+        self.assertIn("North Korea", queries)
+        self.assertIn("Pyongyang", queries)
+        self.assertIn("Korean peninsula", queries)
+        self.assertLessEqual(len(queries), 8)
+
     def test_provider_exception_is_reported_and_other_results_count(self):
         def broken(query):
             raise RuntimeError("provider offline")

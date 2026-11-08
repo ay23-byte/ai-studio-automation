@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 from urllib.parse import quote
 
@@ -22,34 +23,63 @@ USER_AGENT = "AIStudioDocumentary/1.0 (educational video research)"
 
 
 def _get_json(url, params=None, headers=None):
+    """Fetch archive metadata with bounded retries and per-run provider circuit breaking.
+
+    Rate limits and transient upstream failures are retried briefly. A provider
+    that remains unavailable is skipped for the rest of this run so topic
+    expansion cannot hammer an already failing API.
+    """
     host = url.split("/")[2].lower() if "://" in url else ""
     if host in _DISABLED_PROVIDER_HOSTS:
         return None
-    try:
-        request_headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-        request_headers.update(headers or {})
-        response = requests.get(url, params=params, headers=request_headers, timeout=TIMEOUT)
-        if response.status_code in (401, 403):
-            _DISABLED_PROVIDER_HOSTS.add(host)
-            print(f"  footage provider disabled for this run ({host}): HTTP {response.status_code}; check API access/credentials.")
-            return None
-        if response.status_code == 429:
-            print(f"  footage provider rate limited ({host}): HTTP 429.")
-            return None
-        response.raise_for_status()
-        content_type = response.headers.get("content-type", "")
-        if "json" not in content_type.lower():
-            preview = " ".join(response.text[:180].split())
-            print(f"  footage discovery unavailable ({host}): expected JSON, received {content_type or 'unknown content type'}; response begins: {preview!r}")
-            return None
+    request_headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    request_headers.update(headers or {})
+    for attempt in range(3):
         try:
-            return response.json()
-        except ValueError as exc:
-            print(f"  footage discovery unavailable ({host}): invalid JSON response ({exc}).")
+            response = requests.get(
+                url, params=params, headers=request_headers, timeout=TIMEOUT
+            )
+            status = response.status_code
+            if status in (401, 403):
+                _DISABLED_PROVIDER_HOSTS.add(host)
+                print(f"  footage provider disabled for this run ({host}): HTTP {status}; check API access/credentials.")
+                return None
+            if status == 429 or status in (500, 502, 503, 504):
+                if attempt < 2:
+                    retry_after = response.headers.get("Retry-After", "")
+                    try:
+                        delay = min(8.0, max(0.5, float(retry_after)))
+                    except (TypeError, ValueError):
+                        delay = float(attempt + 1)
+                    print(f"  footage provider transient HTTP {status} ({host}); retry {attempt + 1}/2 after {delay:g}s.")
+                    time.sleep(delay)
+                    continue
+                _DISABLED_PROVIDER_HOSTS.add(host)
+                print(f"  footage provider unavailable for rest of this run ({host}): HTTP {status} after retries.")
+                return None
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                preview = " ".join(response.text[:180].split())
+                print(f"  footage discovery unavailable ({host}): expected JSON, received {content_type or 'unknown content type'}; response begins: {preview!r}")
+                return None
+            try:
+                return response.json()
+            except ValueError as exc:
+                print(f"  footage discovery unavailable ({host}): invalid JSON response ({exc}).")
+                return None
+        except requests.RequestException as exc:
+            if attempt < 2:
+                delay = float(attempt + 1)
+                print(f"  footage provider request failed ({host}): {type(exc).__name__}; retry {attempt + 1}/2 after {delay:g}s.")
+                time.sleep(delay)
+                continue
+            print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {exc}")
             return None
-    except Exception as exc:
-        print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {exc}")
-        return None
+        except Exception as exc:
+            print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {exc}")
+            return None
+    return None
 
 
 def _valid_video(path):

@@ -71,10 +71,20 @@ def _query_variants(query):
     normalized = query.lower()
     if "india" in normalized or "village" in normalized:
         values.extend(DEFAULT_QUERY_VARIANTS)
+    elif "north korea" in normalized or "north korean" in normalized:
+        # Long editorial titles often perform poorly as stock-library search
+        # phrases. Search concise, topic-grounded geographic terms as well.
+        values.extend([
+            "North Korea", "Pyongyang", "Korean peninsula",
+            "Korean DMZ", "North Korean landscape", "Korea border",
+        ])
+        values.extend([query + " video", query + " documentary"])
     else:
         values.extend([query + " video", query + " documentary"])
     # Keep stable order and avoid redundant requests.
-    return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:10]
+    # Bound the number of API requests per provider. Broad discovery is useful,
+    # but ten variants across every archive causes avoidable rate limiting.
+    return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:8]
 
 
 def run_checks(query, min_total=1, providers=None):

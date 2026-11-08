@@ -20,6 +20,36 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         get.assert_called_once()
         self.assertIn("api.dvidshub.net", fs._DISABLED_PROVIDER_HOSTS)
 
+    @patch.object(fs.time, "sleep")
+    @patch.object(fs.requests, "get")
+    def test_rate_limited_provider_retries_then_recovers(self, get, sleep):
+        recovered = Mock(status_code=200)
+        recovered.headers = {"content-type": "application/json"}
+        recovered.json.return_value = {"results": ["clip"]}
+        limited = Mock(status_code=429)
+        limited.headers = {"Retry-After": "0"}
+        get.side_effect = [limited, recovered]
+
+        result = fs._get_json("https://www.loc.gov/videos/", {"q": "documentary"})
+
+        self.assertEqual(result, {"results": ["clip"]})
+        self.assertEqual(get.call_count, 2)
+        sleep.assert_called_once()
+        self.assertNotIn("www.loc.gov", fs._DISABLED_PROVIDER_HOSTS)
+
+    @patch.object(fs.time, "sleep")
+    @patch.object(fs.requests, "get")
+    def test_persistent_rate_limit_opens_provider_circuit(self, get, sleep):
+        limited = Mock(status_code=429)
+        limited.headers = {}
+        get.return_value = limited
+
+        self.assertIsNone(fs._get_json("https://www.loc.gov/videos/", {"q": "one"}))
+        self.assertEqual(get.call_count, 3)
+        self.assertIn("www.loc.gov", fs._DISABLED_PROVIDER_HOSTS)
+        self.assertIsNone(fs._get_json("https://www.loc.gov/videos/", {"q": "two"}))
+        self.assertEqual(get.call_count, 3)
+
     @patch("core.config.NARA_API_KEY", "nara-test")
     @patch.object(fs, "_get_json")
     def test_nara_requires_explicit_public_domain_and_video_object(self, get_json):
