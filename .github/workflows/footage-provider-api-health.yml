@@ -31,7 +31,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # This is a read-only API probe; do not install the heavyweight
+          # rendering stack (PyTorch, TTS and avatar dependencies) here.
+          python -m pip install requests
 
       - name: Compile provider code
         run: python -m compileall -q core scripts
