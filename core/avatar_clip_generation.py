@@ -27,6 +27,12 @@ def generate_chapter_avatar_clips(voice_path, sections, voice_gender, build_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     audio_dir.mkdir(parents=True, exist_ok=True)
 
+    # Remove numbered clips from previous runs. Otherwise a partial new run can
+    # appear complete because stale chapter MP4s remain in the shared directory.
+    for stale in output_dir.glob("presenter_section_*"):
+        if stale.is_file() and stale.suffix.lower() in {".mp4", ".webm", ".mov"}:
+            stale.unlink()
+
     for index, section in enumerate(sections, start=1):
         audio_path = audio_dir / f"chapter_{index:02d}.wav"
         start = float(section["_start"])
