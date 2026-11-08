@@ -126,17 +126,19 @@
       canvasStream=canvas.captureStream(30);
       const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
       chunks=[];
-      const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")?"video/webm;codecs=vp9,opus":"video/webm";
+      const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")?"video/webm;codecs=vp8,opus":(MediaRecorder.isTypeSupported("video/webm")?"video/webm":"");
+      if(!mime)throw new Error("This browser has no supported WebM recording format.");
       recorder=new MediaRecorder(combined,{mimeType:mime});
       recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
       recorder.onerror=e=>{status("Recording error: "+(e.error?.message||"unknown error"));};
       recorder.onstop=()=>{
         const blob=new Blob(chunks,{type:"video/webm"});
         if(blob.size===0){
+          const trackInfo={videoTracks:canvasStream?.getVideoTracks().length||0,audioTracks:sourceStream?.getAudioTracks().length||0,recorderState:recorder?.state||"unknown",mimeType:recorder?.mimeType||mime};
           canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
           canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
           enable("record",true);enable("finish",false);enable("play",true);
-          status("Recording produced no media data. Check browser MediaRecorder support and try Chrome or Edge.");
+          status("Recording produced no media data ("+JSON.stringify(trackInfo)+"). Check browser MediaRecorder support and try Chrome or Edge.");
           return;
         }
         const url=URL.createObjectURL(blob);
@@ -147,7 +149,7 @@
         enable("record",true);enable("finish",false);enable("play",true);
         status("Saved talking_presenter.webm with the avatar video and matching narration audio.");
       };
-      recorder.start(500);enable("finish",true);
+      recorder.start(1000);enable("finish",true);
       status("Recording avatar and narration together…");
       // Register the completion handler before playback. Very short clips can
       // otherwise reach "ended" before the listener is attached.
@@ -157,7 +159,7 @@
         // gives Chromium time to emit it before the final stop event.
         if(recorder?.state==="recording"){
           try{recorder.requestData();}catch(_){}
-          setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},350);
+          setTimeout(()=>{if(recorder?.state==="recording"){try{recorder.requestData();}catch(_){}setTimeout(()=>{if(recorder?.state==="recording")recorder.stop();},900);}},900);
         }
       },{once:true});
       await sourceAudio.play();
