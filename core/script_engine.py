@@ -63,9 +63,7 @@ RESEARCH & EVIDENCE RULES:
 
 RUNTIME & NARRATION:
 - Aim for approximately 145-155 spoken words per minute; total narration should fit the selected runtime, not include visual directions.
-- The requested upper runtime is {duration_max} minutes. Write at least {minimum_words} spoken words across all section narration (excluding titles, visual directions, captions and metadata), and target approximately {target_words} words.
-- Distribute narration meaningfully across the cold open, five chapters and outro. Do not make chapters into short summaries.
-- Do not pad or repeat. Expand with sourced context, mechanisms, examples, evidence limitations and consequences. Never invent facts to reach a word count.
+- Do not pad. Give each chapter enough space to explain its argument, evidence and implications.
 - Write natural spoken narration in the requested language. For Hindi/Hinglish, use conversational Devanagari Hindi with necessary English technical terms explained at first use.
 - First-person host narration is welcome ("मैंने इस रिपोर्ट में...", "जब मैंने आंकड़े देखे...") only when it describes the research process, not a fictional real-world visit, call, interview or firsthand observation.
 - No headings, bullets, markdown, camera directions or production notes inside narration.
@@ -454,91 +452,28 @@ def generate_shorts_script(topic: str, category: str = "finance",
     return script
 
 
-def count_longform_narration_words(script: dict) -> int:
-    """Count spoken words only; section titles and visual metadata are excluded."""
-    sections = script.get("sections") if isinstance(script, dict) else None
-    if not isinstance(sections, list):
-        return 0
-    narration = " ".join(
-        str(section.get("narration") or "")
-        for section in sections if isinstance(section, dict)
-    )
-    return len(re.findall(r"[^\W_]+", narration, flags=re.UNICODE))
-
-
-def validate_longform_runtime(script: dict, target_minutes: float,
-                              minimum_fraction: float = 0.80,
-                              words_per_minute: int = 145) -> dict:
-    """Fail before rendering when narration cannot meet the release duration floor."""
-    if target_minutes <= 0 or not 0 < minimum_fraction <= 1 or words_per_minute <= 0:
-        raise ValueError("Runtime validation requires positive minutes/WPM and a fraction in (0, 1].")
-    actual_words = count_longform_narration_words(script)
-    minimum_words = int(target_minutes * words_per_minute * minimum_fraction)
-    estimated_minutes = actual_words / words_per_minute
-    if actual_words < minimum_words:
-        raise ValueError(
-            f"Long-form narration is too short: {actual_words} spoken words "
-            f"(about {estimated_minutes:.1f} min at {words_per_minute} WPM); "
-            f"need at least {minimum_words} words to satisfy {minimum_fraction:.0%} "
-            f"of the {target_minutes:g}-minute target. Refusing to render an under-length documentary."
-        )
-    script["narration_word_count"] = actual_words
-    script["estimated_narration_minutes"] = round(estimated_minutes, 2)
-    script["runtime_validation"] = {
-        "target_minutes": target_minutes, "minimum_fraction": minimum_fraction,
-        "minimum_words": minimum_words, "actual_words": actual_words,
-        "words_per_minute": words_per_minute, "estimated_minutes": round(estimated_minutes, 2),
-    }
-    return script
-
-
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
                               brand_voice: str = "") -> dict:
-    minimum_words = int(duration_max * 145 * 0.80)
-    target_words = int(duration_max * 150)
     prompt = LONGFORM_PROMPT.format(
-        topic=topic, category=category, duration_min=duration_min,
-        duration_max=duration_max, language=language,
-        minimum_words=minimum_words, target_words=target_words)
+        topic=topic, category=category,
+        duration_min=duration_min, duration_max=duration_max, language=language)
+
     # Free, keyless GDELT discovery adds recent-news leads to both current
     # affairs and evergreen documentaries. Failure is deliberately non-fatal.
     research_sources = research_topic(topic)
     prompt += "\n\n" + format_research_context(research_sources)
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
-    # One focused repair attempt prevents an expensive render of a short script.
-    # The model must expand with evidence, never with fabricated or repetitive filler.
-    for attempt in range(2):
-        script = _parse(_ask_gemini(prompt))
-        script["format"] = "longform"
-        script["category"] = category
-        script["research_sources"] = research_sources
-        from core.research_verification import append_source_citations_to_description
-        script = append_source_citations_to_description(script)
-        script = _repair_longform_visual_anchors(script)
-        script = validate_longform_storyboard(script)
-        try:
-            script = validate_longform_runtime(script, duration_max)
-            print(
-                f"Narration runtime gate passed: {script['narration_word_count']} words, "
-                f"approximately {script['estimated_narration_minutes']:.1f} minutes."
-            )
-            return script
-        except ValueError:
-            if attempt == 1:
-                raise
-            actual_words = count_longform_narration_words(script)
-            prompt += (
-                "\n\nRUNTIME REPAIR REQUIRED: Your previous complete script contained "
-                f"{actual_words} spoken narration words, below the minimum {minimum_words}. "
-                f"Rewrite the entire JSON documentary for a {duration_max}-minute target. "
-                f"Provide at least {minimum_words} spoken narration words (target {target_words}), "
-                "distributed across all sections. Add useful sourced explanation and context; "
-                "do not pad, repeat, invent evidence, or shorten the storyboard. Return the full valid JSON object, not an outline."
-            )
-            print(f"Generated narration was short ({actual_words}/{minimum_words} words); requesting one evidence-led rewrite.")
-    raise RuntimeError("Long-form runtime validation ended unexpectedly.")
+    script = _parse(_ask_gemini(prompt))
+    script["format"] = "longform"
+    script["category"] = category
+    script["research_sources"] = research_sources
+    from core.research_verification import append_source_citations_to_description
+    script = append_source_citations_to_description(script)
+    script = _repair_longform_visual_anchors(script)
+    return validate_longform_storyboard(script)
+
 
 def generate_seo(script: dict) -> dict:
     title = script.get("title", "")
