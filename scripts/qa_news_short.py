@@ -51,6 +51,7 @@ def run(video, report_dir=None, manifest_path=None):
     root.mkdir(parents=True,exist_ok=True)
     from core.audio_quality import inspect_audio
     from core.visual_consistency import audit_visual_consistency
+    semantic_manifest = Path(manifest_path) if manifest_path else video.parent/"production_manifest.json"
     from core.news_short_caption_qa import audit_captions
     captions = audit_captions(semantic_manifest)
     (root/"caption_qa_report.json").write_text(json.dumps(captions,ensure_ascii=False,indent=2),encoding="utf-8")
