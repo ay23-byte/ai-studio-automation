@@ -265,6 +265,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
             "visual_type": str(scene.get("asset_type") or "unknown"),
             "caption": str(scene.get("caption", "")),
             "source_ids": scene.get("source_ids", []),
+            "ai_disclosure": scene.get("ai_disclosure") is True,
         })
         shot_cursor += duration + (0.25 if index < len(scenes) else 0.0)
 
