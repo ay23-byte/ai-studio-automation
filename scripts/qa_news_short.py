@@ -90,6 +90,11 @@ def run(video, report_dir=None, manifest_path=None):
         "human_review_required":True,"publication_ready":False,
         "notice":"A PASS is technical screening only. It does not verify facts, visual relevance, historical authenticity, media rights, captions, or policy compliance. Human review and phone playback remain mandatory."}
 
+def exit_code_for_status(status):
+    """Only blocking QA failures fail CI; REVIEW is a successful handoff to a human."""
+    return 1 if str(status).upper() == "FAIL" else 0
+
+
 if __name__=="__main__":
     parser=argparse.ArgumentParser(); parser.add_argument("video")
     parser.add_argument("--report",default="output/daily_news/rendered/technical_qa.json")
@@ -98,4 +103,4 @@ if __name__=="__main__":
     result=run(Path(args.video),Path(args.report).parent/"advanced_qa",args.manifest)
     Path(args.report).parent.mkdir(parents=True,exist_ok=True)
     Path(args.report).write_text(json.dumps(result,indent=2),encoding="utf-8")
-    print(json.dumps(result,indent=2)); raise SystemExit(result["status"]!="PASS")
+    print(json.dumps(result,indent=2)); raise SystemExit(exit_code_for_status(result["status"]))
