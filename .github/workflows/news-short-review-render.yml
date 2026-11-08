@@ -234,6 +234,7 @@ jobs:
             output/daily_news/rendered/licenses.csv
             output/daily_news/rendered/credits.txt
             output/daily_news/rendered/captions.ass
+            output/daily_news/rendered/build/avatar_clips/*.mp4
           if-no-files-found: error
           retention-days: 14
 
