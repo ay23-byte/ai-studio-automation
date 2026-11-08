@@ -58,6 +58,19 @@ def run(video, report_dir=None, manifest_path=None):
     else:
         captions = {"status":"REVIEW","reason":"No production manifest supplied; caption timing and narration alignment could not be audited.","human_review_required":True,"caption_alignment_verified":False}
     (root/"caption_qa_report.json").write_text(json.dumps(captions,ensure_ascii=False,indent=2),encoding="utf-8")
+    if semantic_manifest.is_file():
+        from core.news_short_presenter_qa import audit_presenter
+        presenter = audit_presenter(semantic_manifest, video, root)
+    else:
+        presenter = {"status":"REVIEW","reason":"No production manifest supplied; presenter visibility could not be audited.",
+                     "human_review_required":True,"presenter_visibility_verified":False,
+                     "publication_ready":False}
+    (root/"presenter_visibility_report.json").write_text(
+        json.dumps(presenter,ensure_ascii=False,indent=2),encoding="utf-8")
+    if presenter.get("status") == "FAIL":
+        errors.append("3D presenter clip or final-frame visibility QA detected a blocking issue.")
+    elif presenter.get("status") in {"REVIEW","NOT_RUN"}:
+        warnings.append("3D presenter visibility and motion need human review; see presenter_visibility_report.json.")
     if captions.get("status") == "FAIL":
         errors.append("Caption timing or narration alignment QA detected a blocking issue.")
     elif captions.get("status") in {"REVIEW","NOT_RUN"}:
@@ -99,6 +112,8 @@ def run(video, report_dir=None, manifest_path=None):
         "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),
         "caption_qa_report":str(root/"caption_qa_report.json"),
         "caption_qa_status":captions.get("status"),
+        "presenter_visibility_report":str(root/"presenter_visibility_report.json"),
+        "presenter_visibility_status":presenter.get("status"),
         "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
         "human_review_required":True,"publication_ready":False,
         "notice":"A PASS is technical screening only. It does not verify facts, visual relevance, historical authenticity, media rights, captions, or policy compliance. Human review and phone playback remain mandatory."}
