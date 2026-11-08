@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def _seconds(value: str) -> float:
-    match = re.fullmatch(r"(\d+):(\d{2}):(\d{2})\\.(\d{2})", value.strip())
+    match = re.fullmatch(r"(\d+):(\d{2}):(\d{2})\.(\d{2})", value.strip())
     if not match:
         raise ValueError(f"Invalid ASS timestamp: {value!r}")
     hours, minutes, seconds, centiseconds = map(int, match.groups())
