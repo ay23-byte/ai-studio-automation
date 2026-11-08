@@ -59,6 +59,18 @@ def run(video, report_dir=None, manifest_path=None):
         captions = {"status":"REVIEW","reason":"No production manifest supplied; caption timing and narration alignment could not be audited.","human_review_required":True,"caption_alignment_verified":False}
     (root/"caption_qa_report.json").write_text(json.dumps(captions,ensure_ascii=False,indent=2),encoding="utf-8")
     if semantic_manifest.is_file():
+        from core.news_short_scene_qa import audit_scene_footage
+        scene_footage = audit_scene_footage(semantic_manifest, video, root)
+    else:
+        scene_footage = {"status":"REVIEW","reason":"No production manifest supplied; scene footage integrity could not be audited.",
+                         "human_review_required":True,"publication_ready":False}
+    (root/"scene_footage_qa_report.json").write_text(
+        json.dumps(scene_footage,ensure_ascii=False,indent=2),encoding="utf-8")
+    if scene_footage.get("status") == "FAIL":
+        errors.append("Per-scene footage integrity QA detected missing, black, or invalid-timing footage.")
+    elif scene_footage.get("status") in {"REVIEW","NOT_RUN"}:
+        warnings.append("Per-scene footage integrity needs human review; see scene_footage_qa_report.json.")
+    if semantic_manifest.is_file():
         from core.news_short_presenter_qa import audit_presenter
         presenter = audit_presenter(semantic_manifest, video, root)
     else:
@@ -112,6 +124,8 @@ def run(video, report_dir=None, manifest_path=None):
         "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),
         "caption_qa_report":str(root/"caption_qa_report.json"),
         "caption_qa_status":captions.get("status"),
+        "scene_footage_qa_report":str(root/"scene_footage_qa_report.json"),
+        "scene_footage_qa_status":scene_footage.get("status"),
         "presenter_visibility_report":str(root/"presenter_visibility_report.json"),
         "presenter_visibility_status":presenter.get("status"),
         "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
