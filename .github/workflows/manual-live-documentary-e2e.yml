@@ -127,12 +127,14 @@ jobs:
 
       - name: Discover live footage candidates
         run: |
+          set -o pipefail
           mkdir -p build/live_documentary_validation
           python -m scripts.check_footage_sources_live "$TOPIC" --min-total 1 \
             2>&1 | tee build/live_documentary_validation/provider-live-checks.log
 
       - name: Render documentary (no upload or publication)
         run: |
+          set -o pipefail
           python run.py long "$TOPIC" --category "$CATEGORY" \
             --minutes "$MINUTES" --language "$LANGUAGE" \
             --voice-gender "$VOICE_GENDER" \
