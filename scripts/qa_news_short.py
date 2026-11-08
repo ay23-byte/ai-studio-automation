@@ -92,7 +92,7 @@ def run(video, report_dir=None, manifest_path=None):
 
 def exit_code_for_status(status):
     """Only blocking QA failures fail CI; REVIEW is a successful handoff to a human."""
-    return 1 if str(status).upper() == "FAIL" else 0
+    return 0 if str(status).upper() in {"PASS", "REVIEW"} else 1
 
 
 if __name__=="__main__":
