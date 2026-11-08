@@ -93,7 +93,9 @@ def run(video, report_dir=None, manifest_path=None):
     return {"status":"FAIL" if errors else ("REVIEW" if warnings else "PASS"),
         "duration_seconds":round(dur,2),"fps":round(fps,2),"resolution":f'{v["width"]}x{v["height"]}',
         "errors":errors,"warnings":warnings,"audio_quality_report":str(root/"audio_quality_report.json"),
-        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),\n        "caption_qa_report":str(root/"caption_qa_report.json"),\n        "caption_qa_status":captions.get("status"),
+        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),
+        "caption_qa_report":str(root/"caption_qa_report.json"),
+        "caption_qa_status":captions.get("status"),
         "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
         "human_review_required":True,"publication_ready":False,
         "notice":"A PASS is technical screening only. It does not verify facts, visual relevance, historical authenticity, media rights, captions, or policy compliance. Human review and phone playback remain mandatory."}
