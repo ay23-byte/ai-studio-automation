@@ -12,9 +12,9 @@ class SceneFootageQATests(unittest.TestCase):
         video = root / "review_short.mp4"
         video.write_bytes(b"video")
         manifest = root / "production_manifest.json"
-        manifest.write_text(json.dumps({"shots": shots or [
+        manifest.write_text(json.dumps({"shots": ([
             {"start_seconds": i * 5, "duration_seconds": 5} for i in range(4)
-        ]}), encoding="utf-8")
+        ] if shots is None else shots)}), encoding="utf-8")
         return manifest, video
 
     @patch("core.news_short_scene_qa._probe_duration", return_value=20.0)
