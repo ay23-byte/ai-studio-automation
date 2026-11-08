@@ -106,7 +106,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 """
     lines = [f"Dialogue: 0,{_ts(0)},{_ts(T)},Mark,,0,0,0,,{ch_name}"]
     if disclaimer:
-        lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,Sirf educational jaankari  |  Investment advice nahi")
+        lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,For educational purposes only  |  Not investment advice")
     if hook:
         he = min(3.2, (items[0][1]+0.3) if items else 3.0)
         lines.append(f"Dialogue: 1,{_ts(0.1)},{_ts(he)},Hook,,0,0,0,,{{\\fad(250,350)}}{_clean(hook)}")
@@ -153,7 +153,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
         lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,Sirf educational jaankari  |  Investment advice nahi")
     for sec in sections:
         st = sec.get("_start", 0)
-        label = sec.get("title", "")[:40]
+        label = sec.get("subtitle_title", sec.get("title", ""))[:40]
         if label:
             lines.append(f"Dialogue: 1,{_ts(st+0.2)},{_ts(st+3.5)},Lower,,0,0,0,,{{\\fad(300,400)}}{label}")
     for st, en, text in timings:
@@ -751,8 +751,13 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         print(f"ERROR: visual review report could not be generated: {exc}")
         raise RuntimeError("Documentary visual-review and licensing evidence are required; refusing an unreviewable render.") from exc
 
+    # Documentary subtitles are translated independently from the narration voice.
+    # The spoken audio and its timing remain untouched; only visible subtitle text changes.
+    from core.subtitle_translation import translate_longform_subtitles
+    timings, subtitle_titles = translate_longform_subtitles(timings, sections)
+    subtitle_sections = [dict(sec, subtitle_title=subtitle_titles[i]) for i, sec in enumerate(sections)]
     ass = bd / "subs.ass"
-    _make_ass_longform(timings, shot_timeline, total, ass, disclaimer)
+    _make_ass_longform(timings, subtitle_sections, total, ass, disclaimer)
 
     music = _pick_music()
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
