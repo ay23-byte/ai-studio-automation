@@ -109,7 +109,7 @@ def add_3d_presenter(
             f"[{label}]"
         )
         filters.append(
-            f"[{current}][{label}]overlay=x=W-w-48:y=H-h-250:"
+            f"[{current}][{label}]overlay=x=W-w-48:y=H-h-360:"
             f"eof_action=pass:enable='between(t,{start:.3f},{start + duration:.3f})'"
             f"[{next_label}]"
         )
