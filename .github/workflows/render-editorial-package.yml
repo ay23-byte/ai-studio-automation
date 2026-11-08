@@ -7,6 +7,8 @@ on:
     paths:
       - "production/disappearing-villages/**"
       - "scripts/render_editorial_package.py"
+      - "core/pipeline.py"
+      - "tests/test_visual_alignment.py"
       - ".github/workflows/render-editorial-package.yml"
   workflow_dispatch:
     inputs:
@@ -116,8 +118,16 @@ jobs:
         with:
           name: disappearing-villages-documentary
           path: |
-            output/**/*.mp4
-            output/*.mp4
-            build/job_*/
+            output/longform_*.mp4
+            build/job_*/*.json
+            build/job_*/*.csv
+            build/job_*/*.txt
+            build/job_*/*.ass
+            build/job_*/**/*.json
+            build/job_*/**/*.csv
+            build/job_*/**/*.txt
+            build/job_*/**/*.ass
+            build/job_*/visual_review_frames/**
+            build/job_*/thumbnails/**
           if-no-files-found: warn
           retention-days: 14
