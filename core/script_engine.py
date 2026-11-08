@@ -70,9 +70,9 @@ RUNTIME & NARRATION:
 - Vary sentence length, use transitions and resolve open loops.
 
 CINEMATIC VISUAL STORYBOARD:
-- Each chapter should contain 8-10 structured visual beats in chronological order (use 6-8 only for genuinely short chapters). Each beat needs an exact short narration_anchor copied verbatim from that chapter's narration, a distinct visual_prompt, and 2-4 precise stock keywords.
+- Each chapter should contain 4-5 structured visual beats in chronological order (use 6-8 only for genuinely short chapters). Each beat needs an exact short narration_anchor copied verbatim from that chapter's narration, a distinct visual_prompt, and 2-4 precise stock keywords.
 - Spread anchors evenly from the beginning to the end of the chapter. They must be exact substrings in order. Do not reuse the same subject, framing or stock-search idea for adjacent beats.
-- Aim for a purposeful new visual idea every 6-10 seconds where the narration supports it. Mix establishing wides, medium action, close-up details, environmental cutaways, process shots, maps, diagrams and evidence graphics. Avoid filler, repetitive stock and arbitrary fast cuts.
+- Aim for a purposeful new visual idea at meaningful narration transitions. Mix establishing wides, medium action, close-up details, environmental cutaways, process shots, maps, diagrams and evidence graphics. Avoid filler, repetitive stock and arbitrary fast cuts.
 - Include visual_type from: stock, archival, ai_reconstruction, diagram, map, chart, timeline, document, person, location, interview, presenter.
 - Include subject, location, time_period, shot_size, camera_movement, search_queries (2-5), and visual_guardrail where useful.
 - Prefer real scene-matched stock footage, verified archival material, accurate maps, period-specific art, document close-ups, macro details, environmental wides, process shots, evidence boards and purposeful presenter moments.
@@ -108,8 +108,8 @@ def _ask_model(prompt: str, model: str, attempts: int = 4):
         # Ask Gemini for JSON-only output and allow enough room for a full
         # multi-chapter storyboard (narration plus visual prompts).
         "generationConfig": {
-            "temperature": 0.65,
-            "maxOutputTokens": 16384,
+            "temperature": 0.45,
+            "maxOutputTokens": 32768,
             "responseMimeType": "application/json",
         },
     }
