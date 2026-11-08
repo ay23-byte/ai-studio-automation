@@ -253,7 +253,7 @@ def _parse(text: str) -> dict:
         # commas immediately before a closing brace/bracket, then parse again.
         candidate = cleaned[start:]
         # Repair bare source IDs such as [S1] into valid JSON string values.
-        candidate = re.sub(r'(?<=[\\[,\\s])(S\\d+)(?=\\s*[,\\]])', r'"\\1"', candidate)
+        candidate = re.sub(r'(?<=[,\\[\\s])(S\\d+)(?=\\s*[,\\]])', r'"\\1"', candidate)
         candidate = re.sub(r",\s*}", "}", candidate)
         candidate = re.sub(r",\s*]", "]", candidate)
         try:
