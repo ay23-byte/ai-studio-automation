@@ -1,13 +1,22 @@
 """Create chapter-aligned 3D presenter clips with the repository Avatar Studio.
 
 Requires Node.js, Playwright Chromium, FFmpeg, and network access to the SDK CDN.
-The clips are generated from the exact chapter slices of the continuous narration.
+Each clip is a short chapter introduction; documentary B-roll carries the remaining narration.
 """
 import os
 import subprocess
 from pathlib import Path
 
 from core.config import ROOT
+
+
+def presenter_intro_duration(section_duration, max_seconds=8.0):
+    """Keep the on-camera presenter to a brief intro, never the whole chapter."""
+    section_duration = max(0.0, float(section_duration))
+    max_seconds = max(3.0, min(float(max_seconds), 12.0))
+    if section_duration <= 0:
+        raise ValueError("Chapter duration must be positive.")
+    return min(section_duration, max(5.0, min(max_seconds, section_duration * 0.15)))
 
 
 def generate_chapter_avatar_clips(voice_path, sections, voice_gender, build_dir):
@@ -21,7 +30,12 @@ def generate_chapter_avatar_clips(voice_path, sections, voice_gender, build_dir)
     for index, section in enumerate(sections, start=1):
         audio_path = audio_dir / f"chapter_{index:02d}.wav"
         start = float(section["_start"])
-        duration = float(section["_dur"])
+        chapter_duration = float(section["_dur"])
+        try:
+            max_intro = float(os.getenv("PRESENTER_INTRO_SECONDS", "8"))
+        except ValueError:
+            max_intro = 8.0
+        duration = presenter_intro_duration(chapter_duration, max_intro)
         subprocess.run([
             "ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(voice_path),
             "-t", f"{duration:.3f}", "-vn", "-ac", "1", "-ar", "24000",
