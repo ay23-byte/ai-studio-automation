@@ -26,17 +26,29 @@ def _get_json(url, params=None, headers=None):
     if host in _DISABLED_PROVIDER_HOSTS:
         return None
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=TIMEOUT)
+        request_headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+        request_headers.update(headers or {})
+        response = requests.get(url, params=params, headers=request_headers, timeout=TIMEOUT)
         if response.status_code in (401, 403):
             _DISABLED_PROVIDER_HOSTS.add(host)
-            print(f"  footage provider disabled for this run ({host}): HTTP {response.status_code}")
+            print(f"  footage provider disabled for this run ({host}): HTTP {response.status_code}; check API access/credentials.")
             return None
         if response.status_code == 429:
+            print(f"  footage provider rate limited ({host}): HTTP 429.")
             return None
         response.raise_for_status()
-        return response.json()
+        content_type = response.headers.get("content-type", "")
+        if "json" not in content_type.lower():
+            preview = " ".join(response.text[:180].split())
+            print(f"  footage discovery unavailable ({host}): expected JSON, received {content_type or 'unknown content type'}; response begins: {preview!r}")
+            return None
+        try:
+            return response.json()
+        except ValueError as exc:
+            print(f"  footage discovery unavailable ({host}): invalid JSON response ({exc}).")
+            return None
     except Exception as exc:
-        print(f"  footage discovery unavailable ({host or 'unknown host'}): {exc}")
+        print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {exc}")
         return None
 
 
