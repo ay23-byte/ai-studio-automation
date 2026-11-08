@@ -11,3 +11,5 @@ Gemini preflight and production render attempt — 2026-11-08.
 Secret expression interpolation fix validation — 2026-11-08
 
 Current-main rerun after PR #88 merge — 2026-11-08.
+
+Visual relevance QA rerun after enabling Gemini per-shot screening; 2026-11-08.
