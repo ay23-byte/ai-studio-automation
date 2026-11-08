@@ -51,6 +51,13 @@ def run(video, report_dir=None, manifest_path=None):
     root.mkdir(parents=True,exist_ok=True)
     from core.audio_quality import inspect_audio
     from core.visual_consistency import audit_visual_consistency
+    from core.news_short_caption_qa import audit_captions
+    captions = audit_captions(semantic_manifest)
+    (root/"caption_qa_report.json").write_text(json.dumps(captions,ensure_ascii=False,indent=2),encoding="utf-8")
+    if captions.get("status") == "FAIL":
+        errors.append("Caption timing or narration alignment QA detected a blocking issue.")
+    elif captions.get("status") == "REVIEW":
+        warnings.append("Caption layout needs human review; see caption_qa_report.json.")
     audio = inspect_audio(video)
     (root/"audio_quality_report.json").write_text(json.dumps(audio,ensure_ascii=False,indent=2),encoding="utf-8")
     frames = _sample_video_frames(video,dur,root/"sample_frames")
@@ -85,7 +92,7 @@ def run(video, report_dir=None, manifest_path=None):
     return {"status":"FAIL" if errors else ("REVIEW" if warnings else "PASS"),
         "duration_seconds":round(dur,2),"fps":round(fps,2),"resolution":f'{v["width"]}x{v["height"]}',
         "errors":errors,"warnings":warnings,"audio_quality_report":str(root/"audio_quality_report.json"),
-        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),
+        "visual_quality_report":str(root/"visual_quality_report.json"),"semantic_qa_report":str(root/"semantic_qa_report.json"),\n        "caption_qa_report":str(root/"caption_qa_report.json"),\n        "caption_qa_status":captions.get("status"),
         "semantic_qa_status":semantic.get("status"),"sampled_frame_count":len(frames),
         "human_review_required":True,"publication_ready":False,
         "notice":"A PASS is technical screening only. It does not verify facts, visual relevance, historical authenticity, media rights, captions, or policy compliance. Human review and phone playback remain mandatory."}
