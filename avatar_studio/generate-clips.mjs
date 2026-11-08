@@ -56,7 +56,7 @@ try {
       const webm=path.join(outputDir,`presenter_section_${String(i).padStart(2,"0")}.webm`);
       await download.saveAs(webm);
       if(fs.statSync(webm).size<10000) throw new Error(`Chapter ${i} WebM is too small.`);
-      const mp4=webm.replace(/\\.webm$/,".mp4");
+      const mp4=webm.replace(/\.webm$/,".mp4");
       const conversion=spawn("ffmpeg",["-y","-i",webm,"-i",audio,"-map","0:v:0","-map","1:a:0","-t",audioDuration.toFixed(3),"-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",mp4],{stdio:"inherit"});
       const exitCode=await new Promise((resolve,reject)=>{conversion.on("error",reject);conversion.on("close",resolve);});
       if(exitCode!==0||!fs.existsSync(mp4)||fs.statSync(mp4).size<10000) throw new Error(`Chapter ${i} WebM-to-MP4 conversion failed.`);
