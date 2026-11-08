@@ -1,9 +1,9 @@
 name: validate
 on:
   push:
-    branches: [main, feature/visual-editorial-approval]
+    branches: [main, feature/visual-editorial-approval, production-trial/disappearing-villages]
   pull_request:
-    branches: [main, feature/universal-cinematic-visual-qc]
+    branches: [main, feature/universal-cinematic-visual-qc, production-trial/disappearing-villages]
 permissions:
   contents: read
 jobs:
