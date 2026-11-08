@@ -11,6 +11,47 @@ W_L, H_L = 1920, 1080   # Long-form
 FADE = 0.3
 TAIL = 0.6
 
+def validate_documentary_visual_coverage(shot_timeline, narration_seconds,
+                                           min_non_presenter_ratio=0.65,
+                                           max_presenter_ratio=0.25):
+    """Fail closed if presenter footage displaces the documentary's actual visuals."""
+    total = max(float(narration_seconds), 0.0)
+    if total <= 0:
+        raise ValueError("Narration duration must be positive for visual coverage QA.")
+    presenter_seconds = 0.0
+    non_presenter_seconds = 0.0
+    for shot in shot_timeline:
+        media = shot.get("_media") or {}
+        if not media.get("path"):
+            continue
+        duration = max(0.0, float(shot.get("_dur") or 0.0))
+        if shot.get("presenter_mode"):
+            presenter_seconds += duration
+        else:
+            non_presenter_seconds += duration
+    presenter_ratio = presenter_seconds / total
+    non_presenter_ratio = non_presenter_seconds / total
+    if presenter_ratio > max_presenter_ratio:
+        raise RuntimeError(
+            f"Presenter footage occupies {presenter_ratio:.1%} of the documentary; "
+            f"maximum allowed is {max_presenter_ratio:.0%}. Presenter must be an intro, not the documentary."
+        )
+    if non_presenter_ratio < min_non_presenter_ratio:
+        raise RuntimeError(
+            f"Only {non_presenter_ratio:.1%} of the documentary has non-presenter visuals; "
+            f"at least {min_non_presenter_ratio:.0%} is required."
+        )
+    return {
+        "narration_seconds": round(total, 3),
+        "presenter_seconds": round(presenter_seconds, 3),
+        "non_presenter_seconds": round(non_presenter_seconds, 3),
+        "presenter_ratio": round(presenter_ratio, 4),
+        "non_presenter_ratio": round(non_presenter_ratio, 4),
+        "minimum_non_presenter_ratio": min_non_presenter_ratio,
+        "maximum_presenter_ratio": max_presenter_ratio,
+    }
+
+
 def _pick_music():
     files = list(cfg.MUSIC_DIR.glob("*.mp3")) + list(cfg.MUSIC_DIR.glob("*.wav"))
     return random.choice(files) if files else None
@@ -624,6 +665,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
+
+    # A presenter is only a brief on-camera introduction. Reject renders where
+    # presenter clips consume the chapter and leave no room for documentary B-roll.
+    visual_coverage = validate_documentary_visual_coverage(shot_timeline, total)
+    (bd / "visual_coverage_report.json").write_text(
+        json.dumps(visual_coverage, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(
+        "Documentary visual coverage: "
+        f"{visual_coverage['non_presenter_ratio']:.1%} non-presenter visuals, "
+        f"{visual_coverage['presenter_ratio']:.1%} presenter."
+    )
 
     # Produce a deterministic editorial EDL before final rendering so every
     # shot, music cue, overlay and missing visual is reviewable alongside the MP4.
