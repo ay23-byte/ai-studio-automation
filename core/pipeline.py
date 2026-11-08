@@ -131,15 +131,37 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 
 def _visual_beats_for_section(section, category="general"):
     from core.documentary_storyboard import plan_section_visuals
-    planned = plan_section_visuals(section, category)
+
+    # Ignore empty storyboard entries before enrichment. Otherwise a whitespace-only
+    # prompt is turned into a non-empty generic production prompt and slips through QA.
+    section_for_planning = dict(section or {})
+    raw_visuals = section_for_planning.get("visuals")
+    if isinstance(raw_visuals, list):
+        usable_visuals = []
+        for raw in raw_visuals:
+            if isinstance(raw, dict):
+                has_content = any(
+                    str(raw.get(key) or "").strip()
+                    for key in ("visual_prompt", "prompt", "description", "subject", "title")
+                )
+            else:
+                has_content = bool(str(raw or "").strip())
+            if has_content:
+                usable_visuals.append(raw)
+        section_for_planning["visuals"] = usable_visuals
+
+    planned = plan_section_visuals(section_for_planning, category)
     beats = []
-    for item in planned[:10]:
+    # Keep the storyboard density bounded to six beats per section.
+    for item in planned[:6]:
         # Preserve the original concise prompt for legacy string storyboards;
         # structured visual beats receive the full production prompt.
         is_structured = bool(item.get("_structured_input"))
         prompt = str((item.get("production_prompt") if is_structured else item.get("visual_prompt")) or item.get("visual_prompt") or "").strip()
+        if not prompt:
+            continue
         anchor = str(item.get("narration_anchor") or item.get("anchor") or "").strip()
-        keywords = item.get("search_queries") or item.get("keywords") or section.get("keywords") or []
+        keywords = item.get("search_queries") or item.get("keywords") or section_for_planning.get("keywords") or []
         beats.append({
             "prompt": prompt, "anchor": anchor,
             "keywords": [str(k).strip() for k in keywords if str(k).strip()][:8],
