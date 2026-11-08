@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from core.uploader import upload, wait_processed
+from core.uploader import find_private_video_by_marker, upload, wait_processed
 
 
 def _load_json(path: Path) -> dict:
@@ -77,15 +77,23 @@ def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_revie
     video_path, probe = _find_video(root)
     digest = hashlib.sha256(video_path.read_bytes()).hexdigest()
 
-    # Hard-code privacy and disable scheduling: this workflow must never publish.
-    video_id = upload(
-        video_path,
-        metadata["title"],
-        metadata["description"],
-        metadata["tags"],
-        privacy_status="private",
-        disable_scheduling=True,
-    )
+    # A stable source-run marker makes retries idempotent. Search errors fail closed.
+    marker = f"AI_STUDIO_SOURCE_RUN_ID:{source_run_id}"
+    existing_video_id = find_private_video_by_marker(marker)
+    if existing_video_id:
+        video_id = existing_video_id
+        print(f"Found existing private upload for source run {source_run_id}; skipping duplicate upload.")
+    else:
+        # Hard-code privacy and disable scheduling: this workflow must never publish.
+        description = (metadata["description"].rstrip() + "\n\n" + marker).strip()
+        video_id = upload(
+            video_path,
+            metadata["title"],
+            description,
+            metadata["tags"],
+            privacy_status="private",
+            disable_scheduling=True,
+        )
     processing = wait_processed(video_id, max_wait=600)
     result = {
         "source_run_id": source_run_id,
