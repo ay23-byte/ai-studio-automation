@@ -18,12 +18,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install discovery dependency
-        run: python -m pip install requests
+          cache: pip
+      - name: Install system font dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes fonts-dejavu-core
+      - name: Install discovery and visual-asset dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests Pillow
+          python -m pip check
       - name: Collect public RSS metadata
-        run: python scripts/collect_daily_news.py
+        run: python -m scripts.collect_daily_news
+      - name: Compile news pipeline modules
+        run: python -m compileall -q core scripts
       - name: Run pipeline tests
-        run: python -m unittest discover -s tests -p 'test_daily_news_pipeline.py' -v
+        run: python -m unittest discover -s tests -p 'test_*news*.py' -v
       - name: Upload candidate queue for editorial review
         uses: actions/upload-artifact@v4
         with:
