@@ -71,6 +71,14 @@ def _query_variants(query):
     normalized = query.lower()
     if "india" in normalized or "village" in normalized:
         values.extend(DEFAULT_QUERY_VARIANTS)
+    elif "north korea" in normalized or "north korean" in normalized:
+        # Long editorial titles often perform poorly as stock-library search
+        # phrases. Search concise, topic-grounded geographic terms as well.
+        values.extend([
+            "North Korea", "Pyongyang", "Korean peninsula",
+            "Korean DMZ", "North Korean landscape", "Korea border",
+        ])
+        values.extend([query + " video", query + " documentary"])
     else:
         values.extend([query + " video", query + " documentary"])
     # Keep stable order and avoid redundant requests.
