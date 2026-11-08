@@ -41,7 +41,10 @@ class DocumentaryVisualCoverageTests(unittest.TestCase):
             {"_dur": 30, "presenter_mode": "talking_avatar", "_media": {"path": "avatar.mp4"}},
             {"_dur": 60, "_media": {"path": "broll.mp4"}},
         ]
-        with self.assertRaisesRegex(RuntimeError, "non-presenter visuals"):
+        # Either fail-closed threshold may be the first diagnostic: both
+        # correctly reject this timeline because it exceeds the presenter cap
+        # and falls below the minimum non-presenter coverage.
+        with self.assertRaisesRegex(RuntimeError, "(non-presenter visuals|Presenter footage occupies)"):
             validate_documentary_visual_coverage(timeline, 90)
 
 
