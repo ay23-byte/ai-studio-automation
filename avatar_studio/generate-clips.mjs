@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const count = Number(process.argv[2]);
 const audioDir = process.env.AVATAR_AUDIO_DIR;
@@ -30,6 +30,18 @@ try {
   for (let i = 1; i <= count; i++) {
     const audio = path.join(audioDir, `chapter_${String(i).padStart(2, "0")}.wav`);
     if (!fs.existsSync(audio)) throw new Error(`Missing chapter audio: ${audio}`);
+    const durationProbe = spawnSync("ffprobe", [
+      "-v", "error", "-show_entries", "format=duration",
+      "-of", "default=noprint_wrappers=1:nokey=1", audio
+    ], { encoding: "utf8" });
+    if (durationProbe.status !== 0) {
+      throw new Error(`Could not read chapter ${i} narration duration: ${durationProbe.stderr}`);
+    }
+    const audioDuration = Number(durationProbe.stdout.trim());
+    if (!Number.isFinite(audioDuration) || audioDuration <= 0) {
+      throw new Error(`Chapter ${i} narration has an invalid duration: ${durationProbe.stdout}`);
+    }
+
     await page.locator("#gender").selectOption(gender);
     await page.locator("#audio").setInputFiles(audio);
     await page.locator("#load").click();
@@ -51,8 +63,19 @@ try {
     const webm = path.join(outputDir, `presenter_section_${String(i).padStart(2, "0")}.webm`);
     await download.saveAs(webm);
     if (fs.statSync(webm).size < 10000) throw new Error(`Chapter ${i} WebM recording is too small.`);
+
+    // MediaRecorder intentionally waits after audio "ended" so Chromium can flush
+    // its final packet. That creates a silent video tail. Trim to the exact source
+    // narration duration and mux the original chapter WAV, preserving sync and
+    // preventing the avatar clip from overrunning the chapter in the editor.
     const mp4 = webm.replace(/\.webm$/, ".mp4");
-    const conversion = spawn("ffmpeg", ["-y", "-i", webm, "-map", "0:v:0", "-map", "0:a:0", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", mp4], { stdio: "inherit" });
+    const conversion = spawn("ffmpeg", [
+      "-y", "-i", webm, "-i", audio,
+      "-map", "0:v:0", "-map", "1:a:0", "-t", audioDuration.toFixed(3),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+      "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+      "-shortest", "-movflags", "+faststart", mp4
+    ], { stdio: "inherit" });
     const exitCode = await new Promise((resolve, reject) => {
       conversion.on("error", reject);
       conversion.on("close", resolve);
@@ -60,8 +83,20 @@ try {
     if (exitCode !== 0 || !fs.existsSync(mp4) || fs.statSync(mp4).size < 10000) {
       throw new Error(`Chapter ${i} WebM-to-MP4 conversion failed.`);
     }
+
+    const finalProbe = spawnSync("ffprobe", [
+      "-v", "error", "-show_entries", "format=duration",
+      "-of", "default=noprint_wrappers=1:nokey=1", mp4
+    ], { encoding: "utf8" });
+    const finalDuration = Number(finalProbe.stdout.trim());
+    if (finalProbe.status !== 0 || !Number.isFinite(finalDuration) ||
+        Math.abs(finalDuration - audioDuration) > 0.25) {
+      throw new Error(
+        `Chapter ${i} avatar duration ${finalProbe.stdout.trim()}s does not match narration ${audioDuration.toFixed(3)}s.`
+      );
+    }
     fs.unlinkSync(webm);
-    console.log(`Generated 3D avatar clip for chapter ${i}: ${mp4}`);
+    console.log(`Generated duration-aligned 3D avatar clip for chapter ${i}: ${mp4} (${finalDuration.toFixed(2)}s)`);
   }
   if (errors.length) throw new Error("Browser runtime errors: " + errors.join("; "));
 } finally {
