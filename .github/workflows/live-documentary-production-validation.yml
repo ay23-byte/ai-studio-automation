@@ -147,7 +147,8 @@ jobs:
           LONGFORM_VISUAL_MODE: "video_first"
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "unlisted"
-          VISUAL_SEMANTIC_CHECK: "0"
+          VISUAL_SEMANTIC_CHECK: "1"
+          VISUAL_SEMANTIC_MAX_SHOTS: "40"
         run: |
           test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY repository Actions secret." && exit 1)
           mkdir -p build/live_documentary_e2e
@@ -202,6 +203,12 @@ jobs:
               "video": metadata,
               "visual_review_manifest": str(manifest_path),
               "shot_count": len(shots),
+              "semantic_screening_enabled": manifest.get("semantic_screening_enabled", False),
+              "semantic_screening_summary": manifest.get("semantic_screening_summary", {}),
+              "semantic_mismatch_shots": [
+                  shot.get("shot_id") for shot in shots
+                  if (shot.get("semantic_screening") or {}).get("status") == "mismatch"
+              ],
               "licence_register": {
                   "asset_count": licence.get("asset_count"),
                   "eligible_pending_human_review": licence.get("eligible_pending_human_review"),
