@@ -13,15 +13,15 @@ class LongformRuntimeGateTests(unittest.TestCase):
         self.assertEqual(count_longform_narration_words(script), 10)
 
     def test_accepts_script_at_minimum_runtime_floor_and_records_metrics(self):
-        script = {"sections": [{"narration": " ".join(["evidence"] * 1160)}]}
+        script = {"sections": [{"narration": " ".join(["evidence"] * 1350)}]}
         result = validate_longform_runtime(script, target_minutes=10)
         self.assertEqual(result["narration_word_count"], 1160)
         self.assertEqual(result["runtime_validation"]["minimum_words"], 1350)
-        self.assertAlmostEqual(result["estimated_narration_minutes"], 8.0)
+        self.assertAlmostEqual(result["estimated_narration_minutes"], 9.31)
 
     def test_rejects_underlength_script_with_actionable_diagnostic(self):
-        script = {"sections": [{"narration": " ".join(["short"] * 1159)}]}
-        with self.assertRaisesRegex(ValueError, "1159 spoken words"):
+        script = {"sections": [{"narration": " ".join(["short"] * 1349)}]}
+        with self.assertRaisesRegex(ValueError, "1349 spoken words"):
             validate_longform_runtime(script, target_minutes=10)
 
     def test_rejects_invalid_runtime_configuration(self):
