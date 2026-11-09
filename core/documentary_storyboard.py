@@ -15,7 +15,7 @@ VISUAL_TYPES = {
     "document": ("document", "letter", "report", "court", "record", "article", "contract", "evidence"),
     "person": ("biography", "leader", "founder", "scientist", "ruler", "person"),
     "location": ("city", "village", "building", "landscape", "region", "place"),
-    "archival": ("archival", "historical", "historical photograph", "period photograph", "newsreel", "archive footage", "wartime footage", "painting", "engraving", "old footage"),
+    "archival": ("archival footage", "archive footage", "archival film", "historical footage", "historical film", "historical photograph", "period photograph", "newsreel", "wartime footage", "old footage"),
     "interview": ("interview", "testimony", "expert says", "conversation"),
     "presenter": ("presenter", "host", "on camera", "to camera"),
 }
