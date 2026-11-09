@@ -17,7 +17,7 @@ class VoiceFallbackTests(unittest.TestCase):
                 generated[0].write_bytes(b"RIFF" + b"\x00" * 128)
                 return generated
 
-            def fake_join(wavs, pauses, output):
+            def fake_join(wavs, pauses, output, speed=1.0):
                 output.write_bytes(b"RIFF" + b"\x00" * 128)
 
             with patch.dict("os.environ", {"TTS_ENGINE": "edge", "CI": "true"}), \
