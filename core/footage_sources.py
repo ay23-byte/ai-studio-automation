@@ -495,6 +495,15 @@ def _metadata_relevance(query, metadata):
     return len(wanted & found) / len(wanted) if wanted else 0.0
 
 
+def _is_archival_video_request(keywords=None, scene_prompt=""):
+    """Identify requests that require genuine historical/archival moving images."""
+    text = " ".join(str(value or "") for value in (keywords or [])) + " " + str(scene_prompt or "")
+    return bool(re.search(
+        r"(archival|archive footage|archival footage|newsreel|historical footage|period film|historical film)",
+        text, re.I
+    ))
+
+
 def _expanded_queries(keywords, scene_prompt=""):
     values = []
     for item in keywords or []:
@@ -520,6 +529,7 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     """
     used_ids = used_ids if used_ids is not None else set()
     context = " ".join(str(x) for x in (keywords or [])) + " " + str(scene_prompt or "")
+    archival_request = _is_archival_video_request(keywords, scene_prompt)
     is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
     providers = ((_nasa, _nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc) if is_space
                  else (_nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc))
@@ -576,6 +586,21 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
             metadata["relevance_score"] = round(score, 3)
             metadata["scene_prompt"] = str(scene_prompt)[:500]
             metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
+            if archival_request:
+                # This is an archive candidate, not an automatic authenticity
+                # certification. Capture the fields a reviewer must verify.
+                metadata["asset_type"] = "archival_video_candidate"
+                metadata["archival_material"] = True
+                metadata["archival_authenticity_status"] = "pending_human_verification"
+                metadata["archival_provenance_fields"] = {
+                    "item_page": bool(metadata.get("page_url")),
+                    "rights_statement": bool(metadata.get("licence") and metadata.get("licence_url")),
+                    "creator_or_holding_institution": bool(metadata.get("creator") or metadata.get("provider")),
+                    "date_or_period": bool(metadata.get("date_created") or metadata.get("date") or metadata.get("year") or metadata.get("description")),
+                }
+                metadata["archival_provenance_complete"] = all(metadata["archival_provenance_fields"].values())
+                metadata["human_visual_inspection_required"] = True
+                metadata["human_context_and_authenticity_review_required"] = True
             licence = str(metadata.get("licence") or "").lower()
             licence_url = str(metadata.get("licence_url") or "")
             known = bool(licence and licence_url and (

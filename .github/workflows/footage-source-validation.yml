@@ -29,7 +29,7 @@ jobs:
       - name: Install FFmpeg and test dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          python -m pip install --upgrade pip requests Pillow google-api-python-client
+          python -m pip install --upgrade pip requests Pillow google-api-python-client edge-tts python-dotenv
       - name: Run provider adapter unit tests
         run: python -m unittest tests.test_documentary_source_adapters -v
       - name: Run real FFmpeg media timeline integration test

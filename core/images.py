@@ -270,11 +270,22 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
             break
 
     try:
-        from core.footage_sources import fetch_documentary_clip
+        from core.footage_sources import fetch_documentary_clip, _is_archival_video_request
+        archival_request = _is_archival_video_request(queries, scene_prompt)
         if fetch_documentary_clip(queries, path, used, scene_prompt=scene_prompt):
             return True
+        if archival_request:
+            # Do not substitute generic stock or AI-generated footage when the
+            # storyboard explicitly calls for real archival moving images.
+            print("  archival video unavailable; stock/AI-video substitution refused")
+            return False
     except Exception as exc:
         print(f"  public-domain/CC archive search unavailable: {exc}")
+        import re
+        if re.search(r"\\b(archival|archive footage|newsreel|historical footage|period film|historical film)\\b",
+                     str(scene_prompt or ""), re.I):
+            print("  archival video search failed; stock/AI-video substitution refused")
+            return False
 
     candidates = []
     for query in queries:
