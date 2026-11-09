@@ -469,8 +469,8 @@ def count_longform_narration_words(script: dict) -> int:
 
 
 def validate_longform_runtime(script: dict, target_minutes: float,
-                              minimum_fraction: float = 0.80,
-                              words_per_minute: int = 145) -> dict:
+                              minimum_fraction: float = 0.90,
+                              words_per_minute: int = 150) -> dict:
     """Fail before rendering when narration cannot meet the release duration floor."""
     if target_minutes <= 0 or not 0 < minimum_fraction <= 1 or words_per_minute <= 0:
         raise ValueError("Runtime validation requires positive minutes/WPM and a fraction in (0, 1].")
@@ -498,7 +498,7 @@ def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
                               brand_voice: str = "") -> dict:
-    minimum_words = int(duration_max * 145 * 0.80)
+    minimum_words = int(duration_max * 150 * 0.90)
     target_words = int(duration_max * 150)
     prompt = LONGFORM_PROMPT.format(
         topic=topic, category=category, duration_min=duration_min,
