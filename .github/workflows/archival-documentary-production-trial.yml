@@ -1,0 +1,179 @@
+name: Archival documentary production trial
+
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: Documentary title/topic
+        required: true
+        default: "Apollo 11: The Mission That Took Humanity to the Moon"
+        type: string
+      category:
+        description: Documentary category
+        required: true
+        default: science
+        type: choice
+        options: [history, science, technology, india, geopolitics]
+      minutes:
+        description: Target runtime
+        required: true
+        default: "10"
+        type: choice
+        options: ["10", "12", "15"]
+      archival_query:
+        description: Specific archive-video search phrase
+        required: true
+        default: "Apollo 11 Saturn V launch 1969 NASA mission footage"
+        type: string
+      period:
+        description: Historical period to compare against the archive record
+        required: true
+        default: "1969"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archival-documentary-production-trial
+  cancel-in-progress: false
+
+jobs:
+  production-trial:
+    name: Retrieve archive footage and render private review copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      TOPIC: ${{ inputs.topic }}
+      CATEGORY: ${{ inputs.category }}
+      MINUTES: ${{ inputs.minutes }}
+      ARCHIVAL_QUERY: ${{ inputs.archival_query }}
+      ARCHIVAL_PERIOD: ${{ inputs.period }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: gemini-3.8-flash
+      GEMINI_FALLBACK_MODELS: gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+      NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+      EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+      FREE_ONLY_MODE: "1"
+      AI_VIDEO_ENABLED: "0"
+      TTS_ENGINE: edge
+      TTS_VOICE: en-IN-NeerjaNeural
+      PRESENTER_ENABLED: "1"
+      PRESENTER_MODE: still_cpu
+      PRESENTER_IMAGE: assets/presenter/presenter_female.png
+      LONGFORM_VISUAL_MODE: video_first
+      VISUAL_SEMANTIC_CHECK: "1"
+      VISUAL_SEMANTIC_MAX_SHOTS: "40"
+      CHANNEL_NAME: Engineering Physics
+      PRIVACY: private
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-dejavu-core
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Verify required configuration
+        run: |
+          test -n "$GEMINI_API_KEY" || {
+            echo "::error::GEMINI_API_KEY is required for documentary research and script generation."
+            exit 1
+          }
+          test -f "$PRESENTER_IMAGE" || {
+            echo "::error::Female presenter portrait is missing: $PRESENTER_IMAGE"
+            exit 1
+          }
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Compile and run focused archival tests
+        run: |
+          python -m compileall -q core scripts run.py
+          python -m unittest tests.test_archival_video_e2e -v
+          python -m unittest discover -s tests -p 'test_*footage*.py' -v
+
+      - name: Retrieve and validate one real archival video
+        run: |
+          set -o pipefail
+          python -m scripts.validate_archival_video_e2e "$ARCHIVAL_QUERY" \
+            --period "$ARCHIVAL_PERIOD" \
+            --output-dir build/archival_documentary_trial/preflight \
+            2>&1 | tee build/archival_documentary_trial/archive-retrieval.log
+
+      - name: Make validated archive candidate available to scene retrieval
+        run: |
+          set -euo pipefail
+          source_file="build/archival_documentary_trial/preflight/archival-candidate.mp4"
+          source_sidecar="${source_file}.source.json"
+          test -s "$source_file"
+          test -s "$source_sidecar"
+          mkdir -p assets/clips/archival_trial
+          cp "$source_file" assets/clips/archival_trial/
+          cp "$source_sidecar" assets/clips/archival_trial/
+
+      - name: Render documentary review copy (no upload)
+        run: |
+          set -o pipefail
+          python run.py long "$TOPIC" --category "$CATEGORY" \
+            --minutes "$MINUTES" --language hinglish --voice-gender female \
+            2>&1 | tee build/archival_documentary_trial/render.log
+
+      - name: Verify final MP4 and collect review evidence
+        if: always()
+        run: |
+          mkdir -p build/archival_documentary_trial/final_media
+          find output -maxdepth 2 -type f -name '*.mp4' -print 2>/dev/null | while IFS= read -r file; do
+            name="$(basename "$file")"
+            ffprobe -v error -show_entries format=duration:stream=codec_type,width,height,r_frame_rate,codec_name -of json "$file" > "build/archival_documentary_trial/final_media/${name}.ffprobe.json"
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("build/archival_documentary_trial")
+          reports = list(root.rglob("archival-video-e2e-report.json"))
+          final = list(Path("output").glob("*.mp4"))
+          summary = {
+              "topic": __import__("os").environ.get("TOPIC"),
+              "archival_preflight_reports": [str(p) for p in reports],
+              "final_mp4_files": [str(p) for p in final],
+              "youtube_upload_performed": False,
+              "privacy": "private_review_only",
+              "human_review_required": True,
+              "publication_ready": False,
+              "note": "A valid render and archive sidecar do not certify historical authenticity, scene-level relevance, or commercial YouTube rights. Inspect the complete video, source item and every clip before any upload."
+          }
+          (root / "production-trial-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Upload documentary and review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archival-documentary-production-trial
+          path: |
+            output/**/*.mp4
+            output/*.mp4
+            build/archival_documentary_trial/
+            build/job_*/
+            assets/clips/archival_trial/
+          if-no-files-found: warn
+          retention-days: 14
