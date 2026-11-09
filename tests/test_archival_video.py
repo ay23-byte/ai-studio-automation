@@ -60,6 +60,34 @@ class ArchivalVideoTests(unittest.TestCase):
         }
         self.assertFalse(all(fields.values()))
 
+    def test_chernobyl_query_expands_to_archive_catalogue_phrases(self):
+        queries = footage_sources._expanded_queries(
+            ["Chernobyl 1986 evacuation newsreel"],
+            "1986 Soviet-era archival newsreel footage"
+        )
+        self.assertIn("Chernobyl 1986 evacuation newsreel", queries)
+        self.assertIn("Chernobyl 1986 disaster film", queries)
+        self.assertIn("Pripyat 1986 Soviet newsreel", queries)
+
+    @patch("core.footage_sources._nara", return_value=[])
+    @patch("core.footage_sources._dvids", return_value=[])
+    @patch("core.footage_sources._loc", side_effect=RuntimeError("HTTP 429"))
+    @patch("core.footage_sources._wikimedia", return_value=[])
+    @patch("core.footage_sources._internet_archive", return_value=[])
+    @patch("core.footage_sources._europeana_cc", return_value=[])
+    def test_rate_limited_provider_does_not_stop_other_archive_searches(
+        self, europeana, internet_archive, wikimedia, loc, dvids, nara
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            found = footage_sources.fetch_documentary_clip(
+                ["Chernobyl 1986"], Path(tmp) / "archive.mp4", set(),
+                scene_prompt="archival newsreel footage of Chernobyl 1986"
+            )
+        self.assertFalse(found)
+        self.assertGreater(wikimedia.call_count, 0)
+        self.assertGreater(internet_archive.call_count, 0)
+        self.assertGreater(europeana.call_count, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

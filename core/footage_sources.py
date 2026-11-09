@@ -510,7 +510,8 @@ def _expanded_queries(keywords, scene_prompt=""):
         query = str(item).strip()
         if query and query not in values:
             values.append(query)
-    context_tokens = _tokens(" ".join(values) + " " + str(scene_prompt or ""))
+    context = " ".join(values) + " " + str(scene_prompt or "")
+    context_tokens = _tokens(context)
     india_terms = {"india", "indian", "mughal", "maratha", "british", "delhi",
                    "mumbai", "bombay", "kolkata", "calcutta", "plassey",
                    "panipat", "1857", "independence", "east", "company"}
@@ -519,8 +520,25 @@ def _expanded_queries(keywords, scene_prompt=""):
             specific = f"{query} India"
             if specific not in values:
                 values.append(specific)
+    if _is_archival_video_request(keywords, scene_prompt):
+        base = next((item for item in values if item), str(scene_prompt or "").strip())
+        additions = []
+        if re.search(r"chernobyl", base, re.I):
+            additions = ["Chernobyl 1986 disaster film",
+                         "Chernobyl nuclear accident 1986 evacuation",
+                         "Pripyat 1986 Soviet newsreel",
+                         "Chernobyl nuclear power plant 1986"]
+        elif re.search(r"apollo|moon landing|saturn v", base, re.I):
+            additions = ["Apollo 11 1969 NASA launch film",
+                         "Saturn V Apollo 11 launch 1969",
+                         "Apollo 11 lunar landing 1969 footage",
+                         "Apollo 11 mission control 1969"]
+        else:
+            additions = [f"{base} historical film", f"{base} newsreel"]
+        for query in additions:
+            if query not in values:
+                values.append(query)
     return values[:12]
-
 
 def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     """Search free archives with conservative metadata relevance ranking.
@@ -575,7 +593,12 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     for query in _expanded_queries(keywords, scene_prompt)[:3]:
         candidates = []
         for provider in providers:
-            candidates.extend(provider(query))
+            try:
+                candidates.extend(provider(query) or [])
+            except Exception as exc:
+                # Isolate catalogue failures; continue searching other archives.
+                print(f"  archival provider skipped ({getattr(provider, '__name__', 'unknown')}): {type(exc).__name__}: {exc}")
+                continue
         ranked = sorted(candidates, key=lambda item: _metadata_relevance(
             query, item[1]), reverse=True)[:5]
         for url, metadata in ranked:
