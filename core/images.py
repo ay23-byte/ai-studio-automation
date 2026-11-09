@@ -99,6 +99,21 @@ def _pollinations(prompt, path):
     except Exception as e: print(f"Pollinations: {e}"); return False
 
 def generate_image(scene_prompt, path, category="general"):
+    # A scene explicitly requesting real archival material must never silently
+    # fall through to a synthetic image generator.
+    import re
+    archival_request = bool(re.search(
+        r"\\b(archival|archive footage|newsreel|period photograph|historical photograph|archival photograph)\\b",
+        str(scene_prompt or ""), re.I
+    ))
+    if archival_request:
+        from core.archival_images import fetch_archival_image
+        if fetch_archival_image(scene_prompt, path):
+            print("  genuine archival still candidate retrieved; human review required")
+            return True
+        print("  archival still unavailable; synthetic-image substitution refused")
+        return False
+
     full = _image_style(category) + scene_prompt
     if _cloudflare(full, path): print(f"  image ok (cloudflare)"); return True
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
