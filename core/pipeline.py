@@ -647,10 +647,29 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     shot["_media"] = {"type": "image", "path": str(img_p)}
                     print(f"  long-form visual {i+1}.{j+1}: generated image fallback")
                 else:
-                    raise RuntimeError(
-                        f"No scene-matched video or image was available for long-form chapter {i+1}, beat {j+1}. "
-                        "Configure PIXABAY_API_KEY and an image provider; refusing unrelated filler."
-                    )
+                    if str(beat.get("visual_type") or "").lower() == "archival":
+                        from core.graphic_scenes import render_context_graphic
+                        context_path = render_context_graphic(shot, shot_dur, bd, f"archival_context_{i}_{j}")
+                        if context_path:
+                            shot["_media"] = {"type": "image", "path": str(context_path)}
+                            shot["visual_type"] = "context_graphic"
+                            shot["archival_source_unavailable"] = True
+                            shot["visual_disclosure"] = "Context graphic — not archival footage; no authentic archival asset was available."
+                            shot["asset_provenance"] = {
+                                "asset_type": "editorial_context_graphic",
+                                "archival_authenticity_status": "not_archival",
+                                "disclosure_required": True,
+                            }
+                            print(f"  long-form visual {i+1}.{j+1}: disclosed context graphic (not archival)")
+                        else:
+                            raise RuntimeError(
+                                f"Archival source unavailable and context graphic failed for chapter {i+1}, beat {j+1}."
+                            )
+                    else:
+                        raise RuntimeError(
+                            f"No scene-matched video or image was available for long-form chapter {i+1}, beat {j+1}. "
+                            "Configure a visual provider; refusing unrelated filler."
+                        )
             else:
                 if generate_image(prompt, img_p, category=script.get("category", "general")):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
