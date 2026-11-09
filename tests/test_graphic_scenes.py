@@ -1,3 +1,4 @@
+import unittest
 from core.graphic_scenes import _chart, _timeline, _evidence, render_graphic_scene
 
 
