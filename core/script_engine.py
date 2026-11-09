@@ -494,6 +494,112 @@ def validate_longform_runtime(script: dict, target_minutes: float,
     return script
 
 
+
+def _expand_longform_narration(script: dict, topic: str, category: str,
+                               language: str, target_words: int,
+                               minimum_words: int, max_passes: int = 2) -> dict:
+    """Expand only under-length narration, without regenerating the full storyboard.
+
+    The expansion stage is deliberately narration-only: it keeps the expensive
+    visual/source JSON out of the response and forbids adding unsupported facts.
+    The original runtime gate remains authoritative.
+    """
+    from copy import deepcopy
+
+    expanded = deepcopy(script)
+    for pass_index in range(max_passes):
+        current_words = count_longform_narration_words(expanded)
+        if current_words >= target_words:
+            return expanded
+        missing = target_words - current_words
+        sections = expanded.get("sections") or []
+        if not sections:
+            raise ValueError("Cannot expand long-form narration: the script has no sections.")
+
+        section_payload = []
+        for index, section in enumerate(sections):
+            narration = str(section.get("narration") or "").strip()
+            section_payload.append({
+                "section_index": index,
+                "title": str(section.get("title") or f"Section {index + 1}"),
+                "section_type": str(section.get("section_type") or "context"),
+                "current_word_count": len(narration.split()),
+                "narration": narration,
+            })
+
+        evidence_payload = {
+            "sources": expanded.get("sources") or [],
+            "claims": expanded.get("claims") or [],
+            "fact_check_notes": expanded.get("fact_check_notes") or [],
+        }
+        prompt = (
+            "You are expanding an existing documentary narration because its runtime is too short. "
+            "Return ONLY valid JSON in this exact shape: "
+            '{"section_additions":[{"section_index":0,"additional_narration":"..."}]}. '
+            f"Topic: {topic}. Category: {category}. Narration language: {language}. "
+            f"Current narration: {current_words} words. Required minimum: {minimum_words}. "
+            f"Target: {target_words}. Add at least {missing + max(100, int(missing * 0.15))} "
+            "new spoken words in this pass, distributed naturally across the existing sections. "
+            "Use only the facts, chronology, people, technical explanations and source-supported "
+            "claims already present in the supplied script/evidence. Do not introduce new dates, "
+            "measurements, named people, quotations, mission events, statistics, or other checkable "
+            "facts that are not already supported there. Do not invent interviews or first-hand "
+            "experiences. Expand explanations of already-mentioned engineering choices, constraints, "
+            "cause-and-effect reasoning, stakes, uncertainty and why established details matter. "
+            "Every addition must be meaningful, specific to this topic, natural to speak aloud, and "
+            "must not repeat existing narration. No headings, bullets, stage directions or visual "
+            "instructions inside narration. Additions will be appended to the matching section. "
+            "Do not return existing narration. Include only sections that need additional material. "
+            "If the supplied evidence is insufficient to add the required length without inventing "
+            "facts, return the honest amount you can support rather than fabricating material.\n\n"
+            "EXISTING SECTIONS:\n" + json.dumps(section_payload, ensure_ascii=False) +
+            "\n\nEXISTING EVIDENCE:\n" + json.dumps(evidence_payload, ensure_ascii=False)
+        )
+        generated = _parse(_ask_gemini(prompt))
+        additions = generated.get("section_additions")
+        if not isinstance(additions, list):
+            raise ValueError("Narration expansion response is missing section_additions.")
+        added_words = 0
+        seen = set()
+        for item in additions:
+            if not isinstance(item, dict):
+                continue
+            try:
+                index = int(item.get("section_index"))
+            except (TypeError, ValueError):
+                continue
+            if index < 0 or index >= len(sections) or index in seen:
+                continue
+            text = str(item.get("additional_narration") or "").strip()
+            if len(text.split()) < 20:
+                continue
+            seen.add(index)
+            sections[index]["narration"] = (
+                str(sections[index].get("narration") or "").rstrip() + "\n\n" + text
+            ).strip()
+            added_words += len(text.split())
+
+        expanded["sections"] = sections
+        expanded = _repair_longform_visual_anchors(expanded)
+        expanded = validate_longform_storyboard(expanded)
+        current_words = count_longform_narration_words(expanded)
+        print(
+            f"Narration-only expansion pass {pass_index + 1}/{max_passes}: "
+            f"added {added_words} words; total {current_words}/{minimum_words} minimum "
+            f"({target_words} target)."
+        )
+        if current_words >= minimum_words:
+            return expanded
+        if added_words == 0:
+            break
+
+    raise ValueError(
+        f"Long-form narration remains too short after chapter expansion: "
+        f"{count_longform_narration_words(expanded)} spoken words; need at least "
+        f"{minimum_words}. Refusing to render rather than padding or inventing facts."
+    )
+
+
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
@@ -550,7 +656,20 @@ def generate_longform_script(topic: str, category: str = "finance",
         except ValueError as exc:
             last_runtime_error = exc
             if attempt == 2:
-                raise
+                print(
+                    "Full-script rewrites did not meet the runtime floor; "
+                    "switching to focused narration-only chapter expansion."
+                )
+                script = _expand_longform_narration(
+                    script, topic, category, language, target_words, minimum_words,
+                    max_passes=2,
+                )
+                script = validate_longform_runtime(script, duration_max)
+                print(
+                    f"Expanded narration runtime gate passed: {script['narration_word_count']} words, "
+                    f"approximately {script['estimated_narration_minutes']:.1f} minutes."
+                )
+                return script
             actual_words = count_longform_narration_words(script)
             missing_words = max(0, minimum_words - actual_words)
             repair_target = max(target_words, minimum_words + max(250, int(minimum_words * 0.15)))

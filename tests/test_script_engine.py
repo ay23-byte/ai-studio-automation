@@ -119,5 +119,62 @@ class LongformStoryboardRepairTests(unittest.TestCase):
             script_engine._repair_longform_visual_anchors(script)
 
 
+
+class LongformNarrationExpansionTests(unittest.TestCase):
+    def test_chapter_expansion_adds_narration_and_clears_runtime_floor(self):
+        script = {
+            "sections": [{
+                "title": "Apollo context",
+                "section_type": "context",
+                "narration": "This is the existing narration with enough words to establish the section context.",
+                "visuals": [],
+            }]
+        }
+        addition = (
+            "The important point is not simply that the engineering was difficult. "
+            "The choices described above show how tightly connected the mission systems were. "
+            "A decision in one area shaped the demands placed on the others, which is why "
+            "the story is best understood as one coordinated technical effort rather than "
+            "a collection of isolated achievements."
+        )
+        response = __import__("json").dumps({
+            "section_additions": [{"section_index": 0, "additional_narration": addition}]
+        })
+        with patch.object(script_engine, "_ask_gemini", return_value=response), \
+             patch.object(script_engine, "_repair_longform_visual_anchors", side_effect=lambda value: value), \
+             patch.object(script_engine, "validate_longform_storyboard", side_effect=lambda value: value):
+            expanded = script_engine._expand_longform_narration(
+                script, "Apollo 11", "science", "English",
+                target_words=45, minimum_words=35, max_passes=1,
+            )
+        self.assertGreaterEqual(script_engine.count_longform_narration_words(expanded), 35)
+        self.assertIn("coordinated technical effort", expanded["sections"][0]["narration"])
+        self.assertNotIn("coordinated technical effort", script["sections"][0]["narration"])
+
+    def test_chapter_expansion_still_fails_if_model_does_not_add_enough(self):
+        script = {
+            "sections": [{
+                "title": "Context",
+                "section_type": "context",
+                "narration": "A short but valid original narration for this chapter.",
+                "visuals": [],
+            }]
+        }
+        response = __import__("json").dumps({
+            "section_additions": [{
+                "section_index": 0,
+                "additional_narration": "This is a small supported addition that does not make the documentary long enough."
+            }]
+        })
+        with patch.object(script_engine, "_ask_gemini", return_value=response), \
+             patch.object(script_engine, "_repair_longform_visual_anchors", side_effect=lambda value: value), \
+             patch.object(script_engine, "validate_longform_storyboard", side_effect=lambda value: value):
+            with self.assertRaisesRegex(ValueError, "remains too short after chapter expansion"):
+                script_engine._expand_longform_narration(
+                    script, "Apollo 11", "science", "English",
+                    target_words=100, minimum_words=90, max_passes=2,
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
