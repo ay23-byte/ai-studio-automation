@@ -495,9 +495,33 @@ def validate_longform_runtime(script: dict, target_minutes: float,
 
 
 
+def _cap_narration_addition(text: str, word_budget: int) -> str:
+    """Keep generated additions within the remaining runtime budget at sentence boundaries."""
+    clean = re.sub(r"\\s+", " ", str(text or "")).strip()
+    if word_budget <= 0 or not clean:
+        return ""
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?।])\\s+", clean) if part.strip()]
+    accepted = []
+    used = 0
+    for sentence in sentences:
+        count = len(sentence.split())
+        if used + count <= word_budget:
+            accepted.append(sentence)
+            used += count
+            continue
+        remaining = word_budget - used
+        if remaining > 0 and not accepted:
+            words = sentence.split()[:remaining]
+            if words:
+                accepted.append(" ".join(words).rstrip(" ,;:") + ".")
+        break
+    return " ".join(accepted).strip()
+
+
 def _expand_longform_narration(script: dict, topic: str, category: str,
                                language: str, target_words: int,
-                               minimum_words: int, max_passes: int = 2) -> dict:
+                               minimum_words: int, max_passes: int = 2,
+                               max_words: int = None) -> dict:
     """Expand only under-length narration, without regenerating the full storyboard.
 
     The expansion stage is deliberately narration-only: it keeps the expensive
@@ -507,11 +531,18 @@ def _expand_longform_narration(script: dict, topic: str, category: str,
     from copy import deepcopy
 
     expanded = deepcopy(script)
+    # A small tolerance above the requested runtime prevents model over-expansion
+    # from turning a 12-minute documentary into a 20-minute TTS job.
+    if max_words is None:
+        max_words = max(minimum_words, target_words + max(100, int(target_words * 0.08)))
     for pass_index in range(max_passes):
         current_words = count_longform_narration_words(expanded)
         if current_words >= target_words:
             return expanded
         missing = target_words - current_words
+        remaining_budget = max_words - current_words
+        if remaining_budget <= 0:
+            break
         sections = expanded.get("sections") or []
         if not sections:
             raise ValueError("Cannot expand long-form narration: the script has no sections.")
@@ -538,8 +569,9 @@ def _expand_longform_narration(script: dict, topic: str, category: str,
             '{"section_additions":[{"section_index":0,"additional_narration":"..."}]}. '
             f"Topic: {topic}. Category: {category}. Narration language: {language}. "
             f"Current narration: {current_words} words. Required minimum: {minimum_words}. "
-            f"Target: {target_words}. Add at least {missing + max(100, int(missing * 0.15))} "
-            "new spoken words in this pass, distributed naturally across the existing sections. "
+            f"Target: {target_words}; hard upper limit: {max_words}. Add approximately {missing} "
+            f"new spoken words, and never add more than {remaining_budget} words in this pass. "
+            "Distribute additions naturally across the existing sections. "
             "Use only the facts, chronology, people, technical explanations and source-supported "
             "claims already present in the supplied script/evidence. Do not introduce new dates, "
             "measurements, named people, quotations, mission events, statistics, or other checkable "
@@ -571,13 +603,18 @@ def _expand_longform_narration(script: dict, topic: str, category: str,
             if index < 0 or index >= len(sections) or index in seen:
                 continue
             text = str(item.get("additional_narration") or "").strip()
+            text = _cap_narration_addition(text, remaining_budget)
             if len(text.split()) < 20:
                 continue
             seen.add(index)
+            accepted_words = len(text.split())
+            remaining_budget -= accepted_words
             sections[index]["narration"] = (
                 str(sections[index].get("narration") or "").rstrip() + "\n\n" + text
             ).strip()
-            added_words += len(text.split())
+            added_words += accepted_words
+            if remaining_budget <= 0:
+                break
 
         expanded["sections"] = sections
         expanded = _repair_longform_visual_anchors(expanded)
