@@ -1,0 +1,35 @@
+name: Documentary narration voice audition
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  voice-audition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install audio dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Test narration voice selection
+        run: python -m unittest tests.test_voice_selection -v
+      - name: Generate three comparable narration samples
+        run: python -m scripts.create_voice_audition
+      - name: Upload audition tracks and synthesis reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentary-voice-audition
+          path: voice_audition/**
+          if-no-files-found: error
+          retention-days: 14
