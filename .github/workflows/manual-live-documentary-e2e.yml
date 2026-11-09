@@ -73,8 +73,12 @@ jobs:
       EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
       FREE_ONLY_MODE: "1"
       AI_VIDEO_ENABLED: "0"
-      TTS_ENGINE: chatterbox
+      # Use the stable neural Edge voice on GitHub's CPU runner. Chatterbox
+      # remains available in GPU/local-capable workflows, but CPU sampling
+      # previously exhausted the live validation job's time budget.
+      TTS_ENGINE: edge
       TTS_VOICE: "en-IN-NeerjaNeural"
+      ALLOW_CHATTERBOX_ON_CI: "false"
       CHATTERBOX_TORCH_THREADS: "2"
       PRESENTER_ENABLED: "1"
       PRESENTER_MODE: talking_avatar_auto
@@ -97,7 +101,7 @@ jobs:
       - name: Install FFmpeg and fonts
         run: |
           sudo apt-get update
-          sudo apt-get install --yes ffmpeg fonts-noto-core fonts-dejavu-core
+          sudo apt-get install --yes ffmpeg espeak-ng fonts-noto-core fonts-dejavu-core
           ffmpeg -version
           ffprobe -version
 
