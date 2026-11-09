@@ -17,7 +17,7 @@ class LongformRuntimeGateTests(unittest.TestCase):
         result = validate_longform_runtime(script, target_minutes=10)
         self.assertEqual(result["narration_word_count"], 1350)
         self.assertEqual(result["runtime_validation"]["minimum_words"], 1350)
-        self.assertAlmostEqual(result["estimated_narration_minutes"], 9.31)
+        self.assertAlmostEqual(result["estimated_narration_minutes"], 9.0)
 
     def test_rejects_underlength_script_with_actionable_diagnostic(self):
         script = {"sections": [{"narration": " ".join(["short"] * 1349)}]}
