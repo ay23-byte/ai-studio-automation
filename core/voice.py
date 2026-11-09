@@ -67,23 +67,23 @@ def _pause_after(chunk):
     """Natural pause after a phrase, based on its ending punctuation."""
     ending = (chunk or "").rstrip()[-1:] 
     if ending in ("?", "؟", "!"):
-        return 0.62
+        return 0.78
     if ending in (".", "।", "…"):
-        return 0.46
+        return 0.62
     if ending in (",", ";", ":", "،"):
-        return 0.28
-    return 0.20
+        return 0.34
+    return 0.24
 
 
 def _prosody(i, n, sentence):
     # Keep one voice across the video; make openings and sentence endings clearer.
-    rate, pitch = os.getenv("TTS_RATE", "-5%"), os.getenv("TTS_PITCH", "+0Hz")
+    rate, pitch = os.getenv("TTS_RATE", "-7%"), os.getenv("TTS_PITCH", "+0Hz")
     if i == 0:
-        rate = "-7%"
+        rate = "-8%"
     if sentence.rstrip().endswith(("?", "؟")):
         pitch = "+2Hz"
     if i == n - 1:
-        rate = "-4%"
+        rate = "-6%"
     return rate, pitch
 
 
