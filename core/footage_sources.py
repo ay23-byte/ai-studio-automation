@@ -552,7 +552,7 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     providers = ((_nasa, _nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc) if is_space
                  else (_nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc))
     # Prefer operator-imported Indian archive and Mixkit clips when sidecars prove an allowed licence.
-    for folder in (Path("assets/clips/indian_archives"), Path("assets/clips/mixkit")):
+    for folder in (Path("assets/clips/archival_trial"), Path("assets/clips/indian_archives"), Path("assets/clips/mixkit")):
         if not folder.is_dir():
             continue
         for media_path in sorted(folder.iterdir()):
