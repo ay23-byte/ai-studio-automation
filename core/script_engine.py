@@ -102,7 +102,7 @@ Return ONLY valid JSON with this structure:
 Return raw JSON only. No markdown fences or commentary. Ensure valid JSON and complete narration. Do not invent missing evidence to satisfy the requested structure."""
 
 
-def _ask_model(prompt: str, model: str, attempts: int = 4):
+def _ask_model(prompt: str, model: str, attempts: int = 3):
     """Call Gemini with bounded exponential backoff for transient failures."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
@@ -127,7 +127,7 @@ def _ask_model(prompt: str, model: str, attempts: int = 4):
             if attempt == attempts - 1:
                 raise GeminiRequestError(model, f"Network failure calling {model}: {exc}",
                                          retryable=True) from exc
-            delay = min(10 * (2 ** attempt), 60) + random.uniform(0, 2)
+            delay = min(5 * (2 ** attempt), 30) + random.uniform(0, 1)
             print(f"Gemini network error on {model}; retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
             time.sleep(delay)
             continue
@@ -187,8 +187,8 @@ def _ask_model(prompt: str, model: str, attempts: int = 4):
         try:
             delay = float(retry_after) if retry_after else min(10 * (2 ** attempt), 60)
         except (TypeError, ValueError):
-            delay = min(10 * (2 ** attempt), 60)
-        delay = max(1, min(delay, 90)) + random.uniform(0, 2)
+            delay = min(5 * (2 ** attempt), 30)
+        delay = max(1, min(delay, 45)) + random.uniform(0, 1)
         print(f"Gemini HTTP {response.status_code} from {model}; "
               f"retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
         time.sleep(delay)
@@ -212,7 +212,7 @@ def _ask_gemini(prompt: str) -> str:
     for index, model in enumerate(models):
         try:
             print(f"Requesting script from Gemini model: {model}")
-            return _ask_model(prompt, model, attempts=4)
+            return _ask_model(prompt, model, attempts=3)
         except GeminiRequestError as exc:
             failures.append(f"{model}: {exc}")
             # A 404 generally means this model ID is retired, unavailable to this
@@ -509,10 +509,26 @@ def generate_longform_script(topic: str, category: str = "finance",
     research_sources = research_topic(topic)
     prompt += "\n\n" + format_research_context(research_sources)
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
-    # One focused repair attempt prevents an expensive render of a short script.
-    # The model must expand with evidence, never with fabricated or repetitive filler.
-    for attempt in range(2):
-        script = _parse(_ask_gemini(prompt))
+    # A short first draft gets up to two evidence-led rewrites. Each rewrite
+    # targets a safety margin above the hard runtime floor so small model
+    # under-runs do not waste the entire production attempt.
+    last_generation_error = None
+    last_runtime_error = None
+    for attempt in range(3):
+        try:
+            generated = _ask_gemini(prompt)
+            last_generation_error = None
+        except RuntimeError as exc:
+            last_generation_error = exc
+            if attempt == 2:
+                raise
+            print(
+                f"Gemini generation attempt {attempt + 1}/3 was unavailable; "
+                "retrying the script stage with the configured model fallback chain."
+            )
+            continue
+
+        script = _parse(generated)
         script["format"] = "longform"
         script["category"] = category
         script["research_sources"] = research_sources
@@ -527,19 +543,36 @@ def generate_longform_script(topic: str, category: str = "finance",
                 f"approximately {script['estimated_narration_minutes']:.1f} minutes."
             )
             return script
-        except ValueError:
-            if attempt == 1:
+        except ValueError as exc:
+            last_runtime_error = exc
+            if attempt == 2:
                 raise
             actual_words = count_longform_narration_words(script)
+            missing_words = max(0, minimum_words - actual_words)
+            repair_target = max(target_words, minimum_words + max(250, int(minimum_words * 0.15)))
             prompt += (
-                "\n\nRUNTIME REPAIR REQUIRED: Your previous complete script contained "
-                f"{actual_words} spoken narration words, below the minimum {minimum_words}. "
-                f"Rewrite the entire JSON documentary for a {duration_max}-minute target. "
-                f"Provide at least {minimum_words} spoken narration words (target {target_words}), "
-                "distributed across all sections. Add useful sourced explanation and context; "
-                "do not pad, repeat, invent evidence, or shorten the storyboard. Return the full valid JSON object, not an outline."
+                "\n\nRUNTIME REPAIR REQUIRED: The previous complete documentary was structurally "
+                "valid but too short. Its narration contained "
+                f"{actual_words} spoken words; the hard minimum is {minimum_words}, "
+                f"so it is short by {missing_words} words. Rewrite the COMPLETE JSON documentary, "
+                f"targeting at least {repair_target} spoken words (not merely the minimum), "
+                f"for a {duration_max}-minute runtime. Add meaningful, topic-specific explanation "
+                "to the relevant chapters: verified mission chronology, engineering decisions, "
+                "people involved, operational constraints, consequences and clearly stated evidence "
+                "limitations where relevant. Preserve the existing factual caution and source traceability. "
+                "Do not pad, repeat, invent facts, fabricate quotations, or add generic presenter filler. "
+                "Keep the storyboard anchors exact and chronological, with scene-specific visual prompts. "
+                "Return the full valid JSON object, not an outline."
             )
-            print(f"Generated narration was short ({actual_words}/{minimum_words} words); requesting one evidence-led rewrite.")
+            print(
+                f"Generated narration was short ({actual_words}/{minimum_words} words); "
+                f"requesting evidence-led rewrite {attempt + 1}/2 with a {repair_target}-word target."
+            )
+
+    if last_generation_error:
+        raise last_generation_error
+    if last_runtime_error:
+        raise last_runtime_error
     raise RuntimeError("Long-form runtime validation ended unexpectedly.")
 
 def generate_seo(script: dict) -> dict:
