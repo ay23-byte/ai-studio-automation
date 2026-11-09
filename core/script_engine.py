@@ -519,6 +519,10 @@ def generate_longform_script(topic: str, category: str = "finance",
             generated = _ask_gemini(prompt)
             last_generation_error = None
         except RuntimeError as exc:
+            # Only retry the aggregate transient-outage error. Authentication,
+            # permission and other permanent configuration failures must fail fast.
+            if "Gemini is temporarily unavailable across all configured models." not in str(exc):
+                raise
             last_generation_error = exc
             if attempt == 2:
                 raise
