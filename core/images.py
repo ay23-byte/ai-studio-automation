@@ -103,7 +103,7 @@ def generate_image(scene_prompt, path, category="general"):
     # fall through to a synthetic image generator.
     import re
     archival_request = bool(re.search(
-        r"\b(archival|archive footage|newsreel|period photograph|historical photograph|archival photograph)\b",
+        r"\b(archival\s+(?:footage|film|video|photograph|photo|still|image)|archive\s+footage|newsreel|period\s+(?:photograph|photo|film)|historical\s+(?:footage|film|photograph)|old\s+footage)\b",
         str(scene_prompt or ""), re.I
     ))
     if archival_request:
