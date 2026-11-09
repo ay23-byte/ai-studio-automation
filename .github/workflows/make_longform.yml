@@ -90,12 +90,8 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng
 
-      - name: Cache Chatterbox model
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/huggingface
-          key: chatterbox-v3-${{ runner.os }}-v1
-
+      # This workflow runs on GitHub-hosted CPU runners. Chatterbox v3
+      # inference is too slow there for dependable long-form production.
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
@@ -170,8 +166,8 @@ jobs:
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TTS_ENGINE: "chatterbox"
-          ALLOW_CHATTERBOX_ON_CI: "true"
+          TTS_ENGINE: "edge"
+          ALLOW_CHATTERBOX_ON_CI: "false"
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ inputs.presenter_mode }}
