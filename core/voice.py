@@ -207,7 +207,7 @@ def _synth_all_edge(sentences, language, gender, build_dir):
 
 def _synth_all_espeak(sentences, language, build_dir):
     """Offline last-resort narration; requires espeak-ng installed by CI."""
-    voice = "en-in" if language == "english" else "hi"
+    voice = "en" if language == "english" else "hi"
     wavs = []
     for i, sentence in enumerate(sentences):
         wav = build_dir / f"s{i}.wav"
