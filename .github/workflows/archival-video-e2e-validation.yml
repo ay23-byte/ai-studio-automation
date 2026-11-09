@@ -42,9 +42,12 @@ jobs:
         run: python -m unittest tests.test_archival_video_e2e -v
       - name: Run archival retrieval and media audit against live public archives
         if: github.event_name == 'workflow_dispatch'
+        env:
+          ARCHIVAL_QUERY: ${{ inputs.query }}
+          ARCHIVAL_PERIOD: ${{ inputs.period }}
         run: |
-          python -m scripts.validate_archival_video_e2e "${{ inputs.query }}" \
-            --period "${{ inputs.period }}" \
+          python -m scripts.validate_archival_video_e2e "$ARCHIVAL_QUERY" \
+            --period "$ARCHIVAL_PERIOD" \
             --output-dir build/archival_video_e2e
       - name: Upload archival retrieval and review evidence
         if: always() && github.event_name == 'workflow_dispatch'
