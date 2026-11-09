@@ -39,14 +39,14 @@ def _relevance(query: str, title: str, description: str) -> float:
 def _search_query(value: str) -> str:
     """Extract factual subject/location/date, not the entire cinematic prompt."""
     text = str(value or "").strip()
-    context = re.search(r"Specific context:\\s*(.+?)(?:\\.\\s*(?:Prefer genuine|Use only|Do not label)|$)", text, re.I)
+    context = re.search(r"Specific context:\s*(.+?)(?:\.\s*(?:Prefer genuine|Use only|Do not label)|$)", text, re.I)
     if context:
         text = context.group(1)
     else:
         text = re.sub(r"^(?:Create a documentary shot.*?Narration anchor:|.*?Visual direction:)", "", text, flags=re.I)
-    text = re.sub(r"\\b(?:prefer genuine|historically grounded|photorealistic|premium|documentary|composition|natural lighting)\\b.*$", "", text, flags=re.I)
+    text = re.sub(r"\b(?:prefer genuine|historically grounded|photorealistic|premium|documentary|composition|natural lighting)\\b.*$", "", text, flags=re.I)
     text = re.sub(r"[^A-Za-z0-9 ,;()'/-]", " ", text)
-    text = re.sub(r"\\s+", " ", text).strip(" .;,:-")
+    text = re.sub(r"\s+", " ", text).strip(" .;,:-")
     # Commons search is more useful with the concrete subject and date.
     if len(text) > 180:
         text = text[:180].rsplit(" ", 1)[0]
