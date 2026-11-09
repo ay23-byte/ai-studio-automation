@@ -185,7 +185,7 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
 
         retry_after = response.headers.get("Retry-After")
         try:
-            delay = float(retry_after) if retry_after else min(10 * (2 ** attempt), 60)
+            delay = float(retry_after) if retry_after else min(5 * (2 ** attempt), 30)
         except (TypeError, ValueError):
             delay = min(5 * (2 ** attempt), 30)
         delay = max(1, min(delay, 45)) + random.uniform(0, 1)
