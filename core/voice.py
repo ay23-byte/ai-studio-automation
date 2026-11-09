@@ -165,16 +165,61 @@ def _synth_all_chatterbox(sentences, language, build_dir):
         wavs.append(wav)
     return wavs
 
+def _edge_voice_candidates(language, gender):
+    """Try the configured voice first, then independent Edge voices."""
+    preferred = pick_voice(language, gender)
+    if language == "english":
+        fallbacks = ["en-US-AriaNeural", "en-GB-SoniaNeural", "en-IN-PrabhatNeural"]
+    elif gender == "female":
+        fallbacks = ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"]
+    else:
+        fallbacks = ["hi-IN-MadhurNeural", "hi-IN-SwaraNeural", "en-IN-PrabhatNeural"]
+    return list(dict.fromkeys([preferred, *fallbacks]))
+
+
 def _synth_all_edge(sentences, language, gender, build_dir):
-    voice = pick_voice(language, gender)
+    """Synthesize the complete narration with one voice; never mix voices mid-video."""
+    last_error = None
+    for voice in _edge_voice_candidates(language, gender):
+        wavs = []
+        try:
+            for i, sentence in enumerate(sentences):
+                mp3 = build_dir / f"s{i}.mp3"
+                wav = build_dir / f"s{i}.wav"
+                mp3.unlink(missing_ok=True)
+                wav.unlink(missing_ok=True)
+                rate, pitch = _prosody(i, len(sentences), sentence)
+                asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
+                _to_wav(mp3, wav)
+                if not wav.exists() or wav.stat().st_size == 0:
+                    raise RuntimeError(f"Edge TTS produced an empty WAV for chunk {i + 1}.")
+                wavs.append(wav)
+            print(f"Edge TTS narration completed with voice {voice}.")
+            return wavs
+        except Exception as exc:
+            last_error = exc
+            print(f"WARNING: Edge voice {voice} failed; trying another voice: {exc}")
+            for i in range(len(sentences)):
+                (build_dir / f"s{i}.mp3").unlink(missing_ok=True)
+                (build_dir / f"s{i}.wav").unlink(missing_ok=True)
+    raise RuntimeError(f"All Edge TTS voices failed: {last_error}") from last_error
+
+
+def _synth_all_espeak(sentences, language, build_dir):
+    """Offline last-resort narration; requires espeak-ng installed by CI."""
+    voice = "en-in" if language == "english" else "hi"
     wavs = []
     for i, sentence in enumerate(sentences):
-        mp3 = build_dir / f"s{i}.mp3"
         wav = build_dir / f"s{i}.wav"
-        rate, pitch = _prosody(i, len(sentences), sentence)
-        asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
-        _to_wav(mp3, wav)
+        wav.unlink(missing_ok=True)
+        subprocess.run(
+            ["espeak-ng", "-v", voice, "-s", "148", "-a", "175", "-w", str(wav), sentence],
+            check=True, capture_output=True, text=True,
+        )
+        if not wav.exists() or wav.stat().st_size < 128:
+            raise RuntimeError(f"espeak-ng produced empty audio for chunk {i + 1}.")
         wavs.append(wav)
+    print(f"Offline espeak-ng fallback completed using voice {voice}.")
     return wavs
 
 def synthesise(text, build_dir, language="hindi", gender="male"):
@@ -192,21 +237,37 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     is_ci = os.getenv("CI", "").strip().lower() == "true" or os.getenv("GITHUB_ACTIONS", "").strip().lower() == "true"
     allow_chatterbox_ci = os.getenv("ALLOW_CHATTERBOX_ON_CI", "").strip().lower() == "true"
     if engine == "chatterbox" and is_ci and not allow_chatterbox_ci:
-        fallback_reason = "Hosted CI policy selected Edge TTS because Chatterbox CPU inference is not reliable on this runner."
+        fallback_reason = "Chatterbox CI inference was not explicitly enabled; trying Edge TTS first."
         print("WARNING: " + fallback_reason)
         engine = "edge"
+
+    # Provider cascade: requested engine -> multiple Edge voices -> offline espeak-ng.
+    # A transient network outage must not abort a documentary after script generation.
     if engine == "chatterbox":
         try:
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
         except Exception as exc:
-            fallback_reason = f"Chatterbox failed; Edge TTS fallback used: {type(exc).__name__}: {exc}"
+            fallback_reason = f"Chatterbox failed ({type(exc).__name__}: {exc}); trying Edge TTS."
             print("WARNING: " + fallback_reason)
             for i in range(len(sentences)):
                 (build_dir / f"s{i}.wav").unlink(missing_ok=True)
+            try:
+                wavs = _synth_all_edge(sentences, language, gender, build_dir)
+                engine = "edge"
+            except Exception as edge_exc:
+                fallback_reason += f" Edge TTS also failed ({type(edge_exc).__name__}: {edge_exc}); using offline espeak-ng."
+                print("WARNING: " + fallback_reason)
+                wavs = _synth_all_espeak(sentences, language, build_dir)
+                engine = "espeak-ng"
+    else:
+        try:
             wavs = _synth_all_edge(sentences, language, gender, build_dir)
             engine = "edge"
-    else:
-        wavs = _synth_all_edge(sentences, language, gender, build_dir)
+        except Exception as edge_exc:
+            fallback_reason = f"All Edge TTS voices failed ({type(edge_exc).__name__}: {edge_exc}); using offline espeak-ng."
+            print("WARNING: " + fallback_reason)
+            wavs = _synth_all_espeak(sentences, language, build_dir)
+            engine = "espeak-ng"
 
     durations = [_dur(wav) for wav in wavs]
     out = build_dir / "voice.wav"
@@ -219,7 +280,7 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "requested_engine": requested_engine,
         "actual_engine": engine,
         "fallback_reason": fallback_reason,
-        "voice": pick_voice(language, gender) if engine == "edge" else "Chatterbox multilingual",
+        "voice": pick_voice(language, gender) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
         "language": language,
         "gender": gender,
         "chunk_count": len(sentences),
