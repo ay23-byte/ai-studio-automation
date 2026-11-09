@@ -15,7 +15,7 @@ VISUAL_TYPES = {
     "document": ("document", "letter", "report", "court", "record", "article", "contract", "evidence"),
     "person": ("biography", "leader", "founder", "scientist", "ruler", "person"),
     "location": ("city", "village", "building", "landscape", "region", "place"),
-    "archival": ("archival", "historical", "historical photograph", "period photograph", "newsreel", "archive footage", "wartime footage", "painting", "engraving", "old footage"),
+    "archival": ("archival footage", "archival photograph", "archival photo", "archival still", "archive footage", "archival film", "historical footage", "historical film", "historical photograph", "period photograph", "newsreel", "wartime footage", "old footage"),
     "interview": ("interview", "testimony", "expert says", "conversation"),
     "presenter": ("presenter", "host", "on camera", "to camera"),
 }
@@ -76,7 +76,7 @@ def enrich_visual_beat(beat: dict, category: str = "general") -> dict:
     style = CATEGORY_STYLE.get(str(category or "general").lower(), CATEGORY_STYLE["general"])
     guardrails = {
         "archival": "Use only verifiable period material; do not generate or mislabel synthetic imagery as archival.",
-        "ai_reconstruction": "Clearly disclose this as an AI reconstruction, never as real archival footage.",
+        "ai_reconstruction": "Clearly disclose this as an AI reconstruction; never present it as historical source material.",
         "document": "Show only source material supplied or verified by research; never invent readable documents, headlines or quotations.",
         "interview": "Use a genuine recorded interview only; never fabricate a real person's testimony or lip-sync.",
         "chart": "Use only sourced numeric values; if values are unavailable, use a qualitative graphic without invented numbers.",
