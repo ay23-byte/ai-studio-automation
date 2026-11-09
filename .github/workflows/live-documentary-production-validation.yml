@@ -140,6 +140,7 @@ jobs:
           FREE_ONLY_MODE: "1"
           AI_VIDEO_ENABLED: "0"
           TTS_ENGINE: "edge"
+          TTS_VOICE: "en-IN-NeerjaNeural"
           PRESENTER_ENABLED: "1"
           PRESENTER_MODE: "still_cpu"
           PRESENTER_IMAGE: "assets/presenter/presenter_female.png"

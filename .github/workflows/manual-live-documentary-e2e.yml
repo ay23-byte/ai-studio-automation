@@ -74,6 +74,7 @@ jobs:
       FREE_ONLY_MODE: "1"
       AI_VIDEO_ENABLED: "0"
       TTS_ENGINE: chatterbox
+          TTS_VOICE: "en-IN-NeerjaNeural"
       CHATTERBOX_TORCH_THREADS: "2"
       PRESENTER_ENABLED: "1"
       PRESENTER_MODE: talking_avatar_auto

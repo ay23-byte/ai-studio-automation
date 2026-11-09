@@ -135,6 +135,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TTS_ENGINE: "chatterbox"
+          TTS_VOICE: "en-IN-NeerjaNeural"
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ inputs.presenter_mode }}
