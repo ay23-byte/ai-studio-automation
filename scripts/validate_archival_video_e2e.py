@@ -61,8 +61,6 @@ def audit_archival_asset(video_path: str | Path, query: str, period: str,
     probe = _probe_video(video)
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
-    # The period is the requested editorial period, not a claim about the clip's
-    # actual date. The reviewer must compare it with the archive record and frames.
     timeline = [{
         "visual_type": "archival",
         "archival_required": True,
@@ -111,34 +109,42 @@ def main() -> None:
     parser.add_argument("query", help="Specific historical subject/event for the archive search.")
     parser.add_argument("--period", required=True, help="Requested period to compare with the archive record, e.g. 1986.")
     parser.add_argument("--output-dir", default="build/archival_video_e2e")
+    parser.add_argument(
+        "--reuse-existing", action="store_true",
+        help="Audit an existing archival-candidate.mp4 and sidecar instead of making a network request.",
+    )
     args = parser.parse_args()
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     video = output / "archival-candidate.mp4"
     sidecar = video.with_suffix(video.suffix + ".source.json")
-    video.unlink(missing_ok=True)
-    sidecar.unlink(missing_ok=True)
 
-    from core.footage_sources import fetch_documentary_clip
-    found = fetch_documentary_clip(
-        [args.query], video, set(),
-        scene_prompt=f"genuine archival footage newsreel historical film {args.query}",
-    )
-    if not found:
-        report = {
-            "status": "failed",
-            "query": args.query,
-            "requested_period_for_human_comparison": args.period,
-            "reason": "No qualifying archival video was retrieved. Generic stock and AI video fallback are deliberately disabled.",
-            "stock_or_ai_substitution_used": False,
-            "human_review_required": True,
-            "youtube_upload_performed": False,
-        }
-        (output / "archival-video-e2e-report.json").write_text(
-            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    if args.reuse_existing:
+        if not video.is_file() or not sidecar.is_file():
+            raise SystemExit("--reuse-existing requires both the candidate MP4 and its provenance sidecar.")
+    else:
+        video.unlink(missing_ok=True)
+        sidecar.unlink(missing_ok=True)
+        from core.footage_sources import fetch_documentary_clip
+        found = fetch_documentary_clip(
+            [args.query], video, set(),
+            scene_prompt=f"genuine archival footage newsreel historical film {args.query}",
         )
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        raise SystemExit(1)
+        if not found:
+            report = {
+                "status": "failed",
+                "query": args.query,
+                "requested_period_for_human_comparison": args.period,
+                "reason": "No qualifying archival video was retrieved. Generic stock and AI video fallback are deliberately disabled.",
+                "stock_or_ai_substitution_used": False,
+                "human_review_required": True,
+                "youtube_upload_performed": False,
+            }
+            (output / "archival-video-e2e-report.json").write_text(
+                json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            raise SystemExit(1)
 
     result = audit_archival_asset(video, args.query, args.period, output)
     print(json.dumps(result, ensure_ascii=False, indent=2))
