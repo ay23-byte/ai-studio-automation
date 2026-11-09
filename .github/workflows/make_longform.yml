@@ -55,7 +55,7 @@ jobs:
           cache: "pip"
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng
 
       - name: Cache Chatterbox model
         uses: actions/cache@v4
@@ -135,6 +135,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TTS_ENGINE: "chatterbox"
+          ALLOW_CHATTERBOX_ON_CI: "true"
           TTS_VOICE: "en-IN-NeerjaNeural"
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
