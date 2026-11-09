@@ -167,8 +167,8 @@ class LongformNarrationExpansionTests(unittest.TestCase):
         response = __import__("json").dumps({
             "section_additions": [{"section_index": 0, "additional_narration": addition}]
         })
-        with patch.object(script_engine, "_ask_gemini", return_value=response), \\
-             patch.object(script_engine, "_repair_longform_visual_anchors", side_effect=lambda value: value), \\
+        with patch.object(script_engine, "_ask_gemini", return_value=response), \
+             patch.object(script_engine, "_repair_longform_visual_anchors", side_effect=lambda value: value), \
              patch.object(script_engine, "validate_longform_storyboard", side_effect=lambda value: value):
             expanded = script_engine._expand_longform_narration(
                 script, "Apollo 11", "science", "English",
