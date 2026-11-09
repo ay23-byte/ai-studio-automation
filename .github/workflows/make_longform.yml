@@ -54,6 +54,39 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      - name: Preflight documentary providers
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          if not os.getenv("GEMINI_API_KEY"):
+              print("FATAL: GEMINI_API_KEY is missing; script generation cannot start.")
+              sys.exit(1)
+          providers = {
+              "Pixabay": bool(os.getenv("PIXABAY_API_KEY")),
+              "Cloudflare image generation": bool(os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN")),
+              "Coverr": bool(os.getenv("COVERR_API_KEY")),
+              "DVIDS": bool(os.getenv("DVIDS_API_KEY")),
+              "NARA": bool(os.getenv("NARA_API_KEY")),
+              "Europeana": bool(os.getenv("EUROPEANA_API_KEY")),
+              "Pollinations (keyless fallback)": True,
+              "Wikimedia Commons (public API)": True,
+              "Internet Archive (public metadata)": True,
+          }
+          for name, configured in providers.items():
+              print(f"Provider {'READY' if configured else 'NOT CONFIGURED'}: {name}")
+          if not any(providers[name] for name in ("Pixabay", "Cloudflare image generation", "Coverr")):
+              print("WARNING: No keyed general visual provider is configured; archival/context graphics and keyless fallback may be needed.")
+          PY
+
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng
 
