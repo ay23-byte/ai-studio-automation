@@ -1,0 +1,59 @@
+name: Archival video end-to-end validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: Specific historical subject/event to search
+        required: true
+        default: "Chernobyl 1986 evacuation newsreel"
+        type: string
+      period:
+        description: Requested period to compare against the archive record
+        required: true
+        default: "1986"
+        type: string
+  pull_request:
+    paths:
+      - "core/footage_sources.py"
+      - "core/visual_production.py"
+      - "scripts/validate_archival_video_e2e.py"
+      - "tests/test_archival_video_e2e.py"
+      - ".github/workflows/archival-video-e2e-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  archival-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip requests Pillow edge-tts python-dotenv
+      - name: Run archival end-to-end fixture tests
+        run: python -m unittest tests.test_archival_video_e2e -v
+      - name: Run archival retrieval and media audit against live public archives
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ARCHIVAL_QUERY: ${{ inputs.query }}
+          ARCHIVAL_PERIOD: ${{ inputs.period }}
+        run: |
+          python -m scripts.validate_archival_video_e2e "$ARCHIVAL_QUERY" \
+            --period "$ARCHIVAL_PERIOD" \
+            --output-dir build/archival_video_e2e
+      - name: Upload archival retrieval and review evidence
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: archival-video-e2e-evidence
+          path: build/archival_video_e2e/
+          if-no-files-found: warn
+          retention-days: 14
