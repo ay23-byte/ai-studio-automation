@@ -36,6 +36,23 @@ def _relevance(query: str, title: str, description: str) -> float:
     return len(wanted & found) / len(wanted) if wanted else 0.0
 
 
+def _search_query(value: str) -> str:
+    """Extract factual subject/location/date, not the entire cinematic prompt."""
+    text = str(value or "").strip()
+    context = re.search(r"Specific context:\s*(.+?)(?:\.\s*(?:Prefer genuine|Use only|Do not label)|$)", text, re.I)
+    if context:
+        text = context.group(1)
+    else:
+        text = re.sub(r"^(?:Create a documentary shot.*?Narration anchor:|.*?Visual direction:)", "", text, flags=re.I)
+    text = re.sub(r"\b(?:prefer genuine|historically grounded|photorealistic|premium|documentary|composition|natural lighting)\b.*$", "", text, flags=re.I)
+    text = re.sub(r"[^A-Za-z0-9 ,;()'/-]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip(" .;,:-")
+    # Commons search is more useful with the concrete subject and date.
+    if len(text) > 180:
+        text = text[:180].rsplit(" ", 1)[0]
+    return text
+
+
 def _search(query: str) -> list[dict]:
     response = requests.get(
         API,
@@ -62,16 +79,36 @@ def fetch_archival_image(query: str, path: str | Path,
     Returns False when no qualifying image is found. It never substitutes an
     AI-generated image for an archival request.
     """
-    query = str(query or "").strip()
+    query = _search_query(query)
     if not query:
+        print("  archival image search skipped: no concise subject/location/date query was available.")
         return False
     used_ids = used_ids if used_ids is not None else set()
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        pages = _search(query)
-    except Exception as exc:
-        print(f"  archival image search unavailable: {type(exc).__name__}: {exc}")
+    pages = None
+    for attempt in range(3):
+        try:
+            pages = _search(query)
+            break
+        except requests.HTTPError as exc:
+            status = getattr(exc.response, "status_code", None)
+            if status == 429 and attempt < 2:
+                retry_after = (exc.response.headers.get("Retry-After", "") if exc.response is not None else "")
+                try:
+                    delay = min(10.0, max(1.0, float(retry_after)))
+                except (TypeError, ValueError):
+                    delay = 2.0 * (attempt + 1)
+                import time
+                print(f"  Wikimedia archival search rate-limited; retry {attempt + 1}/2 after {delay:g}s.")
+                time.sleep(delay)
+                continue
+            print(f"  archival image search unavailable: HTTP {status or 'error'}; provider skipped for this beat.")
+            return False
+        except Exception as exc:
+            print(f"  archival image search unavailable: {type(exc).__name__}: {exc}")
+            return False
+    if pages is None:
         return False
 
     candidates = []

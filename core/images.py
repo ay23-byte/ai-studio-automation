@@ -11,6 +11,22 @@ def _tokens(value):
     stop = {"the","and","for","with","from","that","this","into","over","under","about","scene","shot","video","image","documentary","historical","history"}
     return {w for w in re.findall(r"[a-z0-9]+", str(value or "").lower()) if len(w) > 2 and w not in stop}
 
+def _compact_search_query(value, limit=100):
+    """Keep provider search terms concise and within documented API limits."""
+    import re
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) <= limit:
+        return text
+    words = text.split()
+    result = ""
+    for word in words:
+        candidate = (result + " " + word).strip()
+        if len(candidate) > limit:
+            break
+        result = candidate
+    return result or text[:limit].rstrip()
+
+
 def _relevance(query, title="", tags=""):
     wanted = _tokens(query)
     found = _tokens(title) | _tokens(tags)
@@ -215,6 +231,11 @@ def _coverr_candidate(hit, query):
 
 
 def _search_pixabay(q):
+    # Pixabay's q parameter is limited to 100 characters. Enforce this here
+    # as well as at query construction so future callers cannot break builds.
+    q = _compact_search_query(q, 100)
+    if not q:
+        return []
     if not PIXABAY_API_KEY:
         print("  Pixabay skipped: PIXABAY_API_KEY is not configured.")
         return []
@@ -263,7 +284,7 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
     from datetime import date
     queries = []
     for value in list(keywords or []) + [scene_prompt]:
-        query = str(value or "").strip()
+        query = _compact_search_query(value, 100)
         if query and query not in queries:
             queries.append(query)
         if len(queries) >= 8:
