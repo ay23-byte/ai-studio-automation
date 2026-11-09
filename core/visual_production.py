@@ -123,11 +123,21 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
             issues.append({"level": "error", "shot": shot_id, "message": "Weak metadata relevance; replace this asset."})
         if not source:
             issues.append({"level": "warning", "shot": shot_id, "message": "No source metadata sidecar; provenance and match cannot be assessed automatically."})
+        archival = str(shot.get("visual_type") or "").lower() == "archival" or bool(shot.get("archival_required"))
+        archival_fields = {"item_page_present": bool(source.get("page_url") or source.get("url")), "rights_statement_present": bool(source.get("licence") or source.get("license") or source.get("rights_statement") or source.get("rights_advisory")), "creator_or_institution_present": bool(source.get("creator") or source.get("author") or source.get("provider")), "date_or_period_present": bool(source.get("date_created") or source.get("date") or source.get("time_period") or shot.get("time_period"))}
+        archival_complete = all(archival_fields.values())
+        if archival and not archival_complete:
+            missing = [key for key, present in archival_fields.items() if not present]
+            issues.append({"level": "warning", "shot": shot_id, "message": "Archival provenance needs human completion: " + ", ".join(missing)})
         shots.append({
             "shot_id": shot_id, "chapter_id": str(shot.get("chapter_id") or shot.get("chapter") or shot.get("_chapter_index") or "unassigned"),
             "start_seconds": shot.get("_start"),
             "duration_seconds": shot.get("_dur"), "media_type": media_type,
             "visual_type": shot.get("visual_type", "unknown"),
+            "archival_material": archival,
+            "archival_provenance_fields": archival_fields if archival else None,
+            "archival_provenance_complete": archival_complete if archival else None,
+            "archival_authenticity_status": "pending_human_verification" if archival else "not_applicable",
             "presenter_mode": shot.get("presenter_mode"),
             "presenter_sync_status": shot.get("presenter_sync_status"),
             "presenter_lip_sync_verified": shot.get("presenter_lip_sync_verified", False),
@@ -188,6 +198,9 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         "shot_type_counts": {kind: sum(1 for shot in shots if shot.get("visual_type") == kind)
                              for kind in sorted({shot.get("visual_type", "unknown") for shot in shots})},
         "historical_authenticity_verified": False,
+        "archival_shot_count": sum(1 for shot in shots if shot.get("archival_material")),
+        "archival_provenance_complete_count": sum(1 for shot in shots if shot.get("archival_provenance_complete") is True),
+        "archival_human_verification_required": True,
         "publication_ready": False,
         "notice": "AI semantic screening is a fallible triage signal, not fact-checking or proof of historical authenticity, identity, rights, licensing or lip-sync. A human must confirm every visual, inspect provenance, fact-check claims and approve disclosures.",
     }

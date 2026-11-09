@@ -46,6 +46,30 @@ class VisualProductionTests(unittest.TestCase):
             self.assertEqual(shot["on_screen_text"], "2022 • $12")
             self.assertEqual(shot["sound_design"], "Subtle paper movement")
 
+    def test_archival_provenance_is_reported_and_authenticity_stays_pending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            image = root / "archive.jpg"
+            image.write_bytes(b"placeholder")
+            image.with_suffix(".jpg.source.json").write_text(json.dumps({"provider": "Library of Congress", "page_url": "https://www.loc.gov/item/example/", "licence": "Public Domain", "creator": "Library of Congress"}), encoding="utf-8")
+            report = build_visual_review([{"visual_type": "archival", "time_period": "1940s", "_media": {"type": "image", "path": str(image)}}], root, sample_video_frames=False)
+            shot = report["shots"][0]
+            self.assertTrue(shot["archival_material"])
+            self.assertTrue(shot["archival_provenance_complete"])
+            self.assertEqual(shot["archival_authenticity_status"], "pending_human_verification")
+            self.assertEqual(report["archival_shot_count"], 1)
+            self.assertFalse(report["historical_authenticity_verified"])
+
+    def test_archival_provenance_gaps_are_flagged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            image = root / "archive.jpg"
+            image.write_bytes(b"placeholder")
+            image.with_suffix(".jpg.source.json").write_text(json.dumps({"provider": "Unknown archive"}), encoding="utf-8")
+            report = build_visual_review([{"visual_type": "archival", "_media": {"type": "image", "path": str(image)}}], root, sample_video_frames=False)
+            self.assertFalse(report["shots"][0]["archival_provenance_complete"])
+            self.assertTrue(any("Archival provenance needs human completion" in issue["message"] for issue in report["issues"]))
+
     def test_missing_media_is_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             report = build_visual_review([{

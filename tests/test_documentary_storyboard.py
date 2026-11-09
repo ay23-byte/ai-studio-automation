@@ -24,6 +24,20 @@ def test_ai_reconstruction_is_disclosed():
     assert "AI reconstruction" in beat["visual_guardrail"]
 
 
+def test_archival_beat_adds_archive_queries_and_guardrail():
+    beat = enrich_visual_beat({"visual_type": "archival", "subject": "Kolkata", "time_period": "1940s"})
+    assert beat["archival_required"] is True
+    assert any("historical archive footage" in query for query in beat["archival_search_queries"])
+    assert "genuine, dated archival" in beat["visual_guardrail"]
+    assert "AI image as archival" in beat["visual_guardrail"]
+
+
+def test_newsreel_is_inferred_as_archival():
+    beat = enrich_visual_beat({"visual_prompt": "1940s newsreel of wartime factories"})
+    assert beat["visual_type"] == "archival"
+    assert beat["archival_required"] is True
+
+
 def test_plan_preserves_specific_search_terms_and_context():
     section = {"title": "A chapter", "visuals": [{
         "visual_prompt": "Close-up of a specific telescope",
