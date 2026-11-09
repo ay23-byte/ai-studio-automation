@@ -1,0 +1,195 @@
+name: Chernobyl documentary — professional review render
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: Target documentary runtime
+        required: true
+        default: "10"
+        type: choice
+        options:
+          - "10"
+          - "11"
+          - "12"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chernobyl-documentary-review
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Retrieve archive, render and package review copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      TOPIC: "Chernobyl: The Disaster That Changed the World"
+      ARCHIVAL_QUERY: "Chernobyl 1986 evacuation Pripyat nuclear disaster archival newsreel"
+      TARGET_PERIOD: "1986"
+      MINUTES: ${{ inputs.minutes }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: "gemini-3.8-flash"
+      GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
+      DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+      NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+      EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+      FREE_ONLY_MODE: "1"
+      AI_VIDEO_ENABLED: "0"
+      TTS_ENGINE: "edge"
+      TTS_VOICE: "en-IN-NeerjaNeural"
+      TTS_RATE: "-7%"
+      TTS_PITCH: "+0Hz"
+      PRESENTER_ENABLED: "1"
+      PRESENTER_MODE: "talking_avatar_auto"
+      PRESENTER_IMAGE: "assets/presenter/presenter_female.png"
+      SADTALKER_DEVICE: "cpu"
+      LONGFORM_VISUAL_MODE: "video_first"
+      VISUAL_SEMANTIC_CHECK: "1"
+      VISUAL_SEMANTIC_MAX_SHOTS: "40"
+      SUBTITLE_LANGUAGE: "english"
+
+    steps:
+      - name: Check out this production branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python and Node
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install FFmpeg, fonts and browser dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-noto-core fonts-dejavu-core
+          ffmpeg -version
+          ffprobe -version
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Validate source and required credentials
+        run: |
+          python -m compileall -q core scripts run.py
+          test -n "$GEMINI_API_KEY" || {
+            echo "::error::GEMINI_API_KEY is missing from GitHub Actions secrets."
+            exit 1
+          }
+          test -f "$PRESENTER_IMAGE" || {
+            echo "::error::Female presenter image is missing: $PRESENTER_IMAGE"
+            exit 1
+          }
+          test -f avatar_studio/generate-clips.mjs
+          test -f avatar_studio/index.html
+
+      - name: Retrieve and audit genuine Chernobyl archival footage
+        run: |
+          set -o pipefail
+          mkdir -p build/archival_video_e2e assets/clips/archival_trial
+          python -m scripts.validate_archival_video_e2e "$ARCHIVAL_QUERY" \
+            --period "$TARGET_PERIOD" \
+            --output-dir build/archival_video_e2e \
+            2>&1 | tee build/archival_video_e2e/preflight.log
+          test -s build/archival_video_e2e/archival-candidate.mp4
+          test -s build/archival_video_e2e/archival-candidate.mp4.source.json
+          cp build/archival_video_e2e/archival-candidate.mp4 \
+            assets/clips/archival_trial/chernobyl-1986-archive.mp4
+          cp build/archival_video_e2e/archival-candidate.mp4.source.json \
+            assets/clips/archival_trial/chernobyl-1986-archive.mp4.source.json
+
+      - name: Run focused narration, footage and presenter tests
+        run: |
+          python -m unittest discover -s tests -p 'test_*voice*.py' -v
+          python -m unittest discover -s tests -p 'test_*footage*.py' -v
+          python -m unittest discover -s tests -p 'test_*avatar*.py' -v
+
+      - name: Render the Chernobyl documentary (review only)
+        run: |
+          set -o pipefail
+          mkdir -p build/chernobyl_production
+          python run.py long "$TOPIC" --category history \
+            --minutes "$MINUTES" --language hinglish --voice-gender female \
+            2>&1 | tee build/chernobyl_production/render.log
+
+      - name: Validate runtime, streams, narration pacing and presenter coverage
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+
+          target = int(os.environ["MINUTES"]) * 60
+          videos = sorted(Path("output").rglob("*.mp4"),
+                          key=lambda p: p.stat().st_mtime, reverse=True) if Path("output").exists() else []
+          valid = []
+          for path in videos:
+              probe = json.loads(subprocess.check_output([
+                  "ffprobe", "-v", "error", "-show_entries",
+                  "format=duration:stream=codec_type,width,height,codec_name",
+                  "-of", "json", str(path)], text=True))
+              streams = probe.get("streams", [])
+              duration = float((probe.get("format") or {}).get("duration") or 0)
+              video = next((s for s in streams if s.get("codec_type") == "video"), {})
+              item = {"path": str(path), "bytes": path.stat().st_size,
+                      "duration_seconds": duration, "width": video.get("width"),
+                      "height": video.get("height"),
+                      "has_audio": any(s.get("codec_type") == "audio" for s in streams)}
+              if item["bytes"] > 100000 and item["has_audio"] and duration >= target * 0.80:
+                  valid.append(item)
+          if not valid:
+              raise SystemExit("No final MP4 passed minimum duration, file-size and audio-stream checks.")
+          build_dirs = sorted(Path("build").glob("job_*"),
+                              key=lambda p: p.stat().st_mtime, reverse=True)
+          narration_reports = [p for root in build_dirs for p in root.rglob("narration_synthesis_report.json")]
+          if not narration_reports:
+              raise SystemExit("Missing narration_synthesis_report.json; cannot verify the selected voice.")
+          narration = json.loads(narration_reports[0].read_text(encoding="utf-8"))
+          if narration.get("actual_engine") != "edge" or narration.get("voice") != "en-IN-NeerjaNeural":
+              raise SystemExit("Narration did not use the required Neerja Edge voice.")
+          avatar_clips = list(Path("assets/presenter_clips").glob("presenter_section_*.mp4"))
+          report = {
+              "status": "rendered_review_candidate",
+              "valid_videos": valid,
+              "narration": narration,
+              "presenter_clip_count": len(avatar_clips),
+              "archival_preflight_report": "build/archival_video_e2e/archival-video-e2e-report.json",
+              "human_review_required": True,
+              "youtube_upload_performed": False,
+              "publication_ready": False
+          }
+          out = Path("build/chernobyl_production/production-review-report.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Upload documentary and complete review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chernobyl-documentary-review-copy
+          path: |
+            output/**/*.mp4
+            output/*.mp4
+            build/archival_video_e2e/**
+            build/chernobyl_production/**
+            build/job_*/**/narration_synthesis_report.json
+            assets/clips/archival_trial/**
+            assets/presenter_clips/**
+          if-no-files-found: warn
+          retention-days: 14
