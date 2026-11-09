@@ -80,7 +80,8 @@ jobs:
       PRESENTER_IMAGE: assets/presenter/presenter_female.png
       SADTALKER_DEVICE: cpu
       LONGFORM_VISUAL_MODE: video_first
-      VISUAL_SEMANTIC_CHECK: "0"
+      VISUAL_SEMANTIC_CHECK: "1"
+      VISUAL_SEMANTIC_MAX_SHOTS: "40"
 
     steps:
       - name: Check out current main-based code

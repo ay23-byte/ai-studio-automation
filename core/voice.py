@@ -12,6 +12,10 @@ from core.config import VOICE_HINDI, VOICE_ENGLISH, VOICE_FEMALE, VOICE_ENGLISH_
 _CHATTERBOX_MODEL = None
 
 def pick_voice(language="hindi", gender="male"):
+    # Explicit voice selection makes auditions reproducible.
+    override = os.getenv("TTS_VOICE", "").strip()
+    if override:
+        return override
     if language == "english":
         return VOICE_ENGLISH_FEMALE if gender == "female" else VOICE_ENGLISH
     if gender == "female":
@@ -182,23 +186,25 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     # Pause after the phrase that was just spoken (not the next phrase).
     pauses = [_pause_after(chunk) for chunk in sentences[:-1]] + [0.0]
 
-    engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
-    # Chatterbox loads a large PyTorch model and can be terminated by hosted CI
-    # runners (limited CPU/RAM/time). Use lightweight Edge TTS on CI by default.
-    # Set ALLOW_CHATTERBOX_ON_CI=true only on a runner with sufficient resources.
+    requested_engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
+    engine = requested_engine
+    fallback_reason = None
     is_ci = os.getenv("CI", "").strip().lower() == "true" or os.getenv("GITHUB_ACTIONS", "").strip().lower() == "true"
     allow_chatterbox_ci = os.getenv("ALLOW_CHATTERBOX_ON_CI", "").strip().lower() == "true"
     if engine == "chatterbox" and is_ci and not allow_chatterbox_ci:
-        print("Hosted CI detected: using Edge TTS instead of Chatterbox to avoid runner cancellation.")
+        fallback_reason = "Hosted CI policy selected Edge TTS because Chatterbox CPU inference is not reliable on this runner."
+        print("WARNING: " + fallback_reason)
         engine = "edge"
     if engine == "chatterbox":
         try:
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
         except Exception as exc:
-            print(f"Chatterbox failed; falling back to Edge TTS: {exc}")
+            fallback_reason = f"Chatterbox failed; Edge TTS fallback used: {type(exc).__name__}: {exc}"
+            print("WARNING: " + fallback_reason)
             for i in range(len(sentences)):
                 (build_dir / f"s{i}.wav").unlink(missing_ok=True)
             wavs = _synth_all_edge(sentences, language, gender, build_dir)
+            engine = "edge"
     else:
         wavs = _synth_all_edge(sentences, language, gender, build_dir)
 
@@ -209,6 +215,23 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     for duration, pause, sentence in zip(durations, pauses, sentences):
         timings.append((current, current + duration, sentence))
         current += duration + pause
+    report = {
+        "requested_engine": requested_engine,
+        "actual_engine": engine,
+        "fallback_reason": fallback_reason,
+        "voice": pick_voice(language, gender) if engine == "edge" else "Chatterbox multilingual",
+        "language": language,
+        "gender": gender,
+        "chunk_count": len(sentences),
+        "speech_seconds": round(sum(durations), 3),
+        "inserted_pause_seconds": round(sum(pauses), 3),
+        "assembled_duration_seconds": round(_dur(out), 3),
+        "human_voice_review": "pending",
+        "notice": "Technical metadata does not certify naturalness, emotion, pronunciation or professional performance; listen to the complete narration.",
+    }
+    (build_dir / "narration_synthesis_report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return out, timings
 
 
