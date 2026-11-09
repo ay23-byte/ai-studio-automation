@@ -1,3 +1,4 @@
+import unittest
 from core.graphic_scenes import _chart, _timeline, _evidence, render_graphic_scene
 
 
@@ -19,3 +20,22 @@ def test_timeline_and_evidence_frames_render():
 
 def test_graphic_renderer_skips_unsupported_visual_types(tmp_path):
     assert render_graphic_scene({"visual_type": "stock"}, 5, tmp_path, "shot") is None
+
+
+class ContextGraphicFallbackTests(unittest.TestCase):
+    def test_archival_unavailable_context_graphic_is_disclosed(self):
+        import tempfile
+        from pathlib import Path
+        from core.graphic_scenes import render_context_graphic
+
+        with tempfile.TemporaryDirectory() as temp:
+            output = render_context_graphic({
+                "title": "Chernobyl",
+                "subject": "Reactor 4",
+                "location": "Pripyat, Ukraine",
+                "time_period": "26 April 1986",
+                "narration": "The reactor suffered a catastrophic failure.",
+            }, 5, temp, "test_archival_context")
+            self.assertIsNotNone(output)
+            self.assertTrue(Path(output).is_file())
+            self.assertGreater(Path(output).stat().st_size, 1000)
