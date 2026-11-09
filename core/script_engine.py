@@ -497,10 +497,10 @@ def validate_longform_runtime(script: dict, target_minutes: float,
 
 def _cap_narration_addition(text: str, word_budget: int) -> str:
     """Keep generated additions within the remaining runtime budget at sentence boundaries."""
-    clean = re.sub(r"\\s+", " ", str(text or "")).strip()
+    clean = re.sub(r"\s+", " ", str(text or "")).strip()
     if word_budget <= 0 or not clean:
         return ""
-    sentences = [part.strip() for part in re.split(r"(?<=[.!?।])\\s+", clean) if part.strip()]
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?।])\s+", clean) if part.strip()]
     accepted = []
     used = 0
     for sentence in sentences:
