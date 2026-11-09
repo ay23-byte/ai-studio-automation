@@ -95,6 +95,35 @@ def render_graphic_scene(shot,duration,build_dir,scene_id):
     return out if out.is_file() and out.stat().st_size>1000 else None
 
 
+def render_context_graphic(shot, duration, build_dir, scene_id):
+    """Render a disclosed contextual graphic when genuine archival media is unavailable.
+
+    This is an editorial context card, never an archival substitute or a claim of
+    historical authenticity. All visible facts must come from the supplied beat.
+    """
+    from textwrap import wrap
+    root = Path(build_dir) / "context_graphics"
+    root.mkdir(parents=True, exist_ok=True)
+    subject = str(shot.get("subject") or shot.get("title") or "Historical context")[:100]
+    location = str(shot.get("location") or "Location not specified")[:120]
+    period = str(shot.get("time_period") or "Date not specified")[:100]
+    description = str(shot.get("visual_guardrail") or shot.get("narration") or "")[:420]
+    im, d = _base(subject, "CONTEXT GRAPHIC · NOT ARCHIVAL FOOTAGE")
+    d.text((115, 310), "SCENE CONTEXT", font=_font(25, True), fill=YELLOW)
+    d.text((115, 375), location, font=_font(42, True), fill=WHITE)
+    d.text((115, 445), period, font=_font(30), fill=MUTED)
+    y = 565
+    for line in wrap(description, width=72)[:4]:
+        d.text((115, y), line, font=_font(27), fill=WHITE)
+        y += 52
+    d.rounded_rectangle((110, 875, 1810, 965), radius=12, fill=PANEL, outline=YELLOW, width=2)
+    d.text((145, 900), "ILLUSTRATIVE CONTEXT ONLY  •  NO ARCHIVAL IMAGE AVAILABLE",
+           font=_font(24, True), fill=YELLOW)
+    out = root / f"{scene_id}.png"
+    im.save(out, optimize=True)
+    return out if out.is_file() and out.stat().st_size > 1000 else None
+
+
 def render_chapter_title(title, chapter_number, duration, build_dir):
     """Create a restrained animated chapter slate with no generated factual claims."""
     root=Path(build_dir); root.mkdir(parents=True,exist_ok=True)
