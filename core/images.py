@@ -14,7 +14,7 @@ def _tokens(value):
 def _compact_search_query(value, limit=100):
     """Keep provider search terms concise and within documented API limits."""
     import re
-    text = re.sub(r"\\s+", " ", str(value or "")).strip()
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
     if len(text) <= limit:
         return text
     words = text.split()
