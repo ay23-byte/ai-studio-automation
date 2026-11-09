@@ -23,7 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
       - name: Test narration voice selection
-        run: python -m unittest tests.test_voice_selection -v
+        run: python -m unittest discover -s tests -p 'test_voice_selection.py' -v
       - name: Generate three comparable narration samples
         run: python -m scripts.create_voice_audition
       - name: Upload audition tracks and synthesis reports
