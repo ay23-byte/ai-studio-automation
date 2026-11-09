@@ -589,55 +589,63 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
             print(f"  clip ok (local licensed import: {metadata.get('provider')}); human review required")
             return True
 
-    candidate_count = 0
-    for query in _expanded_queries(keywords, scene_prompt)[:3]:
-        candidates = []
+    # Search every expanded phrase before ranking/downloading. Previously this
+    # loop stopped after three phrases, so later topic-specific variants were
+    # silently never queried. Collect and deduplicate results across providers
+    # first, then apply the same relevance and rights gates to the best leads.
+    discovered = {}
+    for query in _expanded_queries(keywords, scene_prompt):
         for provider in providers:
             try:
-                candidates.extend(provider(query) or [])
+                provider_results = provider(query) or []
             except Exception as exc:
                 # Isolate catalogue failures; continue searching other archives.
                 print(f"  archival provider skipped ({getattr(provider, '__name__', 'unknown')}): {type(exc).__name__}: {exc}")
                 continue
-        ranked = sorted(candidates, key=lambda item: _metadata_relevance(
-            query, item[1]), reverse=True)[:5]
-        for url, metadata in ranked:
-            if candidate_count >= 5:
-                return False
-            candidate_count += 1
-            score = _metadata_relevance(query, metadata)
-            metadata["relevance_score"] = round(score, 3)
-            metadata["scene_prompt"] = str(scene_prompt)[:500]
-            metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
-            if archival_request:
-                # This is an archive candidate, not an automatic authenticity
-                # certification. Capture the fields a reviewer must verify.
-                metadata["asset_type"] = "archival_video_candidate"
-                metadata["archival_material"] = True
-                metadata["archival_authenticity_status"] = "pending_human_verification"
-                metadata["archival_provenance_fields"] = {
-                    "item_page": bool(metadata.get("page_url")),
-                    "rights_statement": bool(metadata.get("licence") and metadata.get("licence_url")),
-                    "creator_or_holding_institution": bool(metadata.get("creator") or metadata.get("provider")),
-                    "date_or_period": bool(metadata.get("date_created") or metadata.get("date") or metadata.get("year") or metadata.get("description")),
-                }
-                metadata["archival_provenance_complete"] = all(metadata["archival_provenance_fields"].values())
-                metadata["human_visual_inspection_required"] = True
-                metadata["human_context_and_authenticity_review_required"] = True
-            licence = str(metadata.get("licence") or "").lower()
-            licence_url = str(metadata.get("licence_url") or "")
-            known = bool(licence and licence_url and (
-                "public domain" in licence or licence.startswith("cc0")
-                or licence.startswith("cc by") or licence.startswith("cc by-sa")
-            ))
-            if not known or score < 0.25:
-                continue
-            identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or url}"
-            if identity in used_ids:
-                continue
-            if _download(url, path, metadata):
-                used_ids.add(identity)
-                return True
+            for url, metadata in provider_results:
+                if not isinstance(url, str) or not isinstance(metadata, dict):
+                    continue
+                score = _metadata_relevance(query, metadata)
+                identity = f"{metadata.get('provider')}:{metadata.get('asset_id') or url}"
+                previous = discovered.get(identity)
+                if previous is None or score > previous[0]:
+                    discovered[identity] = (score, query, url, metadata)
+
+    ranked = sorted(discovered.values(), key=lambda item: item[0], reverse=True)
+    # Bound downloads even when a broad catalogue returns many duplicates or
+    # weak leads. Search coverage is not truncated by this download safety cap.
+    for score, query, url, metadata in ranked[:20]:
+        metadata["relevance_score"] = round(score, 3)
+        metadata["scene_prompt"] = str(scene_prompt)[:500]
+        metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
+        if archival_request:
+            # This is an archive candidate, not an automatic authenticity
+            # certification. Capture the fields a reviewer must verify.
+            metadata["asset_type"] = "archival_video_candidate"
+            metadata["archival_material"] = True
+            metadata["archival_authenticity_status"] = "pending_human_verification"
+            metadata["archival_provenance_fields"] = {
+                "item_page": bool(metadata.get("page_url")),
+                "rights_statement": bool(metadata.get("licence") and metadata.get("licence_url")),
+                "creator_or_holding_institution": bool(metadata.get("creator") or metadata.get("provider")),
+                "date_or_period": bool(metadata.get("date_created") or metadata.get("date") or metadata.get("year") or metadata.get("description")),
+            }
+            metadata["archival_provenance_complete"] = all(metadata["archival_provenance_fields"].values())
+            metadata["human_visual_inspection_required"] = True
+            metadata["human_context_and_authenticity_review_required"] = True
+        licence = str(metadata.get("licence") or "").lower()
+        licence_url = str(metadata.get("licence_url") or "")
+        known = bool(licence and licence_url and (
+            "public domain" in licence or licence.startswith("cc0")
+            or licence.startswith("cc by") or licence.startswith("cc by-sa")
+        ))
+        if not known or score < 0.25:
+            continue
+        if discovered and f"{metadata.get('provider')}:{metadata.get('asset_id') or url}" in used_ids:
+            continue
+        if _download(url, path, metadata):
+            used_ids.add(f"{metadata.get('provider')}:{metadata.get('asset_id') or url}")
+            return True
     return False
 
 def register_indian_archive_asset(

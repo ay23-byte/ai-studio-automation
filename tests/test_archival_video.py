@@ -89,5 +89,40 @@ class ArchivalVideoTests(unittest.TestCase):
         self.assertGreater(europeana.call_count, 0)
 
 
+    @patch("core.footage_sources._download", return_value=True)
+    @patch("core.footage_sources._nara")
+    @patch("core.footage_sources._dvids", return_value=[])
+    @patch("core.footage_sources._loc", return_value=[])
+    @patch("core.footage_sources._wikimedia", return_value=[])
+    @patch("core.footage_sources._internet_archive", return_value=[])
+    @patch("core.footage_sources._europeana_cc", return_value=[])
+    def test_searches_later_expanded_phrases_and_accepts_fourth_phrase_candidate(
+        self, europeana, internet_archive, wikimedia, loc, dvids, nara, download
+    ):
+        seen_queries = []
+        def nara_search(query):
+            seen_queries.append(query)
+            if query == "Chernobyl nuclear accident 1986 evacuation":
+                return [("https://archive.example/chernobyl.mp4", {
+                    "provider": "National Archives (NARA)", "asset_id": "chernobyl-1986",
+                    "title": "Chernobyl evacuation film",
+                    "page_url": "https://catalog.archives.gov/id/1986",
+                    "creator": "U.S. National Archives", "date_created": "1986",
+                    "licence": "Public Domain",
+                    "licence_url": "https://catalog.archives.gov/id/1986",
+                })]
+            return []
+        nara.side_effect = nara_search
+        with tempfile.TemporaryDirectory() as tmp:
+            found = footage_sources.fetch_documentary_clip(
+                ["Chernobyl 1986 evacuation newsreel"], Path(tmp) / "archive.mp4", set(),
+                scene_prompt="1986 archival newsreel footage of Chernobyl evacuation"
+            )
+        self.assertTrue(found)
+        self.assertIn("Chernobyl nuclear accident 1986 evacuation", seen_queries)
+        self.assertIn("Chernobyl nuclear power plant 1986", seen_queries)
+        self.assertEqual(download.call_count, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
