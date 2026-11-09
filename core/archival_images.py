@@ -16,7 +16,7 @@ import requests
 
 API = "https://commons.wikimedia.org/w/api.php"
 USER_AGENT = "AIStudioDocumentary/1.0 (archival image research)"
-_ALLOWED = re.compile(r"^(?:cc0|public domain|cc by(?:-sa)?(?:\\s|$))", re.I)
+_ALLOWED = re.compile(r"^(?:cc0|public domain|cc by(?:-sa)?(?:\s|$))", re.I)
 
 
 def _plain(value: object) -> str:
