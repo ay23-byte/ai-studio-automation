@@ -44,7 +44,7 @@ def _search_query(value: str) -> str:
         text = context.group(1)
     else:
         text = re.sub(r"^(?:Create a documentary shot.*?Narration anchor:|.*?Visual direction:)", "", text, flags=re.I)
-    text = re.sub(r"\b(?:prefer genuine|historically grounded|photorealistic|premium|documentary|composition|natural lighting)\\b.*$", "", text, flags=re.I)
+    text = re.sub(r"\b(?:prefer genuine|historically grounded|photorealistic|premium|documentary|composition|natural lighting)\b.*$", "", text, flags=re.I)
     text = re.sub(r"[^A-Za-z0-9 ,;()'/-]", " ", text)
     text = re.sub(r"\s+", " ", text).strip(" .;,:-")
     # Commons search is more useful with the concrete subject and date.
