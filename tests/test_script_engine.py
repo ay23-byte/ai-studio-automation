@@ -151,6 +151,33 @@ class LongformNarrationExpansionTests(unittest.TestCase):
         self.assertIn("coordinated technical effort", expanded["sections"][0]["narration"])
         self.assertNotIn("coordinated technical effort", script["sections"][0]["narration"])
 
+    def test_chapter_expansion_caps_oversized_model_additions(self):
+        script = {
+            "sections": [{
+                "title": "Apollo context",
+                "section_type": "context",
+                "narration": " ".join(["original"] * 20),
+                "visuals": [],
+            }]
+        }
+        addition = " ".join(
+            f"Sentence {index} explains the documented engineering context clearly."
+            for index in range(80)
+        )
+        response = __import__("json").dumps({
+            "section_additions": [{"section_index": 0, "additional_narration": addition}]
+        })
+        with patch.object(script_engine, "_ask_gemini", return_value=response), \
+             patch.object(script_engine, "_repair_longform_visual_anchors", side_effect=lambda value: value), \
+             patch.object(script_engine, "validate_longform_storyboard", side_effect=lambda value: value):
+            expanded = script_engine._expand_longform_narration(
+                script, "Apollo 11", "science", "English",
+                target_words=100, minimum_words=90, max_passes=1,
+            )
+        count = script_engine.count_longform_narration_words(expanded)
+        self.assertGreaterEqual(count, 90)
+        self.assertLessEqual(count, 200)
+
     def test_chapter_expansion_still_fails_if_model_does_not_add_enough(self):
         script = {
             "sections": [{
