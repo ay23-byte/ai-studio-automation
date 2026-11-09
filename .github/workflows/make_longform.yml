@@ -99,6 +99,9 @@ jobs:
       - name: Validate Python syntax
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
+      - name: Test narration provider fallback
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing -v
+
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
         uses: actions/setup-node@v4
@@ -136,7 +139,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TTS_ENGINE: "chatterbox"
           ALLOW_CHATTERBOX_ON_CI: "true"
-          TTS_VOICE: "en-IN-NeerjaNeural"
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ inputs.presenter_mode }}
