@@ -66,24 +66,28 @@ def _apply_pronunciation_map(text, mapping=None):
 def _pause_after(chunk):
     """Natural pause after a phrase, based on its ending punctuation."""
     ending = (chunk or "").rstrip()[-1:] 
-    if ending in ("?", "؟", "!"):
-        return 0.78
+    if ending in ("?", "؟"):
+        return 0.48
+    if ending == "!":
+        return 0.42
     if ending in (".", "।", "…"):
-        return 0.62
+        return 0.40
     if ending in (",", ";", ":", "،"):
-        return 0.34
-    return 0.24
+        return 0.22
+    return 0.16
 
 
 def _prosody(i, n, sentence):
     # Keep one voice across the video; make openings and sentence endings clearer.
-    rate, pitch = os.getenv("TTS_RATE", "-7%"), os.getenv("TTS_PITCH", "+0Hz")
+    # A restrained +3% delivery feels more like a confident documentary
+    # presenter without rushing names, dates or technical explanations.
+    rate, pitch = os.getenv("TTS_RATE", "+3%"), os.getenv("TTS_PITCH", "+0Hz")
     if i == 0:
-        rate = "-8%"
+        rate = os.getenv("TTS_OPENING_RATE", "+2%")
     if sentence.rstrip().endswith(("?", "؟")):
-        pitch = "+2Hz"
+        pitch = "+1Hz"
     if i == n - 1:
-        rate = "-6%"
+        rate = os.getenv("TTS_CLOSING_RATE", "+3%")
     return rate, pitch
 
 
@@ -117,12 +121,12 @@ def _dur(path):
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
          "-of", "csv=p=0", str(path)]).strip())
 
-def _join(wavs, pauses, out):
+def _join(wavs, pauses, out, speed=1.0):
     inputs, filters = [], []
     for i, wav in enumerate(wavs):
         inputs += ["-i", str(wav)]
         pad = f",apad=pad_dur={pauses[i]:.3f}" if pauses[i] > 0 else ""
-        filters.append(f"[{i}:a]aresample=44100{pad}[a{i}]")
+        filters.append(f"[{i}:a]aresample=44100,atempo={max(0.5, min(float(speed), 2.0)):.3f}{pad}[a{i}]")
     filters.append("".join(f"[a{i}]" for i in range(len(wavs))) +
                    f"concat=n={len(wavs)}:v=0:a=1[cat]")
     filters.append("[cat]highpass=f=70,acompressor=threshold=-18dB:ratio=3:attack=5:release=60:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
@@ -213,7 +217,7 @@ def _synth_all_espeak(sentences, language, build_dir):
         wav = build_dir / f"s{i}.wav"
         wav.unlink(missing_ok=True)
         subprocess.run(
-            ["espeak-ng", "-v", voice, "-s", "148", "-a", "175", "-w", str(wav), sentence],
+            ["espeak-ng", "-v", voice, "-s", os.getenv("ESPEAK_RATE", "155"), "-a", "175", "-w", str(wav), sentence],
             check=True, capture_output=True, text=True,
         )
         if not wav.exists() or wav.stat().st_size < 128:
@@ -269,9 +273,13 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             wavs = _synth_all_espeak(sentences, language, build_dir)
             engine = "espeak-ng"
 
-    durations = [_dur(wav) for wav in wavs]
+    # Chatterbox has no native rate argument in this integration. Apply a
+    # subtle 4% tempo lift only to that engine; Edge already receives TTS_RATE.
+    playback_speed = float(os.getenv("CHATTERBOX_PLAYBACK_SPEED", "1.04")) if engine == "chatterbox" else 1.0
+    playback_speed = max(0.95, min(playback_speed, 1.10))
+    durations = [_dur(wav) / playback_speed for wav in wavs]
     out = build_dir / "voice.wav"
-    _join(wavs, pauses, out)
+    _join(wavs, pauses, out, speed=playback_speed)
     timings, current = [], 0.0
     for duration, pause, sentence in zip(durations, pauses, sentences):
         timings.append((current, current + duration, sentence))
@@ -287,6 +295,8 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "speech_seconds": round(sum(durations), 3),
         "inserted_pause_seconds": round(sum(pauses), 3),
         "assembled_duration_seconds": round(_dur(out), 3),
+        "playback_speed": playback_speed,
+        "target_delivery": "slightly_faster_professional_documentary",
         "human_voice_review": "pending",
         "notice": "Technical metadata does not certify naturalness, emotion, pronunciation or professional performance; listen to the complete narration.",
     }
