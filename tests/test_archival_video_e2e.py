@@ -13,7 +13,8 @@ class ArchivalVideoEndToEndTests(unittest.TestCase):
         video = root / "candidate.mp4"
         subprocess.run([
             "ffmpeg", "-y", "-f", "lavfi", "-i",
-            "color=c=gray:s=640x360:d=3", "-an", "-c:v", "libx264",
+            "testsrc2=size=640x360:rate=25", "-t", "3", "-an",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
             "-pix_fmt", "yuv420p", str(video),
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         video.with_suffix(".mp4.source.json").write_text(
