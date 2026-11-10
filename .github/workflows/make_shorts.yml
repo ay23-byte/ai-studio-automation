@@ -17,9 +17,9 @@ on:
         options: [hindi, english]
         default: english
       upload:
-        description: "Upload to YouTube after building?"
+        description: "Upload after review (leave disabled to build only)?"
         type: boolean
-        default: true
+        default: false
   schedule:
     - cron: "30 3 * * *"   # 9:00 AM IST daily
 
@@ -70,7 +70,8 @@ jobs:
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TTS_ENGINE: "chatterbox"
+          TTS_ENGINE: "edge"
+          ALLOW_CHATTERBOX_ON_CI: "false"
           CHATTERBOX_TORCH_THREADS: "2"
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "unlisted"
@@ -85,7 +86,7 @@ jobs:
           fi
 
       - name: Upload to YouTube
-        if: ${{ inputs.upload || github.event_name == 'schedule' }}
+        if: ${{ inputs.upload }}
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
