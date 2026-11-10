@@ -116,11 +116,11 @@ jobs:
           $py = Join-Path $venv "Scripts\python.exe"
           & $py -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy
+          & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy accelerate sentencepiece protobuf
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $py -m pip install --upgrade hf_xet
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & $py -c "import transformers, diffusers, openvino_genai, hf_xet; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('hf_xet import OK'); print('OpenVINO GenAI import OK')"
+          & $py -c "import transformers, diffusers, openvino_genai, hf_xet, accelerate, sentencepiece; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('accelerate', accelerate.__version__); print('sentencepiece', sentencepiece.__version__); print('hf_xet import OK'); print('OpenVINO GenAI import OK')" 
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check Hugging Face network access
