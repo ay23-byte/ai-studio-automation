@@ -27,17 +27,17 @@ DEMO_SHORT = {
     "category": "finance",
     "format": "shorts",
     "scenes": [
-        {"say": "क्या आपने कभी सोचा है कि पाँच साल पहले सौ रुपये में जो मिलता था, आज वो उतने में क्यों नहीं मिलता?",
-         "caption": "Kya 5 saal pehle 100 rupaye mein jo milta tha, aaj wo kyun nahi milta?",
+        {"say": "Have you noticed that the same one hundred rupees buys less today than it did five years ago?",
+         "caption": "Why does the same money buy less today?",
          "label": "Inflation", "image": "a shopping basket that has become smaller while the same stack of coins sits beside it", "keywords": ["grocery"]},
-        {"say": "इसी को इन्फ्लेशन कहते हैं। यानी समय के साथ चीज़ों के दाम धीरे धीरे बढ़ते जाना।",
-         "caption": "Isi ko inflation kehte hain. Samay ke saath cheezon ke daam badhte jaate hain.",
+        {"say": "That is inflation: the gradual rise in the prices of goods and services over time.",
+         "caption": "Inflation means prices rise over time.",
          "label": "Daam badhte hain", "image": "price tags rising like steps of a staircase in warm light", "keywords": ["market"]},
-        {"say": "इसलिए सिर्फ़ पैसे रखना काफ़ी नहीं। ये भी सोचना ज़रूरी है कि आपकी बचत महँगाई के सामने टिक पा रही है या नहीं।",
-         "caption": "Sirf paise rakhna kaafi nahi. Ye bhi sochna zaroori hai ki bachat mehngai ke saamne tik pa rahi hai ya nahi.",
+        {"say": "Simply holding cash may not be enough. You also need to consider whether your savings can keep up with rising prices.",
+         "caption": "Can your savings keep up with rising prices?",
          "label": "Bachat vs mehngai", "image": "a small plant standing firm beside a rising wave of water", "keywords": ["wave"]},
-        {"say": "ये सिर्फ़ शैक्षणिक जानकारी है। निवेश सलाह नहीं। रोज़ एक नया कॉन्सेप्ट समझने के लिए फॉलो करो।",
-         "caption": "Ye sirf educational jaankari hai, investment salah nahi. Roz ek naya concept ke liye follow karo.",
+        {"say": "This video is for education, not investment advice. Follow for one clear concept every day.",
+         "caption": "Educational content only. Follow for more.",
          "label": "", "image": "a glowing lightbulb above a neat stack of coins", "keywords": ["lightbulb"]}
     ]
 }
@@ -163,7 +163,7 @@ def main():
     ps = sub.add_parser("shorts", help="Create a YouTube Short")
     ps.add_argument("topic", nargs="?", default="Inflation kya hai")
     ps.add_argument("--category", default="finance")
-    ps.add_argument("--language", default="hindi")
+    ps.add_argument("--language", default="english")
     ps.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     ps.add_argument("--demo", action="store_true", help="Use built-in demo script (no Gemini needed)")
 
@@ -189,7 +189,7 @@ def main():
     elif args.cmd == "upload": cmd_upload(args)
     elif args.cmd == "list": cmd_list(args)
     elif args.cmd == "demo":
-        class A: topic="demo"; category="finance"; language="hindi"; voice_gender="male"; demo=True
+        class A: topic="demo"; category="finance"; language="english"; voice_gender="male"; demo=True
         a = A()
         if args.format == "shorts": a.minutes = None; cmd_shorts(a)
         else: a.minutes = 12; cmd_long(a)
