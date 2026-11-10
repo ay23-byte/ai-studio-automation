@@ -1,12 +1,13 @@
-# Paid AI video providers disabled
+# Hosted paid AI providers disabled
 
-The project now enforces a strict zero-paid policy by default.
+The project enforces a strict zero-paid policy. The following hosted inference providers are not available in production and cannot be enabled with environment variables or API keys:
 
-- MuAPI and Replicate hosted video-generation requests are blocked whenever `FREE_ONLY_MODE` is unset or enabled.
-- Cloudflare Workers AI image-generation requests are also blocked in that mode because usage beyond any free allowance can be billable.
-- The long-form GitHub Actions workflow no longer exposes a paid MuAPI toggle or passes paid-provider credentials.
-- Do not add paid-provider keys or enable metered inference in production workflows.
+- MuAPI text-to-video: the network adapter has been removed; the entry point always returns disabled.
+- Replicate text-to-video: the production entry point has been removed and always returns disabled.
+- Cloudflare Workers AI image generation: the request function always returns disabled because usage can become billable after free allowances.
 
-The adapter code remains in the repository for historical compatibility and isolated tests, but the production path is intentionally unavailable under the zero-paid policy. The free workflow should rely on public/free-to-access footage sources, open-source rendering tools, and non-metered local processing. A service advertising a free tier is not automatically safe to use: check whether it requires billing details, whether it can auto-charge, and whether usage is capped before adding it.
+The long-form GitHub Actions workflow does not expose a paid MuAPI toggle or pass paid-provider credentials. Do not reintroduce paid hosted inference providers.
+
+The free production path uses publicly accessible footage/image sources where their terms permit, open-source rendering tools such as FFmpeg, and non-metered processing. Free tiers that require billing details, can auto-charge, or have unclear overage behavior are not considered safe for this project.
 
 This policy does not make third-party footage rights automatic. Every asset still requires source, licence, attribution, and human editorial review.
