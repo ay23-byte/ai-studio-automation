@@ -293,6 +293,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
 
     # Visuals
     media = []
+    ai_video_backend_failed = False
     for i, sc in enumerate(scenes):
         img_p = bd / f"img{i}.jpg"
         scene_prompt = (
@@ -305,16 +306,23 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         clip_p = bd / f"raw{i}.mp4"
         ai_video_mode = os.getenv("AI_VIDEO_MODE", "fallback").strip().lower()
         generated_video = False
-        if ai_video_mode == "prefer" and os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip():
+        ai_video_attempted = False
+        has_local_video_model = bool(os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip())
+        if ai_video_mode == "prefer" and has_local_video_model and not ai_video_backend_failed:
+            ai_video_attempted = True
             generated_video = generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16")
+            if not generated_video:
+                ai_video_backend_failed = True
         if generated_video:
             media.append({"type":"video","path":clip_p})
         elif generate_image(scene_prompt, img_p, category=script.get("category", "general")):
             media.append({"type":"image","path":img_p})
         else:
             kws = sc.get("keywords") or [str(sc.get("say", ""))[:100]]
-            if not generated_video and os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip():
+            if not generated_video and not ai_video_attempted and has_local_video_model and not ai_video_backend_failed:
                 generated_video = generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16")
+                if not generated_video:
+                    ai_video_backend_failed = True
             if generated_video:
                 media.append({"type":"video","path":clip_p})
             elif fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_prompt):
