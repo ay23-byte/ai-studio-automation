@@ -82,7 +82,8 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
         # Give moving B-roll a restrained, slow camera drift. The 6.7% overscan
         # prevents empty edges while the crop travels gently across the frame.
         from core.cinematic_motion import video_crop_expressions
-        x_motion, y_motion = video_crop_expressions((shot or {}).get("cinema_settings"), idx, dur, 128, 72)        vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
+        x_motion, y_motion = video_crop_expressions((shot or {}).get("cinema_settings"), idx, dur, 128, 72)
+        vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W}:{H},scale=2048:1152:flags=lanczos,"
               f"crop={W}:{H}:x='{x_motion}':y='{y_motion}',"
               f"fps=30,setsar=1,{grade},format=yuv420p")
