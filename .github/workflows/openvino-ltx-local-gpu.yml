@@ -110,6 +110,29 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
 
+      - name: Preflight laptop RAM before installing or exporting the model
+        shell: powershell
+        run: |
+          $computer = Get-CimInstance Win32_ComputerSystem
+          $os = Get-CimInstance Win32_OperatingSystem
+          $totalGB = [math]::Round(([double]$computer.TotalPhysicalMemory) / 1GB, 1)
+          $freeGB = [math]::Round(([double]$os.FreePhysicalMemory * 1KB) / 1GB, 1)
+          $commit = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
+          $commitGB = [math]::Round(([double]$commit.CommittedBytes) / 1GB, 1)
+          $commitLimitGB = [math]::Round(([double]$commit.CommitLimit) / 1GB, 1)
+          Write-Host "Detected physical RAM: $totalGB GB"
+          Write-Host "Currently available physical RAM: $freeGB GB"
+          Write-Host "Committed memory: $commitGB GB / $commitLimitGB GB"
+          Write-Host "Top memory-consuming processes:"
+          Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 12 ProcessName, Id, @{Name='RAM_GB';Expression={[math]::Round($_.WorkingSet64 / 1GB, 2)}} | Format-Table -AutoSize
+          if ($totalGB -lt 14) {
+            throw "This workflow is configured for a 16 GB-class laptop. Less than 14 GB physical RAM detected; stopping before model download/export."
+          }
+          if ($freeGB -lt 8) {
+            throw "Only $freeGB GB RAM is currently available. Close memory-heavy apps and rerun; the LTX exporter needs substantial working memory."
+          }
+
+
       - name: Install isolated OpenVINO environment with compatible Transformers
         id: install
         shell: powershell
@@ -149,41 +172,6 @@ jobs:
             if (-not $resolved) {
               throw "Cannot resolve $hostName. Check this PC's internet/DNS connection, VPN, proxy, or firewall, then rerun."
             }
-          }
-
-      - name: Check laptop RAM and model storage before export
-        shell: powershell
-        run: |
-          $computer = Get-CimInstance Win32_ComputerSystem
-          $os = Get-CimInstance Win32_OperatingSystem
-          $totalGB = [math]::Round(([double]$computer.TotalPhysicalMemory) / 1GB, 1)
-          $freeGB = [math]::Round(([double]$os.FreePhysicalMemory * 1KB) / 1GB, 1)
-          $commit = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
-          Write-Host "Detected physical RAM: $totalGB GB"
-          Write-Host "Currently available physical RAM: $freeGB GB"
-          Write-Host "Committed bytes: $([math]::Round(([double]$commit.CommittedBytes) / 1GB, 1)) GB"
-          if ($totalGB -lt 14) {
-            throw "This workflow is configured for a 16 GB-class laptop. Less than 14 GB physical RAM detected; stopping before model download/export."
-          }
-          if ($freeGB -lt 8) {
-            throw "Only $freeGB GB RAM is currently available. Close memory-heavy apps and rerun; the LTX exporter needs substantial working memory."
-          }
-
-          $workRoot = [System.IO.Path]::GetPathRoot($env:OPENVINO_MODEL_STORAGE_ROOT)
-          $workDriveId = $workRoot.TrimEnd('\')
-          $workVolume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$workDriveId'"
-          $cacheRoot = [System.IO.Path]::GetPathRoot($env:HF_HOME)
-          $cacheDriveId = $cacheRoot.TrimEnd('\')
-          $cacheVolume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$cacheDriveId'"
-          $workFreeGB = [math]::Round(([int64]$workVolume.FreeSpace) / 1GB, 1)
-          $cacheFreeGB = [math]::Round(([int64]$cacheVolume.FreeSpace) / 1GB, 1)
-          Write-Host "Free space on OpenVINO work drive: $workFreeGB GB ($workRoot)"
-          Write-Host "Free space on Hugging Face cache drive: $cacheFreeGB GB ($cacheRoot)"
-          if ([int64]$workVolume.FreeSpace -lt 30GB) {
-            throw "Less than 30 GB remains on the OpenVINO work drive after environment setup."
-          }
-          if ([int64]$cacheVolume.FreeSpace -lt 35GB) {
-            throw "Less than 35 GB remains on the Hugging Face cache drive."
           }
 
       - name: Export INT8 LTX-Video model (single attempt; avoid repeating an out-of-memory export)
