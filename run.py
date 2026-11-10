@@ -79,7 +79,7 @@ def cmd_shorts(args):
         script = DEMO_SHORT
     else:
         print(f"Generating Shorts script for: {args.topic}")
-        script = generate_shorts_script(args.topic, args.category)
+        script = generate_shorts_script(args.topic, args.category, language=args.language)
     print(f"Script: {script.get('title')}")
     vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script)
     print(f"Building video (job #{vid_id})...")
