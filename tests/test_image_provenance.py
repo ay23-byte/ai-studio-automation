@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,7 +22,7 @@ class ImageProvenanceTests(unittest.TestCase):
     def test_cloudflare_generated_image_gets_provenance_sidecar(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "generated.jpg"
-            with patch.dict("os.environ", {"FREE_ONLY_MODE": "0"}), patch("core.images.CF_ACCOUNT_ID", "account"), patch(
+            with patch.dict(os.environ, {"FREE_ONLY_MODE": "0"}), patch("core.images.CF_ACCOUNT_ID", "account"), patch(
                 "core.images.CF_API_TOKEN", "token"
             ), patch("core.images.requests.post", return_value=_Response()), patch(
                 "core.images._ok", return_value=True
