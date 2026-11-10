@@ -1,3 +1,4 @@
+import os
 import time, random, base64, urllib.parse, subprocess, hashlib
 from pathlib import Path
 import requests
