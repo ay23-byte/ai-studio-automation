@@ -14,18 +14,55 @@ adopting its hosted MuAPI generation client.
 - Regression tests for prompt construction, invalid settings, input immutability
   and export metadata.
 
-## What is deliberately not included
+## Free local AI video generation
 
-The upstream studio's Image, Video and Lip Sync interfaces submit generation
-jobs through hosted model APIs. Listing a model in that UI does not make its
-inference free or locally runnable. This integration therefore does not copy
-those API calls, model catalogues, API-key forms, upload endpoints, or hosted
-generation queue.
+An optional local text-to-video backend is now available through
+[OpenVINO GenAI](https://openvinotoolkit.github.io/openvino.genai/) and
+[LTX-Video](https://huggingface.co/Lightricks/LTX-Video). It does not call
+MuAPI, Replicate, Cloudflare Workers AI, or any paid hosted inference API.
 
-No local image/video/lip-sync model is enabled by this milestone. A model may
-only be added in a later change after checking hardware requirements, model
-license, weights availability, dependencies, and a test proving the backend
-does not make network or paid-provider calls.
+The OpenVINO GenAI project documents LTX-Video text-to-video and image-to-video
+pipelines, including an INT8 export option that produces a smaller model. It
+also documents GPU execution; OpenVINO lists Intel Iris Xe Graphics among
+supported GPU hardware. Actual speed and memory use depend on the exact CPU,
+driver, RAM, model export and output settings.
+
+### Prepare the model on the machine that will generate the clips
+
+Install the free open-source runtime and exporter, then export the INT8 model:
+
+```powershell
+python -m pip install --upgrade-strategy eager openvino-genai optimum-intel
+optimum-cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 models/ltx_video_ov/INT8
+```
+
+Set the model folder and enable generated clips:
+
+```powershell
+$env:OPENVINO_LTX_MODEL_DIR = "models/ltx_video_ov/INT8"
+$env:OPENVINO_DEVICE = "GPU"
+$env:AI_VIDEO_MODE = "prefer"
+python run.py shorts "Your topic" --language english
+```
+
+The generator uses a short, low-resolution LTX configuration by default and
+then lets the existing FFmpeg editor upscale, crop and composite the clip.
+Tune `OPENVINO_VIDEO_FRAMES`, `OPENVINO_VIDEO_STEPS`, `OPENVINO_VIDEO_WIDTH`
+and `OPENVINO_VIDEO_HEIGHT` only after a successful first generation.
+If the Intel GPU is not detected, generation fails closed. CPU fallback is
+opt-in with `OPENVINO_ALLOW_CPU_FALLBACK=true`; CPU video generation may be
+extremely slow.
+
+**Important execution boundary:** a GitHub-hosted runner does not contain the
+user's Intel Iris Xe GPU. The OpenVINO model must be installed on a machine or
+self-hosted runner that has the model weights and compatible Intel graphics
+drivers. The repository's GitHub CI validates the integration without
+downloading or running the large model. No hosted free GPU is assumed.
+
+Generated clips are explicitly marked as AI-generated and require human visual
+inspection. They must never be presented as genuine archival footage. Review
+the upstream model license and terms before commercial publication. This is
+not 3D presenter animation or lip-sync.
 
 ## Use
 
