@@ -27,23 +27,23 @@ also documents GPU execution; OpenVINO lists Intel Iris Xe Graphics among
 supported GPU hardware. Actual speed and memory use depend on the exact CPU,
 driver, RAM, model export and output settings.
 
-### Prepare the model on the machine that will generate the clips
+### Run generation from GitHub Actions using the Intel Iris Xe GPU
 
-Install the free open-source runtime and exporter, then export the INT8 model:
+The repository now includes a manual workflow:
+`.github/workflows/openvino-ltx-local-gpu.yml`.
 
-```powershell
-python -m pip install --upgrade-strategy eager openvino-genai optimum-intel
-optimum-cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 models/ltx_video_ov/INT8
-```
+To use it without opening VS Code or editing files locally:
 
-Set the model folder and enable generated clips:
+1. In the repository, open **Settings → Actions → Runners → New self-hosted runner**.
+2. Select **Windows x64** and follow GitHub's displayed runner registration steps on the Windows PC that has Intel Iris Xe.
+3. Add the custom runner label `intel-iris-xe` when configuring the runner.
+4. Keep the runner service online, then open **Actions → Free local AI video generation — Intel Iris Xe → Run workflow**.
+5. Enter a shot prompt, choose 9:16 or 16:9, and run. The workflow installs the free runtime, exports/caches the INT8 LTX model on that runner, generates an MP4 and uploads a review artifact.
 
-```powershell
-$env:OPENVINO_LTX_MODEL_DIR = "models/ltx_video_ov/INT8"
-$env:OPENVINO_DEVICE = "GPU"
-$env:AI_VIDEO_MODE = "prefer"
-python run.py shorts "Your topic" --language english
-```
+The workflow never uploads to YouTube. It does not require a paid API or payment
+method. The runner PC must remain powered on and connected while the job runs.
+The model export is a large first-time download; later runs reuse the runner's
+tool-cache folder.
 
 The generator uses a short, low-resolution LTX configuration by default and
 then lets the existing FFmpeg editor upscale, crop and composite the clip.
@@ -53,11 +53,11 @@ If the Intel GPU is not detected, generation fails closed. CPU fallback is
 opt-in with `OPENVINO_ALLOW_CPU_FALLBACK=true`; CPU video generation may be
 extremely slow.
 
-**Important execution boundary:** a GitHub-hosted runner does not contain the
-user's Intel Iris Xe GPU. The OpenVINO model must be installed on a machine or
-self-hosted runner that has the model weights and compatible Intel graphics
-drivers. The repository's GitHub CI validates the integration without
-downloading or running the large model. No hosted free GPU is assumed.
+**Important execution boundary:** GitHub-hosted runners do not contain the
+user's Intel Iris Xe GPU. This workflow therefore targets a self-hosted
+Windows runner on the user's own Intel PC. The repository's normal GitHub CI
+validates the integration without downloading model weights or claiming a
+GPU render has been tested.
 
 Generated clips are explicitly marked as AI-generated and require human visual
 inspection. They must never be presented as genuine archival footage. Review
