@@ -16,10 +16,10 @@ LANGUAGE: Use the selected language: {language}. If English, write natural Engli
 
 RULES:
 - 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
-- "say" is the exact English narration; "caption" is concise English subtitle text matching the spoken meaning
+- "say" is the exact narration in the selected language; "caption" is concise subtitle text in the same language matching the spoken meaning
 - Finance topics: education only, no personal advice, no promised returns
 - Last scene: concise educational disclaimer + follow call to action
-- "label": 1-3 English words, max 22 characters
+- "label": 1-3 short words in the selected language, max 22 characters
 - "image": specific English cinematic visual prompt (no text, logos or invented factual imagery)
 - "keywords": 2-4 specific English footage search terms relevant to the scene
 - Avoid generic repeated topics and generic stock imagery; each scene must have a distinct visual idea
