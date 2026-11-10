@@ -15,7 +15,7 @@ on:
         description: "Voice language"
         type: choice
         options: [hindi, english]
-        default: hindi
+        default: english
       upload:
         description: "Upload to YouTube after building?"
         type: boolean
