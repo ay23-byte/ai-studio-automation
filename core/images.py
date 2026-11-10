@@ -396,7 +396,7 @@ def generate_ai_video(prompt, path, aspect_ratio="9:16"):
     """Use only an explicitly configured local OpenVINO LTX model; never call hosted providers."""
     import re
     if re.search(
-        r"\\b(archival\\s+(?:footage|film|video|photograph|photo|still|image)|archive\\s+footage|newsreel|historical\\s+(?:footage|film|photograph)|old\\s+footage)\\b",
+        r"\b(archival\s+(?:footage|film|video|photograph|photo|still|image)|archive\s+footage|newsreel|historical\s+(?:footage|film|photograph)|old\s+footage)\b",
         str(prompt or ""), re.I
     ):
         print("  AI video skipped: archival requests require genuine archival sources.")
