@@ -144,7 +144,8 @@ jobs:
         shell: powershell
         run: |
           $root = [System.IO.Path]::GetPathRoot($env:OPENVINO_MODEL_STORAGE_ROOT)
-          $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$root'"
+          $driveId = $root.TrimEnd('\\')
+          $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$driveId'"
           $freeGB = [math]::Round(([int64]$volume.FreeSpace) / 1GB, 1)
           Write-Host "Free space before model export: $freeGB GB on $root"
           if ([int64]$volume.FreeSpace -lt 60GB) {
