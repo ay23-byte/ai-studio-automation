@@ -60,11 +60,9 @@ def _write_source_metadata(path, metadata):
 
 
 def _cloudflare(prompt, path):
-    # Strict zero-paid policy: Cloudflare Workers AI can incur charges after any free allowance.
-    if os.getenv("FREE_ONLY_MODE", "1").strip().lower() not in {"0", "false", "no", "off"}:
-        print("  Cloudflare AI image generation skipped: strict FREE_ONLY_MODE is enabled.")
-        return False
-    if not CF_ACCOUNT_ID or not CF_API_TOKEN: return False
+    # Permanently disabled: this hosted inference endpoint can incur charges.
+    print("  Cloudflare AI image generation disabled by the zero-paid project policy.")
+    return False
     url = (f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
            f"/ai/run/@cf/black-forest-labs/flux-1-schnell")
     for attempt in range(2):
@@ -395,13 +393,9 @@ def _video_ok(path):
 
 
 def generate_ai_video(prompt, path):
-    """
-    Paid hosted AI video generation is prohibited in strict zero-paid mode.
-    The default is strict mode, including when FREE_ONLY_MODE is not set.
-    """
-    if os.getenv("FREE_ONLY_MODE", "1").strip().lower() not in {"0", "false", "no", "off"}:
-        print("  Hosted AI video skipped: strict FREE_ONLY_MODE prohibits paid providers.")
-        return False
+    """Hosted AI video providers are permanently disabled by the zero-paid policy."""
+    print("  Hosted AI video generation disabled by the zero-paid project policy.")
+    return False
 
     """
     Optional Replicate text-to-video fallback.
