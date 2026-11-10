@@ -50,6 +50,16 @@ jobs:
       - name: Validate source code
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py scripts
 
+      - name: Install Playwright Chromium for 3D presenter recording
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install browser automation dependencies
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
       - name: Render documentary
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -64,20 +74,21 @@ jobs:
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
           FREE_ONLY_MODE: "1"
           AI_VIDEO_ENABLED: "0"
-          TTS_ENGINE: "chatterbox"
+          TTS_ENGINE: "edge"
+          ALLOW_CHATTERBOX_ON_CI: "false"
           TTS_VOICE: "en-IN-NeerjaNeural"
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: "1"
-          PRESENTER_MODE: "still_cpu"
+          PRESENTER_MODE: "talking_avatar_auto"
           PRESENTER_IMAGE: "assets/presenter/presenter_female.png"
           SADTALKER_DEVICE: "cpu"
           LONGFORM_VISUAL_MODE: "video_first"
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "unlisted"
-          VISUAL_SEMANTIC_CHECK: "0"
+          VISUAL_SEMANTIC_CHECK: "1"
         run: |
           test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY repository Actions secret. Add it under Settings > Secrets and variables > Actions." && exit 1)
-          python run.py long "The Mystery of India's Disappearing Villages" --category india --minutes 12 --language hinglish --voice-gender female
+          python run.py long "The Mystery of India's Disappearing Villages" --category india --minutes 12 --language english --voice-gender female
 
       - name: Verify generated MP4 files
         if: always()
