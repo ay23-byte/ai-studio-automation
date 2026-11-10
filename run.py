@@ -118,7 +118,8 @@ def cmd_upload(args):
     script = json.loads(row.get("script_json") or "{}")
     seo = generate_seo(script)
     title = row.get("title","") + " #Shorts" if row.get("format")=="shorts" else row.get("title","")
-    desc = script.get("description","Power Codex - roz ek naya concept.")
+    from core.config import CHANNEL_NAME
+    desc = script.get("description", f"{CHANNEL_NAME} - educational videos and explainers.")
     print(f"Uploading: {title}")
     vid = upload(Path(row["video_path"]), title, desc, seo["tags"])
     update_video(args.id, youtube_id=vid, status="uploaded")
@@ -135,8 +136,8 @@ def cmd_upload(args):
     else:
         print("WARNING: No generated thumbnail is recorded for this video.")
 
-    cat_info = {"finance":"Finance Explained | Power Codex", "markets":"Share Market | Power Codex"}
-    playlist = cat_info.get(row.get("category",""), "Power Codex")
+    cat_info = {"finance":f"Finance Explained | {CHANNEL_NAME}", "markets":f"Share Market | {CHANNEL_NAME}"}
+    playlist = cat_info.get(row.get("category",""), CHANNEL_NAME)
     try: add_to_playlist(vid, playlist)
     except Exception as e: print(f"Playlist: {e}")
     try: post_comment(vid, seo["pinned_comment"])
