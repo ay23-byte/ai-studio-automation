@@ -198,12 +198,18 @@ jobs:
           PRIVACY: "unlisted"
         run: python run_daily.py --upload-latest --format long
 
+      # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
+      # runners are ephemeral, so the visual/source/rights/audio/research decisions
+      # and sampled frames must be downloadable after a blocked upload.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: longform-video
-          path: output/*.mp4
-          if-no-files-found: ignore
+          name: longform-review-package
+          path: |
+            output/*.mp4
+            build/job_*/
+          if-no-files-found: warn
+          retention-days: 14
 
       # Build state remains an Actions artifact/local runtime concern; never
       # commit a live SQLite database or grant this render workflow write access.
