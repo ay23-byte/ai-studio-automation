@@ -36,35 +36,67 @@ jobs:
       HF_HUB_ETAG_TIMEOUT: "120"
       HF_HUB_DISABLE_TELEMETRY: "1"
     steps:
+      - name: Remove only the stale LTX cache from the old C-drive location
+        shell: powershell
+        run: |
+          $legacyCache = Join-Path $env:RUNNER_TOOL_CACHE "huggingface\hub\models--Lightricks--LTX-Video"
+          if (Test-Path -LiteralPath $legacyCache) {
+            Write-Host "Removing stale LTX-only cache from the previous C-drive location: $legacyCache"
+            Remove-Item -LiteralPath $legacyCache -Recurse -Force
+          } else {
+            Write-Host "No legacy LTX cache found."
+          }
+
       - name: Select model storage drive and check free space
         shell: powershell
         run: |
-          $requiredBytes = 80GB
-          $selectedRoot = $null
-          foreach ($driveLetter in @("F", "D", "C")) {
-            $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$($driveLetter):'"
-            if ($null -eq $volume) { continue }
-            $freeBytes = [int64]$volume.FreeSpace
-            Write-Host "$driveLetter`: free space = $([math]::Round($freeBytes / 1GB, 1)) GB"
-            if ($freeBytes -ge $requiredBytes) {
-              $selectedRoot = "$($driveLetter):\AI-Video-Models"
-              break
-            }
+          $requiredBytes = 100GB
+          $candidates = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" |
+            Where-Object { $_.DeviceID -match '^[A-Z]:$' } |
+            ForEach-Object {
+              [pscustomobject]@{
+                Root = $_.DeviceID
+                FreeBytes = [int64]$_.FreeSpace
+              }
+            } |
+            Sort-Object FreeBytes -Descending
+
+          foreach ($drive in $candidates) {
+            Write-Host "$($drive.Root) free space = $([math]::Round($drive.FreeBytes / 1GB, 1)) GB"
           }
-          if (-not $selectedRoot) {
-            throw "At least 80 GB free space is required on F:, D:, or C: for the LTX-Video source model and OpenVINO export. Free space and rerun; no model download was started."
+
+          $selected = $candidates | Where-Object { $_.FreeBytes -ge $requiredBytes } | Select-Object -First 1
+          if ($null -eq $selected) {
+            throw "At least 100 GB free space is required on one local fixed drive for the LTX source model, OpenVINO export, Python environment and temporary files. Free space and rerun; no model download was started."
           }
-          New-Item -ItemType Directory -Force -Path $selectedRoot | Out-Null
-          "OPENVINO_MODEL_STORAGE_ROOT=$selectedRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Selected model storage: $selectedRoot"
+
+          $storageRoot = Join-Path $selected.Root "AI-Video-Models"
+          $hfHome = Join-Path $storageRoot "huggingface"
+          $venv = Join-Path $storageRoot "openvino-ltx-venv"
+          $pipCache = Join-Path $storageRoot "pip-cache"
+          $tempRoot = Join-Path $storageRoot "temp"
+
+          foreach ($path in @($storageRoot, $hfHome, $pipCache, $tempRoot)) {
+            New-Item -ItemType Directory -Force -Path $path | Out-Null
+          }
+
+          "OPENVINO_MODEL_STORAGE_ROOT=$storageRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "HF_HOME=$hfHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PIP_CACHE_DIR=$pipCache" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TEMP=$tempRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TMP=$tempRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "OPENVINO_LTX_VENV=$venv" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          Write-Host "Selected storage drive: $($selected.Root)"
+          Write-Host "Model/cache root: $storageRoot"
+          Write-Host "Python environment: $venv"
+          Write-Host "Temporary directory: $tempRoot"
 
       - name: Configure persistent Hugging Face cache
         shell: powershell
         run: |
-          $hfHome = Join-Path $env:OPENVINO_MODEL_STORAGE_ROOT "huggingface"
-          New-Item -ItemType Directory -Force -Path $hfHome | Out-Null
-          "HF_HOME=$hfHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Hugging Face cache: $hfHome"
+          New-Item -ItemType Directory -Force -Path $env:HF_HOME | Out-Null
+          Write-Host "Hugging Face cache: $env:HF_HOME"
 
       - name: Check out project
         uses: actions/checkout@v4
@@ -73,7 +105,7 @@ jobs:
         id: install
         shell: powershell
         run: |
-          $venv = Join-Path $env:RUNNER_TEMP "openvino-ltx-venv"
+          $venv = $env:OPENVINO_LTX_VENV
           if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
             python -m venv $venv
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -83,7 +115,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "OPENVINO_LTX_VENV=$venv" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & $py -c "import transformers, diffusers, openvino_genai; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('OpenVINO GenAI import OK')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -109,6 +140,18 @@ jobs:
             }
           }
 
+      - name: Verify model storage before export
+        shell: powershell
+        run: |
+          $root = [System.IO.Path]::GetPathRoot($env:OPENVINO_MODEL_STORAGE_ROOT)
+          $driveId = $root.TrimEnd('\\')
+          $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$driveId'"
+          $freeGB = [math]::Round(([int64]$volume.FreeSpace) / 1GB, 1)
+          Write-Host "Free space before model export: $freeGB GB on $root"
+          if ([int64]$volume.FreeSpace -lt 60GB) {
+            throw "Less than 60 GB remains on the selected model drive after environment setup. Remove unrelated files or use a larger drive before downloading LTX-Video."
+          }
+
       - name: Export INT8 LTX-Video model with resumable downloads and retries
         id: model
         timeout-minutes: 300
@@ -127,12 +170,12 @@ jobs:
               break
             }
             if ($attempt -lt 4) {
-              Write-Warning "Export failed; waiting 45 seconds before retry. Hugging Face downloads should resume from cache."
+              Write-Warning "Export failed; waiting 45 seconds before retry. Hugging Face downloads should resume from the selected model drive cache."
               Start-Sleep -Seconds 45
             }
           }
           if (-not $exported) {
-            throw "LTX-Video export failed after 4 attempts. Review Hugging Face connectivity and available disk space."
+            throw "LTX-Video export failed after 4 attempts. Inspect the first underlying exception; check free space on $env:OPENVINO_MODEL_STORAGE_ROOT and Hugging Face connectivity."
           }
           "OPENVINO_LTX_MODEL_DIR=$modelDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
