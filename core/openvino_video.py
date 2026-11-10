@@ -29,11 +29,15 @@ def generate_ltx_video(
 ) -> bool:
     """Generate one short clip with a locally exported OpenVINO LTX-Video model."""
     target = Path(output_path)
-    model_path = Path(model_dir or os.getenv("OPENVINO_LTX_MODEL_DIR", "")).expanduser()
+    model_value = str(model_dir or os.getenv("OPENVINO_LTX_MODEL_DIR", "")).strip()
+    if not model_value:
+        print("OpenVINO LTX skipped: set OPENVINO_LTX_MODEL_DIR to an exported model folder.")
+        return False
+    model_path = Path(model_value).expanduser()
     if not prompt or not str(prompt).strip():
         print("OpenVINO LTX skipped: empty prompt.")
         return False
-    if not str(model_path) or not model_path.is_dir():
+    if not model_path.is_dir():
         print("OpenVINO LTX skipped: set OPENVINO_LTX_MODEL_DIR to an exported model folder.")
         return False
 
@@ -49,7 +53,7 @@ def generate_ltx_video(
     requested_device = os.getenv("OPENVINO_DEVICE", "GPU").strip().upper()
     if requested_device == "AUTO":
         device = "AUTO"
-    elif requested_device in available:
+    elif requested_device in available or any(item.startswith(requested_device + ".") for item in available):
         device = requested_device
     elif requested_device == "GPU" and os.getenv("OPENVINO_ALLOW_CPU_FALLBACK", "false").lower() == "true" and "CPU" in available:
         device = "CPU"
