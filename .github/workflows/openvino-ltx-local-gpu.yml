@@ -1,0 +1,77 @@
+name: Free local AI video generation — Intel Iris Xe
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: Cinematic scene prompt
+        required: true
+        type: string
+      aspect_ratio:
+        description: Output composition
+        required: true
+        type: choice
+        options:
+          - 9:16
+          - 16:9
+        default: 9:16
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openvino-ltx-local-gpu
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    # Register the user's Windows PC as a self-hosted runner with this custom label.
+    # GitHub-hosted runners do not provide access to the user's Intel Iris Xe GPU.
+    runs-on: [self-hosted, Windows, X64, intel-iris-xe]
+    timeout-minutes: 360
+    env:
+      OPENVINO_DEVICE: GPU
+      OPENVINO_VIDEO_FRAMES: "57"
+      OPENVINO_VIDEO_STEPS: "25"
+      OPENVINO_VIDEO_FPS: "25"
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Install OpenVINO GenAI and model exporter
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade-strategy eager openvino-genai optimum-intel numpy
+
+      - name: Export INT8 LTX-Video model once and reuse local runner cache
+        id: model
+        shell: pwsh
+        run: |
+          $modelDir = Join-Path $env:RUNNER_TOOL_CACHE "ltx_video_openvino_int8"
+          if (-not (Test-Path (Join-Path $modelDir "model_index.json"))) {
+            New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+            optimum-cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 $modelDir
+          } else {
+            Write-Host "Using cached OpenVINO LTX model at $modelDir"
+          }
+          "OPENVINO_LTX_MODEL_DIR=$modelDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Generate AI video review clip
+        shell: pwsh
+        env:
+          PROMPT: ${{ inputs.prompt }}
+          ASPECT_RATIO: ${{ inputs.aspect_ratio }}
+        run: |
+          python scripts/generate_openvino_video.py --prompt "$env:PROMPT" --aspect-ratio "$env:ASPECT_RATIO" --output "output/openvino_ltx_review.mp4"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvino-ltx-ai-video-review
+          path: |
+            output/openvino_ltx_review.mp4
+            output/openvino_ltx_review.mp4.source.json
+          if-no-files-found: error
+          retention-days: 7

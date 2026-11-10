@@ -392,10 +392,21 @@ def _video_ok(path):
         return False
 
 
-def generate_ai_video(prompt, path):
-    """Hosted AI video providers are permanently disabled by the zero-paid policy."""
-    print("  Hosted AI video generation disabled by the zero-paid project policy.")
-    return False
+def generate_ai_video(prompt, path, aspect_ratio="9:16"):
+    """Use only an explicitly configured local OpenVINO LTX model; never call hosted providers."""
+    import re
+    if re.search(
+        r"\b(archival\s+(?:footage|film|video|photograph|photo|still|image)|archive\s+footage|newsreel|historical\s+(?:footage|film|photograph)|old\s+footage)\b",
+        str(prompt or ""), re.I
+    ):
+        print("  AI video skipped: archival requests require genuine archival sources.")
+        return False
+    model_dir = os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip()
+    if not model_dir:
+        print("  Local AI video skipped: OPENVINO_LTX_MODEL_DIR is not configured.")
+        return False
+    from core.openvino_video import generate_ltx_video
+    return generate_ltx_video(prompt, path, aspect_ratio=aspect_ratio, model_dir=model_dir)
 
 
 # Record scene-image provider outcomes without storing prompts or credentials.
