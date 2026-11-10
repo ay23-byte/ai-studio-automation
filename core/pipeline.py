@@ -5,6 +5,7 @@ from core import config as cfg
 from core.voice import synthesise
 from core.images import generate_image, fetch_clip, generate_ai_video
 from core.db import save_video, update_video
+from core.cinematic_shot_planner import plan_cinematic_shots, write_cinematic_shot_plan
 
 W_S, H_S = 1080, 1920   # Shorts
 W_L, H_L = 1920, 1080   # Long-form
@@ -314,6 +315,21 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
                     "Image generation and relevant stock search both failed; refusing to insert unrelated footage. "
                     "Retry later or configure a working image provider/Pixabay key."
                 )
+
+    # Apply deterministic camera/lens shot planning to every visual; local metadata only.
+    short_shots = [{
+        "visual_prompt": str(scene.get("image") or scene.get("say") or ""),
+        "narration": str(scene.get("say") or ""),
+        "camera_movement": str(scene.get("camera_movement") or "slow controlled push-in"),
+        "shot_size": str(scene.get("shot_size") or "medium"),
+        "visual_guardrail": "Match the spoken line; no unrelated filler or fabricated evidence.",
+        "cinema_settings": scene.get("cinema_settings") or {},
+    } for scene in scenes]
+    planned_short_shots = plan_cinematic_shots(short_shots, defaults={"aspect_ratio": "9:16"})
+    for media_item, planned_shot in zip(media, planned_short_shots):
+        media_item["cinema_settings"] = planned_shot["cinema_settings"]
+        media_item["cinematic_prompt"] = planned_shot["cinematic_prompt"]
+    write_cinematic_shot_plan(short_shots, bd / "cinematic_shot_plan.json", defaults={"aspect_ratio": "9:16"})
 
     # Captions
     words_per_scene = [len(sc.get("say","").split()) for sc in scenes]
@@ -684,6 +700,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
+
+    # Add a reviewable per-shot cinema plan and pass camera controls into FFmpeg rendering.
+    shot_timeline[:] = plan_cinematic_shots(shot_timeline, defaults={"aspect_ratio": "16:9"})
+    write_cinematic_shot_plan(shot_timeline, bd / "cinematic_shot_plan.json", defaults={"aspect_ratio": "16:9"})
 
     # A presenter is only a brief on-camera introduction. Reject renders where
     # presenter clips consume the chapter and leave no room for documentary B-roll.
