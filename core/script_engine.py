@@ -25,7 +25,7 @@ RULES:
 - Avoid generic repeated topics and generic stock imagery; each scene must have a distinct visual idea
 
 Return ONLY valid JSON:
-{{"title":"English title max 80 chars","hook":"English hook max 50 chars","category":"{category}","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
+{{"title":"Title in selected language, max 80 chars","hook":"Hook in selected language, max 50 chars","category":"{category}","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
 
 LONGFORM_PROMPT = """You are the showrunner, investigative journalist, fact-checking researcher, documentary scriptwriter and cinematic visual director for a premium YouTube documentary.
 
