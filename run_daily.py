@@ -183,7 +183,7 @@ def main():
         if args.format == "shorts":
             out = build_shorts(script, vid_id, language=t.get("language", "english"))
         else:
-            out = build_longform(script, vid_id, language=t.get("language", "hindi"))
+            out = build_longform(script, vid_id, language=t.get("language", "english"))
 
         mark_done(topics, t)
         print(f"Built: {out}")
