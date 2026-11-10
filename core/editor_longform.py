@@ -62,12 +62,13 @@ def _audio_master_filter():
     return f"loudnorm=I={target}:TP={peak}:LRA={lra}"
 
 
-def _seg(src, idx, dur, is_image, bd):
+def _seg(src, idx, dur, is_image, bd, shot=None):
     out = bd / f"lseg{idx}.mp4"
     if is_image:
         frames = max(int(dur*30),2)
-        z = f"1+0.05*on/{frames}" if idx%2==0 else f"1.05-0.05*on/{frames}"
-        pos = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        from core.cinematic_motion import still_motion_parameters
+        z, x, y = still_motion_parameters((shot or {}).get("cinema_settings"), idx, frames)
+        pos = f"x='{x}':y='{y}'"
         from core.visual_consistency import color_grade_filter
         grade = color_grade_filter()
         vf = (f"scale={W*2}:{H*2}:force_original_aspect_ratio=increase:flags=lanczos,"
@@ -80,7 +81,8 @@ def _seg(src, idx, dur, is_image, bd):
         grade = color_grade_filter()
         # Give moving B-roll a restrained, slow camera drift. The 6.7% overscan
         # prevents empty edges while the crop travels gently across the frame.
-        x_motion, y_motion = _video_motion_expressions(idx)
+        from core.cinematic_motion import video_crop_expressions
+        x_motion, y_motion = video_crop_expressions((shot or {}).get("cinema_settings"), idx, dur, 128, 72)
         vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W}:{H},scale=2048:1152:flags=lanczos,"
               f"crop={W}:{H}:x='{x_motion}':y='{y_motion}',"
@@ -157,7 +159,7 @@ def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
         if src and src.exists():
             d = sec.get("_dur",10.0)+FADE
-            valid.append((i, _seg(src, i, d, m.get("type")=="image", bd), sec.get("_dur",10.0), sec))
+            valid.append((i, _seg(src, i, d, m.get("type")=="image", bd, sec), sec.get("_dur",10.0), sec))
     if not valid: raise RuntimeError("No visual segments")
     if len(valid)==1:
         _, p, _, _shot = valid[0]

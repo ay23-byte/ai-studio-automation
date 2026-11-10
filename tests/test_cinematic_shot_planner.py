@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from core.cinematic_shot_planner import (
-    build_cinematic_prompt, plan_cinematic_shots, write_cinematic_shot_plan,
+    build_cinematic_prompt, plan_cinematic_shots, write_cinematic_shot_plan, _movement_hint,
 )
 
 
@@ -29,6 +29,11 @@ class CinematicShotPlannerTests(unittest.TestCase):
         self.assertIn("35mm", prompt)
         self.assertIn("16:9 composition", prompt)
         self.assertIn("locked-off camera", prompt)
+
+    def test_natural_language_camera_movement_is_normalized(self):
+        self.assertEqual(_movement_hint("slow lateral tracking movement"), "tracking")
+        self.assertEqual(_movement_hint("slow controlled dolly push-in"), "slow_push_in")
+        self.assertEqual(_movement_hint("locked-off camera"), "locked")
 
     def test_empty_subject_is_rejected(self):
         with self.assertRaises(ValueError):

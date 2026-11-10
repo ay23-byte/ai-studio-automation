@@ -56,3 +56,15 @@ This code has no inference dependencies and makes no external requests. GitHub
 Actions can run its tests and produce the JSON plan without GPU access. Actual
 local model inference requires a compatible machine/GPU and separately
 validated open weights; GitHub-hosted CPU runners are not treated as a free GPU.
+
+## Rendering integration
+
+The integrated pipeline now writes `cinematic_shot_plan.json` for both Shorts
+and long-form builds. The planned camera movement is passed into the existing
+FFmpeg editors: still images receive controlled push/pull, pan, tilt or crane
+motion; video B-roll receives a bounded crop drift; existing transitions,
+narration, subtitles, music and licensing/review gates remain in place.
+
+This is deterministic 2D camera movement over real stills/video, not AI video
+generation, 3D scene creation, face animation or lip-sync. It runs on CPU in
+GitHub Actions and does not require Intel/NVIDIA GPU inference or paid APIs.
