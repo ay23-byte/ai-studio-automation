@@ -227,7 +227,7 @@ def _visual_beat_durations(narration, beats, section_duration):
 
 
 def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=False):
-    """Run free local post-render checks; long-form exports also receive audio mastering QA."""
+    """Run required post-render QA; fail closed when inspection fails or cannot run."""
     try:
         from core.quality import inspect_video, write_report
         report = inspect_video(video_path, subtitle_path=subtitle_path)
@@ -258,10 +258,16 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
             print(f"QUALITY WARNING: {warning}")
         for issue in report.get("issues", []):
             print(f"QUALITY ERROR: {issue}")
+        if report.get("status") == "FAIL":
+            raise RuntimeError(
+                "Video quality inspection failed; refusing to mark this render complete. "
+                + "; ".join(str(item) for item in report.get("issues", []))
+            )
     except Exception as exc:
         print(f"Video quality inspection could not complete: {exc}")
-        if documentary:
-            raise RuntimeError("Documentary quality inspection is a required release artifact; refusing an unverified render.") from exc
+        raise RuntimeError(
+            "Required video quality inspection could not complete; refusing an unverified render."
+        ) from exc
 
 
 def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "english", voice_gender: str = "male") -> Path:
