@@ -29,9 +29,11 @@ jobs:
     timeout-minutes: 360
     env:
       OPENVINO_DEVICE: GPU
-      OPENVINO_VIDEO_FRAMES: "57"
-      OPENVINO_VIDEO_STEPS: "25"
-      OPENVINO_VIDEO_FPS: "25"
+      OPENVINO_VIDEO_WIDTH: "320"
+      OPENVINO_VIDEO_HEIGHT: "576"
+      OPENVINO_VIDEO_FRAMES: "17"
+      OPENVINO_VIDEO_STEPS: "8"
+      OPENVINO_VIDEO_FPS: "12"
       HF_HUB_DOWNLOAD_TIMEOUT: "1800"
       HF_HUB_ETAG_TIMEOUT: "120"
       HF_HUB_DISABLE_TELEMETRY: "1"
@@ -145,9 +147,23 @@ jobs:
             }
           }
 
-      - name: Verify model storage before export
+      - name: Check laptop RAM and model storage before export
         shell: powershell
         run: |
+          $computer = Get-CimInstance Win32_ComputerSystem
+          $os = Get-CimInstance Win32_OperatingSystem
+          $totalGB = [math]::Round(([double]$computer.TotalPhysicalMemory) / 1GB, 1)
+          $freeGB = [math]::Round(([double]$os.FreePhysicalMemory * 1KB) / 1GB, 1)
+          $commit = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
+          Write-Host "Detected physical RAM: $totalGB GB"
+          Write-Host "Currently available physical RAM: $freeGB GB"
+          Write-Host "Committed bytes: $([math]::Round(([double]$commit.CommittedBytes) / 1GB, 1)) GB"
+          if ($totalGB -lt 14) {
+            throw "This workflow is configured for a 16 GB-class laptop. Less than 14 GB physical RAM detected; stopping before model download/export."
+          }
+          if ($freeGB -lt 8) {
+            throw "Only $freeGB GB RAM is currently available. Close memory-heavy apps and rerun; the LTX exporter needs substantial working memory."
+          }
           $root = [System.IO.Path]::GetPathRoot($env:OPENVINO_MODEL_STORAGE_ROOT)
           $driveId = $root.TrimEnd('\\')
           $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$driveId'"
@@ -157,7 +173,7 @@ jobs:
             throw "Less than 60 GB remains on the selected model drive after environment setup. Remove unrelated files or use a larger drive before downloading LTX-Video."
           }
 
-      - name: Export INT8 LTX-Video model with resumable downloads and retries
+      - name: Export INT8 LTX-Video model (single attempt; avoid repeating an out-of-memory export)
         id: model
         timeout-minutes: 300
         shell: powershell
@@ -166,21 +182,11 @@ jobs:
           $py = Join-Path $env:OPENVINO_LTX_VENV "Scripts\python.exe"
           $cli = Join-Path $env:OPENVINO_LTX_VENV "Scripts\optimum-cli.exe"
           New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
-          $exported = $false
-          for ($attempt = 1; $attempt -le 4; $attempt++) {
-            Write-Host "LTX model export attempt $attempt/4"
-            & $cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 $modelDir
-            if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $modelDir "model_index.json"))) {
-              $exported = $true
-              break
-            }
-            if ($attempt -lt 4) {
-              Write-Warning "Export failed; waiting 45 seconds before retry. Hugging Face downloads should resume from the selected model drive cache."
-              Start-Sleep -Seconds 45
-            }
-          }
-          if (-not $exported) {
-            throw "LTX-Video export failed after 4 attempts. Inspect the first underlying exception; check free space on $env:OPENVINO_MODEL_STORAGE_ROOT and Hugging Face connectivity."
+          Write-Host "Exporting the OpenVINO-supported LTX text-to-video pipeline once."
+          Write-Warning "Important: the upstream repository default may still require more than this laptop can provide. This run uses a low-memory generation profile, but that does not reduce peak memory required during model export."
+          & $cli export openvino --model Lightricks/LTX-Video --task text-to-video --trust-remote-code --weight-format int8 $modelDir
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $modelDir "model_index.json"))) {
+            throw "LTX export failed. Do not retry automatically: inspect whether the failure is RAM exhaustion or an unsupported model/config. The current 16 GB Iris Xe laptop may not be able to export the default checkpoint."
           }
           "OPENVINO_LTX_MODEL_DIR=$modelDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
