@@ -85,17 +85,26 @@ class GeminiFailoverTests(unittest.TestCase):
         self.assertEqual(post.call_count, 2)
 
 
-    def test_shorts_prompt_formats_for_english_only(self):
-        prompt = script_engine.SHORTS_PROMPT.format(
-            topic="The science of black holes",
-            category="science",
-            channel_name="Engineering Physics",
-        )
-        self.assertIn("English only", prompt)
-        self.assertIn("Engineering Physics", prompt)
-        self.assertIn("The science of black holes", prompt)
-        self.assertIn('"scenes"', prompt)
-        self.assertNotIn("Devanagari Hindi only", prompt)
+    def test_shorts_prompt_supports_english_hindi_and_hinglish(self):
+        for language, expected in [
+            ("English", "natural English"),
+            ("Hindi", "natural Hindi in Devanagari"),
+            ("Hinglish", "conversational Hindi-English code-mixing in Roman script"),
+        ]:
+            prompt = script_engine.SHORTS_PROMPT.format(
+                topic="The science of black holes",
+                category="science",
+                channel_name="Engineering Physics",
+                language=language,
+            )
+            self.assertIn(expected, prompt)
+            self.assertIn("Engineering Physics", prompt)
+            self.assertIn("The science of black holes", prompt)
+            self.assertIn('"scenes"', prompt)
+
+    def test_shorts_generator_rejects_unknown_language(self):
+        with self.assertRaisesRegex(ValueError, "english, hindi, hinglish"):
+            script_engine.generate_shorts_script("Black holes", language="unknown")
 
 
 
