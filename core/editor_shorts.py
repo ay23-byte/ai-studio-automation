@@ -21,12 +21,13 @@ def _whoosh(path):
           "-af","highpass=f=250,lowpass=f=3500,afade=t=in:st=0:d=0.3,afade=t=out:st=0.3:d=0.4",
           "-ac","2",str(path)])
 
-def _img_seg(src, idx, dur, bd):
+def _img_seg(src, idx, dur, bd, settings=None):
     out = bd / f"seg{idx}.mp4"
     w, h = _img_size(src)
     frames = max(int(dur*30), 2)
-    z = f"1+0.08*on/{frames}" if idx%2==0 else f"1.08-0.08*on/{frames}"
-    pos = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+    from core.cinematic_motion import still_motion_parameters
+    z, x, y = still_motion_parameters(settings, idx, frames)
+    pos = f"x='{x}':y='{y}'"
     base = ["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30","-t",f"{dur:.3f}","-i",str(src)]
     if h/max(w,1) >= 1.5:
         vf = (f"scale=2160:3840:force_original_aspect_ratio=increase:flags=lanczos,crop=2160:3840,"
@@ -43,13 +44,13 @@ def _img_seg(src, idx, dur, bd):
         _run(base + ["-filter_complex",fc,"-map","[v]","-an",*ENC,str(out)])
     return out
 
-def _clip_seg(src, idx, dur, bd):
+def _clip_seg(src, idx, dur, bd, settings=None):
     out = bd / f"seg{idx}.mp4"
     sw = int(W*1.12)//2*2; sh = int(H*1.12)//2*2
-    prog = f"min(t/{dur:.3f},1)"
-    x = f"(iw-ow)*{prog}" if idx%2==0 else f"(iw-ow)*(1-{prog})"
+    from core.cinematic_motion import video_crop_expressions
+    x, y = video_crop_expressions(settings, idx, dur, sw-W, sh-H)
     vf = (f"scale={sw}:{sh}:force_original_aspect_ratio=increase:flags=lanczos,crop={sw}:{sh},fps=30,"
-          f"crop={W}:{H}:x='{x}':y='(ih-oh)/2',setsar=1,"
+          f"crop={W}:{H}:x='{x}':y='{y}',setsar=1,"
           "eq=brightness=-0.08:saturation=0.85,vignette=PI/6,format=yuv420p")
     _run(["ffmpeg","-y","-loglevel","error","-stream_loop","-1",
           "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
@@ -61,8 +62,8 @@ def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.45
     parts = []
     for i, m in enumerate(media):
         d = lens[i] + FADE
-        parts.append(_img_seg(Path(m["path"]), i, d, bd) if m["type"]=="image"
-                     else _clip_seg(Path(m["path"]), i, d, bd))
+        parts.append(_img_seg(Path(m["path"]), i, d, bd, m.get("cinema_settings")) if m["type"]=="image"
+                     else _clip_seg(Path(m["path"]), i, d, bd, m.get("cinema_settings")))
     chain, prev, acc = [], "[0:v]", 0.0
     for k in range(1, len(parts)):
         acc += lens[k-1]; lab = f"[x{k}]"
