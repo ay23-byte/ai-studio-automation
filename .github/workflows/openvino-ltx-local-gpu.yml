@@ -34,9 +34,16 @@ jobs:
       OPENVINO_VIDEO_FPS: "25"
       HF_HUB_DOWNLOAD_TIMEOUT: "600"
       HF_HUB_ETAG_TIMEOUT: "120"
-      HF_HOME: ${{ runner.tool_cache }}\huggingface
       HF_HUB_DISABLE_TELEMETRY: "1"
     steps:
+      - name: Configure persistent Hugging Face cache
+        shell: powershell
+        run: |
+          $hfHome = Join-Path $env:RUNNER_TOOL_CACHE "huggingface"
+          New-Item -ItemType Directory -Force -Path $hfHome | Out-Null
+          "HF_HOME=$hfHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Hugging Face cache: $hfHome"
+
       - name: Check out project
         uses: actions/checkout@v4
 
