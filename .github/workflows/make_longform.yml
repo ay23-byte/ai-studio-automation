@@ -15,10 +15,6 @@ on:
         type: choice
         options: ["10", "12", "15"]
         default: "12"
-      upload:
-        description: "Upload to YouTube after building? (approval recommended)"
-        type: boolean
-        default: false
       voice_gender:
         description: "Narration voice and matching presenter portrait"
         type: choice
@@ -179,21 +175,8 @@ jobs:
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
             --minutes ${{ inputs.minutes }} \
-            --language hinglish \
+            --language english \
             --voice-gender "${{ inputs.voice_gender }}"
-
-      - name: Upload to YouTube
-        if: ${{ inputs.upload }}
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "unlisted"
-        run: python run_daily.py --upload-latest --format long
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions
