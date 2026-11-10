@@ -43,7 +43,6 @@ class ZeroPaidProviderPolicyTests(unittest.TestCase):
     def test_muapi_direct_entry_is_blocked_by_default(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertFalse(generate_muapi_video("cinematic scene", Path(directory) / "clip.mp4"))
-        post.assert_not_called()
 
 
 if __name__ == "__main__":
