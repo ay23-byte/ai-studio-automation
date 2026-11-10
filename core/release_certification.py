@@ -238,16 +238,28 @@ def assert_release_certified(build_dir: str | Path, video_path: str | Path) -> d
     """Require a current certificate and unchanged release artifacts before publishing."""
     root = Path(build_dir).resolve()
     certificate_path = root / "release_certificate.json"
-    if not certificate_path.is_file():
-        raise ValueError(
-            f"Release certificate is missing from {root}. Run scripts/certify_release.py or certify in the dashboard."
-        )
-    try:
-        certificate = _load_json(certificate_path)
-    except Exception as exc:
-        raise ValueError(f"Cannot read release certificate: {exc}") from exc
-    if certificate.get("status") != "CERTIFIED":
-        raise ValueError("Release certificate status is BLOCKED; resolve every listed blocker and recertify.")
+    certificate = None
+    if certificate_path.is_file():
+        try:
+            certificate = _load_json(certificate_path)
+        except Exception as exc:
+            raise ValueError(f"Cannot read release certificate: {exc}") from exc
+
+    # A completed render may have all human-review decisions and QA evidence
+    # but no certificate because the render step deliberately does not certify
+    # or approve its own output. Generate (or refresh a BLOCKED certificate)
+    # at the release boundary. This never bypasses review: certify_documentary
+    # returns BLOCKED unless every visual, source, rights, audio and research
+    # gate passes.
+    if certificate is None or certificate.get("status") != "CERTIFIED":
+        certificate = certify_documentary(root, video_path)
+        if certificate.get("status") != "CERTIFIED":
+            blockers = certificate.get("blockers") or ["Unknown certification blocker."]
+            detail = "\\n - ".join(str(item) for item in blockers)
+            raise ValueError(
+                "Release certification is BLOCKED; YouTube upload was not attempted. "
+                "Resolve these review/quality issues and retry:\\n - " + detail
+            )
     if str(Path(video_path).resolve()) != certificate.get("video_path"):
         raise ValueError("The video path differs from the certified release artifact.")
     recorded = certificate.get("artifact_hashes") or {}
