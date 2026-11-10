@@ -1,3 +1,4 @@
+import os
 import time, random, base64, urllib.parse, subprocess, hashlib
 from pathlib import Path
 import requests
@@ -59,7 +60,9 @@ def _write_source_metadata(path, metadata):
 
 
 def _cloudflare(prompt, path):
-    if not CF_ACCOUNT_ID or not CF_API_TOKEN: return False
+    # Permanently disabled: this hosted inference endpoint can incur charges.
+    print("  Cloudflare AI image generation disabled by the zero-paid project policy.")
+    return False
     url = (f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
            f"/ai/run/@cf/black-forest-labs/flux-1-schnell")
     for attempt in range(2):
@@ -390,88 +393,9 @@ def _video_ok(path):
 
 
 def generate_ai_video(prompt, path):
-    """
-    Optional Replicate text-to-video fallback.
-    It is deliberately opt-in: both REPLICATE_API_TOKEN and
-    AI_VIDEO_ENABLED=1 are required. Model-specific input can be supplied as
-    JSON in REPLICATE_VIDEO_INPUT_JSON; the prompt key is always overwritten.
-    """
-    from core.muapi_video import generate_muapi_video
-    if generate_muapi_video(prompt, path):
-        return True
-
-    import json, os, re
-    from urllib.parse import urlparse
-
-    token = os.getenv("REPLICATE_API_TOKEN", "").strip()
-    model = os.getenv("REPLICATE_VIDEO_MODEL", "").strip()
-    enabled = os.getenv("AI_VIDEO_ENABLED", "0").strip().lower() in {"1", "true", "yes"}
-    if not (enabled and token and model):
-        return False
-
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", model):
-        print("AI video skipped: REPLICATE_VIDEO_MODEL must be owner/model.")
-        return False
-
-    try:
-        raw_input = os.getenv("REPLICATE_VIDEO_INPUT_JSON", "").strip()
-        # MiniMax H3 Lite's documented text-to-video input requires only
-        # the prompt. Keep model-specific optional fields out of the default
-        # request; users can add supported fields through the JSON setting.
-        model_input = json.loads(raw_input) if raw_input else {
-            "prompt": prompt[:1800]
-        }
-        if not isinstance(model_input, dict):
-            raise ValueError("REPLICATE_VIDEO_INPUT_JSON must be a JSON object.")
-        model_input["prompt"] = prompt[:1800]
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        response = requests.post(
-            f"https://api.replicate.com/v1/models/{model}/predictions",
-            headers={**headers, "Prefer": "wait=5"},
-            json={"input": model_input}, timeout=45
-        )
-        response.raise_for_status()
-        prediction = response.json()
-        deadline = time.time() + int(os.getenv("AI_VIDEO_TIMEOUT_SECONDS", "480"))
-        while prediction.get("status") in {"starting", "processing"} and time.time() < deadline:
-            time.sleep(5)
-            get_url = (prediction.get("urls") or {}).get("get")
-            if not get_url:
-                break
-            poll = requests.get(get_url, headers=headers, timeout=30)
-            poll.raise_for_status()
-            prediction = poll.json()
-
-        if prediction.get("status") != "succeeded":
-            print("AI video provider did not complete: " + str(prediction.get("error") or prediction.get("status")))
-            return False
-
-        output = prediction.get("output")
-        candidates = output if isinstance(output, list) else [output]
-        video_url = next((item for item in candidates if isinstance(item, str)
-                          and urlparse(item).scheme == "https"), None)
-        if not video_url:
-            print("AI video provider returned no downloadable video URL.")
-            return False
-        with requests.get(video_url, stream=True, timeout=120) as download:
-            download.raise_for_status()
-            with path.open("wb") as target:
-                for chunk in download.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        target.write(chunk)
-        if not _video_ok(path):
-            path.unlink(missing_ok=True)
-            print("AI video provider returned an invalid or too-short video.")
-            return False
-        print("  clip ok (Replicate AI video)")
-        return True
-    except Exception as exc:
-        print(f"AI video generation failed: {exc}")
-        try:
-            path.unlink(missing_ok=True)
-        except Exception:
-            pass
-        return False
+    """Hosted AI video providers are permanently disabled by the zero-paid policy."""
+    print("  Hosted AI video generation disabled by the zero-paid project policy.")
+    return False
 
 
 # Record scene-image provider outcomes without storing prompts or credentials.
