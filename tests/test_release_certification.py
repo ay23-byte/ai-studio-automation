@@ -143,9 +143,26 @@ class ReleaseCertificationTests(unittest.TestCase):
         self.assertTrue(any("missing from the release description" in item
                             for item in certificate["blockers"]))
 
-    def test_release_assertion_requires_certificate(self):
-        with self.assertRaisesRegex(ValueError, "Release certificate is missing"):
+    @patch("core.release_certification.probe_release_video")
+    def test_missing_certificate_is_created_when_all_review_gates_pass(self, probe):
+        probe.return_value = self._valid_video_metadata()
+        certificate = assert_release_certified(self.root, self.video)
+        self.assertEqual(certificate["status"], "CERTIFIED")
+        self.assertTrue((self.root / "release_certificate.json").is_file())
+
+    @patch("core.release_certification.probe_release_video")
+    def test_missing_certificate_does_not_bypass_pending_human_review(self, probe):
+        probe.return_value = self._valid_video_metadata()
+        report = json.loads((self.root / "visual_review_report.json").read_text(encoding="utf-8"))
+        load_reviews(self.root / "visual_review_report.json", report["shots"])
+        save_review(
+            self.root / "visual_review_report.json", "shot_0001",
+            rights_review_status="pending",
+        )
+        with self.assertRaisesRegex(ValueError, "Rights review status"):
             assert_release_certified(self.root, self.video)
+        certificate = json.loads((self.root / "release_certificate.json").read_text(encoding="utf-8"))
+        self.assertEqual(certificate["status"], "BLOCKED")
 
 
 if __name__ == "__main__":
