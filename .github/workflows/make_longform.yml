@@ -34,6 +34,10 @@ on:
         type: choice
         options: [video_first, image_first]
         default: video_first
+      muapi_video_enabled:
+        description: "Enable optional paid MuAPI AI B-roll generation (requires API key and model configuration)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -157,6 +161,12 @@ jobs:
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
           FREE_ONLY_MODE: "1"
           AI_VIDEO_ENABLED: "0"
+          MUAPI_VIDEO_ENABLED: ${{ inputs.muapi_video_enabled && '1' || '0' }}
+          MUAPI_API_KEY: ${{ secrets.MUAPI_API_KEY }}
+          MUAPI_VIDEO_ENDPOINT: ${{ vars.MUAPI_VIDEO_ENDPOINT }}
+          MUAPI_VIDEO_INPUT_JSON: ${{ vars.MUAPI_VIDEO_INPUT_JSON }}
+          MUAPI_MAX_COST_USD: ${{ vars.MUAPI_MAX_COST_USD || '0.25' }}
+          MUAPI_VIDEO_TIMEOUT_SECONDS: "600"
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           REPLICATE_VIDEO_MODEL: ${{ vars.REPLICATE_VIDEO_MODEL }}
           REPLICATE_VIDEO_INPUT_JSON: ${{ vars.REPLICATE_VIDEO_INPUT_JSON }}
