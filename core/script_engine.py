@@ -10,20 +10,22 @@ class GeminiRequestError(RuntimeError):
         self.status_code = status_code
         self.retryable = retryable
 
-SHORTS_PROMPT = """Write ONE Shorts script for a Hindi/Hinglish YouTube channel about: "{topic}" (category: {category})
+SHORTS_PROMPT = """Write ONE polished English-language YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
+
+LANGUAGE: English only. Every spoken line, caption, title, hook, label and on-screen phrase must be natural English in Latin script. Never use Hindi, Hinglish, Devanagari or transliterated Hindi.
 
 RULES:
-- "say": Devanagari Hindi only, no English letters or digits, spell numbers in words
-- "caption": Roman Hinglish, same number of sentences as "say"
-- 5-6 scenes, 10-22 spoken words per scene, 70-110 total words
-- Finance topics: education only, no advice, no company names, no promised returns
-- Last scene: disclaimer + follow call to action
-- "label": 1-3 Roman words max 22 chars
-- "image": English AI image prompt (no text, faces, logos, charts with data)
-- "keywords": 1-2 English stock footage words
+- 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
+- "say" is the exact English narration; "caption" is concise English subtitle text matching the spoken meaning
+- Finance topics: education only, no personal advice, no promised returns
+- Last scene: concise educational disclaimer + follow call to action
+- "label": 1-3 English words, max 22 characters
+- "image": specific English cinematic visual prompt (no text, logos or invented factual imagery)
+- "keywords": 2-4 specific English footage search terms relevant to the scene
+- Avoid generic repeated topics and generic stock imagery; each scene must have a distinct visual idea
 
 Return ONLY valid JSON:
-{{"title":"Roman Hinglish title max 80 chars","hook":"Roman hook question max 50 chars","category":"{category}","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
+{{"title":"English title max 80 chars","hook":"English hook max 50 chars","category":"{category}","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
 
 LONGFORM_PROMPT = """You are the showrunner, investigative journalist, fact-checking researcher, documentary scriptwriter and cinematic visual director for a premium YouTube documentary.
 
@@ -446,7 +448,7 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
 def generate_shorts_script(topic: str, category: str = "finance",
                            channel_name: str = "", audience: str = "",
                            brand_voice: str = "") -> dict:
-    prompt = SHORTS_PROMPT.format(topic=topic, category=category)
+    prompt = SHORTS_PROMPT.format(topic=topic, category=category, channel_name=channel_name or CHANNEL_NAME)
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
     script = _parse(_ask_gemini(prompt))
     script["format"] = "shorts"
