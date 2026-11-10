@@ -52,12 +52,133 @@ jobs:
             Write-Host "No legacy LTX cache found."
           }
 
-      - name: Select model storage drive and check free space
+      - name: Select split model storage and check free space
         shell: powershell
         run: |
-          $requiredBytes = 100GB
-          $candidates = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" |
-            Where-Object { $_.DeviceID -match '^[A-Z]:$' } |
+          $drives = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" |
+            Where-Object { $_.DeviceID -match '^[A-Z]:
+
+      - name: Configure persistent Hugging Face cache
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:HF_HOME | Out-Null
+          Write-Host "Hugging Face cache: $env:HF_HOME"
+
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Install isolated OpenVINO environment with compatible Transformers
+        id: install
+        shell: powershell
+        run: |
+          $venv = $env:OPENVINO_LTX_VENV
+          if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
+            python -m venv $venv
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $py = Join-Path $venv "Scripts\python.exe"
+          & $py -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy accelerate sentencepiece protobuf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -m pip install --upgrade hf_xet
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -c "import transformers, diffusers, openvino_genai, hf_xet, accelerate, sentencepiece; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('accelerate', accelerate.__version__); print('sentencepiece', sentencepiece.__version__); print('hf_xet import OK'); print('OpenVINO GenAI import OK')" 
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check Hugging Face network access
+        shell: powershell
+        run: |
+          $hosts = @("huggingface.co", "us.aws.cdn.hf.co")
+          foreach ($hostName in $hosts) {
+            $resolved = $false
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+              try {
+                Resolve-DnsName $hostName -ErrorAction Stop | Out-Null
+                Write-Host "DNS OK: $hostName"
+                $resolved = $true
+                break
+              } catch {
+                Write-Warning "DNS attempt $attempt/5 failed for $hostName"
+                Start-Sleep -Seconds (10 * $attempt)
+              }
+            }
+            if (-not $resolved) {
+              throw "Cannot resolve $hostName. Check this PC's internet/DNS connection, VPN, proxy, or firewall, then rerun."
+            }
+          }
+
+      - name: Check laptop RAM and model storage before export
+        shell: powershell
+        run: |
+          $computer = Get-CimInstance Win32_ComputerSystem
+          $os = Get-CimInstance Win32_OperatingSystem
+          $totalGB = [math]::Round(([double]$computer.TotalPhysicalMemory) / 1GB, 1)
+          $freeGB = [math]::Round(([double]$os.FreePhysicalMemory * 1KB) / 1GB, 1)
+          $commit = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
+          Write-Host "Detected physical RAM: $totalGB GB"
+          Write-Host "Currently available physical RAM: $freeGB GB"
+          Write-Host "Committed bytes: $([math]::Round(([double]$commit.CommittedBytes) / 1GB, 1)) GB"
+          if ($totalGB -lt 14) {
+            throw "This workflow is configured for a 16 GB-class laptop. Less than 14 GB physical RAM detected; stopping before model download/export."
+          }
+          if ($freeGB -lt 8) {
+            throw "Only $freeGB GB RAM is currently available. Close memory-heavy apps and rerun; the LTX exporter needs substantial working memory."
+          }
+          $root = [System.IO.Path]::GetPathRoot($env:OPENVINO_MODEL_STORAGE_ROOT)
+          $driveId = $root.TrimEnd('\\')
+          $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$driveId'"
+          $workFreeGB = [math]::Round(([int64]$volume.FreeSpace) / 1GB, 1)
+          $cacheRoot = [System.IO.Path]::GetPathRoot($env:HF_HOME)
+          $cacheDriveId = $cacheRoot.TrimEnd('\\')
+          $cacheVolume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$cacheDriveId'"
+          $cacheFreeGB = [math]::Round(([int64]$cacheVolume.FreeSpace) / 1GB, 1)
+          Write-Host "Free space before model export: $workFreeGB GB on $root"
+          Write-Host "Free space for Hugging Face source-model cache: $cacheFreeGB GB on $cacheRoot"
+          if ([int64]$volume.FreeSpace -lt 30GB) {
+            throw "Less than 30 GB remains on the OpenVINO work drive after environment setup. Free space before downloading LTX-Video."
+          }
+          if ([int64]$cacheVolume.FreeSpace -lt 35GB) {
+            throw "Less than 35 GB remains on the Hugging Face cache drive. Free space before downloading LTX-Video."
+          }
+
+      - name: Export INT8 LTX-Video model (single attempt; avoid repeating an out-of-memory export)
+        id: model
+        timeout-minutes: 300
+        shell: powershell
+        run: |
+          $modelDir = Join-Path $env:OPENVINO_MODEL_STORAGE_ROOT "ltx_video_openvino_int8"
+          $py = Join-Path $env:OPENVINO_LTX_VENV "Scripts\python.exe"
+          $cli = Join-Path $env:OPENVINO_LTX_VENV "Scripts\optimum-cli.exe"
+          New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+          Write-Host "Exporting the OpenVINO-supported LTX text-to-video pipeline once."
+          Write-Warning "Important: the upstream repository default may still require more than this laptop can provide. This run uses a low-memory generation profile, but that does not reduce peak memory required during model export."
+          & $cli export openvino --model Lightricks/LTX-Video --task text-to-video --trust-remote-code --weight-format int8 $modelDir
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $modelDir "model_index.json"))) {
+            throw "LTX export failed. Do not retry automatically: inspect whether the failure is RAM exhaustion or an unsupported model/config. The current 16 GB Iris Xe laptop may not be able to export the default checkpoint."
+          }
+          "OPENVINO_LTX_MODEL_DIR=$modelDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Generate AI video review clip
+        shell: powershell
+        env:
+          PROMPT: ${{ inputs.prompt }}
+          ASPECT_RATIO: ${{ inputs.aspect_ratio }}
+        run: |
+          $py = Join-Path $env:OPENVINO_LTX_VENV "Scripts\python.exe"
+          & $py scripts/generate_openvino_video.py --prompt "$env:PROMPT" --aspect-ratio "$env:ASPECT_RATIO" --output "output/openvino_ltx_review.mp4"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvino-ltx-ai-video-review
+          path: |
+            output/openvino_ltx_review.mp4
+            output/openvino_ltx_review.mp4.source.json
+          if-no-files-found: error
+          retention-days: 7
+ } |
             ForEach-Object {
               [pscustomobject]@{
                 Root = $_.DeviceID
@@ -66,17 +187,24 @@ jobs:
             } |
             Sort-Object FreeBytes -Descending
 
-          foreach ($drive in $candidates) {
+          foreach ($drive in $drives) {
             Write-Host "$($drive.Root) free space = $([math]::Round($drive.FreeBytes / 1GB, 1)) GB"
           }
 
-          $selected = $candidates | Where-Object { $_.FreeBytes -ge $requiredBytes } | Select-Object -First 1
-          if ($null -eq $selected) {
-            throw "At least 100 GB free space is required on one local fixed drive for the LTX source model, OpenVINO export, Python environment and temporary files. Free space and rerun; no model download was started."
+          # Keep the Hugging Face source-model cache separate from the export,
+          # virtual environment and temporary files. This lets multiple drives
+          # contribute capacity instead of demanding 100 GB on a single volume.
+          $cacheDrive = $drives | Where-Object { $_.FreeBytes -ge 40GB } | Select-Object -First 1
+          $workDrive = $drives | Where-Object {
+            $_.Root -ne $cacheDrive.Root -and $_.FreeBytes -ge 35GB
+          } | Select-Object -First 1
+
+          if ($null -eq $cacheDrive -or $null -eq $workDrive) {
+            throw "LTX needs two storage locations: one drive with at least 40 GB free for the Hugging Face source-model cache and another with at least 35 GB free for the OpenVINO export, Python environment and temporary files. No model download was started."
           }
 
-          $storageRoot = Join-Path $selected.Root "AI-Video-Models"
-          $hfHome = Join-Path $storageRoot "huggingface"
+          $storageRoot = Join-Path $workDrive.Root "AI-Video-Models"
+          $hfHome = Join-Path $cacheDrive.Root "AI-Video-Cache\huggingface"
           $venv = Join-Path $storageRoot "openvino-ltx-venv"
           $pipCache = Join-Path $storageRoot "pip-cache"
           $tempRoot = Join-Path $storageRoot "temp"
@@ -92,8 +220,10 @@ jobs:
           "TMP=$tempRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "OPENVINO_LTX_VENV=$venv" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-          Write-Host "Selected storage drive: $($selected.Root)"
-          Write-Host "Model/cache root: $storageRoot"
+          Write-Host "Hugging Face source-model cache drive: $($cacheDrive.Root)"
+          Write-Host "Cache root: $hfHome"
+          Write-Host "OpenVINO export/work drive: $($workDrive.Root)"
+          Write-Host "Model export and Python environment root: $storageRoot"
           Write-Host "Python environment: $venv"
           Write-Host "Temporary directory: $tempRoot"
 
