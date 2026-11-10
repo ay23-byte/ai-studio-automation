@@ -264,6 +264,8 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
                 + "; ".join(str(item) for item in report.get("issues", []))
             )
     except Exception as exc:
+        if isinstance(exc, RuntimeError) and "Video quality inspection failed" in str(exc):
+            raise
         print(f"Video quality inspection could not complete: {exc}")
         raise RuntimeError(
             "Required video quality inspection could not complete; refusing an unverified render."
