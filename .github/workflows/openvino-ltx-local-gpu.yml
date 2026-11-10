@@ -39,26 +39,27 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install OpenVINO GenAI and model exporter
-        shell: pwsh
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade-strategy eager openvino-genai optimum-intel numpy
 
       - name: Export INT8 LTX-Video model once and reuse local runner cache
         id: model
-        shell: pwsh
+        shell: powershell
         run: |
           $modelDir = Join-Path $env:RUNNER_TOOL_CACHE "ltx_video_openvino_int8"
           if (-not (Test-Path (Join-Path $modelDir "model_index.json"))) {
             New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
             optimum-cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 $modelDir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } else {
             Write-Host "Using cached OpenVINO LTX model at $modelDir"
           }
           "OPENVINO_LTX_MODEL_DIR=$modelDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Generate AI video review clip
-        shell: pwsh
+        shell: powershell
         env:
           PROMPT: ${{ inputs.prompt }}
           ASPECT_RATIO: ${{ inputs.aspect_ratio }}
