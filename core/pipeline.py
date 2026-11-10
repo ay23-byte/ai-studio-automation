@@ -1,5 +1,5 @@
 """Main pipeline: takes a script dict, builds a video, returns output path."""
-import random, re, subprocess
+import random, re, subprocess, os
 from pathlib import Path
 from core import config as cfg
 from core.voice import synthesise
@@ -302,12 +302,22 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
             + str(sc.get("image") or sc.get("say", ""))
             + ". 9:16 cinematic documentary image, accurate subject and action, no text or logos."
         )
-        if generate_image(scene_prompt, img_p, category=script.get("category", "general")):
+        clip_p = bd / f"raw{i}.mp4"
+        ai_video_mode = os.getenv("AI_VIDEO_MODE", "fallback").strip().lower()
+        generated_video = False
+        if ai_video_mode == "prefer" and os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip():
+            generated_video = generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16")
+        if generated_video:
+            media.append({"type":"video","path":clip_p})
+        elif generate_image(scene_prompt, img_p, category=script.get("category", "general")):
             media.append({"type":"image","path":img_p})
         else:
-            clip_p = bd / f"raw{i}.mp4"
             kws = sc.get("keywords") or [str(sc.get("say", ""))[:100]]
-            if fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_prompt):
+            if not generated_video and os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip():
+                generated_video = generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16")
+            if generated_video:
+                media.append({"type":"video","path":clip_p})
+            elif fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_prompt):
                 media.append({"type":"video","path":clip_p})
             else:
                 raise RuntimeError(
