@@ -19,19 +19,14 @@ class _Response:
 
 
 class ImageProvenanceTests(unittest.TestCase):
-    def test_cloudflare_generated_image_gets_provenance_sidecar(self):
+    @patch.dict(os.environ, {"FREE_ONLY_MODE": "0", "CLOUDFLARE_ACCOUNT_ID": "account", "CLOUDFLARE_API_TOKEN": "token"})
+    @patch("core.images.requests.post")
+    def test_cloudflare_is_hard_disabled_even_with_credentials(self, post):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "generated.jpg"
-            with patch.dict(os.environ, {"FREE_ONLY_MODE": "0"}), patch("core.images.CF_ACCOUNT_ID", "account"), patch(
-                "core.images.CF_API_TOKEN", "token"
-            ), patch("core.images.requests.post", return_value=_Response()), patch(
-                "core.images._ok", return_value=True
-            ):
-                self.assertTrue(_cloudflare("documentary visual prompt", path))
-            sidecar = json.loads(path.with_suffix(".jpg.source.json").read_text(encoding="utf-8"))
-            self.assertEqual(sidecar["provider"], "Cloudflare Workers AI")
-            self.assertEqual(sidecar["asset_type"], "ai_generated_image")
-            self.assertIn("licence_status", sidecar)
+            self.assertFalse(_cloudflare("documentary visual prompt", path))
+            self.assertFalse(path.exists())
+        post.assert_not_called()
 
     def test_pollinations_generated_image_gets_provenance_sidecar(self):
         with tempfile.TemporaryDirectory() as folder:
