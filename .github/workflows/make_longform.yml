@@ -34,3 +34,191 @@ on:
         type: choice
         options: [video_first, image_first]
         default: video_first
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Preflight documentary providers
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          if not os.getenv("GEMINI_API_KEY"):
+              print("FATAL: GEMINI_API_KEY is missing; script generation cannot start.")
+              sys.exit(1)
+          providers = {
+              "Pixabay": bool(os.getenv("PIXABAY_API_KEY")),
+              "Cloudflare image generation": bool(os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN")),
+              "Coverr": bool(os.getenv("COVERR_API_KEY")),
+              "DVIDS": bool(os.getenv("DVIDS_API_KEY")),
+              "NARA": bool(os.getenv("NARA_API_KEY")),
+              "Europeana": bool(os.getenv("EUROPEANA_API_KEY")),
+              "Pollinations (keyless fallback)": True,
+              "Wikimedia Commons (public API)": True,
+              "Internet Archive (public metadata)": True,
+          }
+          for name, configured in providers.items():
+              print(f"Provider {'READY' if configured else 'NOT CONFIGURED'}: {name}")
+          if not any(providers[name] for name in ("Pixabay", "Cloudflare image generation", "Coverr")):
+              print("WARNING: No keyed general visual provider is configured; archival/context graphics and keyless fallback may be needed.")
+          PY
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng
+
+      # This workflow runs on GitHub-hosted CPU runners. Chatterbox v3
+      # inference is too slow there for dependable long-form production.
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set up Python for SadTalker CPU inference
+        if: ${{ inputs.presenter_mode == 'sadtalker' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - name: Install SadTalker and pretrained models (CPU)
+        if: ${{ inputs.presenter_mode == 'sadtalker' }}
+        env:
+          SADTALKER_DIR: ${{ runner.temp }}/SadTalker
+          SADTALKER_VENV: ${{ runner.temp }}/sadtalker-venv
+        run: |
+          git clone --depth 1 https://github.com/OpenTalker/SadTalker.git "$SADTALKER_DIR"
+          python -m venv "$SADTALKER_VENV"
+          "$SADTALKER_VENV/bin/python" -m pip install --upgrade pip setuptools wheel
+          "$SADTALKER_VENV/bin/python" -m pip install torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cpu
+          "$SADTALKER_VENV/bin/python" -m pip install -r "$SADTALKER_DIR/requirements.txt"
+          # The upstream download script writes to ./checkpoints relative to
+          # the current directory. Run it from SadTalker itself so inference.py
+          # can find checkpoints/ and the downloaded safetensors weights.
+          cd "$SADTALKER_DIR"
+          bash scripts/download_models.sh
+          test -s checkpoints/SadTalker_V0.0.2_256.safetensors
+          test -s checkpoints/mapping_00229-model.pth.tar
+
+      - name: Restore project Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate Python syntax
+        run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
+
+      - name: Test narration provider fallback
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing -v
+
+      - name: Install Playwright Chromium for automatic 3D avatar recording
+        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install browser automation dependencies
+        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Build long-form video
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: "gemini-3.1-flash-lite"
+          GEMINI_FALLBACK_MODELS: "gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          FREE_ONLY_MODE: "1"
+          AI_VIDEO_ENABLED: "0"
+          AI_VIDEO_TIMEOUT_SECONDS: "480"
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TTS_ENGINE: "edge"
+          ALLOW_CHATTERBOX_ON_CI: "false"
+          CHATTERBOX_TORCH_THREADS: "2"
+          PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
+          PRESENTER_MODE: ${{ inputs.presenter_mode }}
+          LONGFORM_VISUAL_MODE: ${{ inputs.visual_mode }}
+          SADTALKER_DIR: ${{ runner.temp }}/SadTalker
+          SADTALKER_PYTHON: ${{ runner.temp }}/sadtalker-venv/bin/python
+          SADTALKER_DEVICE: cpu
+          PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "unlisted"
+        run: |
+          python run.py long "${{ inputs.topic }}" \
+            --category "${{ inputs.category }}" \
+            --minutes ${{ inputs.minutes }} \
+            --language hinglish \
+            --voice-gender "${{ inputs.voice_gender }}"
+
+      - name: Upload to YouTube
+        if: ${{ inputs.upload }}
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "unlisted"
+        run: python run_daily.py --upload-latest --format long
+
+      # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
+      # runners are ephemeral, so the visual/source/rights/audio/research decisions
+      # and sampled frames must be downloadable after a blocked upload.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: longform-review-package
+          path: |
+            output/*.mp4
+            build/job_*/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # Build state remains an Actions artifact/local runtime concern; never
+      # commit a live SQLite database or grant this render workflow write access.
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" \
+              -d text="❌ AI Studio make-longform failed. Check GitHub Actions." > /dev/null
+          fi
