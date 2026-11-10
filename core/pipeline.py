@@ -107,7 +107,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 """
     lines = [f"Dialogue: 0,{_ts(0)},{_ts(T)},Mark,,0,0,0,,{ch_name}"]
     if disclaimer:
-        lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,Sirf educational jaankari  |  Investment advice nahi")
+        lines.append(f"Dialogue: 0,{_ts(0)},{_ts(T)},Disc,,0,0,0,,For educational purposes only  |  Not investment advice")
     if hook:
         he = min(3.2, (items[0][1]+0.3) if items else 3.0)
         lines.append(f"Dialogue: 1,{_ts(0.1)},{_ts(he)},Hook,,0,0,0,,{{\\fad(250,350)}}{_clean(hook)}")
@@ -264,7 +264,7 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
             raise RuntimeError("Documentary quality inspection is a required release artifact; refusing an unverified render.") from exc
 
 
-def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "hindi", voice_gender: str = "male") -> Path:
+def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: str = "english", voice_gender: str = "male") -> Path:
     """Build a 9:16 Shorts video from a scene-based script."""
     from core.editor_shorts import render as shorts_render
     bd = build_dir or (cfg.BUILD_DIR / f"job_{job_id}")
@@ -343,7 +343,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
 
     labels = [(starts[i], starts[i]+lens[i], sc.get("label","")) for i, sc in enumerate(scenes)]
     hook = script.get("hook","")
-    cta = "Roz ek naya video  •  Follow karo"
+    cta = "Follow for more engineering and science videos"
     ass = bd / "subs.ass"
     _make_ass_shorts(caption_items, hook, cta, total, labels, ass, disclaimer)
 
