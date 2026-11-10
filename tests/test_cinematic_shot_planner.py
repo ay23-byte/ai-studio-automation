@@ -48,6 +48,8 @@ class CinematicShotPlannerTests(unittest.TestCase):
         self.assertIn("macro cinema lens", result[0]["cinematic_prompt"])
         self.assertEqual(result[0]["generation_status"], "prompt_only")
         self.assertEqual(result[0]["generation_backend"], "not_configured")
+        # Renderer consumes this field directly; it must be a normalized control key.
+        self.assertEqual(result[0]["cinema_settings"]["movement"], "tracking")
 
     def test_export_is_explicitly_prompt_only_and_no_paid_calls(self):
         with tempfile.TemporaryDirectory() as tmp:

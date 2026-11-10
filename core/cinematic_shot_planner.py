@@ -135,13 +135,18 @@ def plan_cinematic_shots(
         settings.update(shot.get("cinema_settings") or {})
         subject = (shot.get("visual_prompt") or shot.get("subject")
                    or shot.get("narration") or shot.get("title") or "")
+        # Store the normalized value as well as using it in the prompt. The FFmpeg
+        # renderer consumes cinema_settings directly and must receive a supported key.
+        settings["movement"] = _movement_hint(
+            settings.get("movement") or shot.get("camera_movement") or "slow_push_in"
+        )
         prompt = build_cinematic_prompt(
             subject,
             camera=settings.get("camera", "full_frame_cinema"),
             lens=settings.get("lens", "modern_prime"),
             focal_length=settings.get("focal_length", 35),
             aperture=settings.get("aperture", "f/4"),
-            movement=_movement_hint(settings.get("movement") or shot.get("camera_movement") or "slow_push_in"),
+            movement=settings["movement"],
             shot_size=settings.get("shot_size", shot.get("shot_size", "wide")),
             lighting=settings.get("lighting", "natural"),
             aspect_ratio=settings.get("aspect_ratio", "16:9"),
