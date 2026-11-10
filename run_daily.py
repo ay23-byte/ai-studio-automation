@@ -143,13 +143,13 @@ def main():
                 if topic_title not in existing:
                     try:
                         if args.format == "shorts":
-                            script = generate_shorts_script(topic_title, category)
+                            script = generate_shorts_script(topic_title, category, language=os.getenv("SHORTS_LANGUAGE", "english"))
                         else:
                             script = generate_longform_script(topic_title, category, language="english")
                         vid_id = save_video(script.get("title", topic_title),
                                             args.format, "english", category, script)
                         if args.format == "shorts":
-                            out = build_shorts(script, vid_id, language="english")
+                            out = build_shorts(script, vid_id, language=os.getenv("SHORTS_LANGUAGE", "english"))
                         else:
                             out = build_longform(script, vid_id, language="english")
                         print(f"Built auto-generated video: {out}")
@@ -171,7 +171,7 @@ def main():
             topic_text = t.get("title") or t.get("topic", "")
             category = t.get("category", "finance")
             if args.format == "shorts":
-                script = generate_shorts_script(topic_text, category)
+                script = generate_shorts_script(topic_text, category, language=t.get("language") or os.getenv("SHORTS_LANGUAGE", "english"))
             else:
                 script = generate_longform_script(topic_text, category)
         else:
@@ -179,9 +179,9 @@ def main():
             return
 
         vid_id = save_video(script.get("title", ""), args.format,
-                            t.get("language","english"), t.get("category","finance"), script)
+                            t.get("language") or os.getenv("SHORTS_LANGUAGE", "english"), t.get("category","finance"), script)
         if args.format == "shorts":
-            out = build_shorts(script, vid_id, language=t.get("language", "english"))
+            out = build_shorts(script, vid_id, language=t.get("language") or os.getenv("SHORTS_LANGUAGE", "english"))
         else:
             out = build_longform(script, vid_id, language=t.get("language", "english"))
 
