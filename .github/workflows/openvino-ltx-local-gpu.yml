@@ -12,9 +12,9 @@ on:
         required: true
         type: choice
         options:
-          - 9:16
-          - 16:9
-        default: 9:16
+          - "9:16"
+          - "16:9"
+        default: "9:16"
 
 permissions:
   contents: read
