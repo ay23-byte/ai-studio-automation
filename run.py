@@ -171,7 +171,7 @@ def main():
     pl = sub.add_parser("long", help="Create a long-form video")
     pl.add_argument("topic", nargs="?", default="How the World Works")
     pl.add_argument("--category", default="geopolitics")
-    pl.add_argument("--language", default="hinglish")
+    pl.add_argument("--language", default="english")
     pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     pl.add_argument("--minutes", type=int, choices=range(10, 16), default=12, help="Target runtime in minutes (10-15)")
     pl.add_argument("--demo", action="store_true")
