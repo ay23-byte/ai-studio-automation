@@ -32,9 +32,12 @@ jobs:
       OPENVINO_VIDEO_FRAMES: "57"
       OPENVINO_VIDEO_STEPS: "25"
       OPENVINO_VIDEO_FPS: "25"
-      HF_HUB_DOWNLOAD_TIMEOUT: "600"
+      HF_HUB_DOWNLOAD_TIMEOUT: "1800"
       HF_HUB_ETAG_TIMEOUT: "120"
       HF_HUB_DISABLE_TELEMETRY: "1"
+      HF_XET_CLIENT_READ_TIMEOUT: "900"
+      HF_XET_CLIENT_RETRY_MAX_ATTEMPTS: "10"
+      HF_XET_CLIENT_RETRY_BASE_DELAY: "5000"
     steps:
       - name: Remove only the stale LTX cache from the old C-drive location
         shell: powershell
@@ -115,7 +118,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & $py -c "import transformers, diffusers, openvino_genai; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('OpenVINO GenAI import OK')"
+          & $py -m pip install --upgrade hf_xet
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -c "import transformers, diffusers, openvino_genai, hf_xet; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('hf_xet import OK'); print('OpenVINO GenAI import OK')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check Hugging Face network access
