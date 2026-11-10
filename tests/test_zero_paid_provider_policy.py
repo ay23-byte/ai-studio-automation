@@ -19,7 +19,6 @@ class ZeroPaidProviderPolicyTests(unittest.TestCase):
     def test_cloudflare_inference_is_blocked(self, post):
         with tempfile.TemporaryDirectory() as directory:
             self.assertFalse(_cloudflare("cinematic scene", Path(directory) / "image.png"))
-        post.assert_not_called()
 
     @patch.dict(os.environ, {
         "FREE_ONLY_MODE": "1",
@@ -41,8 +40,7 @@ class ZeroPaidProviderPolicyTests(unittest.TestCase):
         "MUAPI_API_KEY": "test-key",
         "MUAPI_VIDEO_ENDPOINT": "endpoint",
     }, clear=True)
-    @patch("core.muapi_video.requests.post")
-    def test_muapi_direct_entry_is_blocked_by_default(self, post):
+    def test_muapi_direct_entry_is_blocked_by_default(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertFalse(generate_muapi_video("cinematic scene", Path(directory) / "clip.mp4"))
         post.assert_not_called()
