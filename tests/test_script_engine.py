@@ -85,6 +85,20 @@ class GeminiFailoverTests(unittest.TestCase):
         self.assertEqual(post.call_count, 2)
 
 
+    def test_shorts_prompt_formats_for_english_only(self):
+        prompt = script_engine.SHORTS_PROMPT.format(
+            topic="The science of black holes",
+            category="science",
+            channel_name="Engineering Physics",
+        )
+        self.assertIn("English only", prompt)
+        self.assertIn("Engineering Physics", prompt)
+        self.assertIn("The science of black holes", prompt)
+        self.assertIn('"scenes"', prompt)
+        self.assertNotIn("Devanagari Hindi only", prompt)
+
+
+
 class LongformStoryboardRepairTests(unittest.TestCase):
     def test_missing_visual_beats_are_repaired_without_inventing_evidence(self):
         script = {
