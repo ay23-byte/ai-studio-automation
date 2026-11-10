@@ -62,6 +62,19 @@ def _choice(value: str, choices: dict[str, str], fallback: str) -> str:
     return choices.get(key, fallback)
 
 
+def _movement_hint(value: str) -> str:
+    """Normalize storyboard movement hints to renderer controls."""
+    hint = str(value or "").strip().lower().replace("-", "_")
+    if "locked" in hint or "static" in hint: return "locked"
+    if "pull" in hint or "zoom_out" in hint: return "slow_pull_out"
+    if "track" in hint or "lateral" in hint or "sideways" in hint: return "tracking"
+    if "crane" in hint or "rise" in hint or "descend" in hint: return "crane"
+    if "tilt" in hint or "vertical" in hint: return "tilt"
+    if "pan" in hint or "sweep" in hint: return "pan"
+    if "handheld" in hint: return "handheld"
+    if "aerial" in hint or "drone" in hint: return "aerial"
+    return "slow_push_in"
+
 def build_cinematic_prompt(
     subject: str,
     *,
@@ -128,7 +141,7 @@ def plan_cinematic_shots(
             lens=settings.get("lens", "modern_prime"),
             focal_length=settings.get("focal_length", 35),
             aperture=settings.get("aperture", "f/4"),
-            movement=settings.get("movement", shot.get("camera_movement", "slow_push_in")),
+            movement=_movement_hint(settings.get("movement") or shot.get("camera_movement") or "slow_push_in"),
             shot_size=settings.get("shot_size", shot.get("shot_size", "wide")),
             lighting=settings.get("lighting", "natural"),
             aspect_ratio=settings.get("aspect_ratio", "16:9"),
