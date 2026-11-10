@@ -34,6 +34,9 @@ def _video_is_valid(path: Path) -> bool:
 
 def generate_muapi_video(prompt: str, path: str | Path) -> bool:
     """Generate one AI B-roll clip via MuAPI; return False when disabled/unavailable."""
+    if os.getenv("FREE_ONLY_MODE", "1").strip().lower() not in {"0", "false", "no", "off"}:
+        print("MuAPI skipped: strict FREE_ONLY_MODE prohibits paid providers.")
+        return False
     token = os.getenv("MUAPI_API_KEY", "").strip()
     endpoint = os.getenv("MUAPI_VIDEO_ENDPOINT", "").strip().strip("/")
     if not (_enabled(os.getenv("MUAPI_VIDEO_ENABLED", "0")) and token and endpoint):
