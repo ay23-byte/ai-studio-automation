@@ -15,6 +15,7 @@ class MuAPIVideoTests(unittest.TestCase):
         self.assertFalse(generate_muapi_video("cinematic moon surface", "unused.mp4"))
 
     @patch.dict(os.environ, {
+        "FREE_ONLY_MODE": "0",
         "MUAPI_VIDEO_ENABLED": "1",
         "MUAPI_API_KEY": "test-key",
         "MUAPI_VIDEO_ENDPOINT": "wan-video-endpoint",
@@ -58,7 +59,7 @@ class MuAPIVideoTests(unittest.TestCase):
             self.assertEqual(sent["duration"], 5)
 
     @patch.dict(os.environ, {
-        "MUAPI_VIDEO_ENABLED": "1", "MUAPI_API_KEY": "test-key",
+        "FREE_ONLY_MODE": "0", "MUAPI_VIDEO_ENABLED": "1", "MUAPI_API_KEY": "test-key",
         "MUAPI_VIDEO_ENDPOINT": "valid-endpoint", "MUAPI_MAX_COST_USD": "0.01",
     }, clear=True)
     @patch("core.muapi_video.requests.post")
