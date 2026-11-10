@@ -85,6 +85,14 @@ def generate_muapi_video(prompt: str, path: str | Path) -> bool:
         if str(result.get("status") or "").lower() != "completed":
             raise RuntimeError("MuAPI generation ended with status: " + str(result.get("status")))
 
+        final_quote = result.get("cost") if isinstance(result.get("cost"), dict) else cost
+        final_amount = final_quote.get("amount_usd") if isinstance(final_quote, dict) else None
+        if final_amount is not None and float(final_amount) > max_cost:
+            raise ValueError(
+                f"MuAPI final charge ${float(final_amount):.4f} exceeds "
+                f"MUAPI_MAX_COST_USD=${max_cost:.4f}; output was not downloaded."
+            )
+
         outputs = result.get("outputs") or result.get("output") or []
         candidates = outputs if isinstance(outputs, list) else [outputs]
         video_url = next((item for item in candidates
