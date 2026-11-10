@@ -15,6 +15,11 @@ on:
         type: choice
         options: ["10", "12", "15"]
         default: "12"
+      language:
+        description: "Narration and subtitle language"
+        type: choice
+        options: [hinglish, hindi, english]
+        default: hinglish
       voice_gender:
         description: "Narration voice and matching presenter portrait"
         type: choice
@@ -170,12 +175,13 @@ jobs:
           SADTALKER_DEVICE: cpu
           PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
+          LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           PRIVACY: "unlisted"
         run: |
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
             --minutes ${{ inputs.minutes }} \
-            --language english \
+            --language "${{ inputs.language || 'hinglish' }}" \
             --voice-gender "${{ inputs.voice_gender }}"
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
