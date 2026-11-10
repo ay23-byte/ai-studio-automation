@@ -145,13 +145,13 @@ def main():
                         if args.format == "shorts":
                             script = generate_shorts_script(topic_title, category)
                         else:
-                            script = generate_longform_script(topic_title, category)
+                            script = generate_longform_script(topic_title, category, language="english")
                         vid_id = save_video(script.get("title", topic_title),
-                                            args.format, "hindi", category, script)
+                                            args.format, "english", category, script)
                         if args.format == "shorts":
-                            out = build_shorts(script, vid_id, language="hindi")
+                            out = build_shorts(script, vid_id, language="english")
                         else:
-                            out = build_longform(script, vid_id, language="hindi")
+                            out = build_longform(script, vid_id, language="english")
                         print(f"Built auto-generated video: {out}")
                         return
                     except Exception as e:
@@ -179,9 +179,9 @@ def main():
             return
 
         vid_id = save_video(script.get("title", ""), args.format,
-                            t.get("language","hindi"), t.get("category","finance"), script)
+                            t.get("language","english"), t.get("category","finance"), script)
         if args.format == "shorts":
-            out = build_shorts(script, vid_id, language=t.get("language", "hindi"))
+            out = build_shorts(script, vid_id, language=t.get("language", "english"))
         else:
             out = build_longform(script, vid_id, language=t.get("language", "hindi"))
 
