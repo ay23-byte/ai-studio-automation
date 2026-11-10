@@ -1,5 +1,5 @@
 import json, re, requests, time, random
-from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS
+from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, CHANNEL_NAME
 from core.news_research import research_topic, format_research_context
 
 class GeminiRequestError(RuntimeError):
@@ -740,7 +740,7 @@ def generate_seo(script: dict) -> dict:
     cat = script.get("category", "")
     tags = script.get("tags", ["finance", "hinglish", "education"])
     titles = [
-        f"{title} | Power Codex",
+        f"{title} | {CHANNEL_NAME}",
         f"{title} - Aasaan Hinglish mein",
         f"Kya aap jaante ho? {title}",
         f"{title} | {cat.title()} Explained",
@@ -752,7 +752,7 @@ def generate_seo(script: dict) -> dict:
         t += 120
     return {
         "titles": titles,
-        "tags": tags + [cat, "power codex", "hindi education"],
+        "tags": tags + [cat, CHANNEL_NAME.lower(), "education"],
         "chapters": chapters,
         "pinned_comment": "कौन सा concept अगले video में समझाएँ? Comment में बताओ 👇",
         "hashtags": [f"#{t.replace(' ','')}" for t in tags[:5]],
