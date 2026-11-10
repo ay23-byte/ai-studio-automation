@@ -142,16 +142,21 @@ def main():
             for topic_title, category in fallback_topics:
                 if topic_title not in existing:
                     try:
+                        selected_language = (
+                            os.getenv("SHORTS_LANGUAGE", "hinglish").strip().lower()
+                            if args.format == "shorts"
+                            else os.getenv("LONGFORM_LANGUAGE", "english").strip().lower()
+                        )
                         if args.format == "shorts":
-                            script = generate_shorts_script(topic_title, category, language=os.getenv("SHORTS_LANGUAGE", "english"))
+                            script = generate_shorts_script(topic_title, category, language=selected_language)
                         else:
-                            script = generate_longform_script(topic_title, category, language="english")
+                            script = generate_longform_script(topic_title, category, language=selected_language)
                         vid_id = save_video(script.get("title", topic_title),
-                                            args.format, "english", category, script)
+                                            args.format, selected_language, category, script)
                         if args.format == "shorts":
-                            out = build_shorts(script, vid_id, language=os.getenv("SHORTS_LANGUAGE", "english"))
+                            out = build_shorts(script, vid_id, language=selected_language)
                         else:
-                            out = build_longform(script, vid_id, language="english")
+                            out = build_longform(script, vid_id, language=selected_language)
                         print(f"Built auto-generated video: {out}")
                         return
                     except Exception as e:
@@ -170,20 +175,34 @@ def main():
         elif os.getenv("GEMINI_API_KEY"):
             topic_text = t.get("title") or t.get("topic", "")
             category = t.get("category", "finance")
+            selected_language = str(
+                t.get("language") or (
+                    os.getenv("SHORTS_LANGUAGE", "hinglish")
+                    if args.format == "shorts"
+                    else os.getenv("LONGFORM_LANGUAGE", "english")
+                )
+            ).strip().lower()
             if args.format == "shorts":
-                script = generate_shorts_script(topic_text, category, language=t.get("language") or os.getenv("SHORTS_LANGUAGE", "english"))
+                script = generate_shorts_script(topic_text, category, language=selected_language)
             else:
-                script = generate_longform_script(topic_text, category)
+                script = generate_longform_script(topic_text, category, language=selected_language)
         else:
             send("❌ Topic has no script and GEMINI_API_KEY is not set.")
             return
 
+        selected_language = str(
+            t.get("language") or (
+                os.getenv("SHORTS_LANGUAGE", "hinglish")
+                if args.format == "shorts"
+                else os.getenv("LONGFORM_LANGUAGE", "english")
+            )
+        ).strip().lower()
         vid_id = save_video(script.get("title", ""), args.format,
-                            t.get("language") or os.getenv("SHORTS_LANGUAGE", "english"), t.get("category","finance"), script)
+                            selected_language, t.get("category","finance"), script)
         if args.format == "shorts":
-            out = build_shorts(script, vid_id, language=t.get("language") or os.getenv("SHORTS_LANGUAGE", "english"))
+            out = build_shorts(script, vid_id, language=selected_language)
         else:
-            out = build_longform(script, vid_id, language=t.get("language", "english"))
+            out = build_longform(script, vid_id, language=selected_language)
 
         mark_done(topics, t)
         print(f"Built: {out}")
