@@ -14,8 +14,8 @@ on:
       language:
         description: "Voice language"
         type: choice
-        options: [hindi, english]
-        default: english
+        options: [hinglish, hindi, english]
+        default: hinglish
       upload:
         description: "Upload after review (leave disabled to build only)?"
         type: boolean
@@ -74,6 +74,7 @@ jobs:
           ALLOW_CHATTERBOX_ON_CI: "false"
           CHATTERBOX_TORCH_THREADS: "2"
           CHANNEL_NAME: "Engineering Physics"
+          SHORTS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           PRIVACY: "unlisted"
           # PUBLISH_AT_IST: "19:00"
         run: |
