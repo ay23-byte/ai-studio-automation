@@ -25,8 +25,6 @@ concurrency:
 
 jobs:
   generate:
-    # Register the user's Windows PC as a self-hosted runner with this custom label.
-    # GitHub-hosted runners do not provide access to the user's Intel Iris Xe GPU.
     runs-on: [self-hosted, Windows, X64, intel-iris-xe]
     timeout-minutes: 360
     env:
@@ -34,6 +32,10 @@ jobs:
       OPENVINO_VIDEO_FRAMES: "57"
       OPENVINO_VIDEO_STEPS: "25"
       OPENVINO_VIDEO_FPS: "25"
+      HF_HUB_DOWNLOAD_TIMEOUT: "600"
+      HF_HUB_ETAG_TIMEOUT: "120"
+      HF_HOME: ${{ runner.tool_cache }}\huggingface
+      HF_HUB_DISABLE_TELEMETRY: "1"
     steps:
       - name: Check out project
         uses: actions/checkout@v4
@@ -50,27 +52,58 @@ jobs:
           $py = Join-Path $venv "Scripts\python.exe"
           & $py -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Transformers 5 removed FLAX_WEIGHTS_NAME, which older Diffusers imports.
-          # Keep the exporter stack on Transformers 4 and a compatible Diffusers release.
           & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "OPENVINO_LTX_VENV=$venv" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & $py -c "import transformers, diffusers, openvino_genai; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('OpenVINO GenAI import OK')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Export INT8 LTX-Video model once and reuse local runner cache
+      - name: Check Hugging Face network access
+        shell: powershell
+        run: |
+          $hosts = @("huggingface.co", "us.aws.cdn.hf.co")
+          foreach ($hostName in $hosts) {
+            $resolved = $false
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+              try {
+                Resolve-DnsName $hostName -ErrorAction Stop | Out-Null
+                Write-Host "DNS OK: $hostName"
+                $resolved = $true
+                break
+              } catch {
+                Write-Warning "DNS attempt $attempt/5 failed for $hostName"
+                Start-Sleep -Seconds (10 * $attempt)
+              }
+            }
+            if (-not $resolved) {
+              throw "Cannot resolve $hostName. Check this PC's internet/DNS connection, VPN, proxy, or firewall, then rerun."
+            }
+          }
+
+      - name: Export INT8 LTX-Video model with resumable downloads and retries
         id: model
+        timeout-minutes: 300
         shell: powershell
         run: |
           $modelDir = Join-Path $env:RUNNER_TOOL_CACHE "ltx_video_openvino_int8"
           $py = Join-Path $env:OPENVINO_LTX_VENV "Scripts\python.exe"
           $cli = Join-Path $env:OPENVINO_LTX_VENV "Scripts\optimum-cli.exe"
-          if (-not (Test-Path (Join-Path $modelDir "model_index.json"))) {
-            New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+          $exported = $false
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            Write-Host "LTX model export attempt $attempt/4"
             & $cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 $modelDir
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-            Write-Host "Using cached OpenVINO LTX model at $modelDir"
+            if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $modelDir "model_index.json"))) {
+              $exported = $true
+              break
+            }
+            if ($attempt -lt 4) {
+              Write-Warning "Export failed; waiting 45 seconds before retry. Hugging Face downloads should resume from cache."
+              Start-Sleep -Seconds 45
+            }
+          }
+          if (-not $exported) {
+            throw "LTX-Video export failed after 4 attempts. Review Hugging Face connectivity and available disk space."
           }
           "OPENVINO_LTX_MODEL_DIR=$modelDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
