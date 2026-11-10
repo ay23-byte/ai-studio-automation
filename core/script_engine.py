@@ -10,9 +10,9 @@ class GeminiRequestError(RuntimeError):
         self.status_code = status_code
         self.retryable = retryable
 
-SHORTS_PROMPT = """Write ONE polished English-language YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
+SHORTS_PROMPT = """Write ONE polished YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
 
-LANGUAGE: English only. Every spoken line, caption, title, hook, label and on-screen phrase must be natural English in Latin script. Never use Hindi, Hinglish, Devanagari or transliterated Hindi.
+LANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write conversational Hindi-English code-mixing in Roman script (Latin letters), the way an Indian creator naturally speaks. Do not turn Hinglish into formal Hindi or pure English. Keep technical terms in English where natural. Spoken narration, captions, title, hook and labels must use the selected language consistently.
 
 RULES:
 - 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
@@ -68,7 +68,7 @@ RUNTIME & NARRATION:
 - The requested upper runtime is {duration_max} minutes. Write at least {minimum_words} spoken words across all section narration (excluding titles, visual directions, captions and metadata), and target approximately {target_words} words.
 - Distribute narration meaningfully across the cold open, five chapters and outro. Do not make chapters into short summaries.
 - Do not pad or repeat. Expand with sourced context, mechanisms, examples, evidence limitations and consequences. Never invent facts to reach a word count.
-- Write natural spoken narration in the requested language. For Hindi/Hinglish, use conversational Devanagari Hindi with necessary English technical terms explained at first use.
+- Write natural spoken narration in the requested language. For Hindi, use conversational Devanagari Hindi. For Hinglish, use natural Hindi-English code-mixing in Roman script (Latin letters), not formal Hindi and not pure English. Keep technical terms in English where natural.
 - First-person host narration is welcome ("मैंने इस रिपोर्ट में...", "जब मैंने आंकड़े देखे...") only when it describes the research process, not a fictional real-world visit, call, interview or firsthand observation.
 - No headings, bullets, markdown, camera directions or production notes inside narration.
 - Vary sentence length, use transitions and resolve open loops.
@@ -447,8 +447,15 @@ def _repair_longform_visual_anchors(script: dict) -> dict:
 
 def generate_shorts_script(topic: str, category: str = "finance",
                            channel_name: str = "", audience: str = "",
-                           brand_voice: str = "") -> dict:
-    prompt = SHORTS_PROMPT.format(topic=topic, category=category, channel_name=channel_name or CHANNEL_NAME)
+                           brand_voice: str = "", language: str = None) -> dict:
+    import os
+    selected_language = str(language or os.getenv("SHORTS_LANGUAGE", "english")).strip().lower()
+    language_aliases = {"hinglish": "Hinglish", "hindi": "Hindi", "english": "English"}
+    if selected_language not in language_aliases:
+        raise ValueError("Shorts language must be one of: english, hindi, hinglish.")
+    prompt = SHORTS_PROMPT.format(
+        topic=topic, category=category, channel_name=channel_name or CHANNEL_NAME,
+        language=language_aliases[selected_language])
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
     script = _parse(_ask_gemini(prompt))
     script["format"] = "shorts"
