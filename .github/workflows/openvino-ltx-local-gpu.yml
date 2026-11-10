@@ -38,20 +38,36 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
 
-      - name: Install OpenVINO GenAI and model exporter
+      - name: Install isolated OpenVINO environment with compatible Transformers
+        id: install
         shell: powershell
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade-strategy eager openvino-genai optimum-intel numpy
+          $venv = Join-Path $env:RUNNER_TEMP "openvino-ltx-venv"
+          if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
+            python -m venv $venv
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $py = Join-Path $venv "Scripts\python.exe"
+          & $py -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Transformers 5 removed FLAX_WEIGHTS_NAME, which older Diffusers imports.
+          # Keep the exporter stack on Transformers 4 and a compatible Diffusers release.
+          & $py -m pip install --upgrade-strategy eager openvino-genai optimum-intel "transformers<5" "diffusers==0.35.1" numpy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "OPENVINO_LTX_VENV=$venv" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $py -c "import transformers, diffusers, openvino_genai; print('transformers', transformers.__version__); print('diffusers', diffusers.__version__); print('OpenVINO GenAI import OK')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Export INT8 LTX-Video model once and reuse local runner cache
         id: model
         shell: powershell
         run: |
           $modelDir = Join-Path $env:RUNNER_TOOL_CACHE "ltx_video_openvino_int8"
+          $py = Join-Path $env:OPENVINO_LTX_VENV "Scripts\python.exe"
+          $cli = Join-Path $env:OPENVINO_LTX_VENV "Scripts\optimum-cli.exe"
           if (-not (Test-Path (Join-Path $modelDir "model_index.json"))) {
             New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
-            optimum-cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 $modelDir
+            & $cli export openvino --model Lightricks/LTX-Video --task text-to-video --weight-format int8 $modelDir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } else {
             Write-Host "Using cached OpenVINO LTX model at $modelDir"
@@ -64,7 +80,8 @@ jobs:
           PROMPT: ${{ inputs.prompt }}
           ASPECT_RATIO: ${{ inputs.aspect_ratio }}
         run: |
-          python scripts/generate_openvino_video.py --prompt "$env:PROMPT" --aspect-ratio "$env:ASPECT_RATIO" --output "output/openvino_ltx_review.mp4"
+          $py = Join-Path $env:OPENVINO_LTX_VENV "Scripts\python.exe"
+          & $py scripts/generate_openvino_video.py --prompt "$env:PROMPT" --aspect-ratio "$env:ASPECT_RATIO" --output "output/openvino_ltx_review.mp4"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload review artifact
