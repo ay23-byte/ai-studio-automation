@@ -396,6 +396,10 @@ def generate_ai_video(prompt, path):
     AI_VIDEO_ENABLED=1 are required. Model-specific input can be supplied as
     JSON in REPLICATE_VIDEO_INPUT_JSON; the prompt key is always overwritten.
     """
+    from core.muapi_video import generate_muapi_video
+    if generate_muapi_video(prompt, path):
+        return True
+
     import json, os, re
     from urllib.parse import urlparse
 
