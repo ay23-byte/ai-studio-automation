@@ -186,11 +186,18 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
                 status_code=response.status_code, retryable=True)
 
         retry_after = response.headers.get("Retry-After")
+        # Google commonly returns 503 during model-capacity incidents. Give
+        # overloaded models a meaningful cooldown; 429 may be quota/rate-limit
+        # related, so honor Retry-After and avoid rapid retry storms.
+        default_delay = (
+            min(15 * (2 ** attempt), 60) if response.status_code in (500, 502, 503, 504)
+            else min(20 * (2 ** attempt), 60)
+        )
         try:
-            delay = float(retry_after) if retry_after else min(5 * (2 ** attempt), 30)
+            delay = float(retry_after) if retry_after else default_delay
         except (TypeError, ValueError):
-            delay = min(5 * (2 ** attempt), 30)
-        delay = max(1, min(delay, 45)) + random.uniform(0, 1)
+            delay = default_delay
+        delay = max(1, min(delay, 90)) + random.uniform(0, 2)
         print(f"Gemini HTTP {response.status_code} from {model}; "
               f"retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
         time.sleep(delay)
@@ -214,7 +221,7 @@ def _ask_gemini(prompt: str) -> str:
     for index, model in enumerate(models):
         try:
             print(f"Requesting script from Gemini model: {model}")
-            return _ask_model(prompt, model, attempts=3)
+            return _ask_model(prompt, model, attempts=2)
         except GeminiRequestError as exc:
             failures.append(f"{model}: {exc}")
             # A 404 generally means this model ID is retired, unavailable to this
@@ -671,18 +678,15 @@ def generate_longform_script(topic: str, category: str = "finance",
             generated = _ask_gemini(prompt)
             last_generation_error = None
         except RuntimeError as exc:
-            # Only retry the aggregate transient-outage error. Authentication,
-            # permission and other permanent configuration failures must fail fast.
-            if "Gemini is temporarily unavailable across all configured models." not in str(exc):
+            # _ask_gemini has already exhausted every configured model and its
+            # bounded per-model retries. Re-running the whole documentary prompt
+            # here repeats the same failing requests (and can multiply API load
+            # several times). Fail this render cleanly; the next workflow run is
+            # the deliberate retry after provider capacity/quota recovers.
+            if "Gemini is temporarily unavailable across all configured models." in str(exc):
+                last_generation_error = exc
                 raise
-            last_generation_error = exc
-            if attempt == 2:
-                raise
-            print(
-                f"Gemini generation attempt {attempt + 1}/3 was unavailable; "
-                "retrying the script stage with the configured model fallback chain."
-            )
-            continue
+            raise
 
         script = _parse(generated)
         script["format"] = "longform"
