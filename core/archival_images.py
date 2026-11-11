@@ -192,4 +192,9 @@ def fetch_archival_image(query: str, path: str | Path,
             temp.unlink(missing_ok=True)
             target.unlink(missing_ok=True)
             print(f"  archival image candidate rejected: {type(exc).__name__}: {exc}")
+    # Wikimedia is the primary source; Openverse broadens discovery across
+    # openly licensed collections when Commons has no suitable result.
+    from core.openverse_images import fetch_openverse_image
+    if fetch_openverse_image(query, target, used_ids, min_relevance=min_relevance):
+        return True
     return False
