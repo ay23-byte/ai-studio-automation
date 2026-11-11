@@ -62,7 +62,7 @@ class VisualConsistencyTests(unittest.TestCase):
         for y in range(90):
             for x in range(160):
                 if 35 <= x < 125 and 20 <= y < 70:
-                    value = 18 + ((x + y) % 35)
+                    value = 50 + ((x + y) % 35)
                     pixels.append((value, value, value))
                 else:
                     pixels.append((0, 0, 0))
