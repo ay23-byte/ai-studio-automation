@@ -163,17 +163,41 @@ def _nasa(query):
         href = item.get("href")
         manifest = _get_json(href) if href else None
         candidates = manifest if isinstance(manifest, list) else []
-        url = next((x for x in candidates if isinstance(x, str) and
-                    x.lower().endswith((".mp4", ".mov")) and "~" not in x), None)
+        # NASA manifests commonly expose the best downloadable rendition as
+        # "~orig.mp4" (or "~large.mp4"). Do not discard those valid files.
+        media_candidates = [x for x in candidates if isinstance(x, str) and
+                            x.lower().endswith((".mp4", ".mov")) and
+                            not re.search(r"~(?:thumb|small|preview)\.(?:mp4|mov)$", x, re.I)]
+        media_candidates.sort(key=lambda x: (
+            0 if re.search(r"~orig\.(?:mp4|mov)$", x, re.I) else
+            1 if re.search(r"~large\.(?:mp4|mov)$", x, re.I) else
+            2 if re.search(r"~medium\.(?:mp4|mov)$", x, re.I) else 3
+        ))
+        url = media_candidates[0] if media_candidates else None
         rights_text = " ".join(str(meta.get(key) or "") for key in ("description", "keywords", "center"))
-        # Do not infer public-domain status from NASA hosting alone.
-        if url and re.search(r"public domain", rights_text, re.I):
+        # NASA says its own media is generally not copyrighted, but third-party
+        # material may appear on NASA sites. Require an identifiable NASA center
+        # and reject explicit copyright/third-party credit signals. This remains
+        # pending human review; the policy URL is recorded in every sidecar.
+        center = str(meta.get("center") or "").strip()
+        third_party_markers = re.search(
+            r"copyright|\u00a9|\u00a9|courtesy of|provided by|licensed from|"
+            r"\b(getty|ap|associated press|reuters|bbc|universal|disney)\b",
+            rights_text, re.I
+        )
+        nasa_owned_item = bool(center) and not third_party_markers
+        explicit_public_domain = bool(re.search(r"public domain", rights_text, re.I))
+        if url and (explicit_public_domain or nasa_owned_item):
+            licence = "Public Domain" if explicit_public_domain else "NASA Media Usage Guidelines"
             results.append((url, {
                 "provider": "NASA", "asset_id": meta.get("nasa_id"),
-                "title": meta.get("title"), "page_url": page,
-                "licence": "Public Domain",
+                "title": meta.get("title"), "creator": f"NASA {center}".strip(),
+                "page_url": page,
+                "licence": licence,
                 "licence_url": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
-                "query": query, "licence_status": "Public-domain statement found in item metadata; inspect third-party credits"
+                "query": query,
+                "rights_statement": "NASA media usage guidelines: NASA content is generally not subject to U.S. copyright unless third-party copyright is indicated; credit NASA and inspect all embedded third-party material.",
+                "licence_status": "NASA center metadata present and no third-party/copyright marker detected; human review required"
             }))
     return results
 
@@ -246,8 +270,7 @@ def _internet_archive(query):
             licence = "CC BY 4.0"
         else:
             continue
-        candidates = [f for f in files if str(f.get("name", "")).lower().endswith(".mp4")
-                      and int(f.get("size") or 0) > 50000]
+        candidates = [f for f in files if str(f.get("name", "")).lower().endswith(".mp4")                      and int(f.get("size") or 0) > 50000]
         candidates.sort(key=lambda f: int(f.get("size") or 0), reverse=True)
         if candidates:
             results.append((f"https://archive.org/download/{quote(identifier)}/{quote(candidates[0]['name'])}", {
@@ -482,8 +505,7 @@ def register_mixkit_asset(source_file, *, title, source_url, licence, creator=""
 
 
 def _tokens(value):
-    stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",
-            "scene", "footage", "video", "documentary", "file"}
+    stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",            "scene", "footage", "video", "documentary", "file"}
     return {word for word in re.findall(r"[a-z0-9]+", str(value or "").lower())
             if len(word) > 2 and word not in stop}
 
@@ -712,4 +734,3 @@ def register_indian_archive_asset(
     sidecar = target.with_suffix(target.suffix + ".source.json")
     sidecar.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     return target, sidecar
-

@@ -33,6 +33,8 @@ def licence_is_usable(metadata: dict) -> tuple[bool, str]:
     label = _normal(metadata.get("licence") or metadata.get("license"))
     if label in PUBLIC_DOMAIN or label in CC_BY:
         return True, "verified_label_requires_human_file_page_check"
+    if label == "nasa media usage guidelines" and _normal(metadata.get("provider")) == "nasa":
+        return True, "nasa_media_guidelines_item_level_center_metadata_and_third_party_screening_require_human_review"
     if label in {"ncaa written permission", "prasar bharati licensed footage"}:
         scope = _normal(metadata.get("usage_scope"))
         has_youtube = "youtube" in scope
