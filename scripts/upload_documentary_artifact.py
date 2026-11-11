@@ -43,28 +43,26 @@ def _find_release_metadata(root: Path) -> tuple[Path, dict]:
     return path, {"title": title, "description": description, "tags": tags[:30]}
 
 
-def _find_video(root: Path) -> tuple[Path, dict]:
+def _find_video(root: Path, build_dir: Path) -> tuple[Path, dict]:
     """Find and independently probe the single documentary MP4 in the render artifact.
 
     The make-longform producer packages output/*.mp4 and build/job_*/. It does
     not create build/live_documentary_validation/mp4-probe-report.json, so the
     uploader must not depend on that unrelated validation workflow's report.
     """
-    # The artifact intentionally includes many chapter/shot clips under
-    # build/job_*/. The finished export is written separately to output/*.mp4.
-    # Never count intermediate clips as candidate uploads.
+    # The producer pairs build/job_<id>/ with output/longform_<id>.mp4.
+    # output/ also contains previews and other MP4 products; never glob them.
+    build_name = build_dir.name
+    if not build_name.startswith("job_") or not build_name[4:].isdigit():
+        raise ValueError(f"Cannot derive a documentary job ID from build directory: {build_name}")
+    job_id = build_name[4:]
     output_dir = root / "output"
-    candidates = sorted(
-        path for path in output_dir.glob("*.mp4")
-        if path.is_file() and path.stat().st_size > 100_000
-    ) if output_dir.is_dir() else []
-    if len(candidates) != 1:
+    video_path = output_dir / f"longform_{job_id}.mp4"
+    if not video_path.is_file() or video_path.stat().st_size <= 100_000:
         raise ValueError(
-            "Expected exactly one final documentary MP4 under output/; "
-            f"found {len(candidates)}. Intermediate build/job_*/ clips are ignored."
+            f"Expected final export output/longform_{job_id}.mp4 for {build_name}; "
+            "file is missing or too small. Other MP4s are not upload candidates."
         )
-
-    video_path = candidates[0]
     try:
         # Reuse the same FFprobe-based delivery-profile gate used by release
         # certification. This verifies real audio/video streams, duration,
@@ -130,7 +128,7 @@ def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_revie
         raise FileNotFoundError(f"Artifact directory does not exist: {root}")
 
     metadata_path, metadata = _find_release_metadata(root)
-    video_path, probe = _find_video(root)
+    video_path, probe = _find_video(root, metadata_path.parent)
     evidence = _validate_release_evidence(metadata_path.parent)
     digest = hashlib.sha256(video_path.read_bytes()).hexdigest()
 
