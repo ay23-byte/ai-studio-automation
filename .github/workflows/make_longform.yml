@@ -15,21 +15,6 @@ on:
         type: boolean
         required: true
         default: false
-      enable_ai_video:
-        description: "Enable Replicate text-to-video generation (may incur charges; off by default)"
-        type: boolean
-        required: true
-        default: false
-      ai_video_max_clips:
-        description: "Maximum number of paid AI-generated video clips (hard cap)"
-        type: choice
-        options: ["1", "2", "3", "5"]
-        default: "2"
-      ai_video_mode:
-        description: "Use AI video before stock for selected scenes (higher cost) or only as fallback"
-        type: choice
-        options: [fallback, prefer]
-        default: fallback
       minutes:
         description: "Target length in minutes"
         type: choice
@@ -176,16 +161,12 @@ jobs:
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
           NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
-          FREE_ONLY_MODE: ${{ inputs.enable_ai_video && '0' || '1' }}
-          AI_VIDEO_ENABLED: ${{ inputs.enable_ai_video && '1' || '0' }}
-          AI_VIDEO_PROVIDER: "replicate"
-          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
-          REPLICATE_VIDEO_MODEL: ${{ vars.REPLICATE_VIDEO_MODEL }}
-          REPLICATE_VIDEO_VERSION: ${{ vars.REPLICATE_VIDEO_VERSION }}
-          REPLICATE_VIDEO_INPUT_JSON: ${{ vars.REPLICATE_VIDEO_INPUT_JSON || '{"prompt":"{{prompt}}"}' }}
-          AI_VIDEO_MAX_CLIPS: ${{ inputs.ai_video_max_clips || '2' }}
-          AI_VIDEO_MODE: ${{ inputs.ai_video_mode || 'fallback' }}
-          AI_VIDEO_TIMEOUT_SECONDS: "480"
+          # Hard-disable every hosted AI-video provider in the GitHub-only,
+          # zero-paid documentary workflow. Open-weight video models still need
+          # GPU compute; standard GitHub-hosted runners are CPU-only.
+          FREE_ONLY_MODE: "1"
+          AI_VIDEO_ENABLED: "0"
+          AI_VIDEO_PROVIDER: "disabled"
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
