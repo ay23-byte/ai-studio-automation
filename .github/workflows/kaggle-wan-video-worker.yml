@@ -100,6 +100,9 @@ jobs:
                       replaced = True
           if not replaced:
               raise SystemExit("Notebook manifest placeholder was not found.")
+          for index, cell in enumerate(notebook.get("cells", [])):
+              if cell.get("cell_type") == "code":
+                  compile("".join(cell.get("source", [])), f"wan_worker_cell_{index}", "exec")
           notebook_path.write_text(json.dumps(notebook, ensure_ascii=False), encoding="utf-8")
           metadata = {
               "id": f'{os.environ["KAGGLE_USERNAME"]}/{os.environ["KAGGLE_KERNEL_SLUG"]}',
