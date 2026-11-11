@@ -660,6 +660,10 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
         known = bool(licence and licence_url and (
             "public domain" in licence or licence.startswith("cc0")
             or licence.startswith("cc by") or licence.startswith("cc by-sa")
+            or (
+                licence == "nasa media usage guidelines"
+                and str(metadata.get("provider") or "").strip().lower() == "nasa"
+            )
         ))
         if not known or score < 0.25:
             continue
