@@ -49,7 +49,7 @@ class ReplicateVideoProviderTests(unittest.TestCase):
         "REPLICATE_VIDEO_INPUT_JSON": '{"prompt":"{{prompt}}","aspect_ratio":"{{aspect_ratio}}"}',
     }, clear=True)
     @patch("core.images._write_source_metadata")
-    @patch("core.images._valid_ai_video", return_value=True)
+    @patch("core.images._video_ok", return_value=True)
     @patch("core.images.requests.get")
     @patch("core.images.requests.post")
     def test_explicit_opt_in_generates_and_records_video(
