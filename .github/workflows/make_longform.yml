@@ -6,10 +6,15 @@ on:
         description: "Video topic"
         required: true
       category:
-        description: "Category"
-        type: choice
-        options: [geopolitics, history, science, technology, economics, india, mystery, education, finance, markets, money, power, human]
-        default: geopolitics
+        description: "Category (auto detects from any topic, or enter your own)"
+        type: string
+        required: false
+        default: auto
+      semantic_review:
+        description: "Use Gemini vision to screen sampled shots against narration (extra model usage)"
+        type: boolean
+        required: true
+        default: false
       minutes:
         description: "Target length in minutes"
         type: choice
@@ -176,6 +181,8 @@ jobs:
           PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
           LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
+          VISUAL_SEMANTIC_MAX_SHOTS: "40"
           PRIVACY: "unlisted"
         run: |
           python run.py long "${{ inputs.topic }}" \
