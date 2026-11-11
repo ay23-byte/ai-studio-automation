@@ -3,8 +3,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from scripts.upload_documentary_artifact import _validate_release_evidence
+from scripts.upload_documentary_artifact import _find_video, _validate_release_evidence
 
 
 class DocumentaryUploadEvidenceTests(unittest.TestCase):
@@ -50,6 +51,28 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
                 writer.writerow({"shot_id": "shot_0001", "use_status": "blocked"})
             with self.assertRaisesRegex(ValueError, "blocked assets"):
                 _validate_release_evidence(root)
+
+
+    def test_find_video_probes_single_packaged_mp4_without_external_report(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            video = root / "output" / "longform_1.mp4"
+            video.parent.mkdir()
+            video.write_bytes(b"x" * 100_001)
+            expected = {"duration_seconds": 600.0, "width": 1920, "height": 1080}
+            with patch("core.release_certification.probe_release_video", return_value=expected) as probe:
+                found_path, metadata = _find_video(root)
+            self.assertEqual(found_path, video)
+            self.assertEqual(metadata, expected)
+            probe.assert_called_once_with(video)
+
+    def test_find_video_refuses_multiple_mp4_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "one.mp4").write_bytes(b"x" * 100_001)
+            (root / "two.mp4").write_bytes(b"x" * 100_001)
+            with self.assertRaisesRegex(ValueError, "found 2"):
+                _find_video(root)
 
 
 if __name__ == "__main__":
