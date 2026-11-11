@@ -518,7 +518,8 @@ def _metadata_relevance(query, metadata):
 
 
 def _is_archival_video_request(keywords=None, scene_prompt=""):
-    """Identify requests that require genuine historical/archival moving images."""    text = " ".join(str(value or "") for value in (keywords or [])) + " " + str(scene_prompt or "")
+    """Identify requests that require genuine historical/archival moving images."""
+    text = " ".join(str(value or "") for value in (keywords or [])) + " " + str(scene_prompt or "")
     return bool(re.search(
         r"\b(archival\s+(?:footage|film|video|newsreel)|archive\s+footage|newsreel|historical\s+(?:footage|film|newsreel)|period\s+(?:film|footage)|old\s+footage)\b",
         text, re.I
