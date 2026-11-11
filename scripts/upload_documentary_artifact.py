@@ -50,14 +50,18 @@ def _find_video(root: Path) -> tuple[Path, dict]:
     not create build/live_documentary_validation/mp4-probe-report.json, so the
     uploader must not depend on that unrelated validation workflow's report.
     """
+    # The artifact intentionally includes many chapter/shot clips under
+    # build/job_*/. The finished export is written separately to output/*.mp4.
+    # Never count intermediate clips as candidate uploads.
+    output_dir = root / "output"
     candidates = sorted(
-        path for path in root.rglob("*.mp4")
+        path for path in output_dir.glob("*.mp4")
         if path.is_file() and path.stat().st_size > 100_000
-    )
+    ) if output_dir.is_dir() else []
     if len(candidates) != 1:
         raise ValueError(
-            "Expected exactly one non-trivial MP4 in the render artifact; "
-            f"found {len(candidates)}. Refusing to select a clip or arbitrary export."
+            "Expected exactly one final documentary MP4 under output/; "
+            f"found {len(candidates)}. Intermediate build/job_*/ clips are ignored."
         )
 
     video_path = candidates[0]
