@@ -61,7 +61,7 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             video.write_bytes(b"x" * 100_001)
             expected = {"duration_seconds": 600.0, "width": 1920, "height": 1080}
             with patch("core.release_certification.probe_release_video", return_value=expected) as probe:
-                found_path, metadata = _find_video(root)
+                found_path, metadata = _find_video(root, root / "build" / "job_1")
             self.assertEqual(found_path, video)
             self.assertEqual(metadata, expected)
             probe.assert_called_once_with(video)
@@ -72,13 +72,15 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             final_video = root / "output" / "longform_1.mp4"
             final_video.parent.mkdir()
             final_video.write_bytes(b"x" * 100_001)
+            for index in range(28):
+                (final_video.parent / f"preview_{index}.mp4").write_bytes(b"x" * 100_001)
             for index in range(45):
                 clip = root / "build" / "job_1" / f"clip_{index}.mp4"
                 clip.parent.mkdir(parents=True, exist_ok=True)
                 clip.write_bytes(b"x" * 100_001)
             expected = {"duration_seconds": 600.0, "width": 1920, "height": 1080}
             with patch("core.release_certification.probe_release_video", return_value=expected) as probe:
-                found_path, metadata = _find_video(root)
+                found_path, metadata = _find_video(root, root / "build" / "job_1")
             self.assertEqual(found_path, final_video)
             self.assertEqual(metadata, expected)
             probe.assert_called_once_with(final_video)
@@ -88,19 +90,24 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             root = Path(temp)
             output = root / "output"
             output.mkdir()
-            (output / "one.mp4").write_bytes(b"x" * 100_001)
-            (output / "two.mp4").write_bytes(b"x" * 100_001)
-            with self.assertRaisesRegex(ValueError, "found 2"):
-                _find_video(root)
+            (output / "longform_1.mp4").write_bytes(b"x" * 100_001)
+            (output / "longform_2.mp4").write_bytes(b"x" * 100_001)
+            (output / "preview.mp4").write_bytes(b"x" * 100_001)
+            expected = {"duration_seconds": 600.0, "width": 1920, "height": 1080}
+            with patch("core.release_certification.probe_release_video", return_value=expected) as probe:
+                found_path, metadata = _find_video(root, root / "build" / "job_1")
+            self.assertEqual(found_path, output / "longform_1.mp4")
+            self.assertEqual(metadata, expected)
+            probe.assert_called_once_with(found_path)
 
     def test_find_video_refuses_missing_final_export_even_if_clips_exist(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            clip = root / "build" / "job_1" / "chapter.mp4"
-            clip.parent.mkdir(parents=True)
-            clip.write_bytes(b"x" * 100_001)
-            with self.assertRaisesRegex(ValueError, "found 0"):
-                _find_video(root)
+            output = root / "output"
+            output.mkdir()
+            (output / "preview.mp4").write_bytes(b"x" * 100_001)
+            with self.assertRaisesRegex(ValueError, "longform_1.mp4"):
+                _find_video(root, root / "build" / "job_1")
 
 
 if __name__ == "__main__":
