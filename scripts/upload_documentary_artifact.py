@@ -1,4 +1,4 @@
-"""Upload one human-reviewed documentary artifact to YouTube as Private only."""
+"""Upload a QA-certified documentary to YouTube as Private only."""
 from __future__ import annotations
 
 import argparse
@@ -132,9 +132,16 @@ def _validate_release_evidence(build_dir: Path) -> dict:
             "research_source_count": research.get("source_count")}
 
 
-def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_reviewed: bool) -> dict:
-    if not human_reviewed:
-        raise ValueError("Human review confirmation is required before upload.")
+def upload_reviewed_artifact(
+    artifact_dir: Path,
+    source_run_id: str,
+    human_reviewed: bool = False,
+    automatic_private_upload: bool = False,
+) -> dict:
+    if not human_reviewed and not automatic_private_upload:
+        raise ValueError(
+            "Explicit human review or the workflow's automatic-private-upload authorization is required."
+        )
     if not source_run_id.isdigit():
         raise ValueError("Source workflow run ID must be numeric.")
     root = artifact_dir.resolve()
@@ -190,9 +197,19 @@ def main() -> int:
     parser.add_argument("--artifact-dir", type=Path, required=True)
     parser.add_argument("--source-run-id", required=True)
     parser.add_argument("--human-reviewed", action="store_true")
+    parser.add_argument(
+        "--automatic-private-upload",
+        action="store_true",
+        help="Authorize CI to upload automatically after all release-evidence checks pass; visibility remains Private.",
+    )
     args = parser.parse_args()
     try:
-        upload_reviewed_artifact(args.artifact_dir, args.source_run_id, args.human_reviewed)
+        upload_reviewed_artifact(
+            args.artifact_dir,
+            args.source_run_id,
+            human_reviewed=args.human_reviewed,
+            automatic_private_upload=args.automatic_private_upload,
+        )
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
