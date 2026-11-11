@@ -667,7 +667,7 @@ def generate_longform_script(topic: str, category: str = "finance",
         minimum_words=minimum_words, target_words=target_words)
     if auto_category:
         prompt += (
-            "\\n\\nUNIVERSAL DOCUMENTARY CATEGORY: Infer the most accurate subject category "
+            "\n\nUNIVERSAL DOCUMENTARY CATEGORY: Infer the most accurate subject category "
             "from the topic and research (for example history, science, physics, nature, "
             "technology, biography, geography, culture, mystery, geopolitics, economics, "
             "or another precise category). Do not force the topic into finance, politics, "
