@@ -163,8 +163,17 @@ def _nasa(query):
         href = item.get("href")
         manifest = _get_json(href) if href else None
         candidates = manifest if isinstance(manifest, list) else []
-        url = next((x for x in candidates if isinstance(x, str) and
-                    x.lower().endswith((".mp4", ".mov")) and "~" not in x), None)
+        # NASA manifests commonly expose the best downloadable rendition as
+        # "~orig.mp4" (or "~large.mp4"). Do not discard those valid files.
+        media_candidates = [x for x in candidates if isinstance(x, str) and
+                            x.lower().endswith((".mp4", ".mov")) and
+                            not re.search(r"~(?:thumb|small|preview)\.(?:mp4|mov)$", x, re.I)]
+        media_candidates.sort(key=lambda x: (
+            0 if re.search(r"~orig\.(?:mp4|mov)$", x, re.I) else
+            1 if re.search(r"~large\.(?:mp4|mov)$", x, re.I) else
+            2 if re.search(r"~medium\.(?:mp4|mov)$", x, re.I) else 3
+        ))
+        url = media_candidates[0] if media_candidates else None
         rights_text = " ".join(str(meta.get(key) or "") for key in ("description", "keywords", "center"))
         # NASA says its own media is generally not copyrighted, but third-party
         # material may appear on NASA sites. Require an identifiable NASA center
@@ -246,8 +255,7 @@ def _internet_archive(query):
         meta = _get_json(f"https://archive.org/metadata/{quote(identifier)}")
         files = (meta or {}).get("files", [])
         item_meta = (meta or {}).get("metadata", {})
-        rights = str(item_meta.get("rights") or "")
-        licence_url = str(item_meta.get("licenseurl") or item_meta.get("license_url") or "")
+        rights = str(item_meta.get("rights") or "")        licence_url = str(item_meta.get("licenseurl") or item_meta.get("license_url") or "")
         licence = str(item_meta.get("license") or "")
         normalized = (licence + " " + rights).lower()
         licence_url_lower = licence_url.lower()
@@ -496,8 +504,7 @@ def register_mixkit_asset(source_file, *, title, source_url, licence, creator=""
 
 
 def _tokens(value):
-    stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",
-            "scene", "footage", "video", "documentary", "file"}
+    stop = {"the", "and", "for", "with", "from", "that", "this", "into", "about",            "scene", "footage", "video", "documentary", "file"}
     return {word for word in re.findall(r"[a-z0-9]+", str(value or "").lower())
             if len(word) > 2 and word not in stop}
 
