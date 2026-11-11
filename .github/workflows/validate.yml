@@ -6,8 +6,9 @@ on:
     branches: [main]
 permissions:
   contents: read
+
 jobs:
-  syntax:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,10 +19,58 @@ jobs:
         run: python -m pip install requests google-api-python-client google-auth google-auth-oauthlib edge-tts python-dotenv Pillow pandas numpy
       - name: Compile all Python modules
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py dashboard.py pages scripts tests
-      - name: Install FFmpeg for real render smoke tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          ffmpeg -version
       - name: Run automated unit tests
         run: python -m unittest discover -s tests -v
+
+  ffmpeg-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for FFmpeg and FFprobe
+        id: ffmpeg-check
+        shell: bash
+        run: |
+          if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+            echo "Both FFmpeg and FFprobe are already installed."
+            ffmpeg -version | head -n 1
+            ffprobe -version | head -n 1
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "FFmpeg and/or FFprobe are missing; attempting installation."
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install FFmpeg and FFprobe with bounded retries
+        if: steps.ffmpeg-check.outputs.installed != 'true'
+        shell: bash
+        run: |
+          set -u
+          max_attempts=3
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "FFmpeg installation attempt $attempt/$max_attempts"
+            if sudo apt-get update && sudo apt-get install -y ffmpeg; then
+              if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+                echo "FFmpeg and FFprobe installed successfully."
+                break
+              fi
+            fi
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              delay=$((attempt * 10))
+              echo "Installation attempt failed; retrying in ${delay}s."
+              sleep "$delay"
+            fi
+          done
+
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            echo "::error::FFmpeg/FFprobe are unavailable after ${max_attempts} installation attempts. Check the Ubuntu package mirror/network or runner image."
+            exit 1
+          fi
+
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+      - name: Run real FFmpeg render smoke tests
+        run: |
+          python -m unittest -v \
+            tests.test_cinematic_ffmpeg_render \
+            tests.test_release_certification_smoke \
+            tests.test_archival_video_e2e
