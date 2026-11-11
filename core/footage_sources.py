@@ -570,7 +570,7 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
     used_ids = used_ids if used_ids is not None else set()
     context = " ".join(str(x) for x in (keywords or [])) + " " + str(scene_prompt or "")
     archival_request = _is_archival_video_request(keywords, scene_prompt)
-    is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "astronaut", "rocket"})
+    is_space = bool(_tokens(context) & {"space", "nasa", "planet", "mars", "moon", "lunar", "astronaut", "rocket", "apollo", "saturn"})
     providers = ((_nasa, _nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc) if is_space
                  else (_nara, _dvids, _loc, _wikimedia, _internet_archive, _europeana_cc))
     # Prefer operator-imported Indian archive and Mixkit clips when sidecars prove an allowed licence.
@@ -660,6 +660,10 @@ def fetch_documentary_clip(keywords, path, used_ids=None, scene_prompt=""):
         known = bool(licence and licence_url and (
             "public domain" in licence or licence.startswith("cc0")
             or licence.startswith("cc by") or licence.startswith("cc by-sa")
+            or (
+                licence == "nasa media usage guidelines"
+                and str(metadata.get("provider") or "").strip().lower() == "nasa"
+            )
         ))
         if not known or score < 0.25:
             continue
