@@ -18,7 +18,7 @@ CSV_FIELDS = [
     "human_review_required", "fallback_required", "notes",
 ]
 
-PUBLIC_DOMAIN = {"public domain", "cc0", "cc0 1.0", "creative commons zero"}
+PUBLIC_DOMAIN = {"public domain", "public domain mark", "cc0", "cc0 1.0", "creative commons zero"}
 CC_BY = {"cc by", "cc by 2.0", "cc by 3.0", "cc by 4.0",
          "cc by sa", "cc by sa 2.0", "cc by sa 3.0", "cc by sa 4.0"}
 STOCK = {"pixabay content license", "coverr license", "mixkit free license", "dvids api commercial use terms"}
