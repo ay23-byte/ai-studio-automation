@@ -520,6 +520,9 @@ def generate_ai_video(prompt, path, aspect_ratio="9:16"):
     ):
         print("  AI video skipped: archival requests require genuine archival sources.")
         return False
+    if os.getenv("FREE_ONLY_MODE", "0").strip().lower() in {"1", "true", "yes"}:
+        print("  AI video blocked by FREE_ONLY_MODE; explicitly disable free-only mode to authorize paid generation.")
+        return False
     if os.getenv("AI_VIDEO_ENABLED", "0").strip().lower() not in {"1", "true", "yes"}:
         print("  AI video disabled (AI_VIDEO_ENABLED is not explicitly enabled).")
         return False
