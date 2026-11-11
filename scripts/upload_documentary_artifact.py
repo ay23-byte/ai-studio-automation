@@ -44,31 +44,32 @@ def _find_release_metadata(root: Path) -> tuple[Path, dict]:
 
 
 def _find_video(root: Path) -> tuple[Path, dict]:
-    reports = sorted(root.glob("build/live_documentary_validation/mp4-probe-report.json"))
-    if len(reports) != 1:
-        raise ValueError("The render artifact must contain exactly one MP4 probe report.")
-    report = _load_json(reports[0])
-    candidates = []
-    for item in report.get("videos") or []:
-        if not (
-            item.get("bytes", 0) > 100_000
-            and item.get("has_video") is True
-            and item.get("has_audio") is True
-            and item.get("duration_seconds", 0) > 0
-        ):
-            continue
-        rel = Path(str(item.get("path") or ""))
-        if rel.is_absolute() or ".." in rel.parts:
-            continue
-        path = root / rel
-        if path.is_file() and path.stat().st_size > 100_000:
-            candidates.append((path, item))
+    """Find and independently probe the single documentary MP4 in the render artifact.
+
+    The make-longform producer packages output/*.mp4 and build/job_*/. It does
+    not create build/live_documentary_validation/mp4-probe-report.json, so the
+    uploader must not depend on that unrelated validation workflow's report.
+    """
+    candidates = sorted(
+        path for path in root.rglob("*.mp4")
+        if path.is_file() and path.stat().st_size > 100_000
+    )
     if len(candidates) != 1:
         raise ValueError(
-            "Expected exactly one MP4 that passed the render's recorded stream/size checks; "
+            "Expected exactly one non-trivial MP4 in the render artifact; "
             f"found {len(candidates)}. Refusing to select a clip or arbitrary export."
         )
-    return candidates[0]
+
+    video_path = candidates[0]
+    try:
+        # Reuse the same FFprobe-based delivery-profile gate used by release
+        # certification. This verifies real audio/video streams, duration,
+        # frame rate, landscape dimensions and stereo audio before upload.
+        from core.release_certification import probe_release_video
+        probe = probe_release_video(video_path)
+    except Exception as exc:
+        raise ValueError(f"Documentary MP4 failed independent FFprobe validation: {exc}") from exc
+    return video_path, probe
 
 
 def _validate_release_evidence(build_dir: Path) -> dict:
