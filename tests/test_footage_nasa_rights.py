@@ -61,6 +61,8 @@ class NASAArchivalRightsTests(unittest.TestCase):
             "provider": "NASA",
             "asset_id": "KSC-1969-001",
             "title": "Apollo 11 Launch",
+            "description": "Apollo 11 Saturn V launch from Kennedy Space Center on July 16, 1969.",
+            "tags": ["Apollo 11", "Saturn V", "launch", "Kennedy Space Center", "1969"],
             "page_url": "https://images.nasa.gov/details/KSC-1969-001",
             "licence": "NASA Media Usage Guidelines",
             "licence_url": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
