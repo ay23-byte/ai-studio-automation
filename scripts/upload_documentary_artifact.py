@@ -7,6 +7,13 @@ import json
 import sys
 from pathlib import Path
 
+# When invoked as ``python scripts/upload_documentary_artifact.py``, Python puts
+# the scripts/ directory (not the repository root) on sys.path. Add the root so
+# the sibling core/ package is importable in GitHub Actions and local CLI use.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 from core.uploader import find_private_video_by_marker, upload, wait_processed
 
 
