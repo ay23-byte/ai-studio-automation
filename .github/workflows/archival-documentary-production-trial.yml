@@ -102,8 +102,12 @@ jobs:
             echo "::error::GEMINI_API_KEY is required for documentary research and script generation."
             exit 1
           }
-          test -f "$PRESENTER_IMAGE" || {
-            echo "::error::Female presenter portrait is missing: $PRESENTER_IMAGE"
+          test -f avatar_studio/generate-clips.mjs || {
+            echo "::error::3D presenter clip generator is missing."
+            exit 1
+          }
+          test -f avatar_studio/index.html || {
+            echo "::error::Avatar Studio page is missing."
             exit 1
           }
 
