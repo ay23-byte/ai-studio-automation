@@ -491,7 +491,7 @@ def _generate_replicate_video(prompt, path, aspect_ratio):
                 for chunk in download.iter_content(1024 * 1024):
                     if chunk:
                         target.write(chunk)
-        if not _valid_ai_video(path):
+        if not _video_ok(Path(path)):
             Path(path).unlink(missing_ok=True)
             print("  Replicate output failed FFprobe video validation.")
             return False
