@@ -66,7 +66,6 @@ class VisualSemanticsTests(unittest.TestCase):
         result = verify_shot_semantics(self.shot, api_key="test-key")
         self.assertEqual(result["status"], "uncertain")
 
-    @patch("core.visual_semantics.requests.post")
     @patch("core.visual_semantics.time.sleep")
     @patch("core.visual_semantics.GEMINI_FALLBACK_MODELS", ["vision-fallback"])
     @patch("core.visual_semantics.requests.post")
@@ -88,6 +87,7 @@ class VisualSemanticsTests(unittest.TestCase):
         self.assertEqual(post.call_count, 2)
         sleep.assert_called_once()
 
+    @patch("core.visual_semantics.requests.post")
     def test_api_failure_is_returned_as_error_not_a_match(self, post):
         post.side_effect = TimeoutError("simulated timeout")
         result = verify_shot_semantics(self.shot, api_key="test-key")
