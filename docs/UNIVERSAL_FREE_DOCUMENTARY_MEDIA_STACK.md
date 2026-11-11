@@ -47,6 +47,27 @@ Openverse is an image/audio discovery layer, not a source of guaranteed historic
 8. Run audio silence/clipping checks, subtitle timing checks, 1080p/codec checks and a full human editorial review.
 9. Keep the upload private/unlisted until the complete video and all source records are approved.
 
+## GitHub-only zero-paid video mode
+
+The `make-longform` GitHub Actions workflow hard-disables hosted AI-video providers:
+`FREE_ONLY_MODE=1`, `AI_VIDEO_ENABLED=0`, and no Replicate credentials or model
+configuration are passed to the render process. There is no workflow-dispatch switch
+that can turn paid video generation back on. The workflow uses standard
+`ubuntu-latest` CPU runners; it does not have a free GPU attached.
+
+When a scene has no suitable moving footage, the pipeline uses the existing
+scene-specific still-image fallback, then applies the project's FFmpeg cinematic
+shot treatment and locally rendered graphics/charts/timelines. These are
+animated edits of stills and generated graphics, **not AI-generated motion video**.
+This keeps the GitHub workflow free of per-clip video-generation charges, but
+does not promise that every shot will contain real moving footage.
+
+Open-weight models such as Wan 2.2 are not a zero-compute shortcut: the official
+Wan 2.2 repository documents substantial GPU requirements (for example, its
+5B video model lists a 24 GB GPU for 720p inference). Standard GitHub-hosted
+runners do not provide that GPU. A genuinely free, reliable GitHub-only GPU
+video-generation service is therefore not assumed by this project.
+
 ## Important limits
 
 - There is no universal free API that guarantees genuine, relevant, downloadable and commercially reusable video for every documentary topic.
