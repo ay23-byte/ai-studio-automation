@@ -62,10 +62,17 @@ class ArchivalImageTests(unittest.TestCase):
         response = Mock()
         response.json.return_value = {"query": {"pages": {"42": self._page("All rights reserved")}}}
         response.raise_for_status.return_value = None
-        get.return_value = response
+        # Commons is queried first; Openverse is the expected fallback when
+        # Commons has no item with an explicitly permitted licence.
+        openverse_response = Mock()
+        openverse_response.json.return_value = {"results": []}
+        openverse_response.raise_for_status.return_value = None
+        get.side_effect = [response, openverse_response]
         with tempfile.TemporaryDirectory() as tmp:
             self.assertFalse(fetch_archival_image("Kolkata 1940s street", Path(tmp) / "archive.jpg"))
-            get.assert_called_once()
+            self.assertEqual(get.call_count, 2)
+            self.assertIn("commons.wikimedia.org", get.call_args_list[0].args[0])
+            self.assertIn("api.openverse.org", get.call_args_list[1].args[0])
 
     @patch("core.archival_images.requests.get")
     def test_rejects_irrelevant_results(self, get):
