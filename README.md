@@ -209,6 +209,14 @@ AI video is **off by default**. The code does not enable it just because a token
 
 **Cost warning:** Replicate is not a guaranteed free service or free-credit entitlement. Only enable this fallback after checking your account's current credits and the selected model's pricing. A configured API token may incur charges when predictions run. The workflow does not claim that free credits are available.
 
+## Universal documentary production
+
+The long-form workflow is topic-agnostic. Set **Category** to `auto` (the default) and enter any subject: history, science, physics, space, nature, biography, geography, culture, technology, mystery, economics, current affairs, or a topic outside those examples. Gemini is instructed to infer the most suitable category from the topic and research, then tailor the documentary's terminology, story structure, visual direction and verification standards. You may also enter a custom category when you want to override automatic inference.
+
+The workflow's **Gemini vision semantic screen** is an optional switch. When enabled, it compares sampled rendered frames with the corresponding narration and visual prompt; it consumes additional Gemini model usage and does not replace human editorial review.
+
+Important production truth: the current hosted AI-video adapter only supports an explicitly configured local OpenVINO/LTX model. It does not call Replicate or any other hosted text-to-video service. The GitHub-hosted CPU workflow does not automatically have that model installed, and the Replicate token alone does not activate video generation. AI-generated still visuals, topic-specific archival/stock footage, narration and AI-assisted review are separate capabilities; do not describe a build as containing generated AI video unless the final asset manifest proves that generated video clips were actually used. Hosted video generation may incur charges and must be explicitly implemented and enabled with a selected model and its exact input schema before use.
+
 ## API keys and when they are needed
 
 | Variable | Purpose | Required when |
