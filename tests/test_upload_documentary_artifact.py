@@ -85,7 +85,7 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             self.assertEqual(metadata, expected)
             probe.assert_called_once_with(final_video)
 
-    def test_find_video_refuses_multiple_final_exports(self):
+    def test_find_video_selects_job_matched_final_export_among_other_mp4s(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             output = root / "output"
@@ -99,6 +99,15 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             self.assertEqual(found_path, output / "longform_1.mp4")
             self.assertEqual(metadata, expected)
             probe.assert_called_once_with(found_path)
+
+    def test_find_video_does_not_select_another_jobs_final_export(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            output = root / "output"
+            output.mkdir()
+            (output / "longform_1.mp4").write_bytes(b"x" * 100_001)
+            with self.assertRaisesRegex(ValueError, "longform_2.mp4"):
+                _find_video(root, root / "build" / "job_2")
 
     def test_find_video_refuses_missing_final_export_even_if_clips_exist(self):
         with tempfile.TemporaryDirectory() as temp:
