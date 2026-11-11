@@ -53,6 +53,27 @@ class VisualConsistencyTests(unittest.TestCase):
         self.assertEqual(report["shots"][0]["status"], "unavailable")
         self.assertEqual(report["summary"]["unavailable_count"], 1)
 
+    def test_dark_scene_with_legitimate_black_regions_is_not_failed_for_clipping_alone(self):
+        # Documentary night/space/archive scenes can contain large dark regions.
+        # Clipping percentage alone must not fail a frame that retains tonal detail.
+        path = self.root / "dark-scene.jpg"
+        image = Image.new("RGB", (160, 90), (0, 0, 0))
+        pixels = []
+        for y in range(90):
+            for x in range(160):
+                if 35 <= x < 125 and 20 <= y < 70:
+                    value = 18 + ((x + y) % 35)
+                    pixels.append((value, value, value))
+                else:
+                    pixels.append((0, 0, 0))
+        image.putdata(pixels)
+        image.resize((1280, 720)).save(path)
+        report = audit_visual_consistency(
+            {"shots": [{"shot_id": "night_scene", "sample_frames": [str(path)]}]}, self.root
+        )
+        self.assertNotEqual(report["shots"][0]["status"], "fail")
+        self.assertEqual(report["summary"]["fail_count"], 0)
+
     def test_consistency_outlier_is_flagged_for_review(self):
         dark = self._frame("dark-mid.jpg", (80, 80, 80))
         bright = self._frame("bright-mid.jpg", (220, 220, 220))
