@@ -67,6 +67,27 @@ class VisualSemanticsTests(unittest.TestCase):
         self.assertEqual(result["status"], "uncertain")
 
     @patch("core.visual_semantics.requests.post")
+    @patch("core.visual_semantics.time.sleep")
+    @patch("core.visual_semantics.GEMINI_FALLBACK_MODELS", ["vision-fallback"])
+    @patch("core.visual_semantics.requests.post")
+    def test_rate_limited_primary_uses_configured_fallback(self, post, sleep):
+        class RateLimited:
+            status_code = 429
+            headers = {"Retry-After": "1"}
+
+        body = {"verdict": "match", "match_score": 0.9,
+                "visible_evidence": "A cargo ship is visible."}
+        post.side_effect = [
+            RateLimited(),
+            _Response({"candidates": [{"content": {"parts": [{"text": json.dumps(body)}]}}]}),
+        ]
+        result = verify_shot_semantics(self.shot, api_key="test-key", model="vision-primary")
+        self.assertEqual(result["status"], "match")
+        self.assertEqual(result["model"], "vision-fallback")
+        self.assertTrue(result["fallback_used"])
+        self.assertEqual(post.call_count, 2)
+        sleep.assert_called_once()
+
     def test_api_failure_is_returned_as_error_not_a_match(self, post):
         post.side_effect = TimeoutError("simulated timeout")
         result = verify_shot_semantics(self.shot, api_key="test-key")
