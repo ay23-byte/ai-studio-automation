@@ -1,0 +1,164 @@
+name: Kaggle Wan2.1 free GPU video worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: Cinematic scene prompt
+        required: true
+        type: string
+      size:
+        description: Output orientation and resolution
+        required: true
+        type: choice
+        options: ["480*832", "832*480"]
+        default: "480*832"
+      frame_num:
+        description: Frame count (must be 4n+1)
+        required: true
+        type: choice
+        options: ["9", "17", "33"]
+        default: "9"
+      sample_steps:
+        description: Denoising steps
+        required: true
+        type: choice
+        options: ["8", "12"]
+        default: "8"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kaggle-wan-worker
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Kaggle CLI
+        run: python -m pip install --upgrade kaggle
+
+      - name: Configure Kaggle credentials
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
+            echo "::error::Add KAGGLE_USERNAME and KAGGLE_KEY as repository Actions secrets."
+            exit 1
+          fi
+          mkdir -p "$HOME/.kaggle"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path.home() / ".kaggle" / "kaggle.json"
+          path.write_text(json.dumps({"username": os.environ["KAGGLE_USERNAME"], "key": os.environ["KAGGLE_KEY"]}), encoding="utf-8")
+          path.chmod(0o600)
+          PY
+
+      - name: Prepare private Kaggle kernel job
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
+          WAN_PROMPT: ${{ inputs.prompt }}
+          WAN_SIZE: ${{ inputs.size }}
+          WAN_FRAME_NUM: ${{ inputs.frame_num }}
+          WAN_SAMPLE_STEPS: ${{ inputs.sample_steps }}
+        run: |
+          if [ -z "$KAGGLE_KERNEL_SLUG" ]; then
+            echo "::error::Add Actions variable KAGGLE_KERNEL_SLUG (example: wan21-free-worker)."
+            exit 1
+          fi
+          python - <<'PY'
+          import base64, json, os
+          from pathlib import Path
+          root = Path("kaggle/wan_worker")
+          notebook_path = root / "wan_worker.ipynb"
+          notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+          manifest = {
+              "prompt": os.environ["WAN_PROMPT"],
+              "size": os.environ["WAN_SIZE"],
+              "frame_num": int(os.environ["WAN_FRAME_NUM"]),
+              "sample_steps": int(os.environ["WAN_SAMPLE_STEPS"]),
+          }
+          encoded = base64.b64encode(json.dumps(manifest).encode("utf-8")).decode("ascii")
+          replaced = False
+          for cell in notebook.get("cells", []):
+              if cell.get("cell_type") == "code":
+                  source = "".join(cell.get("source", []))
+                  if "__JOB_MANIFEST_B64__" in source:
+                      cell["source"] = source.replace("__JOB_MANIFEST_B64__", encoded).splitlines(keepends=True)
+                      replaced = True
+          if not replaced:
+              raise SystemExit("Notebook manifest placeholder was not found.")
+          notebook_path.write_text(json.dumps(notebook, ensure_ascii=False), encoding="utf-8")
+          metadata = {
+              "id": f'{os.environ["KAGGLE_USERNAME"]}/{os.environ["KAGGLE_KERNEL_SLUG"]}',
+              "title": "AI Studio Wan2.1 free GPU worker",
+              "code_file": "wan_worker.ipynb",
+              "language": "python",
+              "kernel_type": "notebook",
+              "is_private": "true",
+              "enable_gpu": "true",
+              "enable_internet": "true",
+              "dataset_sources": [],
+              "competition_sources": [],
+              "kernel_sources": [],
+          }
+          (root / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+          print("Prepared Kaggle GPU kernel:", metadata["id"])
+          PY
+
+      - name: Submit Wan2.1 job to Kaggle GPU
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
+        run: |
+          KERNEL_ID="$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG"
+          kaggle kernels push -p kaggle/wan_worker
+          echo "KERNEL_ID=$KERNEL_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for Kaggle GPU generation
+        env:
+          KERNEL_ID: ${{ env.KERNEL_ID }}
+        run: |
+          for attempt in $(seq 1 180); do
+            STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+            echo "$STATUS"
+            if echo "$STATUS" | grep -Eqi 'COMPLETE'; then exit 0; fi
+            if echo "$STATUS" | grep -Eqi 'ERROR|FAILED|CANCELLED|CANCELED'; then
+              echo "::error::Kaggle kernel failed."
+              exit 1
+            fi
+            sleep 60
+          done
+          echo "::error::Timed out waiting for Kaggle after 180 minutes."
+          exit 1
+
+      - name: Download generated MP4
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
+        run: |
+          mkdir -p output/wan
+          kaggle kernels output "$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" -p output/wan
+          if ! find output/wan -type f -iname '*.mp4' -size +50k | grep -q .; then
+            echo "::error::Kaggle returned no valid-sized MP4."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wan21-generated-clips
+          path: output/wan/
+          if-no-files-found: error
+          retention-days: 14
