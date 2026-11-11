@@ -94,8 +94,22 @@ def _validate_release_evidence(build_dir: Path) -> dict:
         raise ValueError("Visual review report contains unresolved media errors.")
     consistency = reports["visual_consistency_report.json"]
     summary = consistency.get("summary") or {}
-    if consistency.get("status") not in {"PASS", "REVIEW"} or int(summary.get("fail_count") or 0):
-        raise ValueError("Visual consistency report is failed or incomplete.")
+    consistency_status = str(consistency.get("status") or "MISSING").upper()
+    fail_count = int(summary.get("fail_count") or 0)
+    if consistency_status not in {"PASS", "REVIEW"} or fail_count:
+        failed_shots = [
+            f"{row.get('shot_id', 'unknown')}: {'; '.join(row.get('issues') or [])}"
+            for row in consistency.get("shots") or []
+            if row.get("status") == "fail"
+        ]
+        detail = (
+            f"status={consistency_status}, fail_count={fail_count}, "
+            f"review_count={int(summary.get('review_count') or 0)}, "
+            f"unavailable_count={int(summary.get('unavailable_count') or 0)}"
+        )
+        if failed_shots:
+            detail += "; failed shots: " + " | ".join(failed_shots[:12])
+        raise ValueError("Visual consistency report blocks upload (" + detail + ").")
     audio = reports["audio_quality_report.json"]
     if audio.get("status") not in {"PASS", "REVIEW"}:
         raise ValueError("Audio quality report is failed or incomplete.")

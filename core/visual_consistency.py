@@ -68,8 +68,15 @@ def audit_visual_consistency(visual_report: dict[str, Any],
             failure_issues.append("Visual is severely underexposed.")
         elif average["brightness"] > 242:
             failure_issues.append("Visual is severely overexposed.")
-        if average["clipped_pixel_ratio"] > 0.55:
-            failure_issues.append("Large portions of the frame are clipped to near-black or near-white.")
+        # A simple clipped-pixel percentage over-penalizes legitimate night footage,
+        # archival film, letterboxed shots and intentional high-key/low-key scenes.
+        # Treat clipping as a hard failure only when almost the entire frame is
+        # clipped AND the image has virtually no tonal detail. Exposure extremes
+        # are independently blocked by the brightness checks above.
+        if average["clipped_pixel_ratio"] > 0.85 and average["contrast"] < 3.0:
+            failure_issues.append(
+                "Frame is almost entirely clipped and has negligible tonal detail; replace or re-render this shot."
+            )
         if average["contrast"] < 8:
             review_issues.append("Visual has very low contrast; inspect readability and detail.")
         if average["sharpness_proxy"] < 1.2:
