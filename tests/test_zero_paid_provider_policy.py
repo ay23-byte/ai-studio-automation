@@ -40,6 +40,14 @@ class ZeroPaidProviderPolicyTests(unittest.TestCase):
         "MUAPI_API_KEY": "test-key",
         "MUAPI_VIDEO_ENDPOINT": "endpoint",
     }, clear=True)
+    def test_github_longform_workflow_cannot_enable_paid_video(self):
+        workflow = Path(".github/workflows/make_longform.yml").read_text(encoding="utf-8")
+        self.assertIn('FREE_ONLY_MODE: "1"', workflow)
+        self.assertIn('AI_VIDEO_ENABLED: "0"', workflow)
+        self.assertIn('AI_VIDEO_PROVIDER: "disabled"', workflow)
+        self.assertNotIn("REPLICATE_API_TOKEN", workflow)
+        self.assertNotIn("inputs.enable_ai_video", workflow)
+
     def test_muapi_direct_entry_is_blocked_by_default(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertFalse(generate_muapi_video("cinematic scene", Path(directory) / "clip.mp4"))
