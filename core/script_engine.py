@@ -657,12 +657,24 @@ def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
                               brand_voice: str = "") -> dict:
+    requested_category = str(category or "auto").strip()
+    auto_category = requested_category.lower() in {"", "auto", "any", "universal"}
     minimum_words = int(duration_max * 150 * 0.90)
     target_words = int(duration_max * 150)
     prompt = LONGFORM_PROMPT.format(
-        topic=topic, category=category, duration_min=duration_min,
-        duration_max=duration_max, language=language,
+        topic=topic, category=("auto" if auto_category else requested_category),
+        duration_min=duration_min, duration_max=duration_max, language=language,
         minimum_words=minimum_words, target_words=target_words)
+    if auto_category:
+        prompt += (
+            "\n\nUNIVERSAL DOCUMENTARY CATEGORY: Infer the most accurate subject category "
+            "from the topic and research (for example history, science, physics, nature, "
+            "technology, biography, geography, culture, mystery, geopolitics, economics, "
+            "or another precise category). Do not force the topic into finance, politics, "
+            "or any preset niche. Return that inferred category in the JSON category field. "
+            "Adapt the storytelling, terminology, visual treatment, source discovery terms, "
+            "and fact-checking standards to the actual subject."
+        )
     # Free, keyless GDELT discovery adds recent-news leads to both current
     # affairs and evergreen documentaries. Failure is deliberately non-fatal.
     research_sources = research_topic(topic)
@@ -690,6 +702,13 @@ def generate_longform_script(topic: str, category: str = "finance",
 
         script = _parse(generated)
         script["format"] = "longform"
+        if auto_category:
+            import re
+            inferred = str(script.get("category") or "general").strip().lower()
+            inferred = re.sub(r"[^a-z0-9_-]+", "_", inferred).strip("_")[:48]
+            category = inferred or "general"
+        else:
+            category = requested_category
         script["category"] = category
         script["research_sources"] = research_sources
         from core.research_verification import append_source_citations_to_description
