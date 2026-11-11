@@ -61,6 +61,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install google-api-python-client google-auth requests python-dotenv
 
+      - name: Install and verify FFmpeg/FFprobe
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+
       - name: Download documentary artifact from selected render run
         uses: actions/download-artifact@v4
         with:
