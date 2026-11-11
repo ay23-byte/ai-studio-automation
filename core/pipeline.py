@@ -679,10 +679,14 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             # Long-form documentaries should use moving B-roll by default.
             # Images remain a fallback when no relevant stock clip is found.
             if visual_mode == "video_first":
-                if fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
+                ai_video_mode = os.getenv("AI_VIDEO_MODE", "fallback").strip().lower()
+                if ai_video_mode == "prefer" and generate_ai_video(prompt, clip_p, aspect_ratio="16:9"):
+                    shot["_media"] = {"type": "video", "path": str(clip_p)}
+                    print(f"  long-form visual {i+1}.{j+1}: AI-generated video (preferred mode)")
+                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: stock video")
-                elif generate_ai_video(prompt, clip_p):
+                elif ai_video_mode != "prefer" and generate_ai_video(prompt, clip_p, aspect_ratio="16:9"):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: AI-generated video")
                 elif generate_image(prompt, img_p, category=script.get("category", "general")):
