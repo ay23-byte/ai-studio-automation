@@ -68,9 +68,9 @@ jobs:
 
           ffmpeg -version | head -n 1
           ffprobe -version | head -n 1
-      - name: Run real FFmpeg render smoke tests
-        run: |
-          python -m unittest -v \
-            tests.test_cinematic_ffmpeg_render \
-            tests.test_release_certification_smoke \
-            tests.test_archival_video_e2e
+      - name: Run cinematic FFmpeg render smoke tests
+        run: python -m unittest discover -s tests -p 'test_cinematic_ffmpeg_render.py' -v
+      - name: Run release certification FFmpeg smoke test
+        run: python -m unittest discover -s tests -p 'test_release_certification_smoke.py' -v
+      - name: Run archival video FFmpeg integration tests
+        run: python -m unittest discover -s tests -p 'test_archival_video_e2e.py' -v
