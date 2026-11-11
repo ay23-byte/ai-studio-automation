@@ -111,6 +111,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_*footage*.py' -v
 
       - name: Retrieve and validate one real archival video
+        id: archive_retrieval
         run: |
           set -euo pipefail
           mkdir -p build/archival_documentary_trial/preflight
@@ -131,6 +132,7 @@ jobs:
           cp "$source_sidecar" assets/clips/archival_trial/
 
       - name: Render documentary review copy (no upload)
+        id: render_documentary
         run: |
           set -o pipefail
           python run.py long "$TOPIC" --category "$CATEGORY" \
@@ -139,7 +141,11 @@ jobs:
 
       - name: Verify final MP4 and collect review evidence
         if: always()
+        env:
+          ARCHIVE_RETRIEVAL_OUTCOME: ${{ steps.archive_retrieval.outcome }}
+          RENDER_OUTCOME: ${{ steps.render_documentary.outcome }}
         run: |
+          set -euo pipefail
           mkdir -p build/archival_documentary_trial/final_media
           find output -maxdepth 2 -type f -name '*.mp4' -print 2>/dev/null | while IFS= read -r file; do
             name="$(basename "$file")"
@@ -150,22 +156,35 @@ jobs:
           from pathlib import Path
           root = Path("build/archival_documentary_trial")
           reports = list(root.rglob("archival-video-e2e-report.json"))
-          final = list(Path("output").glob("*.mp4"))
+          import os
+          final = sorted(str(p) for p in Path("output").rglob("*.mp4")) if Path("output").exists() else []
+          retrieval_outcome = os.environ.get("ARCHIVE_RETRIEVAL_OUTCOME", "unknown")
+          render_outcome = os.environ.get("RENDER_OUTCOME", "unknown")
+          passed = retrieval_outcome == "success" and render_outcome == "success" and bool(final)
           summary = {
-              "topic": __import__("os").environ.get("TOPIC"),
+              "status": "passed" if passed else "failed",
+              "topic": os.environ.get("TOPIC"),
+              "archive_retrieval_step": retrieval_outcome,
+              "render_step": render_outcome,
               "archival_preflight_reports": [str(p) for p in reports],
-              "final_mp4_files": [str(p) for p in final],
+              "final_mp4_count": len(final),
+              "final_mp4_files": final,
               "youtube_upload_performed": False,
               "privacy": "private_review_only",
               "human_review_required": True,
               "publication_ready": False,
+              "failure_reason": None if passed else (
+                  "Archive retrieval did not succeed; no video was rendered."
+                  if retrieval_outcome != "success" else
+                  "Documentary render did not succeed or produced no MP4."
+              ),
               "note": "A valid render and archive sidecar do not certify historical authenticity, scene-level relevance, or commercial YouTube rights. Inspect the complete video, source item and every clip before any upload."
           }
           (root / "production-trial-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
           print(json.dumps(summary, indent=2))
           PY
 
-      - name: Upload documentary and review evidence
+      - name: Upload diagnostic and review evidence (MP4 only when rendered)
         if: always()
         uses: actions/upload-artifact@v4
         with:
