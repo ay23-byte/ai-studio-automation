@@ -9,11 +9,12 @@ import base64
 import io
 import json
 from pathlib import Path
+import time
 from typing import Any
 
 import requests
 
-from core.config import GEMINI_API_KEY, GEMINI_MODEL
+from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS
 
 
 def _image_part(path: str | Path) -> dict[str, Any]:
@@ -51,9 +52,14 @@ def _extract_json(response: dict[str, Any]) -> dict[str, Any]:
 
 def verify_shot_semantics(shot: dict[str, Any], *, api_key: str | None = None,
                           model: str | None = None, timeout: int = 90) -> dict[str, Any]:
-    """Compare narration and visual intent with up to three sampled image frames."""
+    """Compare narration and visual intent; fall through configured free Gemini models.
+
+    HTTP 429/5xx from one model must not immediately turn every shot into an
+    error. This tries the configured fallback list without treating failures as
+    positive visual matches. Human review remains mandatory.
+    """
     key = (api_key if api_key is not None else GEMINI_API_KEY).strip()
-    model_id = (model or GEMINI_MODEL).strip()
+    primary = (model or GEMINI_MODEL).strip()
     if not key:
         return {"status": "unavailable", "reason": "GEMINI_API_KEY is not configured.",
                 "human_review_required": True}
@@ -88,44 +94,62 @@ def verify_shot_semantics(shot: dict[str, Any], *, api_key: str | None = None,
     parts: list[dict[str, Any]] = [{"text": prompt}]
     try:
         parts.extend(_image_part(path) for path in frames)
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
-        response = requests.post(
-            url,
-            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
-            json={"contents": [{"parts": parts}],
-                  "generationConfig": {"temperature": 0.1, "maxOutputTokens": 700,
-                                       "responseMimeType": "application/json"}},
-            timeout=timeout,
-        )
-        response.raise_for_status()
-        data = _extract_json(response.json())
-        verdict = str(data.get("verdict") or "uncertain").strip().lower()
-        if verdict not in {"match", "mismatch", "uncertain"}:
-            verdict = "uncertain"
-        try:
-            score = max(0.0, min(1.0, float(data.get("match_score"))))
-        except (TypeError, ValueError):
-            score = 0.0
-            verdict = "uncertain"
-        if verdict == "match" and score < 0.72:
-            verdict = "uncertain"
-        if verdict == "mismatch" and score > 0.55:
-            verdict = "uncertain"
-        concerns = data.get("concerns") or []
-        if not isinstance(concerns, list):
-            concerns = [str(concerns)]
-        return {
-            "status": verdict,
-            "match_score": round(score, 3),
-            "visible_evidence": str(data.get("visible_evidence") or "")[:700],
-            "concerns": [str(item)[:300] for item in concerns[:8]],
-            "recommendation": str(data.get("recommendation") or "")[:500],
-            "checked_frame_count": len(frames),
-            "model": model_id,
-            "human_review_required": True,
-            "notice": "AI screening is fallible and does not verify factual truth, historical authenticity, identity, rights or licensing.",
-        }
+        models = list(dict.fromkeys([primary] + [str(value).strip() for value in GEMINI_FALLBACK_MODELS if str(value).strip()]))
+        transient_errors = []
+        for index, model_id in enumerate(models):
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
+            response = requests.post(
+                url,
+                headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+                json={"contents": [{"parts": parts}],
+                      "generationConfig": {"temperature": 0.1, "maxOutputTokens": 700,
+                                           "responseMimeType": "application/json"}},
+                timeout=timeout,
+            )
+            status = getattr(response, "status_code", 200)
+            if status == 429 or status in (500, 502, 503, 504):
+                transient_errors.append(f"{model_id}: HTTP {status}")
+                if index < len(models) - 1:
+                    time.sleep(0.25)
+                    continue
+                return {
+                    "status": "unavailable",
+                    "reason": "All configured Gemini visual-review models were rate-limited or unavailable: " + "; ".join(transient_errors),
+                    "attempted_models": models,
+                    "human_review_required": True,
+                }
+            response.raise_for_status()
+            data = _extract_json(response.json())
+            verdict = str(data.get("verdict") or "uncertain").strip().lower()
+            if verdict not in {"match", "mismatch", "uncertain"}:
+                verdict = "uncertain"
+            try:
+                score = max(0.0, min(1.0, float(data.get("match_score"))))
+            except (TypeError, ValueError):
+                score = 0.0
+                verdict = "uncertain"
+            if verdict == "match" and score < 0.72:
+                verdict = "uncertain"
+            if verdict == "mismatch" and score > 0.55:
+                verdict = "uncertain"
+            concerns = data.get("concerns") or []
+            if not isinstance(concerns, list):
+                concerns = [str(concerns)]
+            return {
+                "status": verdict,
+                "match_score": round(score, 3),
+                "visible_evidence": str(data.get("visible_evidence") or "")[:700],
+                "concerns": [str(item)[:300] for item in concerns[:8]],
+                "recommendation": str(data.get("recommendation") or "")[:500],
+                "checked_frame_count": len(frames),
+                "model": model_id,
+                "fallback_used": model_id != primary,
+                "transient_model_errors": transient_errors,
+                "human_review_required": True,
+                "notice": "AI screening is fallible and does not verify factual truth, historical authenticity, identity, rights or licensing.",
+            }
+        return {"status": "unavailable", "reason": "No Gemini visual-review model was configured.",
+                "human_review_required": True}
     except Exception as exc:
         return {"status": "error", "reason": f"{type(exc).__name__}: {exc}"[:500],
-                "checked_frame_count": len(frames), "model": model_id,
-                "human_review_required": True}
+                "checked_frame_count": len(frames), "human_review_required": True}
