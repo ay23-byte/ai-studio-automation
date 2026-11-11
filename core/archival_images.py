@@ -103,13 +103,16 @@ def fetch_archival_image(query: str, path: str | Path,
                 print(f"  Wikimedia archival search rate-limited; retry {attempt + 1}/2 after {delay:g}s.")
                 time.sleep(delay)
                 continue
-            print(f"  archival image search unavailable: HTTP {status or 'error'}; provider skipped for this beat.")
-            return False
+            print(f"  archival image search unavailable: HTTP {status or 'error'}; trying Openverse fallback.")
+            from core.openverse_images import fetch_openverse_image
+            return fetch_openverse_image(query, target, used_ids, min_relevance=min_relevance)
         except Exception as exc:
-            print(f"  archival image search unavailable: {type(exc).__name__}: {exc}")
-            return False
+            print(f"  archival image search unavailable: {type(exc).__name__}: {exc}; trying Openverse fallback.")
+            from core.openverse_images import fetch_openverse_image
+            return fetch_openverse_image(query, target, used_ids, min_relevance=min_relevance)
     if pages is None:
-        return False
+        from core.openverse_images import fetch_openverse_image
+        return fetch_openverse_image(query, target, used_ids, min_relevance=min_relevance)
 
     candidates = []
     for page in pages:
@@ -192,4 +195,9 @@ def fetch_archival_image(query: str, path: str | Path,
             temp.unlink(missing_ok=True)
             target.unlink(missing_ok=True)
             print(f"  archival image candidate rejected: {type(exc).__name__}: {exc}")
+    # Wikimedia is the primary source; Openverse broadens discovery across
+    # openly licensed collections when Commons has no suitable result.
+    from core.openverse_images import fetch_openverse_image
+    if fetch_openverse_image(query, target, used_ids, min_relevance=min_relevance):
+        return True
     return False
