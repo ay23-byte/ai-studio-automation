@@ -392,8 +392,127 @@ def _video_ok(path):
         return False
 
 
+_REPLICATE_VIDEO_CLIPS_CREATED = 0
+
+
+def _replicate_output_url(output):
+    """Extract a video URL from common Replicate output shapes."""
+    if isinstance(output, str) and output.startswith("https://"):
+        return output
+    if isinstance(output, list):
+        for item in output:
+            found = _replicate_output_url(item)
+            if found:
+                return found
+    if isinstance(output, dict):
+        for key in ("video", "url", "output", "mp4"):
+            found = _replicate_output_url(output.get(key))
+            if found:
+                return found
+    return None
+
+
+def _generate_replicate_video(prompt, path, aspect_ratio):
+    """Generate one scene through an explicitly enabled, user-selected Replicate model."""
+    import json
+    global _REPLICATE_VIDEO_CLIPS_CREATED
+
+    token = os.getenv("REPLICATE_API_TOKEN", "").strip()
+    model = os.getenv("REPLICATE_VIDEO_MODEL", "").strip()
+    if not token or not model or "/" not in model:
+        print("  Replicate video skipped: configure REPLICATE_API_TOKEN and REPLICATE_VIDEO_MODEL=owner/model.")
+        return False
+
+    maximum = max(0, int(os.getenv("AI_VIDEO_MAX_CLIPS", "3")))
+    if _REPLICATE_VIDEO_CLIPS_CREATED >= maximum:
+        print(f"  Replicate video clip limit reached ({maximum}); using other visual sources.")
+        return False
+
+    try:
+        template = json.loads(os.getenv("REPLICATE_VIDEO_INPUT_JSON", '{"prompt":"{{prompt}}"}'))
+    except ValueError:
+        print("  Replicate video skipped: REPLICATE_VIDEO_INPUT_JSON is invalid JSON.")
+        return False
+    if not isinstance(template, dict):
+        print("  Replicate video skipped: model input template must be a JSON object.")
+
+        return False
+
+    def substitute(value):
+        if isinstance(value, str):
+            return value.replace("{{prompt}}", str(prompt)).replace("{{aspect_ratio}}", aspect_ratio)
+        if isinstance(value, list):
+            return [substitute(item) for item in value]
+        if isinstance(value, dict):
+            return {key: substitute(item) for key, item in value.items()}
+        return value
+
+    model_input = substitute(template)
+    if not any(isinstance(value, str) and str(prompt) in value for value in model_input.values()):
+        model_input.setdefault("prompt", str(prompt))
+
+    version = os.getenv("REPLICATE_VIDEO_VERSION", "").strip()
+    if version:
+        endpoint, payload = "https://api.replicate.com/v1/predictions", {"version": version, "input": model_input}
+    else:
+        endpoint = "https://api.replicate.com/v1/models/" + model + "/predictions"
+        payload = {"input": model_input}
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    timeout = max(60, int(os.getenv("AI_VIDEO_TIMEOUT_SECONDS", "480")))
+    poll_interval = max(2, int(os.getenv("REPLICATE_POLL_INTERVAL_SECONDS", "5")))
+    try:
+        response = requests.post(endpoint, headers={**headers, "Prefer": "wait=60"}, json=payload, timeout=75)
+        response.raise_for_status()
+        prediction = response.json()
+        _REPLICATE_VIDEO_CLIPS_CREATED += 1
+        status = str(prediction.get("status") or "").lower()
+        get_url = (prediction.get("urls") or {}).get("get")
+        deadline = time.monotonic() + timeout
+        while status not in {"succeeded", "successful", "failed", "canceled", "cancelled"}:
+            if not get_url or time.monotonic() >= deadline:
+                print("  Replicate video timed out or returned no polling URL.")
+                return False
+            time.sleep(poll_interval)
+            poll = requests.get(get_url, headers=headers, timeout=30)
+            poll.raise_for_status()
+            prediction = poll.json()
+            status = str(prediction.get("status") or "").lower()
+        if status not in {"succeeded", "successful"}:
+            print(f"  Replicate video prediction failed: {str(prediction.get('error') or status)[:300]}")
+            return False
+        output_url = _replicate_output_url(prediction.get("output"))
+        if not output_url:
+            print("  Replicate video completed but returned no downloadable video URL.")
+            return False
+        with requests.get(output_url, stream=True, timeout=120) as download:
+            download.raise_for_status()
+            with Path(path).open("wb") as target:
+                for chunk in download.iter_content(1024 * 1024):
+                    if chunk:
+                        target.write(chunk)
+        if not _valid_ai_video(path):
+            Path(path).unlink(missing_ok=True)
+            print("  Replicate output failed FFprobe video validation.")
+            return False
+        _write_source_metadata(Path(path), {
+            "provider": "Replicate", "model": model, "prediction_id": prediction.get("id"),
+            "asset_type": "ai_generated_video", "ai_disclosure": True,
+            "prompt_sha256": hashlib.sha256(str(prompt).encode("utf-8")).hexdigest(),
+            "page_url": (prediction.get("urls") or {}).get("web", ""),
+            "licence_status": "Review selected model licence and Replicate terms before publication.",
+            "human_visual_inspection_required": True,
+        })
+        print(f"  Replicate AI video generated ({model}); human visual review required.")
+        return True
+    except Exception as exc:
+        Path(path).unlink(missing_ok=True)
+        print(f"  Replicate video generation failed: {type(exc).__name__}: {exc}")
+        return False
+
+
 def generate_ai_video(prompt, path, aspect_ratio="9:16"):
-    """Use only an explicitly configured local OpenVINO LTX model; never call hosted providers."""
+    """Generate AI video only through an explicitly enabled provider/model."""
     import re
     if re.search(
         r"\b(archival\s+(?:footage|film|video|photograph|photo|still|image)|archive\s+footage|newsreel|historical\s+(?:footage|film|photograph)|old\s+footage)\b",
@@ -401,12 +520,21 @@ def generate_ai_video(prompt, path, aspect_ratio="9:16"):
     ):
         print("  AI video skipped: archival requests require genuine archival sources.")
         return False
-    model_dir = os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip()
-    if not model_dir:
-        print("  Local AI video skipped: OPENVINO_LTX_MODEL_DIR is not configured.")
+    if os.getenv("AI_VIDEO_ENABLED", "0").strip().lower() not in {"1", "true", "yes"}:
+        print("  AI video disabled (AI_VIDEO_ENABLED is not explicitly enabled).")
         return False
-    from core.openvino_video import generate_ltx_video
-    return generate_ltx_video(prompt, path, aspect_ratio=aspect_ratio, model_dir=model_dir)
+    provider = os.getenv("AI_VIDEO_PROVIDER", "replicate").strip().lower()
+    if provider == "replicate":
+        return _generate_replicate_video(prompt, path, aspect_ratio)
+    if provider == "openvino":
+        model_dir = os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip()
+        if not model_dir:
+            print("  Local AI video skipped: OPENVINO_LTX_MODEL_DIR is not configured.")
+            return False
+        from core.openvino_video import generate_ltx_video
+        return generate_ltx_video(prompt, path, aspect_ratio=aspect_ratio, model_dir=model_dir)
+    print(f"  Unsupported AI_VIDEO_PROVIDER: {provider}")
+    return False
 
 
 # Record scene-image provider outcomes without storing prompts or credentials.
