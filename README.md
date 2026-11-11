@@ -451,3 +451,8 @@ python scripts/certify_release.py --build-dir "<BUILD_DIR>/job_<ID>" --video "<O
 ```
 
 The certificate is an internal production checklist and artifact-integrity record, not a legal, factual, historical or scientific guarantee. The FFmpeg smoke-test suite also creates a real sample MP4 and runs the release certifier end to end.
+
+
+## Universal free documentary production stack
+
+See [Universal Free Documentary Media Stack](docs/UNIVERSAL_FREE_DOCUMENTARY_MEDIA_STACK.md) for the provider-agnostic media strategy, free tools, licensing rules, visual QA workflow and limitations.
