@@ -112,7 +112,8 @@ jobs:
 
       - name: Retrieve and validate one real archival video
         run: |
-          set -o pipefail
+          set -euo pipefail
+          mkdir -p build/archival_documentary_trial/preflight
           python -m scripts.validate_archival_video_e2e "$ARCHIVAL_QUERY" \
             --period "$ARCHIVAL_PERIOD" \
             --output-dir build/archival_documentary_trial/preflight \
