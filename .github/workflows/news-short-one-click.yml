@@ -1,0 +1,126 @@
+name: Create news Short review package — one click
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Approved news story issue number (for example 46)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: one-click-news-short-${{ inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  create-review-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate issue number
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          if ! [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Enter a numeric GitHub issue number."
+            exit 1
+          fi
+      - name: Extract human-approved evidence from issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const number = Number("${{ inputs.issue_number }}");
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: number
+            });
+            if (issue.state !== "open" || !issue.title.startsWith("News story review:")) {
+              core.setFailed("Choose an open issue whose title starts with 'News story review:'.");
+              return;
+            }
+            const matches = [...(issue.body || "").matchAll(new RegExp("```json\\s*([\\s\\S]*?)```", "gi"))];
+            if (matches.length !== 1) {
+              core.setFailed("The issue must contain exactly one fenced JSON evidence packet.");
+              return;
+            }
+            let packet;
+            try { packet = JSON.parse(matches[0][1]); }
+            catch (error) { core.setFailed("Invalid evidence JSON: " + error.message); return; }
+            if (packet.review_status !== "approved" ||
+                !Array.isArray(packet.sources) || packet.sources.length === 0 ||
+                !Array.isArray(packet.verified_facts) || packet.verified_facts.length === 0) {
+              core.setFailed("Human evidence review is not complete. Confirm review_status=approved, sources and verified_facts before running.");
+              return;
+            }
+            const fs = require("fs");
+            fs.mkdirSync("input-news", { recursive: true });
+            fs.writeFileSync("input-news/reviewed_story.json", JSON.stringify(packet, null, 2) + "\n");
+      - name: Install free CPU dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install requests Pillow python-dotenv
+      - name: Generate script draft
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+        run: |
+          python -m scripts.draft_reviewed_news_short input-news/reviewed_story.json --output input-news/shorts_script_draft.json
+      - name: Prepare visual candidates
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          REPLICATE_VIDEO_MODEL: ${{ vars.REPLICATE_VIDEO_MODEL }}
+          FREE_ONLY_MODE: "1"
+        run: |
+          python scripts/prepare_news_short_assets.py --artifact-dir input-news --output-dir output/news-short-review
+      - name: Validate review package contents
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("output/news-short-review")
+          candidate = json.loads((root / "production_candidate.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "asset_review_manifest.json").read_text(encoding="utf-8"))
+          scenes = candidate.get("scenes", [])
+          if not 4 <= len(scenes) <= 6 or len(manifest.get("assets", [])) != len(scenes):
+              raise SystemExit("Expected 4–6 prepared scenes.")
+          for n, scene in enumerate(scenes, 1):
+              asset = Path(scene["asset_path"])
+              if not asset.is_file() or not asset.with_suffix(asset.suffix + ".source.json").is_file():
+                  raise SystemExit(f"Scene {n} asset or provenance file is missing.")
+          print(f"Review package ready: {len(scenes)} scenes. No MP4 rendered and no upload performed.")
+          PY
+      - name: Upload one review package
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-short-review-${{ github.run_id }}
+          path: |
+            input-news/reviewed_story.json
+            input-news/shorts_script_draft.json
+            output/news-short-review/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report review package on issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: Number("${{ inputs.issue_number }}"),
+              body: [
+                "## News Short review package ready",
+                "",
+                "Download the `news-short-review-${{ github.run_id }}` artifact from this Actions run.",
+                "It contains the evidence packet, script draft, scene visuals and provenance/licence metadata.",
+                "",
+                "This is a review package only. It does not render an MP4, upload to YouTube or publish."
+              ].join("\n")
+            });
