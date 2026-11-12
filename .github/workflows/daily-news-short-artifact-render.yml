@@ -1,0 +1,150 @@
+name: Daily news Short — artifact handoff render
+
+on:
+  workflow_dispatch:
+    inputs:
+      approved_script_path:
+        description: "Repository path to the human-approved script JSON"
+        required: true
+        type: string
+      approval_path:
+        description: "Repository path to approval JSON with six human sign-offs"
+        required: true
+        type: string
+      asset_run_id:
+        description: "Run ID of the successful daily-news asset-preparation workflow"
+        required: true
+        type: string
+      asset_artifact_name:
+        description: "Exact artifact name, normally daily-news-assets-RUN_ID"
+        required: true
+        type: string
+      language:
+        description: "Narration and subtitle language"
+        required: true
+        type: choice
+        options:
+          - english
+          - hindi
+        default: english
+      voice_gender:
+        description: "Narration voice"
+        required: true
+        type: choice
+        options:
+          - male
+          - female
+        default: male
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-news-short-artifact-render
+  cancel-in-progress: false
+
+jobs:
+  render-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install free CPU rendering dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-dejavu-core fonts-noto-core espeak-ng
+          python -m pip install --upgrade pip
+          python -m pip install edge-tts requests Pillow python-dotenv jsonschema
+          ffmpeg -version
+          ffprobe -version
+      - name: Download exact prepared asset artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.asset_artifact_name }}
+          run-id: ${{ inputs.asset_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: input-assets
+      - name: Attach artifact assets to the separately approved script
+        run: |
+          python scripts/attach_daily_news_assets.py --artifact-dir input-assets --approved-script "${{ inputs.approved_script_path }}" --output-script render-input/approved_script.json --asset-output-dir render-input/assets
+      - name: Validate artifact identity, approval and paths
+        env:
+          SCRIPT_PATH: ${{ inputs.approved_script_path }}
+          APPROVAL_PATH: ${{ inputs.approval_path }}
+          ASSET_RUN_ID: ${{ inputs.asset_run_id }}
+          LANGUAGE: ${{ inputs.language }}
+          VOICE_GENDER: ${{ inputs.voice_gender }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path.cwd().resolve()
+          def repo_file(raw, label):
+              value = Path(raw)
+              if value.is_absolute():
+                  raise SystemExit(f"{label} must be repository-relative.")
+              path = (root / value).resolve()
+              if root not in path.parents or not path.is_file():
+                  raise SystemExit(f"{label} must be an existing repository file.")
+              return path
+          approved_path = repo_file(os.environ["SCRIPT_PATH"], "approved_script_path")
+          approval_path = repo_file(os.environ["APPROVAL_PATH"], "approval_path")
+          script = json.loads(Path("render-input/approved_script.json").read_text(encoding="utf-8"))
+          approval = json.loads(approval_path.read_text(encoding="utf-8"))
+          if script.get("editorial_status") != "approved_for_production":
+              raise SystemExit("Script must be marked approved_for_production.")
+          if approval.get("status") != "approved":
+              raise SystemExit("Approval JSON must have status=approved.")
+          if str(approval.get("asset_review_run_id", "")) != os.environ["ASSET_RUN_ID"]:
+              raise SystemExit("Approval must identify this exact asset-preparation run ID.")
+          required = ("editorial", "factual", "visual", "audio", "rights", "disclosure")
+          signoffs = approval.get("human_approvals", {})
+          missing = [key for key in required if not isinstance(signoffs, dict) or signoffs.get(key) != "approved"]
+          if missing:
+              raise SystemExit("Missing explicit human sign-offs: " + ", ".join(missing))
+          scenes = script.get("scenes")
+          if not isinstance(scenes, list) or not 4 <= len(scenes) <= 6:
+              raise SystemExit("Approved Short must contain 4–6 scenes.")
+          asset_root = (root / "render-input" / "assets").resolve()
+          for number, scene in enumerate(scenes, 1):
+              asset = Path(str(scene.get("asset_path") or "")).resolve()
+              if asset_root not in asset.parents or not asset.is_file():
+                  raise SystemExit(f"Scene {number} asset is missing or outside the downloaded artifact.")
+              sidecar = asset.with_suffix(asset.suffix + ".source.json")
+              if not sidecar.is_file() or asset_root not in sidecar.resolve().parents:
+                  raise SystemExit(f"Scene {number} provenance sidecar is missing.")
+          script["language"] = os.environ["LANGUAGE"]
+          script["voice_gender"] = os.environ["VOICE_GENDER"]
+          Path("render-input/approved_script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          Path("render-input/render_approval.json").write_text(json.dumps(approval, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print(f"Exact asset run approved; {len(scenes)} scenes and all six human sign-offs verified.")
+          PY
+      - name: Render approved news Short (review copy only)
+        env:
+          TTS_ENGINE: edge
+          LANGUAGE: ${{ inputs.language }}
+          VOICE_GENDER: ${{ inputs.voice_gender }}
+          CI: "true"
+        run: |
+          python scripts/render_reviewed_news_short.py render-input/approved_script.json render-input/render_approval.json --output-dir output/daily_news/rendered
+      - name: Run technical and content QA
+        run: |
+          python scripts/qa_news_short.py output/daily_news/rendered/review_short.mp4 --report output/daily_news/rendered/qa/technical.json --manifest output/daily_news/rendered/production_manifest.json
+          test -s output/daily_news/rendered/qa/technical.json
+      - name: Build and validate shared review package
+        run: |
+          python scripts/package_daily_news_review.py --script render-input/approved_script.json --render-dir output/daily_news/rendered --qa-report output/daily_news/rendered/qa/technical.json --output-dir output/daily_news/review_package
+          python scripts/validate_review_package.py output/daily_news/review_package
+      - name: Upload human-review artifact (no YouTube upload)
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-news-short-review-${{ github.run_id }}
+          path: output/daily_news/review_package/
+          if-no-files-found: error
+          retention-days: 14
