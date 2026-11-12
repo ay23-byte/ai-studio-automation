@@ -15,10 +15,6 @@ on:
         description: "Run ID of the successful daily-news asset-preparation workflow"
         required: true
         type: string
-      asset_artifact_name:
-        description: "Exact artifact name, normally daily-news-assets-RUN_ID"
-        required: true
-        type: string
       language:
         description: "Narration and subtitle language"
         required: true
@@ -65,7 +61,7 @@ jobs:
       - name: Download exact prepared asset artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.asset_artifact_name }}
+          name: daily-news-assets-${{ inputs.asset_run_id }}
           run-id: ${{ inputs.asset_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
