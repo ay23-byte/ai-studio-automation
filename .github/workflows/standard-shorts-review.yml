@@ -1,0 +1,130 @@
+name: Standard Shorts — review render
+
+on:
+  workflow_dispatch:
+    inputs:
+      script_json:
+        description: "Complete scene-based script JSON (title, hook, category, scenes[].say/caption/image/keywords)"
+        required: true
+        type: string
+      language:
+        description: "Narration language"
+        required: true
+        type: choice
+        options:
+          - english
+          - hindi
+        default: english
+      voice_gender:
+        description: "Narration voice"
+        required: true
+        type: choice
+        options:
+          - male
+          - female
+        default: male
+
+permissions:
+  contents: read
+
+concurrency:
+  group: standard-shorts-review
+  cancel-in-progress: false
+
+jobs:
+  render-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-dejavu-core
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Install free CPU rendering dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install edge-tts requests Pillow python-dotenv google-api-python-client google-auth google-auth-oauthlib
+          python -m pip check
+
+      - name: Save supplied script
+        env:
+          SCRIPT_JSON: ${{ inputs.script_json }}
+        run: |
+          mkdir -p render-input
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          raw = os.environ["SCRIPT_JSON"]
+          value = json.loads(raw)
+          if not isinstance(value, dict) or not isinstance(value.get("scenes"), list) or not value["scenes"]:
+              raise SystemExit("script_json must be an object with a non-empty scenes array")
+          for i, scene in enumerate(value["scenes"], 1):
+              if not isinstance(scene, dict) or not str(scene.get("say") or "").strip():
+                  raise SystemExit(f"Scene {i} needs a non-empty say field")
+          Path("render-input/shorts_script.json").write_text(
+              json.dumps(value, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Render standard Short for review
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          CHANNEL_NAME: Engineering Physics
+          SUBTITLE_PRESET: bold
+          TTS_ENGINE: edge
+          AI_VIDEO_MODE: fallback
+        run: |
+          python scripts/render_standard_short_review.py \
+            --script render-input/shorts_script.json \
+            --language "${{ inputs.language }}" \
+            --voice-gender "${{ inputs.voice_gender }}" \
+            --output-dir output/standard_shorts
+
+      - name: Verify review MP4
+        run: |
+          VIDEO="$(find output/standard_shorts -name video.mp4 -type f | head -n 1)"
+          test -n "$VIDEO"
+          ffprobe -v error -show_streams -show_format -of json "$VIDEO" > output/standard_shorts/ffprobe.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = next(Path("output/standard_shorts").glob("shorts_*/ffprobe.json"), None)
+          if p is None:
+              p = Path("output/standard_shorts/ffprobe.json")
+          data = json.loads(p.read_text())
+          videos = [s for s in data.get("streams", []) if s.get("codec_type") == "video"]
+          audios = [s for s in data.get("streams", []) if s.get("codec_type") == "audio"]
+          if len(videos) != 1 or not audios:
+              raise SystemExit("Review MP4 must contain exactly one video stream and at least one audio stream")
+          if videos[0].get("width") != 1080 or videos[0].get("height") != 1920:
+              raise SystemExit("Review MP4 must be 1080x1920")
+          print("MP4 stream and 9:16 resolution checks passed. Human review remains mandatory.")
+          PY
+
+      - name: Upload review-only artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: standard-shorts-review-${{ github.run_id }}
+          path: |
+            output/standard_shorts/
+            build/job_*/script.json
+            build/job_*/subs.ass
+            build/job_*/quality_report.json
+            build/job_*/cinematic_shot_plan.json
+          if-no-files-found: error
+          retention-days: 14
