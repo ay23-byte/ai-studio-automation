@@ -65,11 +65,14 @@ def main() -> int:
         source = build_dir / optional
         if source.is_file():
             shutil.copy2(source, destination / optional)
+    from scripts.package_standard_short_review import create_review_package
+    package = create_review_package(script, build_dir, destination)
     print(json.dumps({
         "status": "REVIEW_REQUIRED",
         "job_id": job_id,
         "video": str(destination / "video.mp4"),
         "review_bundle": str(destination),
+        "shared_package": str(package),
         "youtube_upload_attempted": False,
     }, ensure_ascii=False, indent=2))
     return 0
