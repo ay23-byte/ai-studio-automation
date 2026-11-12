@@ -55,10 +55,15 @@ jobs:
           print("Evidence and draft JSON files exist and parse.")
           PY
       - name: Prepare scene assets for human inspection
+        env:
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
+          DRAFT_PATH: ${{ inputs.draft_path }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
         run: |
           mkdir -p input-news
-          cp "${{ inputs.evidence_path }}" input-news/reviewed_story.json
-          cp "${{ inputs.draft_path }}" input-news/shorts_script_draft.json
+          cp "$EVIDENCE_PATH" input-news/reviewed_story.json
+          cp "$DRAFT_PATH" input-news/shorts_script_draft.json
           python scripts/prepare_news_short_assets.py \
             --artifact-dir input-news \
             --output-dir output/daily_news/asset_review
