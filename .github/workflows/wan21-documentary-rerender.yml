@@ -1,0 +1,187 @@
+name: Wan2.1 documentary rerender
+
+on:
+  workflow_dispatch:
+    inputs:
+      documentary_run_id:
+        description: Actions run ID that produced the longform-review-package artifact (must be rendered after PR #171)
+        required: true
+        type: string
+      wan_worker_run_id:
+        description: Actions run ID that produced the wan21-generated-clips artifact
+        required: true
+        type: string
+      job_id:
+        description: Original documentary job ID (for example, 42)
+        required: true
+        type: string
+      mapping_json:
+        description: 'Explicit JSON, e.g. {"mappings":[{"scene_id":"opening","shot_id":"shot_0001"}]}'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: wan21-documentary-rerender-${{ inputs.job_id }}
+  cancel-in-progress: false
+
+jobs:
+  rerender:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download original documentary review package
+        uses: actions/download-artifact@v4
+        with:
+          name: longform-review-package
+          run-id: ${{ inputs.documentary_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: source-documentary
+
+      - name: Download Wan2.1 generated clips
+        uses: actions/download-artifact@v4
+        with:
+          name: wan21-generated-clips
+          run-id: ${{ inputs.wan_worker_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: source-wan
+
+      - name: Set up Python and media tools
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core espeak-ng
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore original job and validate inputs
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          MAPPING_JSON: ${{ inputs.mapping_json }}
+        run: |
+          set -euo pipefail
+          [[ "$JOB_ID" =~ ^[0-9]+$ ]] || { echo "::error::job_id must be numeric."; exit 1; }
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = json.loads(os.environ["MAPPING_JSON"])
+          if not isinstance(payload, dict) or not isinstance(payload.get("mappings"), list) or not payload["mappings"]:
+              raise SystemExit("mapping_json must contain a non-empty mappings array.")
+          Path("wan_storyboard_mapping.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+          PY
+          JOB_DIR="source-documentary/build/job_${JOB_ID}"
+          test -s "$JOB_DIR/script.json" || { echo "::error::Saved script.json missing. Re-run the original longform workflow on main after PR #171."; exit 1; }
+          test -s "$JOB_DIR/visual_review_report.json" || { echo "::error::visual_review_report.json missing from original build artifact."; exit 1; }
+          test -s source-wan/scene_manifest.json || { echo "::error::scene_manifest.json missing from Wan worker artifact."; exit 1; }
+          mkdir -p "build/job_${JOB_ID}"
+          cp -a "$JOB_DIR/." "build/job_${JOB_ID}/"
+          find source-wan -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+          echo "Original documentary and Wan worker artifacts restored."
+
+      - name: Import Wan2.1 clips as unapproved assets
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          set -euo pipefail
+          python scripts/import_wan_assets.py \
+            --manifest source-wan/scene_manifest.json \
+            --clips-dir source-wan \
+            --output-dir "build/job_${JOB_ID}/media/wan"
+
+      - name: Map selected Wan scenes to exact storyboard shots
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          set -euo pipefail
+          python scripts/map_wan_assets_to_storyboard.py \
+            --assets "build/job_${JOB_ID}/media/wan/wan_assets.json" \
+            --review-report "build/job_${JOB_ID}/visual_review_report.json" \
+            --mapping wan_storyboard_mapping.json \
+            --output "build/job_${JOB_ID}/wan_mapped/visual_review_report.json"
+
+      - name: Rerender the exact saved documentary script with Wan2.1 shots
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: "gemini-3.1-flash-lite"
+          GEMINI_FALLBACK_MODELS: "gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          FREE_ONLY_MODE: "1"
+          AI_VIDEO_ENABLED: "0"
+          TTS_ENGINE: "edge"
+          ALLOW_CHATTERBOX_ON_CI: "false"
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "unlisted"
+          WAN_MAPPED_REVIEW_REPORT: build/job_${{ inputs.job_id }}/wan_mapped/visual_review_report.json
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          set -euo pipefail
+          test -n "$GEMINI_API_KEY" || { echo "::error::GEMINI_API_KEY is required by the long-form pipeline."; exit 1; }
+          python scripts/render_longform_script.py \
+            --script "build/job_${JOB_ID}/script.json" \
+            --job-id "$JOB_ID"
+
+      - name: Validate final MP4 and retain review evidence
+        if: always()
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p output/wan-rerender
+          find "build/job_${JOB_ID}" -type f -name '*.mp4' -print 2>/dev/null || true
+          python - <<'PY'
+          import json, os, shutil, subprocess
+          from pathlib import Path
+          root = Path("build") / f"job_{os.environ['JOB_ID']}"
+          ffprobe = shutil.which("ffprobe")
+          reports = []
+          for path in root.rglob("*.mp4"):
+              result = subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration:stream=codec_type,width,height", "-of", "json", str(path)], capture_output=True, text=True)
+              if result.returncode:
+                  continue
+              data = json.loads(result.stdout)
+              video = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), None)
+              duration = float((data.get("format") or {}).get("duration") or 0)
+              if video and duration > 0:
+                  reports.append({"file": str(path), "duration_seconds": duration, "width": video.get("width"), "height": video.get("height"), "bytes": path.stat().st_size})
+          Path("output/wan-rerender/validation.json").write_text(json.dumps(reports, indent=2), encoding="utf-8")
+          print(json.dumps(reports, indent=2))
+          if not reports:
+              raise SystemExit("No valid MP4 found in the rerendered job.")
+          PY
+          cp -a "build/job_${JOB_ID}" output/wan-rerender/job_${JOB_ID}
+
+      - name: Upload Wan2.1 documentary review package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wan21-documentary-review
+          path: |
+            output/wan-rerender/
+            build/job_${{ inputs.job_id }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Report review-only status
+        if: success()
+        run: |
+          echo "Wan2.1 documentary rerender completed. This workflow does not upload or publish to YouTube."
+          echo "All Wan2.1 assets remain AI-generated and require human visual, factual-context, rights and editorial review."
