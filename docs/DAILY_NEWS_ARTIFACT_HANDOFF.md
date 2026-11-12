@@ -8,8 +8,9 @@ This connects the news research, visual review, and final render stages without 
 2. Open its `daily-news-candidates-RUN_ID` artifact and choose a story.
 3. Independently verify the original sources. Prepare `reviewed_story.json` with `review_status: "approved"`, non-empty `sources`, and non-empty `verified_facts`.
 4. Prepare `shorts_script_draft.json` with 4–6 scenes, source IDs, narration, captions, and visual direction. Keep `editorial_status: "draft_requires_human_script_and_visual_review"`.
-5. Commit those two reviewed JSON inputs to the repository, then run **Actions → Daily news Short — prepare visual review artifact** with their repository-relative paths.
-6. Inspect the uploaded `daily-news-assets-RUN_ID` artifact. It contains `production_candidate.json`, `reviewed_evidence_packet.json`, `asset_review_manifest.json`, each scene asset, and its `.source.json` provenance sidecar.
+5. Run **Actions → News script draft — human approval required** by commenting `/approve-script` on the approved story issue. Wait for the workflow to succeed and upload its artifact.
+6. Open that successful workflow run and copy its numeric run ID from the URL (`.../actions/runs/RUN_ID`). Run **Actions → Daily news Short — prepare visual review artifact** and enter that run ID in the `script_run_id` field. It downloads the exact `news-script-draft-RUN_ID` artifact; no JSON files need to be committed.
+7. Inspect the uploaded `daily-news-assets-RUN_ID` artifact. It contains `production_candidate.json`, `reviewed_evidence_packet.json`, `asset_review_manifest.json`, each scene asset, and its `.source.json` provenance sidecar.
 
 The asset-preparation workflow uses the exact upstream script-draft run ID to download both JSON files. It never renders or uploads. It can fail if no sufficiently relevant visual can be sourced/generated; it must not silently substitute unrelated filler.
 
