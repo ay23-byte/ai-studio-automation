@@ -42,7 +42,9 @@ jobs:
             let packet;
             try { packet = JSON.parse(matches[0][1]); }
             catch (error) { core.setFailed("The issue JSON packet is invalid: " + error.message); }
-            const language = String(packet.language || "hinglish").toLowerCase();
+            const storyIdentity = [packet.story_title, packet.title, packet.story_id].filter(Boolean).join(" ");
+            const defaultLanguage = /himalay/i.test(storyIdentity) ? "hindi" : "hinglish";
+            const language = String(packet.language || defaultLanguage).toLowerCase();
             if (!["english", "hinglish", "hindi"].includes(language)) {
               core.setFailed("packet.language must be english, hinglish, or hindi.");
               return;
