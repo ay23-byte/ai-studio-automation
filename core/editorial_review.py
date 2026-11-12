@@ -141,6 +141,9 @@ def _shot_fingerprint(shot: dict[str, Any], chapter: str) -> str:
         "chapter_id": chapter,
         "media_path": shot.get("media_path"),
         "visual_prompt": shot.get("visual_prompt"),
+        # Generated-video prompts are editorially significant too: changing one
+        # must invalidate any approval tied to the previous generated footage.
+        "wan_generation_prompt": shot.get("wan_generation_prompt"),
         "narration": shot.get("narration"),
         "media_type": shot.get("media_type"),
         "source_metadata": source_identity,
