@@ -1,4 +1,4 @@
-name: Documentary end-to-end smoke test
+name: '⚙ Internal — Documentary end-to-end smoke test'
 
 on:
   workflow_dispatch:
