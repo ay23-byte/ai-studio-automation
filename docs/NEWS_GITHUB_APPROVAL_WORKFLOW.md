@@ -24,7 +24,7 @@ Only after completing the checklist, change review_status from pending_human_ver
 
 Add a new issue comment containing exactly /approve-script. The comment workflow accepts commands only from repository owners, members, or collaborators. It extracts the JSON packet and calls the existing reviewed-script writer, which independently reruns source verification before any Gemini request.
 
-On success, the workflow uploads reviewed_story.json and shorts_script_draft.json as a 14-day Actions artifact and posts its URL on the issue. On failure, it posts a pointer to the workflow logs.
+On success, the workflow uploads both JSON files as a 14-day Actions artifact named `news-script-draft-RUN_ID` (where RUN_ID is the GitHub Actions run ID) and posts its URL on the issue. Copy the numeric run ID from that workflow run page; the next asset-preparation workflow uses it to download the exact artifact. On failure, it posts a pointer to the workflow logs.
 
 ## Approval boundaries
 
