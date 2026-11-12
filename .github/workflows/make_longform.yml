@@ -134,8 +134,8 @@ jobs:
       - name: Validate Python syntax
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
-      - name: Test narration provider fallback
-        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing -v
+      - name: Test narration provider fallback and long-form package adapter
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_longform_review_package -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
@@ -189,6 +189,26 @@ jobs:
             --minutes ${{ inputs.minutes }} \
             --language "${{ inputs.language || 'hinglish' }}" \
             --voice-gender "${{ inputs.voice_gender }}"
+
+      - name: Assemble shared long-form review package
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t JOB_DIRS < <(find build -maxdepth 1 -mindepth 1 -type d -name 'job_*' | sort)
+          if [[ ${#JOB_DIRS[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one documentary build directory; found ${#JOB_DIRS[@]}."
+            exit 1
+          fi
+          JOB_NAME="$(basename "${JOB_DIRS[0]}")"
+          JOB_ID="${JOB_NAME#job_}"
+          [[ "$JOB_ID" =~ ^[0-9]+$ ]] || { echo "::error::Invalid documentary job directory: $JOB_NAME"; exit 1; }
+          VIDEO="output/longform_${JOB_ID}.mp4"
+          test -s "$VIDEO" || { echo "::error::Final documentary MP4 is missing: $VIDEO"; exit 1; }
+          python scripts/package_longform_review.py \\
+            --build-dir "${JOB_DIRS[0]}" \\
+            --video "$VIDEO" \\
+            --output-dir "${JOB_DIRS[0]}/shared_review_package"
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions
