@@ -34,7 +34,7 @@ The asset-preparation workflow never renders or uploads. It can fail if no suffi
 }
 ```
 
-4. Run **Actions → Daily news Short — artifact handoff render**. Supply the approved script path, approval path, exact asset workflow run ID, and artifact name `daily-news-assets-RUN_ID`.
+4. Run **Actions → Daily news Short — artifact handoff render**. Supply the approved script path, approval path, and exact asset workflow run ID. The workflow derives the artifact name as `daily-news-assets-RUN_ID` to avoid a mismatched artifact selection.
 5. The workflow downloads that artifact using the repository Actions read permission, verifies the run ID and all six sign-offs, attaches the assets and provenance sidecars, renders, runs QA, and uploads `daily-news-short-review-RUN_ID`.
 
 ## Safety and limitations
