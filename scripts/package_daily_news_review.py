@@ -54,6 +54,7 @@ def create_package(script_path: str | Path, render_dir: str | Path,
 
     shutil.copy2(video, root / "video.mp4")
     shutil.copy2(captions, root / "captions.ass")
+    shutil.copy2(script_path, root / "approved_script.json")
     for filename, target in (("licenses.csv", "licenses.csv"), ("credits.txt", "credits.txt"),
                              ("voice.wav", "voice.wav")):
         source = render_dir / filename
@@ -116,7 +117,7 @@ def create_package(script_path: str | Path, render_dir: str | Path,
     })
     shutil.copy2(render_dir / "production_manifest.json", root / "renderer_manifest.json")
 
-    advanced = render_dir / "advanced_qa"
+    advanced = render_dir / "qa" / "advanced_qa"
     mapping = {
         "semantic": advanced / "semantic_qa_report.json",
         "audio": advanced / "audio_quality_report.json",
