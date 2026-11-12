@@ -128,6 +128,8 @@ Observations:
   checked from here, so it stays on the Node 20 majors. Actions used only by manual or
   issue-triggered workflows (`download-artifact`, `github-script`, `cache`) are **not exercised
   by pull-request checks**; their upgrade is NOT VERIFIED until those workflows run.
+  `FedericoCarboni/setup-ffmpeg@v3` (one use, `documentary-e2e-smoke.yml`) still targets
+  Node 20 and has no newer release; GitHub runs it on Node 24 with a warning.
   The notice that `ubuntu-latest` is moving to Ubuntu 26 is not acted on.
 * **Model ids (Phase 2).** No workflow file contains a Gemini model id any more. Ten
   workflows read repository variables (`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`, and the

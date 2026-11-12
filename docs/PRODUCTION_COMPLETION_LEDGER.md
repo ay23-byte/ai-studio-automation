@@ -253,7 +253,11 @@ Results are in the table at the end of this section.
 | Local news tests with only `requests` + `Pillow` | 135 tests OK |
 | Tracked database unchanged | sha256 prefix `6e3232feda4015cc` before and after |
 | All 30 workflow files parse as YAML | Yes (PyYAML) |
-| Pull-request checks | PR_CHECKS_PENDING |
+| Pull-request checks on #200, first commit `aac36dc` | All nine passed, across seven workflows (runs 43328216839 `validate`, 43328216791, 43328216822, 43328216703, 43328216880, 43328216936, 43328217018). Because this change touches every workflow file, the path-filtered workflows ran as well |
+| Upgraded actions actually executed by those runs | `checkout@v7`, `setup-python@v7`, `upload-artifact@v7`, `setup-node@v7`. The Node 20 warning for `checkout` and `setup-python` is gone |
+| Upgraded actions **not** executed | `download-artifact@v8`, `github-script@v9`, `cache@v6` (manual or issue-triggered workflows only) |
+| Remaining runner annotations | Node 20 warning for `FedericoCarboni/setup-ffmpeg@v3` in `documentary-e2e-smoke.yml` (v3 is its newest release); notice that `ubuntu-latest` moves to Ubuntu 26 |
+| Misleading annotation found and fixed | A unit test printed a `::error::` line, which GitHub showed as a failure annotation on two passing runs. The test now captures that output (second commit) |
 
 ### Not done in Phase 2, and why
 

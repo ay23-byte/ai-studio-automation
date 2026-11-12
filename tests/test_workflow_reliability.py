@@ -1,5 +1,7 @@
 """Phase 2 reliability guards: workflow hygiene, state-branch credentials, model profiles, alerts."""
 import base64
+import contextlib
+import io
 import json
 import os
 import re
@@ -222,7 +224,12 @@ class StateBranchCredentialTests(unittest.TestCase):
             with self.assertRaises(RuntimeError) as caught:
                 persist_state._remote_has_branch("origin", "automation-state")
             self.assertIn("Could not query", str(caught.exception))
-            self.assertEqual(persist_state.main(["restore"]), 1)
+            # Captured: on a runner an "::error::" line printed by a test would be shown
+            # as a failure annotation on a passing check.
+            printed = io.StringIO()
+            with contextlib.redirect_stdout(printed):
+                self.assertEqual(persist_state.main(["restore"]), 1)
+            self.assertIn("::error::Automation state restore failed", printed.getvalue())
 
     def test_missing_branch_on_a_reachable_remote_is_a_clean_empty_start(self):
         from scripts import persist_state
