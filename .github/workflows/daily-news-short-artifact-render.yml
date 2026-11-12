@@ -15,6 +15,10 @@ on:
         description: "Run ID of the successful daily-news asset-preparation workflow"
         required: true
         type: string
+      issue_number:
+        description: "Story issue number whose visual-review artifact belongs to asset_run_id"
+        required: true
+        type: string
       language:
         description: "Narration and subtitle language"
         required: true
@@ -58,10 +62,42 @@ jobs:
           python -m pip install edge-tts requests Pillow python-dotenv jsonschema
           ffmpeg -version
           ffprobe -version
+      - name: Verify exact issue visual-review run and artifact
+        id: asset-source
+        uses: actions/github-script@v7
+        env:
+          ASSET_RUN_ID: ${{ inputs.asset_run_id }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        with:
+          script: |
+            const runId = Number(process.env.ASSET_RUN_ID);
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            if (!Number.isSafeInteger(runId) || runId <= 0 || !Number.isSafeInteger(issueNumber) || issueNumber <= 0) {
+              core.setFailed("asset_run_id and issue_number must be positive integers.");
+              return;
+            }
+            const { owner, repo } = context.repo;
+            const run = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
+            if (run.data.path !== ".github/workflows/news-visual-asset-review.yml" || run.data.conclusion !== "success") {
+              core.setFailed("asset_run_id must identify a successful News Short visual asset preparation workflow run.");
+              return;
+            }
+            const expectedName = `news-visual-review-issue-${issueNumber}`;
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner, repo, run_id: runId, per_page: 100
+            });
+            const artifact = artifacts.find(item => item.name === expectedName && !item.expired);
+            if (!artifact) {
+              core.setFailed(`Run ${runId} has no unexpired ${expectedName} artifact.`);
+              return;
+            }
+            core.setOutput("artifact_name", expectedName);
+            core.info(`Verified ${expectedName} from successful run ${runId}.`);
+
       - name: Download exact prepared asset artifact
         uses: actions/download-artifact@v4
         with:
-          name: daily-news-assets-${{ inputs.asset_run_id }}
+          name: ${{ steps.asset-source.outputs.artifact_name }}
           run-id: ${{ inputs.asset_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
