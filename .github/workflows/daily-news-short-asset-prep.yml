@@ -3,17 +3,14 @@ name: Daily news Short — prepare visual review artifact
 on:
   workflow_dispatch:
     inputs:
-      evidence_path:
-        description: "Repository path to human-reviewed reviewed_story.json"
-        required: true
-        type: string
-      draft_path:
-        description: "Repository path to shorts_script_draft.json"
+      script_run_id:
+        description: "Run ID of the successful News script draft workflow that contains both reviewed JSON files"
         required: true
         type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: daily-news-short-asset-prep
@@ -35,35 +32,32 @@ jobs:
           sudo apt-get install --yes ffmpeg fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install requests Pillow python-dotenv
-      - name: Validate reviewed source inputs
-        env:
-          EVIDENCE_PATH: ${{ inputs.evidence_path }}
-          DRAFT_PATH: ${{ inputs.draft_path }}
+      - name: Download reviewed story and script draft artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: news-script-draft-${{ inputs.script_run_id }}
+          run-id: ${{ inputs.script_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: input-news
+      - name: Validate downloaded reviewed source inputs
         run: |
           python - <<'PY'
-          import json, os
+          import json
           from pathlib import Path
-          root = Path.cwd().resolve()
-          for key in ("EVIDENCE_PATH", "DRAFT_PATH"):
-              raw = Path(os.environ[key])
-              if raw.is_absolute():
-                  raise SystemExit(f"{key} must be repository-relative.")
-              path = (root / raw).resolve()
-              if root not in path.parents or not path.is_file():
-                  raise SystemExit(f"{key} must point to a file inside this repository.")
+          root = Path("input-news")
+          for name in ("reviewed_story.json", "shorts_script_draft.json"):
+              path = root / name
+              if not path.is_file():
+                  raise SystemExit(f"Downloaded artifact is missing {name}.")
               json.loads(path.read_text(encoding="utf-8"))
-          print("Evidence and draft JSON files exist and parse.")
+          print("Both reviewed JSON files were downloaded and parse successfully.")
           PY
       - name: Prepare scene assets for human inspection
         env:
-          EVIDENCE_PATH: ${{ inputs.evidence_path }}
-          DRAFT_PATH: ${{ inputs.draft_path }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
         run: |
-          mkdir -p input-news
-          cp "$EVIDENCE_PATH" input-news/reviewed_story.json
-          cp "$DRAFT_PATH" input-news/shorts_script_draft.json
           python scripts/prepare_news_short_assets.py \
             --artifact-dir input-news \
             --output-dir output/daily_news/asset_review
