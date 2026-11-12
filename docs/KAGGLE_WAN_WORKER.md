@@ -23,4 +23,6 @@ Open **Actions → Kaggle Wan2.1 free GPU video worker → Run workflow**. Use a
 - Kaggle controls GPU availability, free quota and session scheduling. Runs can queue, fail when quota is exhausted, or exceed the workflow timeout.
 - The notebook uses the public Wan2.1 T2V-1.3B checkpoint and an SDPA fallback intended for constrained GPUs. Compatibility with the current upstream Wan2.1 source and Kaggle image must be proven by an actual Kaggle run; GitHub static checks alone do not prove GPU inference.
 - The worker generates illustrative AI scenes, not archival evidence. Record AI-generated scenes separately and disclose them. Human review remains mandatory.
+- After inference, the notebook deletes its cloned Wan2.1 source tree and downloaded model checkpoint before the kernel publishes its output. Only the generated MP4 deliverables remain under `/kaggle/working/wan_output`; this prevents multi-gigabyte model weights from being copied into the GitHub Actions artifact.
+- The GitHub artifact is a handoff package, not a complete Kaggle runtime snapshot. Keep it limited to generated clips and validation metadata; never upload model weights, caches, or the cloned inference repository.
 - This worker does not upload to YouTube or publish anything.
