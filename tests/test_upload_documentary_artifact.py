@@ -21,7 +21,6 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
         for name, value in payloads.items():
             (root / name).write_text(json.dumps(value), encoding="utf-8")
         (root / "credits.txt").write_text("Documentary source credits\\nTest credit\\n", encoding="utf-8")
-        (root / "credits.txt").write_text("Documentary source credits\\nTest credit\\n", encoding="utf-8")
         with (root / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
             writer.writeheader()
@@ -48,7 +47,7 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             root = Path(temp)
             self._build(root)
             with (root / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status"])
+                writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
                 writer.writeheader()
                 writer.writerow({"shot_id": "shot_0001", "use_status": "blocked", "fallback_required": "true", "licence": "", "attribution_text": ""})
             with self.assertRaisesRegex(ValueError, "did not clear these assets"):
