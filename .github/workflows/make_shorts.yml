@@ -1,4 +1,4 @@
-name: make-shorts
+name: '1. Create a Short — review first'
 on:
   workflow_dispatch:
     inputs:
