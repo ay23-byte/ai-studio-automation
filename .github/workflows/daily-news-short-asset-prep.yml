@@ -1,4 +1,4 @@
-name: Daily news Short — prepare visual review artifact
+name: '⚙ Internal — Daily news Short — prepare visual review artifact'
 
 on:
   workflow_dispatch:
