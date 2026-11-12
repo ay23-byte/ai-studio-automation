@@ -231,6 +231,21 @@ def _build_correction_prompt(prompt, error):
     return prompt + correction
 
 
+def _coerce_script_payload(payload):
+    """Normalize Gemini JSON variants to the writer's canonical object shape."""
+    if isinstance(payload, list):
+        # Some Gemini responses contain the scene array directly despite the
+        # prompt requesting an object. Preserve the scenes and let all normal
+        # structural/scientific validation run below.
+        payload = {"scenes": payload}
+    if not isinstance(payload, dict):
+        raise ValueError("Gemini script JSON must be an object or a scene array.")
+    scenes = payload.get("scenes")
+    if not isinstance(scenes, list):
+        raise ValueError("Gemini script JSON must contain a scenes array.")
+    return payload
+
+
 def generate_reviewed_shorts(review_path, output_path, language='hinglish'):
     packet=json.loads(open(review_path,encoding='utf-8').read())
     if packet.get('review_status')!='approved':
@@ -325,7 +340,7 @@ def generate_reviewed_shorts(review_path, output_path, language='hinglish'):
         try:
             candidate_text = ''.join(
                 p.get('text', '') for p in data['candidates'][0]['content']['parts'])
-            candidate_script = json.loads(candidate_text)
+            candidate_script = _coerce_script_payload(json.loads(candidate_text))
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
             last_error = ValueError('Gemini returned no usable JSON script candidate.')
         else:
