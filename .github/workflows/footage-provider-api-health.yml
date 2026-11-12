@@ -1,4 +1,4 @@
-name: Live footage provider API health audit
+name: '⚙ Internal — Live footage provider API health audit'
 
 on:
   pull_request:
