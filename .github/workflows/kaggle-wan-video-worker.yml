@@ -206,6 +206,14 @@ jobs:
           echo "::error::Timed out waiting for Kaggle after 180 minutes."
           exit 1
 
+      - name: Install FFmpeg tools for MP4 validation
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffprobe
+          ffprobe -version | head -n 1
+
       - name: Download and validate generated MP4
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
