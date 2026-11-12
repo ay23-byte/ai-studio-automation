@@ -238,11 +238,12 @@ def generate_reviewed_shorts(review_path, output_path, language='hinglish'):
         raise ValueError('Source verification gate rejected this packet: ' + reasons)
     key=os.getenv('GEMINI_API_KEY','')
     if not key: raise RuntimeError('GEMINI_API_KEY is required to draft a script.')
-    language = str(language or packet.get('language') or 'hinglish').strip().lower()
-    if language not in {'english', 'hinglish', 'hindi'}:
-        raise ValueError("language must be one of: english, hinglish, hindi")
     story_identity = " ".join(str(packet.get(k, "")) for k in ("story_title", "title", "story_id")).lower()
     is_himalayan_packet = "himalay" in story_identity
+    default_language = "hindi" if is_himalayan_packet else "hinglish"
+    language = str(language or packet.get('language') or default_language).strip().lower()
+    if language not in {'english', 'hinglish', 'hindi'}:
+        raise ValueError("language must be one of: english, hinglish, hindi")
     if is_himalayan_packet and language != "hindi":
         raise ValueError(
             "This Himalayan study currently has Hindi-only scientific wording validators. "
