@@ -100,7 +100,39 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Preserve runtime database without committing binary state to main
+      - name: Persist topic rotation state without committing runtime database
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Only topics.json is durable scheduling state. The SQLite database
+          # remains an Actions artifact and is never pushed to the repository.
+          git add -- topics.json
+          if git diff --cached --quiet; then
+            echo "No topic state changes to persist."
+            exit 0
+          fi
+          git config user.name "studio-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git commit -m "bot: persist Shorts topic rotation state"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "::error::Could not rebase the topic-state update onto main; resolve the topics.json conflict before retrying."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Persisted topics.json state to main."
+              exit 0
+            fi
+            echo "Topic-state push attempt $attempt failed; retrying."
+            sleep $((attempt * 3))
+          done
+          echo "::error::Could not persist topics.json after three attempts."
+          exit 1
+
+      - name: Preserve runtime database as a downloadable artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
