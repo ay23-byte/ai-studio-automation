@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: read
-  issues: read
+  issues: write
 
 concurrency:
   group: one-click-news-short-${{ inputs.issue_number }}
