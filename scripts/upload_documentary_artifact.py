@@ -1,4 +1,4 @@
-"""Upload one human-reviewed documentary artifact to YouTube as Private only."""
+"""Run automated documentary release checks and upload as Private only."""
 from __future__ import annotations
 
 import argparse
@@ -96,7 +96,7 @@ def _validate_release_evidence(build_dir: Path) -> dict:
     summary = consistency.get("summary") or {}
     consistency_status = str(consistency.get("status") or "MISSING").upper()
     fail_count = int(summary.get("fail_count") or 0)
-    if consistency_status not in {"PASS", "REVIEW"} or fail_count:
+    if consistency_status != "PASS" or fail_count or int(summary.get("review_count") or 0) or int(summary.get("unavailable_count") or 0):
         failed_shots = [
             f"{row.get('shot_id', 'unknown')}: {'; '.join(row.get('issues') or [])}"
             for row in consistency.get("shots") or []
@@ -111,30 +111,49 @@ def _validate_release_evidence(build_dir: Path) -> dict:
             detail += "; failed shots: " + " | ".join(failed_shots[:12])
         raise ValueError("Visual consistency report blocks upload (" + detail + ").")
     audio = reports["audio_quality_report.json"]
-    if audio.get("status") not in {"PASS", "REVIEW"}:
+    if audio.get("status") != "PASS":
         raise ValueError("Audio quality report is failed or incomplete.")
     quality = reports["quality_report.json"]
-    if quality.get("status") not in {"PASS", "REVIEW"}:
+    if quality.get("status") != "PASS":
         raise ValueError("Final video quality report is failed or incomplete.")
     research = reports["research_verification_report.json"]
-    if int(research.get("claim_count") or 0) < 1 or int(research.get("source_count") or 0) < 1:
-        raise ValueError("Research dossier must contain at least one traceable claim and source.")
+    sources = research.get("sources") or []
+    claims = research.get("claims") or []
+    source_ids = {str(item.get("source_id") or "") for item in sources}
+    if not claims or not sources or len(claims) != int(research.get("claim_count") or 0) or len(sources) != int(research.get("source_count") or 0):
+        raise ValueError("Research dossier must contain complete structured claim and source records.")
+    from urllib.parse import urlparse
+    for source in sources:
+        parsed = urlparse(str(source.get("url") or ""))
+        if not source.get("url_valid") or not source.get("metadata_complete") or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Research source is missing a valid URL, title or publisher: " + str(source.get("source_id")))
+    for claim in claims:
+        refs = {str(value) for value in (claim.get("valid_source_ids") or [])}
+        if claim.get("traceability_status") != "source_linked_pending_human_review" or not refs or not refs.issubset(source_ids) or not str(claim.get("evidence") or "").strip():
+            raise ValueError("Research claim lacks traceable source references/evidence: " + str(claim.get("claim_id")))
     import csv
     with (build_dir / "licenses.csv").open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    if len(rows) != len(visual["shots"]):
-        raise ValueError("Asset licence register does not cover every visual-review shot.")
-    blocked = [row.get("shot_id", "unknown") for row in rows if row.get("use_status") == "blocked"]
+    shot_ids = {str(item.get("shot_id") or "") for item in visual["shots"]}
+    row_ids = [str(row.get("shot_id") or "") for row in rows]
+    if len(rows) != len(visual["shots"]) or set(row_ids) != shot_ids or len(set(row_ids)) != len(row_ids):
+        raise ValueError("Asset licence register must cover every shot exactly once.")
+    blocked = [row.get("shot_id", "unknown") for row in rows if row.get("use_status") != "eligible_pending_human_review" or str(row.get("fallback_required") or "").lower() in {"true", "1", "yes"}]
     if blocked:
-        raise ValueError("Asset licence register contains blocked assets: " + ", ".join(blocked[:12]))
+        raise ValueError("Asset licence/terms checks did not clear these assets: " + ", ".join(blocked[:12]))
+    for row in rows:
+        if not str(row.get("licence") or "").strip() or not str(row.get("attribution_text") or "").strip():
+            raise ValueError("Asset is missing licence label or attribution: " + str(row.get("shot_id")))
+    credits = build_dir / "credits.txt"
+    if not credits.is_file() or credits.stat().st_size < 20:
+        raise ValueError("Documentary credits.txt is missing or empty.")
     return {"shot_count": len(visual["shots"]), "licence_rows": len(rows),
-            "research_claim_count": research.get("claim_count"),
-            "research_source_count": research.get("source_count")}
+            "research_claim_count": len(claims), "research_source_count": len(sources),
+            "automated_fact_check_scope": "source traceability and evidence completeness only; not independent truth verification",
+            "automated_rights_check_scope": "recognized licence metadata, per-shot attribution and credits completeness; not legal advice"}
 
 
-def upload_reviewed_artifact(artifact_dir: Path, source_run_id: str, human_reviewed: bool) -> dict:
-    if not human_reviewed:
-        raise ValueError("Human review confirmation is required before upload.")
+def upload_automated_artifact(artifact_dir: Path, source_run_id: str) -> dict:
     if not source_run_id.isdigit():
         raise ValueError("Source workflow run ID must be numeric.")
     root = artifact_dir.resolve()
@@ -189,10 +208,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artifact-dir", type=Path, required=True)
     parser.add_argument("--source-run-id", required=True)
-    parser.add_argument("--human-reviewed", action="store_true")
     args = parser.parse_args()
     try:
-        upload_reviewed_artifact(args.artifact_dir, args.source_run_id, args.human_reviewed)
+        upload_automated_artifact(args.artifact_dir, args.source_run_id)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
