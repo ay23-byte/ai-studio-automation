@@ -88,7 +88,7 @@ def _subtitle_text(narration: str, width: int = 42) -> str:
     return textwrap.fill(clean, width=width, break_long_words=False, break_on_hyphens=False)
 
 
-def _write_ass(scenes: list[dict], durations: list[float], output: Path) -> None:
+def _write_ass(scenes: list[dict], durations: list[float], output: Path, language: str = 'hindi') -> None:
     rows = [
         "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920",
         "ScaledBorderAndShadow: yes", "WrapStyle: 2", "", "[V4+ Styles]",
@@ -234,7 +234,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
                    check=True)
     total = sum(durations) + 0.25 * (len(durations)-1)
     ass_path = outdir / "captions.ass"
-    _write_ass(scenes, durations, ass_path)
+    _write_ass(scenes, durations, ass_path, language=script.get('language', 'hindi'))
 
     # Render the actual downloaded/approved media assets. Do not substitute
     # generic motion-graphics cards for footage or photographs.
