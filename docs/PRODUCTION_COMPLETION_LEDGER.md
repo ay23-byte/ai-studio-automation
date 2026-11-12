@@ -20,8 +20,8 @@ Validate run on `main`: 43312611000, both jobs green.
 
 ## Phase 1 — stabilization
 
-Pull request: see the PR that introduces this file. CI and post-merge results are recorded in
-the table at the end of this section once the runs exist.
+Pull request: [#199](https://github.com/ay23-byte/ai-studio-automation/pull/199). Results are in
+the table at the end of this section.
 
 ### 1.1 Daily news collection crashed on a missing voice package (brief 3A)
 
@@ -47,7 +47,8 @@ the table at the end of this section once the runs exist.
   tests in the exact minimal environment on every pull request.
 * **Rollback:** revert the commit; no data or schema change.
 * **Status:** UNIT TESTED locally (135 news tests pass with only `requests` + `Pillow`).
-  CI and the scheduled workflow re-run: see results table.
+  CI VERIFIED on the pull request (`news-collect-minimal-env` job). The scheduled workflow
+  itself is re-run after merge.
 
 ### 1.2 Gemini reliability (brief 3B)
 
@@ -124,9 +125,9 @@ the table at the end of this section once the runs exist.
 | Local `python -m unittest discover -s tests` | 590 tests OK |
 | Local news tests with only `requests` + `Pillow` | 135 tests OK (was: 109 tests, 1 import error) |
 | Tracked database unchanged | sha256 prefix `6e3232feda4015cc` before and after |
-| Pull-request checks | _recorded after the run_ |
-| `validate` on `main` after merge | _recorded after the run_ |
-| "Daily news Shorts — research queue" re-run on `main` | _recorded after the run_ |
+| Pull-request checks on #199 (first commit `0c67ce8`) | All four passed: `unit-tests`, `ffmpeg-smoke`, `news-collect-minimal-env` (validate run 43318019701) and `unit-and-live-checks` (run 43318021641) |
+| `validate` on `main` after merge | Happens after this file is merged; recorded in the Phase 2 entry |
+| "Daily news Shorts — research queue" re-run on `main` | Happens after this file is merged; recorded in the Phase 2 entry |
 
 ### Carried forward
 
