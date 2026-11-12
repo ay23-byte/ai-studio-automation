@@ -728,6 +728,17 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     )
             shot_timeline.append(shot)
 
+    # Optional second-pass Wan2.1 handoff: mapped review shots replace the
+    # corresponding generated visuals before the EDL, review manifest and render.
+    wan_review_path = os.getenv("WAN_MAPPED_REVIEW_REPORT", "").strip()
+    if wan_review_path:
+        from core.wan_timeline_adapter import apply_mapped_wan_review
+        wan_result = apply_mapped_wan_review(shot_timeline, wan_review_path)
+        print(
+            f"Wan2.1 timeline adapter: {wan_result['applied_count']} clips applied; "
+            "all mapped clips remain pending human review and rights clearance."
+        )
+
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
 

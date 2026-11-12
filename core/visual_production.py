@@ -103,6 +103,10 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         raw_path = media.get("path")
         path = Path(raw_path) if raw_path else None
         source = _source_metadata(path) if path and path.is_file() else {}
+        if isinstance(shot.get("source"), dict) and shot.get("source"):
+            # Explicit timeline provenance (notably Wan2.1 AI generation metadata)
+            # takes precedence over absent or generic filesystem sidecars.
+            source = {**source, **shot["source"]}
         media_type = media.get("type", "unknown")
         shot_id = f"shot_{index + 1:04d}"
         prompt = str(shot.get("visual_prompt") or shot.get("image") or
@@ -155,7 +159,11 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
             "timeline_events": shot.get("timeline_events") or [],
             "on_screen_text": shot.get("on_screen_text") or "",
             "sound_design": shot.get("sound_design") or "",
-            "media_path": str(path) if path else None, "visual_prompt": prompt[:700],
+            "media_path": str(path) if path else None,
+            "wan_scene_id": shot.get("wan_scene_id"),
+            "wan_generation_prompt": shot.get("wan_generation_prompt"),
+            "ai_generated": bool(shot.get("ai_generated", False)),
+            "visual_prompt": prompt[:700],
             "narration": str(shot.get("narration") or "")[:700],
             "source": source, "sample_frames": frames,
             "semantic_match_verified": False,
