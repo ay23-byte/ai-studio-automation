@@ -63,7 +63,8 @@ use those clips, rebuild the same documentary timeline and set
 pipeline:
 
 ```bash
-WAN_MAPPED_REVIEW_REPORT=build/job/wan_mapped/visual_review_report.json python run_documentary.py
+WAN_MAPPED_REVIEW_REPORT=build/job_42/wan_mapped/visual_review_report.json \\
+  python scripts/render_longform_script.py --script build/job_42/script.json --job-id 42
 ```
 
 The pipeline applies mapped clips before the edit-decision list, visual review
