@@ -1,4 +1,4 @@
-name: News story approval — create review request
+name: '⚙ Internal — News story approval — create review request'
 
 on:
   workflow_dispatch:
