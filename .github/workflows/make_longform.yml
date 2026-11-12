@@ -167,9 +167,6 @@ jobs:
           FREE_ONLY_MODE: "1"
           AI_VIDEO_ENABLED: "0"
           AI_VIDEO_PROVIDER: "disabled"
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TTS_ENGINE: "edge"
@@ -186,7 +183,6 @@ jobs:
           LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
           VISUAL_SEMANTIC_MAX_SHOTS: "40"
-          PRIVACY: "unlisted"
         run: |
           python run.py long "${{ inputs.topic }}" \
             --category "${{ inputs.category }}" \
@@ -200,11 +196,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: longform-review-package
+          name: longform-review-${{ github.run_id }}
           path: |
             output/*.mp4
             build/job_*/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       # Build state remains an Actions artifact/local runtime concern; never
