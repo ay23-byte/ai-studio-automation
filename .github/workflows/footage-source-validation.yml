@@ -1,4 +1,4 @@
-name: Documentary footage source validation
+name: '⚙ Internal — Documentary footage source validation'
 
 on:
   pull_request:
