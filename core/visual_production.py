@@ -103,6 +103,10 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
         raw_path = media.get("path")
         path = Path(raw_path) if raw_path else None
         source = _source_metadata(path) if path and path.is_file() else {}
+        if isinstance(shot.get("source"), dict) and shot.get("source"):
+            # Explicit timeline provenance (notably Wan2.1 AI generation metadata)
+            # takes precedence over absent or generic filesystem sidecars.
+            source = {**source, **shot["source"]}
         media_type = media.get("type", "unknown")
         shot_id = f"shot_{index + 1:04d}"
         prompt = str(shot.get("visual_prompt") or shot.get("image") or
