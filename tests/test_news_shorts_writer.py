@@ -19,6 +19,16 @@ class WriterGateTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'108,500 as the Nepal 0–50 m HAND estimate'):
    _validate_scientific_wording(script)
 
+
+ def test_accepts_user_reviewed_causal_uncertainty_wording(self):
+  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 293,800 लोग संभावित exposure में हैं। नेपाल में 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 46% भवन-फुटप्रिंट क्षेत्रफल और 77% भवन-फुटप्रिंट क्षेत्रफल बढ़ा। यह मॉडल से निकला संभावित exposure है, बाढ़ का पूर्वानुमान नहीं। अध्ययन निर्माण और जोखिम के बीच कारण-परिणाम साबित नहीं करता—यह भी नहीं बताता कि निर्माण से बाढ़ की संभावना बढ़ी या नहीं।','caption':'Modelled potential exposure; not a flood forecast'}]}
+  _validate_scientific_wording(script)
+
+ def test_rejects_causal_uncertainty_without_probability_caveat(self):
+  script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 293,800 लोग संभावित exposure में हैं। नेपाल में 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 46% भवन-फुटप्रिंट क्षेत्रफल और 77% भवन-फुटप्रिंट क्षेत्रफल बढ़ा। यह संभावित exposure है, बाढ़ का पूर्वानुमान नहीं। अध्ययन निर्माण और जोखिम के बीच कारण-परिणाम साबित नहीं करता।','caption':'Potential exposure'}]}
+  with self.assertRaisesRegex(ValueError,'lack of causal evidence from proof of no effect'):
+   _validate_scientific_wording(script)
+
  def test_rejects_claim_that_construction_had_no_effect(self):
   script={'scenes':[{'say':'HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई। 293,800 लोग संभावित exposure में हैं। 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 46% भवन क्षेत्रफल और 77% भवन क्षेत्रफल बढ़ा। यह संभावित जोखिम है, बाढ़ का पूर्वानुमान नहीं। अध्ययन के अनुसार निर्माण ने बाढ़ की संभावना नहीं बढ़ाई।','caption':'building footprint area'}]}
   with self.assertRaisesRegex(ValueError,'Caveat overstates the evidence'):

@@ -4,7 +4,7 @@ from core.news_shorts_writer import _validate_scientific_wording
 
 class ScientificScriptWordingTests(unittest.TestCase):
     def valid_script(self):
-        return {"scenes": [{"say": "यह संभावित exposure है, बाढ़ का पूर्वानुमान नहीं। HAND का मतलब निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई है। नेपाल में 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 293,800 लोग संभावित exposure में हैं। भवन क्षेत्रफल 46% बढ़ा और modelled GLOF extents में building footprint area 77% बढ़ा। अध्ययन यह स्थापित नहीं करता कि निर्माण ने बाढ़ कराई या उसकी संभावना बढ़ाई।",
+        return {"scenes": [{"say": "यह संभावित exposure है, बाढ़ का पूर्वानुमान नहीं। HAND का मतलब निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई है। नेपाल में 108,500 लोग 0–50 m HAND में और 22,800 लोग 0–10 m HAND में हैं। 293,800 लोग संभावित exposure में हैं। भवन क्षेत्रफल 46% बढ़ा और modelled GLOF extents में building footprint area 77% बढ़ा। अध्ययन यह स्थापित नहीं करता कि निर्माण ने बाढ़ कराई या उसकी संभावना बढ़ाई। यह भी नहीं बताता कि निर्माण से बाढ़ की संभावना बढ़ी या नहीं।",
                             "caption": "293,800; 108,500; 22,800; building footprint area 46%; GLOF building area 77%"}]}
 
     def test_accepts_correctly_qualified_study_wording(self):
