@@ -6,8 +6,53 @@ import re
 import subprocess
 from pathlib import Path
 
-import edge_tts
 from core.config import VOICE_HINDI, VOICE_ENGLISH, VOICE_FEMALE, VOICE_ENGLISH_FEMALE
+
+# Edge TTS is an optional provider.  It used to be imported here at module level,
+# so every caller that only needed voice *selection* (and every test module that
+# imported this file) crashed with ModuleNotFoundError in lightweight workflows
+# that do not install it.  The package is now loaded when speech is synthesised.
+try:  # pragma: no cover - exercised through _edge_module()
+    import edge_tts
+except ImportError:  # the provider is simply not installed
+    edge_tts = None
+
+
+class VoiceProviderUnavailable(RuntimeError):
+    """A narration provider cannot be used at all (missing package or binary).
+
+    Unlike a transient service failure there is no point retrying it, so the
+    provider cascade moves straight to the next provider.
+    """
+
+
+def _edge_module():
+    """Return the edge-tts module, or raise a clear, actionable error."""
+    if edge_tts is None:
+        raise VoiceProviderUnavailable(
+            "Edge TTS is not installed in this environment. Install it with "
+            "'pip install edge-tts' (it is included in requirements.txt and "
+            "requirements-ci.txt), or set TTS_ENGINE to another provider.")
+    return edge_tts
+
+
+def provider_status() -> dict:
+    """Which narration providers can run here; used by diagnostics, never raises."""
+    import importlib.util
+    import shutil
+    try:
+        chatterbox = importlib.util.find_spec("chatterbox") is not None
+    except (ImportError, ValueError):
+        chatterbox = False
+    return {
+        "edge": edge_tts is not None,
+        "chatterbox": chatterbox,
+        "espeak-ng": shutil.which("espeak-ng") is not None,
+    }
+
+# Voice that actually produced the last Edge narration (a fallback voice may differ
+# from the configured one); written to narration_synthesis_report.json.
+_LAST_EDGE_VOICE = None
 
 _CHATTERBOX_MODEL = None
 
@@ -95,9 +140,10 @@ async def _synth_edge(text, voice, rate, pitch, path):
     # Edge TTS occasionally returns NoAudioReceived during transient service/network
     # failures. Retry before giving up so one temporary response does not kill a build.
     last_error = None
+    provider = _edge_module()  # a missing package is not retried
     for attempt in range(3):
         try:
-            await edge_tts.Communicate(
+            await provider.Communicate(
                 text, voice, rate=rate, pitch=pitch
             ).save(str(path))
             if path.exists() and path.stat().st_size > 0:
@@ -183,6 +229,9 @@ def _edge_voice_candidates(language, gender):
 
 def _synth_all_edge(sentences, language, gender, build_dir):
     """Synthesize the complete narration with one voice; never mix voices mid-video."""
+    global _LAST_EDGE_VOICE
+    _LAST_EDGE_VOICE = None
+    _edge_module()  # fail once, immediately, instead of once per voice and retry
     last_error = None
     for voice in _edge_voice_candidates(language, gender):
         wavs = []
@@ -199,7 +248,10 @@ def _synth_all_edge(sentences, language, gender, build_dir):
                     raise RuntimeError(f"Edge TTS produced an empty WAV for chunk {i + 1}.")
                 wavs.append(wav)
             print(f"Edge TTS narration completed with voice {voice}.")
+            _LAST_EDGE_VOICE = voice
             return wavs
+        except VoiceProviderUnavailable:
+            raise
         except Exception as exc:
             last_error = exc
             print(f"WARNING: Edge voice {voice} failed; trying another voice: {exc}")
@@ -211,6 +263,12 @@ def _synth_all_edge(sentences, language, gender, build_dir):
 
 def _synth_all_espeak(sentences, language, build_dir):
     """Offline last-resort narration; requires espeak-ng installed by CI."""
+    import shutil
+    if shutil.which("espeak-ng") is None:
+        raise VoiceProviderUnavailable(
+            "No narration provider is available: the offline fallback espeak-ng is not "
+            "installed. Install edge-tts (pip install edge-tts) for the primary provider, "
+            "or espeak-ng (apt-get install espeak-ng) for the offline fallback.")
     voice = "en" if language in {"english", "hinglish"} else "hi"
     wavs = []
     for i, sentence in enumerate(sentences):
@@ -288,7 +346,9 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "requested_engine": requested_engine,
         "actual_engine": engine,
         "fallback_reason": fallback_reason,
-        "voice": pick_voice(language, gender) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
+        "voice": (_LAST_EDGE_VOICE or pick_voice(language, gender)) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
+        "configured_voice": pick_voice(language, gender),
+        "providers_available": provider_status(),
         "language": language,
         "gender": gender,
         "chunk_count": len(sentences),

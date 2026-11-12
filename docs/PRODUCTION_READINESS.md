@@ -1,5 +1,9 @@
 # Production readiness: status and remaining gaps
 
+> Evidence-based status by feature, all workflows, open pull requests and risks:
+> [`PRODUCTION_READINESS_AUDIT.md`](PRODUCTION_READINESS_AUDIT.md). Per-task root causes, tests
+> and results: [`PRODUCTION_COMPLETION_LEDGER.md`](PRODUCTION_COMPLETION_LEDGER.md).
+
 Status as of the audit branch. "Verified" means exercised by a real run or an
 automated test in the audit environment. "Not verified" means the code path
 exists and is unit-tested with mocks, but could not be run against the real

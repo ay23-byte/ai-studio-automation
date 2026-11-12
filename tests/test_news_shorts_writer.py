@@ -82,6 +82,12 @@ from unittest.mock import patch, Mock
 from core.news_shorts_writer import _post_gemini_with_retries
 
 class GeminiRetryTests(unittest.TestCase):
+ def setUp(self):
+  # Backoff now carries random jitter (see GeminiRetryJitterTests below). Pin it
+  # to zero here so these tests keep asserting the exact base delays.
+  jitter=patch('core.gemini.random.uniform', return_value=0.0)
+  jitter.start(); self.addCleanup(jitter.stop)
+
  def test_retries_503_then_succeeds_with_exponential_backoff(self):
   first=Mock(status_code=503, headers={}, text='temporarily overloaded')
   second=Mock(status_code=200)
@@ -183,22 +189,49 @@ class GeminiPayloadShapeTests(unittest.TestCase):
 if __name__=='__main__': unittest.main()
  
 class GeminiFallbackModelTests(unittest.TestCase):
+ # The writer used to carry its own two-model default list that disagreed with
+ # core.config. The default now comes from the single shared chain in
+ # core.gemini, so the expected values below are that chain (order and
+ # de-duplication are asserted exactly as before).
+ def setUp(self):
+  import os
+  env=patch.dict('os.environ', {}, clear=False)
+  env.start(); self.addCleanup(env.stop)
+  os.environ.pop('GEMINI_FALLBACK_MODELS', None)
+  os.environ.pop('GEMINI_FALLBACK_MODEL', None)
+
  def test_primary_then_two_ordered_fallbacks(self):
   from core.news_shorts_writer import _gemini_model_candidates
   self.assertEqual(
-   _gemini_model_candidates('gemini-3.8-flash'),
+   _gemini_model_candidates('gemini-3.8-flash', ['gemini-3.6-flash','gemini-3.5-flash-lite']),
    ['gemini-3.8-flash','gemini-3.6-flash','gemini-3.5-flash-lite'])
+
+ def test_default_fallbacks_are_the_single_shared_chain(self):
+  from core import gemini
+  from core.news_shorts_writer import _gemini_model_candidates
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.8-flash'),
+   ['gemini-3.8-flash', *gemini.DEFAULT_FALLBACK_MODELS])
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.8-flash'),
+   ['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite'])
 
  def test_deduplicates_configured_fallback_model(self):
   from core.news_shorts_writer import _gemini_model_candidates
   self.assertEqual(
    _gemini_model_candidates('gemini-3.6-flash'),
+   ['gemini-3.6-flash','gemini-3.7-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite'])
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.6-flash', ['gemini-3.6-flash','gemini-3.5-flash-lite']),
    ['gemini-3.6-flash','gemini-3.5-flash-lite'])
 
  def test_uses_lite_as_primary_without_duplicate_fallbacks(self):
   from core.news_shorts_writer import _gemini_model_candidates
   self.assertEqual(
    _gemini_model_candidates('gemini-3.5-flash-lite'),
+   ['gemini-3.5-flash-lite','gemini-3.7-flash','gemini-3.6-flash','gemini-3.1-flash-lite'])
+  self.assertEqual(
+   _gemini_model_candidates('gemini-3.5-flash-lite', ['gemini-3.6-flash','gemini-3.5-flash-lite']),
    ['gemini-3.5-flash-lite','gemini-3.6-flash'])
 
  def test_reads_configured_fallback_models_from_environment(self):

@@ -23,6 +23,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes fonts-dejavu-core
+      # Deliberately minimal: RSS discovery needs only requests and Pillow.
+      # Narration providers (edge-tts) and the YouTube client are NOT installed
+      # here; core modules must import without them (see core/voice.py and the
+      # news-collect-minimal-env job in validate.yml, which guards this on PRs).
       - name: Install discovery and visual-asset dependencies
         run: |
           python -m pip install --upgrade pip
@@ -34,6 +38,36 @@ jobs:
         run: python -m compileall -q core scripts
       - name: Run pipeline tests
         run: python -m unittest discover -s tests -p 'test_*news*.py' -v
+      - name: Write job summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          lines = ["## Daily news research queue", ""]
+          path = pathlib.Path("output/daily_news/latest_candidates.json")
+          if path.is_file():
+              data = json.loads(path.read_text(encoding="utf-8"))
+              errors = data.get("feed_errors") or []
+              lines += [
+                  f"- **Collection:** completed at {data.get('collected_at', 'unknown')}",
+                  f"- **Candidate headlines:** {data.get('candidate_count', 0)}",
+                  f"- **Ranked story clusters:** {len(data.get('ranked_story_clusters') or [])}",
+                  f"- **Feeds that failed:** {len(errors)}",
+                  f"- **Editorial status:** {data.get('editorial_status', 'unknown')}",
+              ]
+          else:
+              lines.append("- **Collection:** FAILED (no candidate file was written)")
+          lines += [
+              f"- **Job status:** {os.environ.get('JOB_STATUS', 'unknown')}",
+              "- **Upload status:** not applicable (this workflow never renders or uploads)",
+              "",
+              "Candidate headlines are discovery metadata only; nothing here is a verified story.",
+          ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write("\n".join(lines) + "\n")
+          PY
       - name: Upload candidate queue for editorial review
         uses: actions/upload-artifact@v4
         with:

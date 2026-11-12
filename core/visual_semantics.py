@@ -14,6 +14,7 @@ from typing import Any
 
 import requests
 
+from core import gemini as gemini_policy
 from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS
 
 
@@ -94,7 +95,9 @@ def verify_shot_semantics(shot: dict[str, Any], *, api_key: str | None = None,
     parts: list[dict[str, Any]] = [{"text": prompt}]
     try:
         parts.extend(_image_part(path) for path in frames)
-        models = list(dict.fromkeys([primary] + [str(value).strip() for value in GEMINI_FALLBACK_MODELS if str(value).strip()]))
+        # Shared chain rules (validated ids, de-duplicated); an invalid id is
+        # dropped here because this advisory check must never abort a render.
+        models = gemini_policy.model_chain(primary, GEMINI_FALLBACK_MODELS, strict=False)
         transient_errors = []
         for index, model_id in enumerate(models):
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
@@ -107,6 +110,21 @@ def verify_shot_semantics(shot: dict[str, Any], *, api_key: str | None = None,
                 timeout=timeout,
             )
             status = getattr(response, "status_code", 200)
+            kind = gemini_policy.classify(status, getattr(response, "text", "")) if status >= 400 else ""
+            if kind == gemini_policy.AUTH:
+                # The same key is rejected by every model: report it once.
+                return {
+                    "status": "unavailable",
+                    "reason": gemini_policy.describe(kind) + f" (HTTP {status})",
+                    "failure_kind": kind,
+                    "attempted_models": models[:index + 1],
+                    "human_review_required": True,
+                }
+            if kind == gemini_policy.MODEL_NOT_FOUND and index < len(models) - 1:
+                # A retired model id must fall through to the next one instead
+                # of turning every shot of the video into an "error" result.
+                transient_errors.append(f"{model_id}: HTTP 404 (model not available)")
+                continue
             if status == 429 or status in (500, 502, 503, 504):
                 transient_errors.append(f"{model_id}: HTTP {status}")
                 if index < len(models) - 1:

@@ -1,14 +1,19 @@
-import json, re, requests, time, random
+import json, re, requests, time, random  # noqa: F401  (random stays importable: tests patch script_engine.random)
 from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, CHANNEL_NAME
 from core.news_research import research_topic, format_research_context
 
+from core import gemini as gemini_policy
+
+
 class GeminiRequestError(RuntimeError):
     """Gemini API failure with metadata for safe model failover."""
-    def __init__(self, model, message, status_code=None, retryable=False):
+    def __init__(self, model, message, status_code=None, retryable=False, kind=None):
         super().__init__(message)
         self.model = model
         self.status_code = status_code
         self.retryable = retryable
+        # One of the failure kinds in core.gemini (auth, model_not_found, ...).
+        self.kind = kind or gemini_policy.classify(status_code, message, network_error=status_code is None)
 
 SHORTS_PROMPT = """Write ONE polished YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
 
@@ -128,8 +133,8 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
         except requests.RequestException as exc:
             if attempt == attempts - 1:
                 raise GeminiRequestError(model, f"Network failure calling {model}: {exc}",
-                                         retryable=True) from exc
-            delay = min(5 * (2 ** attempt), 30) + random.uniform(0, 1)
+                                         retryable=True, kind=gemini_policy.NETWORK) from exc
+            delay = gemini_policy.backoff_delay(attempt, base=5, cap=30, jitter=1)
             print(f"Gemini network error on {model}; retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
             time.sleep(delay)
             continue
@@ -139,7 +144,8 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
                 data = response.json()
             except ValueError as exc:
                 raise GeminiRequestError(model, f"Gemini returned invalid JSON for {model}.",
-                                         status_code=200, retryable=True) from exc
+                                         status_code=200, retryable=True,
+                                         kind=gemini_policy.MALFORMED) from exc
             candidates = data.get("candidates") or []
             if not candidates:
                 raise GeminiRequestError(
@@ -172,32 +178,33 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
             return generated
 
         last_error = f"HTTP {response.status_code}: {response.text[:1000]}"
-        retryable = response.status_code in (408, 409, 425, 429, 500, 502, 503, 504)
+        kind = gemini_policy.classify(response.status_code, response.text)
+        retryable = gemini_policy.is_retryable(kind)
+        if kind == gemini_policy.AUTH:
+            # An invalid key fails identically on every model: say so and stop,
+            # instead of reporting it as a problem with this model id.
+            raise GeminiRequestError(
+                model, gemini_policy.describe(kind) + f" (HTTP {response.status_code})",
+                status_code=response.status_code, retryable=False, kind=kind)
         if not retryable:
             raise GeminiRequestError(
                 model,
                 f"Gemini rejected model {model}: {last_error}. "
                 "Check the model name, API key, and Google AI Studio project access.",
-                status_code=response.status_code, retryable=False)
+                status_code=response.status_code, retryable=False, kind=kind)
 
         if attempt == attempts - 1:
             raise GeminiRequestError(
                 model, f"Gemini request failed for {model} after {attempts} attempts: {last_error}",
-                status_code=response.status_code, retryable=True)
+                status_code=response.status_code, retryable=True, kind=kind)
 
-        retry_after = response.headers.get("Retry-After")
         # Google commonly returns 503 during model-capacity incidents. Give
         # overloaded models a meaningful cooldown; 429 may be quota/rate-limit
-        # related, so honor Retry-After and avoid rapid retry storms.
-        default_delay = (
-            min(15 * (2 ** attempt), 60) if response.status_code in (500, 502, 503, 504)
-            else min(20 * (2 ** attempt), 60)
-        )
-        try:
-            delay = float(retry_after) if retry_after else default_delay
-        except (TypeError, ValueError):
-            delay = default_delay
-        delay = max(1, min(delay, 90)) + random.uniform(0, 2)
+        # related, so honor Retry-After (seconds or HTTP-date) and avoid retry storms.
+        delay = gemini_policy.backoff_delay(
+            attempt, retry_after=response.headers.get("Retry-After"),
+            schedule=(15, 30, 60) if kind == gemini_policy.SERVER else (20, 40, 60),
+            cap=90, jitter=2)
         print(f"Gemini HTTP {response.status_code} from {model}; "
               f"retrying in {delay:.0f}s ({attempt + 1}/{attempts})")
         time.sleep(delay)
@@ -207,14 +214,13 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
 
 def _ask_gemini_models(prompt: str) -> str:
     """Try every configured Gemini model, then models discovered for this key."""
-    models = []
-    for model in [GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]:
-        model = str(model or "").strip()
-        if model and model not in models:
-            models.append(model)
-    if not models:
-        raise RuntimeError("No Gemini model is configured. Set GEMINI_MODEL.")
+    try:
+        models = gemini_policy.model_chain(GEMINI_MODEL, GEMINI_FALLBACK_MODELS)
+    except gemini_policy.GeminiConfigError as exc:
+        raise RuntimeError(str(exc)) from exc
 
+    clock = gemini_policy.Stopwatch()
+    attempted = []
     failures = []
     not_found = 0
     index = 0
@@ -223,7 +229,11 @@ def _ask_gemini_models(prompt: str) -> str:
         model = models[index]
         try:
             print(f"Requesting script from Gemini model: {model}")
-            return _ask_model(prompt, model, attempts=2)
+            attempted.append(model)
+            generated = _ask_model(prompt, model, attempts=2)
+            gemini_policy.record_usage("script", model=model, outcome="ok", attempted=attempted,
+                                       failures=failures, seconds=clock.seconds())
+            return generated
         except GeminiRequestError as exc:
             failures.append(f"{model}: {exc}")
             # A 404 generally means this model ID is retired, unavailable to this
@@ -234,6 +244,8 @@ def _ask_gemini_models(prompt: str) -> str:
                 if index < len(models) - 1:
                     print(f"Model {model} is not available (HTTP 404). Skipping to next fallback.")
             elif not exc.retryable:
+                gemini_policy.record_usage("script", model=None, outcome=getattr(exc, "kind", "bad_request"),
+                                           attempted=attempted, failures=failures, seconds=clock.seconds())
                 raise RuntimeError(str(exc)) from exc
             elif index < len(models) - 1:
                 print(f"Model {model} is temporarily unavailable. Trying next fallback.")
@@ -253,6 +265,8 @@ def _ask_gemini_models(prompt: str) -> str:
                     models.extend(discovered)
 
     details = "\n".join(f"- {item}" for item in failures)
+    gemini_policy.record_usage("script", model=None, outcome="unavailable", attempted=attempted,
+                               failures=failures, seconds=clock.seconds())
     raise RuntimeError(
         "Gemini is temporarily unavailable across all configured models. "
         "No video was built. Wait a few minutes and start a NEW workflow run. "
@@ -283,10 +297,29 @@ def _ask_gemini(prompt: str) -> str:
         print("Gemini could not serve this request; switching to fallback text providers: "
               + llm.redact(str(gemini_error).splitlines()[0]))
     try:
-        return llm.complete_with_fallbacks(prompt, providers)
+        text = llm.complete_with_fallbacks(prompt, providers)
+        served = dict(getattr(llm, "LAST_FALLBACK", {}) or {})
+        gemini_policy.record_usage(
+            "script", provider=served.get("provider") or "fallback", model=served.get("model"),
+            outcome="ok", failures=[llm.redact(str(gemini_error).splitlines()[0])] if gemini_error else [])
+        return text
     except llm.LLMError as exc:
         prefix = (str(gemini_error) + "\n") if gemini_error is not None else ""
         raise RuntimeError(prefix + llm.redact(exc)) from exc
+
+
+def _stamp_generation(script: dict) -> dict:
+    """Record which provider/model wrote this script (provenance, not a secret)."""
+    usage = gemini_policy.last_usage("script")
+    if usage and usage.get("outcome") == "ok":
+        script["generation"] = {
+            "provider": usage.get("provider"),
+            "model": usage.get("model"),
+            "attempted_models": usage.get("attempted_models") or [],
+            "fallback_used": bool(usage.get("provider") != "gemini" or (
+                usage.get("attempted_models") and usage["attempted_models"][0] != usage.get("model"))),
+        }
+    return script
 
 
 def _parse(text: str) -> dict:
@@ -525,6 +558,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
         report = validate_shorts_script(script, selected_language)
         if report["status"] != "FAIL":
             script["content_qa"] = report
+            _stamp_generation(script)
             return script
         last_error = "; ".join(report["issues"])
         print(f"Shorts script failed content QA (attempt {attempt + 1}/{attempts}): {last_error}")
@@ -784,7 +818,7 @@ def generate_longform_script(topic: str, category: str = "finance",
                 f"Narration runtime gate passed: {script['narration_word_count']} words, "
                 f"approximately {script['estimated_narration_minutes']:.1f} minutes."
             )
-            return script
+            return _stamp_generation(script)
         except ValueError as exc:
             last_runtime_error = exc
             if attempt == 2:
@@ -801,7 +835,7 @@ def generate_longform_script(topic: str, category: str = "finance",
                     f"Expanded narration runtime gate passed: {script['narration_word_count']} words, "
                     f"approximately {script['estimated_narration_minutes']:.1f} minutes."
                 )
-                return script
+                return _stamp_generation(script)
             actual_words = count_longform_narration_words(script)
             missing_words = max(0, minimum_words - actual_words)
             repair_target = max(target_words, minimum_words + max(250, int(minimum_words * 0.15)))
