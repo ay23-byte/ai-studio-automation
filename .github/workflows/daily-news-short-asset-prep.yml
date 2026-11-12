@@ -1,0 +1,97 @@
+name: Daily news Short — prepare visual review artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_path:
+        description: "Repository path to human-reviewed reviewed_story.json"
+        required: true
+        type: string
+      draft_path:
+        description: "Repository path to shorts_script_draft.json"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-news-short-asset-prep
+  cancel-in-progress: false
+
+jobs:
+  prepare-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install free CPU asset-preparation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install requests Pillow python-dotenv
+      - name: Validate reviewed source inputs
+        env:
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
+          DRAFT_PATH: ${{ inputs.draft_path }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path.cwd().resolve()
+          for key in ("EVIDENCE_PATH", "DRAFT_PATH"):
+              raw = Path(os.environ[key])
+              if raw.is_absolute():
+                  raise SystemExit(f"{key} must be repository-relative.")
+              path = (root / raw).resolve()
+              if root not in path.parents or not path.is_file():
+                  raise SystemExit(f"{key} must point to a file inside this repository.")
+              json.loads(path.read_text(encoding="utf-8"))
+          print("Evidence and draft JSON files exist and parse.")
+          PY
+      - name: Prepare scene assets for human inspection
+        env:
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
+          DRAFT_PATH: ${{ inputs.draft_path }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+        run: |
+          mkdir -p input-news
+          cp "$EVIDENCE_PATH" input-news/reviewed_story.json
+          cp "$DRAFT_PATH" input-news/shorts_script_draft.json
+          python scripts/prepare_news_short_assets.py \
+            --artifact-dir input-news \
+            --output-dir output/daily_news/asset_review
+      - name: Validate prepared asset inventory
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("output/daily_news/asset_review")
+          candidate = json.loads((root / "production_candidate.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "asset_review_manifest.json").read_text(encoding="utf-8"))
+          scenes = candidate.get("scenes", [])
+          if not 4 <= len(scenes) <= 6 or len(manifest.get("assets", [])) != len(scenes):
+              raise SystemExit("Prepared asset count does not match the 4–6 scene script.")
+          for index, scene in enumerate(scenes, 1):
+              asset = Path(scene["asset_path"])
+              if not asset.is_file():
+                  raise SystemExit(f"Prepared scene {index} asset is missing: {asset}")
+              if not asset.with_suffix(asset.suffix + ".source.json").is_file():
+                  raise SystemExit(f"Prepared scene {index} provenance sidecar is missing.")
+          if manifest.get("final_mp4_rendered") or manifest.get("youtube_upload_performed") or manifest.get("publication_performed"):
+              raise SystemExit("Asset-preparation stage must not render or publish.")
+          print(f"Prepared {len(scenes)} scenes. Human visual/rights review is still required.")
+          PY
+      - name: Upload asset-review artifact for next workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-news-assets-${{ github.run_id }}
+          path: output/daily_news/asset_review/
+          if-no-files-found: error
+          retention-days: 14
