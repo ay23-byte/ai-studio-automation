@@ -1,4 +1,4 @@
-name: Daily news Short — artifact handoff render
+name: '⚙ Internal — Daily news Short — artifact handoff render'
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Create news Short review package — one click
+name: '⚙ Internal — News Short review-package builder'
 
 on:
   workflow_dispatch:

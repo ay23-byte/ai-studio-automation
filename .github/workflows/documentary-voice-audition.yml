@@ -1,4 +1,4 @@
-name: Documentary narration voice audition
+name: '⚙ Internal — Documentary narration voice audition'
 
 on:
   workflow_dispatch:

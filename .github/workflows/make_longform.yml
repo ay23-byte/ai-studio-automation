@@ -1,4 +1,4 @@
-name: make-longform
+name: '2. Create a Documentary — review first'
 on:
   workflow_dispatch:
     inputs:

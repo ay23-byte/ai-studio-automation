@@ -1,4 +1,4 @@
-name: Archival video end-to-end validation
+name: '⚙ Internal — Archival video end-to-end validation'
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Manual live documentary end-to-end validation
+name: '⚙ Internal — Manual live documentary end-to-end validation'
 
 on:
   workflow_dispatch:

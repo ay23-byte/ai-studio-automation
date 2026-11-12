@@ -1,4 +1,4 @@
-name: Render approved news Short — review MP4 only
+name: '⚙ Internal — Render approved news Short — review MP4 only'
 
 on:
   workflow_dispatch:

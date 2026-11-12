@@ -1,4 +1,4 @@
-name: Kaggle Wan2.1 free GPU video worker
+name: '⚙ Internal — Kaggle Wan2.1 free GPU video worker'
 
 on:
   workflow_dispatch:

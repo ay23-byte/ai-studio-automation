@@ -1,4 +1,4 @@
-name: Free local AI video generation — Intel Iris Xe
+name: '⚙ Internal — Free local AI video generation — Intel Iris Xe'
 
 on:
   workflow_dispatch:
