@@ -1,4 +1,4 @@
-name: Chernobyl documentary — professional review render
+name: '⚙ Internal — Chernobyl documentary — professional review render'
 
 on:
   workflow_dispatch:
