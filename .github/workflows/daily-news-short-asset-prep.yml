@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
       - name: Download reviewed story and script draft artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: news-script-draft-${{ inputs.script_run_id }}
           run-id: ${{ inputs.script_run_id }}
@@ -91,7 +91,7 @@ jobs:
           print(f"Prepared {len(scenes)} scenes. Human visual/rights review is still required.")
           PY
       - name: Upload asset-review artifact for next workflow
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: daily-news-assets-${{ github.run_id }}
           path: output/daily_news/asset_review/

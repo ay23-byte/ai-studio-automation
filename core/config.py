@@ -22,8 +22,9 @@ def env_flag(name, default=False):
 GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
 # Default model ids live in core.gemini (the single place they are written); an
 # empty GEMINI_MODEL (an unset Actions variable expands to "") falls back to it.
-from core.gemini import DEFAULT_MODEL as _GEMINI_DEFAULT_MODEL, configured_fallbacks as _gemini_fallbacks
-GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "").strip() or _GEMINI_DEFAULT_MODEL
+# GEMINI_PROFILE (default | longform) selects which default chain applies.
+from core.gemini import default_model as _gemini_default_model, configured_fallbacks as _gemini_fallbacks
+GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "").strip() or _gemini_default_model()
 GEMINI_FALLBACK_MODELS = _gemini_fallbacks()
 PIXABAY_API_KEY  = os.getenv("PIXABAY_API_KEY", "")
 COVERR_API_KEY   = os.getenv("COVERR_API_KEY", "")

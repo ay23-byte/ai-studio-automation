@@ -139,6 +139,9 @@ def _apply_fallback_gate(report_path, fallback_report):
             "with ALLOW_FALLBACK_VISUAL_UPLOAD=1.")
     Path(report_path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"QUALITY WARNING: {message}")
+    # The line printed by the technical check precedes this deduction; print the
+    # final figures so the log agrees with quality_report.json and the database.
+    print(f"Final video quality after the fallback-visual check: {report['status']} ({report['score']}/100)")
     return report
 
 

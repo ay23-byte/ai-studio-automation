@@ -22,12 +22,12 @@ jobs:
     timeout-minutes: 240
     steps:
       - name: Check out current main after PR #88
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -51,6 +51,8 @@ jobs:
       - name: Verify Gemini credential and model access (no secret output)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
         run: |
           python - <<'PY'
           import json
@@ -101,14 +103,21 @@ jobs:
               for item in data.get("models", [])
               if isinstance(item, dict)
           }
-          required = "gemini-3.8-flash"
-          if required not in models:
-              print("Gemini preflight: credential accepted, but configured model is not listed.")
-              print("Available Gemini 3 flash models: " + ", ".join(sorted(
-                  name for name in models if name.startswith("gemini-3") and "flash" in name
+          # The configured chain (repository variables, else the defaults in core/gemini.py).
+          from core.gemini import model_chain
+          chain = model_chain()
+          served = [name for name in chain if name in models]
+          missing = [name for name in chain if name not in models]
+          if missing:
+              print("Gemini preflight: configured model(s) not listed for this key: " + ", ".join(missing))
+          if not served:
+              print("Available flash models: " + ", ".join(sorted(
+                  name for name in models if name.startswith("gemini-") and "flash" in name
               )))
-              raise SystemExit(f"Configured model {required} is not available to this API key.")
-          print(f"Gemini preflight passed: credential accepted and {required} is available.")
+              raise SystemExit("None of the configured Gemini models is available to this API key: "
+                               + ", ".join(chain))
+          print("Gemini preflight passed: credential accepted; available configured model(s): "
+                + ", ".join(served))
           PY
 
       - name: Run live footage provider discovery
@@ -128,8 +137,10 @@ jobs:
         id: render
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: "gemini-3.8-flash"
-          GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+          # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+          # set the repository variable to override without a code change.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -283,7 +294,7 @@ jobs:
 
       - name: Upload final video and editorial evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: live-documentary-production-evidence
           path: |

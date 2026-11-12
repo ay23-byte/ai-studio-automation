@@ -29,8 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install FFmpeg and test dependencies
@@ -51,7 +51,7 @@ jobs:
             --output-dir build/archival_video_e2e
       - name: Upload archival retrieval and review evidence
         if: always() && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: archival-video-e2e-evidence
           path: build/archival_video_e2e/

@@ -135,3 +135,147 @@ Job summaries on the remaining production workflows; repository-variable overrid
 in nine workflows; the dead `REPLICATE_API_TOKEN` reference; Node 20 action deprecations; bare
 `ffmpeg`/`ffprobe` calls in `core/voice.py`, `core/audio_quality.py`, `core/editor_longform.py`;
 review of the seven open pull requests; everything marked NOT VERIFIED in the audit.
+
+### Phase 1 follow-up (recorded in Phase 2)
+
+| Check | Result |
+|---|---|
+| Pull-request checks on #199 (second commit `0333021`) | All four passed (validate run 43318628501, footage validation run 43318628933) |
+| PR #199 | Merged into `main` as `0e2ba44` |
+| `validate` on `main` after the merge | Run 43319210500: success, all three jobs (`unit-tests`, `ffmpeg-smoke`, `news-collect-minimal-env`) |
+| "Daily news Shorts — research queue" re-run on `main` | **Still pending.** Workflows cannot be dispatched from the audit sandbox (HTTP 403) and no scheduled run had started by 23:07 UTC on 2026-11-12; the next schedule is 02:30 UTC. The fix is covered by the `news-collect-minimal-env` job, but the scheduled workflow itself is NOT VERIFIED |
+| Issue #46 `/approve-script` re-run | Not re-run by the owner yet; cause of the three failures remains UNKNOWN |
+
+## Phase 2 — reliability
+
+Results are in the table at the end of this section.
+
+### 2.1 Production runs gave no account of themselves
+
+* **Problem.** A failed or skipped run of `make_shorts.yml`, `daily-news-auto-short.yml` or
+  `make_longform.yml` showed a red or green mark and a log. `run_daily.py` exits 0 without
+  building anything in three different situations, so "green" did not mean "a video exists".
+* **Root cause.** The facts were already written to disk by the pipeline, but nothing collected
+  them, and the failure alert was a fixed sentence without a reason.
+* **Change.** `core/run_report.py` assembles one report per run from the job row and the
+  per-job evidence files; `scripts/write_job_summary.py` writes the GitHub job summary,
+  `output/run_report.json` and one run annotation, and always exits 0;
+  `scripts/alert_on_failure.py` sends the outcome and reason to the notification channels.
+  Outcomes: uploaded, built and upload blocked, built, skipped, failed.
+  `core/publish.py` now records whether the stored privacy was actually read back from YouTube
+  (`privacy_verified`) so the summary does not assume it.
+  `scripts/upload_documentary_artifact.py` leaves `youtube-upload-failure.json` when it refuses
+  or fails, so a blocked documentary upload has a stated reason.
+* **Honesty rules in the report.** A job is only reported if its build directory exists in this
+  run; missing evidence prints "not recorded"; a job marked done without its file is a failure;
+  a notification older than the run (default window 3 hours, `RUN_REPORT_SINCE` to set it
+  exactly) is never quoted as the reason. The last rule was added after a sandbox check quoted
+  an unrelated earlier alert as the reason for a skipped run.
+* **Known cosmetic issue.** `core/notify.py` also appends each notification to the job summary,
+  so those lines appear above the report table.
+* **Status.** UNIT TESTED (`tests/test_run_report.py`, 19 tests), demonstrated on two sandbox
+  renders. **NOT VERIFIED on Actions**: none of the three workflows has run since.
+
+### 2.2 Model ids were pinned in workflow YAML
+
+* **Root cause.** Ten workflow files contained model ids (Phase 1 said nine literal plus two
+  overridable; the correct split is below): eight as literals and two
+  (`news-script-draft.yml`, `news-short-one-click.yml`) as the default of a `vars.` expression.
+  Retiring a model meant editing up to ten files.
+* **Change.** No workflow contains a model id. Workflows pass `vars.GEMINI_MODEL` /
+  `vars.GEMINI_FALLBACK_MODELS` (or the `…_LONGFORM` pair); empty selects a built-in chain.
+  The three documentary workflows used a different order (lite model first), so that order
+  became the `longform` profile in `core/gemini.py`, selected with `GEMINI_PROFILE=longform`.
+  **No workflow's effective model order changed.** The live-validation preflight now checks the
+  configured chain instead of one literal id. `run.py doctor` names the source of the chain.
+* **Status.** UNIT TESTED (profile tests; a test rejects `gemini-<digit>` in any workflow file).
+
+### 2.3 Action versions, and a latent break in state persistence
+
+* **Problem.** Node 20 actions were being force-run on Node 24 (annotation on run 43319210500).
+* **Finding while upgrading.** `actions/checkout` v6 and later keep the credential in a file
+  under `$RUNNER_TEMP`, referenced by `includeIf.gitdir`. `scripts/persist_state.py` copied
+  `http.*.extraheader` from `.git/config` into its temporary clone, so after the upgrade the
+  push to `automation-state` would have been unauthenticated. The same script cloned before
+  applying any credential, and it treated *any* `ls-remote` failure as "the branch does not
+  exist yet", which would silently start a run with an empty duplicate ledger.
+* **Change.** `persist_state.py` takes the credential from `GITHUB_TOKEN` (passed by both
+  workflows), or from either checkout layout, and hands it to git through `GIT_CONFIG_*`
+  environment variables (never argv, never written to the clone); network commands are retried
+  three times with a 180 s limit; an unreachable remote is an error; git output is scrubbed.
+  Then the hosted workflows moved to `checkout@v7`, `setup-python@v7`, `upload-artifact@v7`,
+  `download-artifact@v8`, `github-script@v9`, `setup-node@v7`, `cache@v6`. The self-hosted
+  Windows workflow was left on the Node 20 majors.
+* **Status.** Credential handling is UNIT TESTED against real git for both checkout layouts.
+  The push itself is **NOT VERIFIED**: the `automation-state` branch still does not exist
+  because no build workflow has run. `checkout`, `setup-python`, `setup-node` and
+  `upload-artifact` are exercised by pull-request checks (see Results); `download-artifact`,
+  `github-script` and `cache` are not.
+
+### 2.4 A build that failed part-way was lost
+
+* **Root cause.** Checkpoints make a job resumable, but a GitHub runner is discarded when the
+  job ends, so `run.py resume` could never be used on Actions.
+* **Change.** `scripts/build_with_recovery.py` wraps the build command in the two scheduled
+  workflows. A job created by the run that failed for a possibly transient reason is resumed
+  once from its checkpoint and then recorded like a normal build (ledger, topic queue, news
+  "seen" cache). A failure before any job exists reruns the command once. Configuration,
+  credential, content-gate, quality-gate and release-block failures are never retried. Bounded
+  by `BUILD_RECOVERY_ATTEMPTS` (default 1).
+* **Evidence.** Sandbox, real pipeline: the demo Short was built with the render stage forced
+  to raise; the wrapper resumed job 1, the log shows `reusing completed stage 'voice'`, and the
+  result is a 27.2 s 1080x1920 H.264/AAC file with exit code 0. Narration in the sandbox is a
+  test tone and all four visuals are fallback cards (no provider is reachable there), so this
+  demonstrates the recovery mechanics, not output quality. The four visuals were fetched again
+  on the resume: that is the existing rule that a resumed job retries any fallback card. Reuse
+  of real downloaded visuals on resume was not exercised in this run.
+* **Status.** UNIT TESTED (`tests/test_build_recovery.py`, 15 tests) and demonstrated in the
+  sandbox. NOT VERIFIED on Actions. Long-form jobs are not resumed automatically.
+
+### 2.5 Smaller items carried from Phase 1
+
+| Item | Result |
+|---|---|
+| Script engine said "temporarily unavailable" for unknown model ids and malformed replies | The final error now distinguishes: every model returned 404 (a configuration problem), no usable reply without any rate limit or outage, or a genuine temporary outage. UNIT TESTED |
+| Quality score in the log differed from the report (92 vs 72) | The technical check printed its score before the fallback-visual deduction. The final figure is now printed too. UNIT TESTED |
+| Bare `ffmpeg`/`ffprobe` in `core/voice.py`, `core/audio_quality.py`, `core/editor_longform.py` | Now honour `FFMPEG_BINARY` / `FFPROBE_BINARY` like the rest of the code |
+| No tests for the health checks added in Phase 1 | Added (model configuration, profile warning, narration provider levels) |
+| `news-story-review.yml` had no timeout or concurrency group | Added; a test requires a timeout on every job |
+| Unused variable in `core/news_shorts_writer.py` | Removed |
+| `.env.example` pinned model ids | Now empty with an explanation, so a copied `.env` follows the built-in chain |
+
+### Results
+
+| Check | Result |
+|---|---|
+| Local `pytest tests -q` | **683 passed**, 284 subtests (612 after Phase 1) |
+| Local `python -m unittest discover -s tests` | Ran 661 tests, OK |
+| Local news tests with only `requests` + `Pillow` | 135 tests OK |
+| Tracked database unchanged | sha256 prefix `6e3232feda4015cc` before and after |
+| All 30 workflow files parse as YAML | Yes (PyYAML) |
+| Pull-request checks on #200, first commit `aac36dc` | All nine passed, across seven workflows (runs 43328216839 `validate`, 43328216791, 43328216822, 43328216703, 43328216880, 43328216936, 43328217018). Because this change touches every workflow file, the path-filtered workflows ran as well |
+| Upgraded actions actually executed by those runs | `checkout@v7`, `setup-python@v7`, `upload-artifact@v7`, `setup-node@v7`. The Node 20 warning for `checkout` and `setup-python` is gone |
+| Upgraded actions **not** executed | `download-artifact@v8`, `github-script@v9`, `cache@v6` (manual or issue-triggered workflows only) |
+| Remaining runner annotations | Node 20 warning for `FedericoCarboni/setup-ffmpeg@v3` in `documentary-e2e-smoke.yml` (v3 is its newest release); notice that `ubuntu-latest` moves to Ubuntu 26 |
+| Misleading annotation found and fixed | A unit test printed a `::error::` line, which GitHub showed as a failure annotation on two passing runs. The test now captures that output (second commit) |
+
+### Not done in Phase 2, and why
+
+* **Correction to Phase 1: `REPLICATE_API_TOKEN` is not a dead reference.** Phase 1 reported
+  that no Python code reads it. That was wrong: `core/images.py` has an optional paid
+  text-to-video adapter that reads it. The adapter runs only when `FREE_ONLY_MODE` is off and
+  `AI_VIDEO_ENABLED=1` and a model is configured; every workflow that sets `AI_VIDEO_ENABLED`
+  sets it to `0`, and `news-short-one-click.yml` passes the token to a step that also sets
+  `FREE_ONLY_MODE=1`. So it cannot incur cost as configured, and nothing was removed. The
+  recommendation to delete the reference is withdrawn; the audit row is corrected.
+* No workflow was dispatched: the sandbox cannot dispatch workflows. Everything that depends on
+  a real run of `make_shorts.yml`, `daily-news-auto-short.yml` or `make_longform.yml` is
+  NOT VERIFIED.
+* The tracked `db/studio.sqlite` decision is still open; the file is unchanged.
+
+### Carried forward
+
+Documentary end-to-end proof and the open documentary pull requests (#86, #87, #28, #10) in
+Phase 3; a fixed-packet news Short end-to-end test and #37 in Phase 5; a real private upload
+with privacy read-back and #154 in Phase 6; dashboard tests and the operator documents in
+Phase 7. Long-form automatic resume; job summaries on the manual review/upload workflows.

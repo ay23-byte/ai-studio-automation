@@ -32,8 +32,10 @@ jobs:
       TARGET_PERIOD: "1986"
       MINUTES: ${{ inputs.minutes }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: "gemini-3.8-flash"
-      GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+      # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+      # set the repository variable to override without a code change.
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
@@ -57,15 +59,15 @@ jobs:
 
     steps:
       - name: Check out this production branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python and Node
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -102,7 +104,7 @@ jobs:
       # Chernobyl archival E2E run. Reuse it only after re-running the full local audit.
       - name: Recover previously retrieved Chernobyl archival candidate
         id: archive_cache
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: archival-video-e2e-evidence
@@ -203,7 +205,7 @@ jobs:
 
       - name: Upload documentary and complete review evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chernobyl-documentary-review-copy
           path: |

@@ -209,11 +209,24 @@ def main() -> int:
     parser.add_argument("--artifact-dir", type=Path, required=True)
     parser.add_argument("--source-run-id", required=True)
     args = parser.parse_args()
+    failure_path = args.artifact_dir / "youtube-upload-failure.json"
     try:
         upload_automated_artifact(args.artifact_dir, args.source_run_id)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
+        # Leave a machine-readable reason for the job summary and the failure alert.
+        try:
+            failure_path.write_text(json.dumps(
+                {"source_run_id": args.source_run_id, "error_type": type(exc).__name__,
+                 "error": f"{type(exc).__name__}: {exc}"[:1000]}, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8")
+        except OSError:
+            pass
         return 1
+    try:
+        failure_path.unlink()
+    except OSError:
+        pass
     return 0
 
 

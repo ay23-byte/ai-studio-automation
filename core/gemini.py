@@ -38,6 +38,19 @@ DEFAULT_FALLBACK_MODELS = (
     "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite",
 )
 
+# The documentary workflows were configured lite-model-first in their YAML.  That
+# order is kept here as a named profile, so moving the ids out of the workflow
+# files did not change which model writes a documentary.  A workflow selects it
+# with GEMINI_PROFILE=longform; GEMINI_MODEL / GEMINI_FALLBACK_MODELS still win.
+LONGFORM_DEFAULT_MODEL = "gemini-3.1-flash-lite"
+LONGFORM_DEFAULT_FALLBACK_MODELS = (
+    "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash",
+)
+PROFILES = {
+    "default": (DEFAULT_MODEL, DEFAULT_FALLBACK_MODELS),
+    "longform": (LONGFORM_DEFAULT_MODEL, LONGFORM_DEFAULT_FALLBACK_MODELS),
+}
+
 # Failure kinds.  Callers branch on these instead of on raw status codes.
 AUTH = "auth"                        # invalid/unauthorised key: same for every model, never retry
 MODEL_NOT_FOUND = "model_not_found"  # unknown/retired id: skip to the next model, never retry
@@ -96,6 +109,30 @@ def _split(raw) -> list[str]:
     return [str(part) for part in raw]
 
 
+def profile_name(environ=None) -> str:
+    """The active default profile (``GEMINI_PROFILE``); unknown or empty -> ``default``."""
+    env = os.environ if environ is None else environ
+    name = str(env.get("GEMINI_PROFILE") or "").strip().lower()
+    return name if name in PROFILES else "default"
+
+
+def unknown_profile(environ=None) -> str | None:
+    """The configured profile name if it is not one of ``PROFILES`` (for diagnostics)."""
+    env = os.environ if environ is None else environ
+    name = str(env.get("GEMINI_PROFILE") or "").strip().lower()
+    return name if name and name not in PROFILES else None
+
+
+def default_model(environ=None) -> str:
+    """Primary model used when ``GEMINI_MODEL`` is unset or empty."""
+    return PROFILES[profile_name(environ)][0]
+
+
+def default_fallbacks(environ=None) -> list[str]:
+    """Fallback models used when ``GEMINI_FALLBACK_MODELS`` is unset or empty."""
+    return list(PROFILES[profile_name(environ)][1])
+
+
 def configured_fallbacks(environ=None) -> list[str]:
     """Fallback ids from ``GEMINI_FALLBACK_MODELS`` (or legacy ``GEMINI_FALLBACK_MODEL``).
 
@@ -109,7 +146,7 @@ def configured_fallbacks(environ=None) -> list[str]:
     # Treating that as "no fallbacks" would silently remove the safety net, so
     # empty means "use the defaults"; write ``none`` to disable fallbacks.
     if raw is None or not str(raw).strip():
-        return list(DEFAULT_FALLBACK_MODELS)
+        return default_fallbacks(env)
     if str(raw).strip().lower() in {"none", "off", "disabled"}:
         return []
     return [part.strip() for part in raw.split(",") if part.strip()]
@@ -124,7 +161,7 @@ def model_chain(primary=None, fallbacks=None, *, strict: bool = True, environ=No
     """
     env = os.environ if environ is None else environ
     if primary is None:
-        primary = env.get("GEMINI_MODEL") or DEFAULT_MODEL
+        primary = str(env.get("GEMINI_MODEL") or "").strip() or default_model(env)
     if fallbacks is None:
         fallbacks = configured_fallbacks(env)
     chain: list[str] = []
@@ -148,7 +185,7 @@ def invalid_model_ids(primary=None, fallbacks=None, environ=None) -> list[str]:
     """Configured ids that fail validation (for ``run.py doctor``)."""
     env = os.environ if environ is None else environ
     if primary is None:
-        primary = env.get("GEMINI_MODEL") or DEFAULT_MODEL
+        primary = str(env.get("GEMINI_MODEL") or "").strip() or default_model(env)
     if fallbacks is None:
         fallbacks = configured_fallbacks(env)
     bad = []

@@ -22,10 +22,10 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -38,7 +38,7 @@ jobs:
           ffprobe -version
 
       - name: Cache Chatterbox model
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: chatterbox-v3-${{ runner.os }}-production-trial-v1
@@ -52,7 +52,7 @@ jobs:
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py scripts
 
       - name: Install Playwright Chromium for 3D presenter recording
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -64,8 +64,10 @@ jobs:
       - name: Render documentary
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: "gemini-3.8-flash"
-          GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+          # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+          # set the repository variable to override without a code change.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -101,7 +103,7 @@ jobs:
 
       - name: Upload documentary and review evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: first-documentary-production-trial
           path: |

@@ -41,10 +41,10 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -146,7 +146,7 @@ jobs:
           python scripts/validate_review_package.py output/daily_news/review_package
 
       - name: Upload human-review artifact (no YouTube upload)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: daily-news-short-review-${{ github.run_id }}
           path: output/daily_news/review_package/

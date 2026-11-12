@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from core.config import VOICE_HINDI, VOICE_ENGLISH, VOICE_FEMALE, VOICE_ENGLISH_FEMALE
+from core.ffmpeg_utils import ffmpeg_bin, ffprobe_bin  # honours FFMPEG_BINARY / FFPROBE_BINARY
 
 # Edge TTS is an optional provider.  It used to be imported here at module level,
 # so every caller that only needed voice *selection* (and every test module that
@@ -159,12 +160,12 @@ async def _synth_edge(text, voice, rate, pitch, path):
     ) from last_error
 
 def _to_wav(mp3, wav):
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp3),
+    subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(mp3),
                     "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(wav)], check=True)
 
 def _dur(path):
     return float(subprocess.check_output(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+        [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
          "-of", "csv=p=0", str(path)]).strip())
 
 def _join(wavs, pauses, out, speed=1.0):
@@ -176,7 +177,7 @@ def _join(wavs, pauses, out, speed=1.0):
     filters.append("".join(f"[a{i}]" for i in range(len(wavs))) +
                    f"concat=n={len(wavs)}:v=0:a=1[cat]")
     filters.append("[cat]highpass=f=70,acompressor=threshold=-18dB:ratio=3:attack=5:release=60:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *inputs,
+    subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[vo]",
                     "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(out)], check=True)
 

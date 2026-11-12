@@ -3,6 +3,7 @@ from pathlib import Path
 
 from core import ffmpeg_utils
 from core.render_join import reduce_segments, video_chain
+from core.ffmpeg_utils import ffmpeg_bin  # honours FFMPEG_BINARY
 
 W, H = 1920, 1080
 FADE = 0.4
@@ -79,7 +80,7 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
         vf = (f"{RANGE}scale={W*2}:{H*2}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W*2}:{H*2},zoompan=z='{z}':{pos}:d=1:s={W}x{H}:fps=30,"
               f"{grade},format=yuv420p")
-        _run(["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30",
+        _run([ffmpeg_bin(),"-y","-loglevel","error","-loop","1","-framerate","30",
               "-t",f"{dur:.3f}","-i",str(src),"-vf",vf,"-an",*ENC,str(out)])
     else:
         from core.visual_consistency import color_grade_filter
@@ -92,7 +93,7 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
               f"crop={W}:{H},scale=2048:1152:flags=lanczos,"
               f"crop={W}:{H}:x='{x_motion}':y='{y_motion}',"
               f"fps=30,setsar=1,{grade},format=yuv420p")
-        _run(["ffmpeg","-y","-loglevel","error","-stream_loop","-1",
+        _run([ffmpeg_bin(),"-y","-loglevel","error","-stream_loop","-1",
               "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out
 
@@ -137,7 +138,7 @@ def _append_credits_card(video_path, credits_path):
     ass_path.write_text(ass_content, encoding="utf-8")
     temp_out = Path(video_path).with_name(Path(video_path).stem + "_with_credits.mp4")
     args = [
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path),
+        ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(video_path),
         "-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}",
         "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}",
         "-filter_complex",
@@ -252,7 +253,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     afilt.append("".join(mix_in)+f"amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
                  f"normalize=0,alimiter=limit=0.95,{fade},{_audio_master_filter()}[aout]")
     filt += ";".join(afilt)
-    _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
+    _run([ffmpeg_bin(),"-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
           "-c:a","aac","-b:a","256k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
     if credits_path:

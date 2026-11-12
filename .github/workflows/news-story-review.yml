@@ -27,12 +27,18 @@ on:
 permissions:
   issues: write
 
+# Two dispatches for the same story must not create two review issues at once.
+concurrency:
+  group: news-story-review-${{ inputs.story_id }}
+  cancel-in-progress: false
+
 jobs:
   create-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Create editorial review issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           STORY_ID: ${{ inputs.story_id }}
           STORY_TITLE: ${{ inputs.title }}

@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate issue number
         env:
           ISSUE_NUMBER: ${{ inputs.issue_number }}
@@ -31,7 +31,7 @@ jobs:
             exit 1
           fi
       - name: Extract human-approved evidence from issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           ISSUE_NUMBER: ${{ inputs.issue_number }}
         with:
@@ -70,7 +70,10 @@ jobs:
       - name: Generate script draft
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+          # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+          # set the repository variable to override without a code change.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
         run: |
           python -m scripts.draft_reviewed_news_short input-news/reviewed_story.json --output input-news/shorts_script_draft.json
       - name: Prepare visual candidates
@@ -100,7 +103,7 @@ jobs:
           print(f"Review package ready: {len(scenes)} scenes. No MP4 rendered and no upload performed.")
           PY
       - name: Upload one review package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: news-short-review-${{ github.run_id }}
           path: |
@@ -111,7 +114,7 @@ jobs:
           retention-days: 14
       - name: Report review package on issue
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           ISSUE_NUMBER: ${{ inputs.issue_number }}
         with:
