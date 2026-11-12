@@ -69,19 +69,40 @@ jobs:
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
-          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
-            echo "::error::Add KAGGLE_USERNAME and KAGGLE_KEY as repository Actions secrets."
+          set -euo pipefail
+          if [ -z "$KAGGLE_USERNAME" ]; then
+            echo "::error::Add KAGGLE_USERNAME as a repository Actions secret; it is needed to identify your kernel."
+            exit 1
+          fi
+          if [ -z "$KAGGLE_API_TOKEN" ] && [ -z "$KAGGLE_KEY" ]; then
+            echo "::error::Add either KAGGLE_API_TOKEN (recommended, from Kaggle Settings > API) or legacy KAGGLE_KEY as a repository Actions secret."
             exit 1
           fi
           mkdir -p "$HOME/.kaggle"
-          python - <<'PY'
+          CREDENTIAL_VALUE="$KAGGLE_API_TOKEN"
+          CREDENTIAL_SOURCE="KAGGLE_API_TOKEN"
+          if [ -z "$CREDENTIAL_VALUE" ]; then
+            CREDENTIAL_VALUE="$KAGGLE_KEY"
+            CREDENTIAL_SOURCE="KAGGLE_KEY"
+          fi
+          # Kaggle's newer personal API tokens use the KGAT_ prefix. Accept
+          # them under either secret name; otherwise retain legacy kaggle.json.
+          if [[ "$CREDENTIAL_VALUE" == KGAT_* ]]; then
+            printf '%s' "$CREDENTIAL_VALUE" > "$HOME/.kaggle/access_token"
+            chmod 600 "$HOME/.kaggle/access_token"
+            echo "Configured Kaggle using an API access token from $CREDENTIAL_SOURCE."
+          else
+            KAGGLE_KEY="$CREDENTIAL_VALUE" python - <<'PY'
           import json, os
           from pathlib import Path
           path = Path.home() / ".kaggle" / "kaggle.json"
           path.write_text(json.dumps({"username": os.environ["KAGGLE_USERNAME"], "key": os.environ["KAGGLE_KEY"]}), encoding="utf-8")
           path.chmod(0o600)
           PY
+            echo "Configured Kaggle using legacy username/key credentials from $CREDENTIAL_SOURCE."
+          fi
 
       - name: Validate inputs and prepare private Kaggle kernel
         env:
@@ -150,6 +171,7 @@ jobs:
       - name: Submit Wan2.1 job to Kaggle GPU
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
         run: |
           set -euo pipefail
@@ -161,6 +183,7 @@ jobs:
       - name: Wait for Kaggle GPU generation
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
         run: |
           set -euo pipefail
@@ -186,6 +209,7 @@ jobs:
       - name: Download and validate generated MP4
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
         run: |
           set -euo pipefail
