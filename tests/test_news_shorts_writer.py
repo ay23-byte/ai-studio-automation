@@ -1,6 +1,6 @@
 import json, tempfile, unittest
 from pathlib import Path
-from core.news_shorts_writer import generate_reviewed_shorts, _validate_scientific_wording, _build_correction_prompt, _normalize_spoken_hand_definitions, _normalize_spoken_building_footprint_labels
+from core.news_shorts_writer import generate_reviewed_shorts, _coerce_script_payload, _validate_scientific_wording, _build_correction_prompt, _normalize_spoken_hand_definitions, _normalize_spoken_building_footprint_labels
 class WriterGateTests(unittest.TestCase):
  def test_unapproved_packet_is_rejected_before_api_call(self):
   with tempfile.TemporaryDirectory() as tmp:
@@ -159,6 +159,25 @@ class ScriptCorrectionPromptTests(unittest.TestCase):
   self.assertIn("same say field MUST contain the complete phrase", prompt)
   self.assertIn("Do not put the definition only in a caption or another scene", prompt)
   self.assertIn("108,500 लोग 0–50 मीटर", prompt)
+
+
+
+class GeminiPayloadShapeTests(unittest.TestCase):
+ def test_accepts_scene_array_response_and_wraps_it(self):
+  scenes=[{'say':'नमूना narration','caption':'sample'}]
+  self.assertEqual(_coerce_script_payload(scenes), {'scenes':scenes})
+
+ def test_preserves_object_response(self):
+  payload={'title':'Test','scenes':[{'say':'नमूना','caption':'नमूना'}]}
+  self.assertIs(_coerce_script_payload(payload), payload)
+
+ def test_rejects_object_without_scene_array(self):
+  with self.assertRaisesRegex(ValueError,'scenes array'):
+   _coerce_script_payload({'title':'Missing scenes'})
+
+ def test_rejects_scalar_response(self):
+  with self.assertRaisesRegex(ValueError,'object or a scene array'):
+   _coerce_script_payload("not JSON structure")
 
 
 if __name__=='__main__': unittest.main()
