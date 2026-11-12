@@ -37,7 +37,7 @@ def main() -> int:
     build_dir = Path("build") / f"job_{job_id}"
     build_dir.mkdir(parents=True, exist_ok=True)
     (build_dir / "script.json").write_text(
-        json.dumps(script, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     (build_dir / "review_status.json").write_text(json.dumps({
         "status": "REVIEW_REQUIRED",
@@ -47,7 +47,7 @@ def main() -> int:
         "youtube_upload_attempted": False,
         "publication_eligible": False,
         "notice": "This is a review render only. Inspect the complete MP4, captions, narration, factual claims, visual relevance, and all asset rights before any publication."
-    }, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     video = build_shorts(
         script, job_id, build_dir=build_dir,
