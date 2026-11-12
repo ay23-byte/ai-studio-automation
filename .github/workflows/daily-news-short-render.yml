@@ -1,0 +1,154 @@
+name: Daily news Short — approved render review
+
+on:
+  workflow_dispatch:
+    inputs:
+      script_path:
+        description: "Repository path to the human-approved script JSON (4–6 scenes)"
+        required: true
+        type: string
+      approval_path:
+        description: "Repository path to the separate production approval JSON"
+        required: true
+        type: string
+      language:
+        description: "Narration and subtitle language"
+        required: true
+        type: choice
+        options:
+          - english
+          - hindi
+        default: english
+      voice_gender:
+        description: "Narration voice"
+        required: true
+        type: choice
+        options:
+          - male
+          - female
+        default: male
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-news-short-review
+  cancel-in-progress: false
+
+jobs:
+  render-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install free CPU rendering dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg fonts-dejavu-core fonts-noto-core espeak-ng
+          python -m pip install --upgrade pip
+          python -m pip install edge-tts requests Pillow python-dotenv jsonschema
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Validate approved inputs and asset paths
+        env:
+          SCRIPT_PATH: ${{ inputs.script_path }}
+          APPROVAL_PATH: ${{ inputs.approval_path }}
+          LANGUAGE: ${{ inputs.language }}
+          VOICE_GENDER: ${{ inputs.voice_gender }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          root = Path.cwd().resolve()
+          def repo_file(raw, label):
+              value = Path(raw)
+              if value.is_absolute():
+                  raise SystemExit(f"{label} must be a repository-relative path.")
+              path = (root / value).resolve()
+              if root not in path.parents or not path.is_file():
+                  raise SystemExit(f"{label} must point to an existing file inside the checked-out repository.")
+              return path
+
+          script_path = repo_file(os.environ["SCRIPT_PATH"], "script_path")
+          approval_path = repo_file(os.environ["APPROVAL_PATH"], "approval_path")
+          script = json.loads(script_path.read_text(encoding="utf-8"))
+          approval = json.loads(approval_path.read_text(encoding="utf-8"))
+          script["language"] = os.environ["LANGUAGE"]
+          script["voice_gender"] = os.environ["VOICE_GENDER"]
+          if script.get("editorial_status") != "approved_for_production":
+              raise SystemExit("Script must be explicitly approved_for_production.")
+          if approval.get("status") != "approved":
+              raise SystemExit("Separate approval JSON must have status=approved.")
+          scenes = script.get("scenes")
+          if not isinstance(scenes, list) or not 4 <= len(scenes) <= 6:
+              raise SystemExit("Daily news Short requires 4–6 approved scenes.")
+          for index, scene in enumerate(scenes, 1):
+              asset = Path(str(scene.get("asset_path") or ""))
+              if asset.is_absolute():
+                  resolved = asset.resolve()
+              else:
+                  resolved = (root / asset).resolve()
+              if root not in resolved.parents or not resolved.is_file():
+                  raise SystemExit(f"Scene {index} asset must exist inside the repository.")
+              sidecar = resolved.with_suffix(resolved.suffix + ".source.json")
+              if not sidecar.is_file() or root not in sidecar.resolve().parents:
+                  raise SystemExit(f"Scene {index} needs an in-repository .source.json provenance sidecar.")
+          print(f"Approved input files and {len(scenes)} scene assets verified.")
+          PY
+          mkdir -p render-input
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          script = json.loads(Path(os.environ["SCRIPT_PATH"]).read_text(encoding="utf-8"))
+          script["language"] = os.environ["LANGUAGE"]
+          script["voice_gender"] = os.environ["VOICE_GENDER"]
+          Path("render-input/approved_script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          cp "${{ inputs.approval_path }}" render-input/render_approval.json
+
+      - name: Render approved news Short (review copy only)
+        env:
+          TTS_ENGINE: edge
+          LANGUAGE: ${{ inputs.language }}
+          VOICE_GENDER: ${{ inputs.voice_gender }}
+          CI: "true"
+        run: |
+          python scripts/render_reviewed_news_short.py \
+            render-input/approved_script.json \
+            render-input/render_approval.json \
+            --output-dir output/daily_news/rendered
+
+      - name: Run news Short technical and content QA
+        run: |
+          python scripts/qa_news_short.py \
+            output/daily_news/rendered/review_short.mp4 \
+            --report output/daily_news/rendered/qa/technical.json \
+            --manifest output/daily_news/rendered/production_manifest.json \
+          test -s output/daily_news/rendered/qa/technical.json
+
+      - name: Build shared review package
+        run: |
+          python scripts/package_daily_news_review.py \
+            --script render-input/approved_script.json \
+            --render-dir output/daily_news/rendered \
+            --qa-report output/daily_news/rendered/qa/technical.json \
+            --output-dir output/daily_news/review_package
+          python scripts/validate_review_package.py output/daily_news/review_package
+
+      - name: Upload human-review artifact (no YouTube upload)
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-news-short-review-${{ github.run_id }}
+          path: output/daily_news/review_package/
+          if-no-files-found: error
+          retention-days: 14
