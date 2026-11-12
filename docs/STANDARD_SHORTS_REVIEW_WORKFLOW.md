@@ -13,4 +13,4 @@ The workflow installs FFmpeg and the free Edge TTS/Python dependencies, calls th
 - The workflow is CPU-based and does not request a paid GPU.
 - GitHub repository secrets such as `PIXABAY_API_KEY` are optional provider credentials; missing keys may reduce available visual sources.
 - A successful run proves the workflow produced a technically probeable review MP4, not that the facts, visual relevance, asset rights, captions, or cinematic quality are approved.
-- This first workflow emits a review bundle but does not yet convert the renderer's per-scene assets into the shared `production_manifest.json` contract or invoke `validate_review_package.py`. That integration is a follow-on task. Human inspection remains mandatory.
+- The workflow now assembles a `shared_review_package/` containing `production_manifest.json`, per-scene asset copies and provenance sidecars where available, five QA reports, preview frame, and a pending human checklist. It invokes `validate_review_package.py` and deliberately remains `REVIEW_REQUIRED` until human review is completed. Unknown provenance or unreviewed rights are recorded as unknown, never silently approved.
