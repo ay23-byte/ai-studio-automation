@@ -95,7 +95,7 @@ def _write_ass(scenes: list[dict], durations: list[float], output: Path, languag
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         # Compact, boxed Hindi subtitles sit in the lower safe band instead of over the
         # center of the project graphics. Noto Sans Devanagari is installed in CI.
-        ("Style: News,Noto Sans,52,&H00FFFFFF,&H0000D7FF,&H00101010,&H78000000,0,0,0,0,100,100,0,0,3,2,1,2,90,90,300,1" if str(language).lower() == "english" else "Style: News,Noto Sans Devanagari,46,&H00FFFFFF,&H0000D7FF,&H00101010,&H78000000,0,0,0,0,100,100,0,0,3,2,1,2,90,90,300,1"),
+        ("Style: News,Noto Sans,52,&H00FFFFFF,&H0000D7FF,&H00101010,&H78000000,0,0,0,0,100,100,0,0,3,2,1,2,90,90,300,1" if str(language).lower() in {"english", "hinglish"} else "Style: News,Noto Sans Devanagari,46,&H00FFFFFF,&H0000D7FF,&H00101010,&H78000000,0,0,0,0,100,100,0,0,3,2,1,2,90,90,300,1"),
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
     ]
     cursor = 0.0
