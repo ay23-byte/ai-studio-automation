@@ -42,6 +42,12 @@ jobs:
             let packet;
             try { packet = JSON.parse(matches[0][1]); }
             catch (error) { core.setFailed("The issue JSON packet is invalid: " + error.message); }
+            const language = String(packet.language || "hinglish").toLowerCase();
+            if (!["english", "hinglish", "hindi"].includes(language)) {
+              core.setFailed("packet.language must be english, hinglish, or hindi.");
+              return;
+            }
+            core.setOutput("language", language);
             if (packet.review_status !== "approved") {
               core.setFailed("Script drafting blocked: review_status must be approved after human source inspection.");
             }
@@ -56,6 +62,8 @@ jobs:
               "utf8"
             );
 
+        id: packet
+
       - name: Install script-drafting dependency
         run: python -m pip install requests
 
@@ -63,16 +71,18 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+          SCRIPT_LANGUAGE: ${{ steps.packet.outputs.language }}
         run: |
           python -m scripts.draft_reviewed_news_short \
             output/daily_news/reviewed_story.json \
-            --output output/daily_news/shorts_script_draft.json
+            --output output/daily_news/shorts_script_draft.json \\
+            --language "$SCRIPT_LANGUAGE"
 
       - name: Upload script draft for human review
         id: draft-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: news-script-draft-${{ github.run_id }}
+          name: news-script-draft-issue-${{ github.event.issue.number }}
           path: |
             output/daily_news/reviewed_story.json
             output/daily_news/shorts_script_draft.json
@@ -98,7 +108,7 @@ jobs:
                 "",
                 "This is a draft only. Review every factual claim, attribution, duration, narration and caption. No video was rendered and nothing was uploaded or published.",
                 "",
-                "A separate human script approval and a separate production approval are still required."
+                "After reviewing the script artifact, comment exactly /approve-visuals to prepare visual candidates. Final MP4 rendering still requires a separate explicit workflow-dispatch confirmation."
               ].join("\n")
             });
 
