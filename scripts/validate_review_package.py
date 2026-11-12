@@ -144,12 +144,14 @@ def validate_package(package_dir: str | Path) -> dict:
             except ValueError as exc:
                 errors.append(f"{label}: {exc}")
             provenance = asset.get("provenance")
-            if not isinstance(provenance, dict) or provenance.get("origin") not in {"source", "ai_generated", "user_provided"}:
+            if not isinstance(provenance, dict) or provenance.get("origin") not in {"source", "ai_generated", "user_provided", "unknown"}:
                 errors.append(f"{label} has missing/invalid provenance.")
             elif provenance.get("origin") == "source" and not provenance.get("source_url"):
                 errors.append(f"{label} source asset has no source_url.")
             elif provenance.get("origin") == "ai_generated" and not provenance.get("prompt"):
                 errors.append(f"{label} AI asset has no generation prompt.")
+            elif provenance.get("origin") == "unknown":
+                required_reviews.append(f"Confirm origin and provenance for {label}.")
             rights = asset.get("rights")
             if not isinstance(rights, dict) or rights.get("status") != "reviewed" or not rights.get("license"):
                 required_reviews.append(f"Confirm rights/licence for {label}.")
