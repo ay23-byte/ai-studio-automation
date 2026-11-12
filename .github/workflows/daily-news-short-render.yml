@@ -62,6 +62,8 @@ jobs:
         env:
           SCRIPT_PATH: ${{ inputs.script_path }}
           APPROVAL_PATH: ${{ inputs.approval_path }}
+          LANGUAGE: ${{ inputs.language }}
+          VOICE_GENDER: ${{ inputs.voice_gender }}
         run: |
           python - <<'PY'
           import json, os
@@ -81,6 +83,8 @@ jobs:
           approval_path = repo_file(os.environ["APPROVAL_PATH"], "approval_path")
           script = json.loads(script_path.read_text(encoding="utf-8"))
           approval = json.loads(approval_path.read_text(encoding="utf-8"))
+          script["language"] = os.environ["LANGUAGE"]
+          script["voice_gender"] = os.environ["VOICE_GENDER"]
           if script.get("editorial_status") != "approved_for_production":
               raise SystemExit("Script must be explicitly approved_for_production.")
           if approval.get("status") != "approved":
