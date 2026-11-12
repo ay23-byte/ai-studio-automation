@@ -1,4 +1,4 @@
-name: Wan2.1 documentary rerender
+name: '⚙ Internal — Wan2.1 documentary rerender'
 
 on:
   workflow_dispatch:
