@@ -172,8 +172,8 @@ def _synth_all_chatterbox(sentences, language, build_dir):
 def _edge_voice_candidates(language, gender):
     """Try the configured voice first, then independent Edge voices."""
     preferred = pick_voice(language, gender)
-    if language == "english":
-        fallbacks = ["en-US-AriaNeural", "en-GB-SoniaNeural", "en-IN-PrabhatNeural"]
+    if language in {"english", "hinglish"}:
+        fallbacks = ["en-IN-PrabhatNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"]
     elif gender == "female":
         fallbacks = ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"]
     else:
