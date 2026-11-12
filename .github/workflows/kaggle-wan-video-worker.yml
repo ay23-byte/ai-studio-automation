@@ -44,8 +44,26 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Kaggle CLI
-        run: python -m pip install --upgrade kaggle
+      - name: Install and verify Kaggle CLI dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip setuptools wheel
+          # Install six explicitly: some Kaggle CLI dependency resolutions have
+          # left this runtime dependency absent even after installing kaggle.
+          python -m pip install --no-cache-dir --upgrade six
+          python -m pip install --no-cache-dir --upgrade kaggle
+          python -m pip check
+          python - <<'PY'
+          import sys
+          import six
+          import kaggle
+          from kaggle.api.kaggle_api_extended import KaggleApi
+          print("Python:", sys.executable)
+          print("six:", six.__version__)
+          print("Kaggle CLI package:", getattr(kaggle, "__version__", "installed"))
+          print("KaggleApi import: OK")
+          PY
+          kaggle --version
 
       - name: Configure Kaggle credentials
         env:
