@@ -83,7 +83,7 @@ def run(video, report_dir=None, manifest_path=None):
         errors.append("Scene-to-source provenance QA detected a missing, changed, or unlicensed asset record.")
     elif asset_provenance.get("status") in {"REVIEW","NOT_RUN"}:
         warnings.append("Scene-to-source provenance requires human review; see scene_asset_provenance_report.json.")
-    if semantic_manifest.is_file():
+    if semantic_manifest.is_file() and json.loads(semantic_manifest.read_text(encoding="utf-8")).get("presenter_mode") == "required_3d_talking_avatar_picture_in_picture":
         from core.news_short_presenter_qa import audit_presenter
         presenter = audit_presenter(semantic_manifest, video, root)
     else:
