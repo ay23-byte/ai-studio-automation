@@ -96,6 +96,17 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
             self.assertTrue(sidecar.is_file())
 
 
+    def test_candidate_preserves_selected_script_language(self):
+        script = dict(self.script, language="english")
+        assets = [
+            {"asset_type": "image", "asset_path": f"/tmp/scene{i}.jpg",
+             "ai_disclosure": False,
+             "asset_review_status": "pending_human_visual_and_rights_review"}
+            for i in range(4)
+        ]
+        candidate = prepare_candidate_script(script, self.packet, assets)
+        self.assertEqual(candidate["language"], "english")
+
     def test_himalayan_candidate_carries_user_approved_narration_corrections(self):
         packet = dict(self.packet, story_title="Himalayan construction and disaster exposure")
         script = dict(self.script, title="Himalayan flood exposure study")
