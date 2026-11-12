@@ -1,4 +1,4 @@
-name: '3. Upload an Approved Video — Private'
+name: '3. Upload Approved Documentary — Private'
 
 on:
   workflow_dispatch:
