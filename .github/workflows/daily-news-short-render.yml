@@ -112,7 +112,7 @@ jobs:
           script = json.loads(Path(os.environ["SCRIPT_PATH"]).read_text(encoding="utf-8"))
           script["language"] = os.environ["LANGUAGE"]
           script["voice_gender"] = os.environ["VOICE_GENDER"]
-          Path("render-input/approved_script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+          Path("render-input/approved_script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY
           cp "${{ inputs.approval_path }}" render-input/render_approval.json
 
