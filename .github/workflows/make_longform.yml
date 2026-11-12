@@ -207,6 +207,33 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # Upload automatically only after a successful render and after the
+      # uploader independently verifies the final MP4, QA reports and licences.
+      # The upload is always PRIVATE; it is never scheduled or made public.
+      - name: Upload validated documentary to YouTube as Private
+        if: success()
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: |
+          test -n "$YT_CLIENT_ID" || { echo "::error::Missing YT_CLIENT_ID Actions secret."; exit 1; }
+          test -n "$YT_CLIENT_SECRET" || { echo "::error::Missing YT_CLIENT_SECRET Actions secret."; exit 1; }
+          test -n "$YT_REFRESH_TOKEN" || { echo "::error::Missing YT_REFRESH_TOKEN Actions secret."; exit 1; }
+          python -m pip install google-api-python-client google-auth requests
+          python scripts/upload_documentary_artifact.py \
+            --artifact-dir . \
+            --source-run-id "${{ github.run_id }}" \
+            --automatic-private-upload
+
+      - name: Preserve YouTube upload receipt
+        if: always() && hashFiles('youtube-upload-result.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-private-upload-receipt-${{ github.run_id }}
+          path: youtube-upload-result.json
+          retention-days: 90
+
       # Build state remains an Actions artifact/local runtime concern; never
       # commit a live SQLite database or grant this render workflow write access.
 
