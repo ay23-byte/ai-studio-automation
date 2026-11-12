@@ -53,3 +53,26 @@ Editorial approval, source review, rights review, factual-context review and AI 
 remain human responsibilities. An AI-generated clip has no third-party source licence
 asserted by this tool; the reviewer must determine the applicable rights and platform
 disclosure requirements before publication.
+
+
+## 4. Apply mapped clips to the documentary render
+
+The mapping step creates a review report; it does not itself change the render. To
+use those clips, rebuild the same documentary timeline and set
+`WAN_MAPPED_REVIEW_REPORT` to the mapped report before calling the long-form
+pipeline:
+
+```bash
+WAN_MAPPED_REVIEW_REPORT=build/job/wan_mapped/visual_review_report.json python run_documentary.py
+```
+
+The pipeline applies mapped clips before the edit-decision list, visual review
+manifest and FFmpeg render. It checks the stable shot number, exact narration beat,
+chapter identity, MP4 existence and AI provenance. If the regenerated timeline no
+longer matches, it fails closed and asks for a fresh mapping. The final visual
+review report retains the Wan scene ID and generation prompt. All imported clips
+remain AI-generated reconstructions with pending human visual, source and rights
+review; this option does not approve, upload or publish them.
+
+The mapped report must come from the same documentary build/storyboard. Keep the
+script and visual-planning inputs unchanged between mapping and this render pass.
