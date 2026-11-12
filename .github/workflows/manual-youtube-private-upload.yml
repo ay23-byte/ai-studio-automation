@@ -1,4 +1,4 @@
-name: Manual YouTube private documentary upload
+name: '3. Upload an Approved Video — Private'
 
 on:
   workflow_dispatch:
