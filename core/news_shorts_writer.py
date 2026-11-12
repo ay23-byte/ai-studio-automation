@@ -99,7 +99,22 @@ def _validate_scientific_wording(script):
     overconfident = ('निर्माण ने बाढ़ की संभावना नहीं बढ़ाई', 'construction did not increase flood probability', 'construction has not increased flood probability')
     if any(term in combined for term in overconfident):
         raise ValueError('Caveat overstates the evidence; do not claim construction had no effect.')
-    if not any(term in combined for term in ('अध्ययन यह साबित नहीं करता कि निर्माण', 'अध्ययन यह स्थापित नहीं करता कि निर्माण', 'does not establish that construction', 'does not prove that construction')):
+    causal_uncertainty = (
+        'अध्ययन यह साबित नहीं करता कि निर्माण',
+        'अध्ययन यह स्थापित नहीं करता कि निर्माण',
+        'कारण-परिणाम साबित नहीं करता',
+        'does not establish that construction',
+        'does not prove that construction',
+    )
+    no_probability_conclusion = (
+        'यह भी नहीं बताता कि निर्माण से बाढ़ की संभावना बढ़ी या नहीं',
+        'यह नहीं बताता कि निर्माण से बाढ़ की संभावना बढ़ी या नहीं',
+        'does not establish whether construction increased flood probability',
+        'does not determine whether construction increased flood probability',
+    )
+    if not any(term in combined for term in causal_uncertainty) or not any(
+        term in combined for term in no_probability_conclusion
+    ):
         raise ValueError('Script must distinguish lack of causal evidence from proof of no effect.')
 
 
