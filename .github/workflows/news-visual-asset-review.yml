@@ -19,7 +19,7 @@ jobs:
       ${{ github.event.issue.pull_request == null &&
           startsWith(github.event.issue.title, 'News story review:') &&
           github.event.issue.state == 'open' &&
-          github.event.comment.body == 'Approve script for video production' &&
+          github.event.comment.body == '/approve-visuals' &&
           github.event.comment.author_association == 'OWNER' }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -128,6 +128,7 @@ jobs:
                 process.env.ARTIFACT_URL,
                 "",
                 "This stage prepared visuals only. It did not render the final MP4, upload, or publish.",
+                "The script artifact language is carried through to the production candidate; inspect narration and captions for the selected language.",
                 "Inspect every image/clip for relevance, misleading context, watermarks, people/privacy, provenance, exact licence terms and attribution.",
                 "AI-generated images are illustrative; provider terms must be checked separately. No asset or script has been auto-approved for rendering."
               ].join("\n")

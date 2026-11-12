@@ -157,7 +157,7 @@ def _get_chatterbox():
 def _synth_chatterbox(text, language, path):
     import torchaudio
     model = _get_chatterbox()
-    language_id = "en" if language == "english" else "hi"
+    language_id = "en" if language in {"english", "hinglish"} else "hi"
     audio = model.generate(text, language_id=language_id)
     torchaudio.save(str(path), audio.detach().cpu(), model.sr)
 
@@ -173,7 +173,7 @@ def _edge_voice_candidates(language, gender):
     """Try the configured voice first, then independent Edge voices."""
     preferred = pick_voice(language, gender)
     if language == "english":
-        fallbacks = ["en-US-AriaNeural", "en-GB-SoniaNeural", "en-IN-PrabhatNeural"]
+        fallbacks = ["en-IN-PrabhatNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"]
     elif gender == "female":
         fallbacks = ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"]
     else:
@@ -211,7 +211,7 @@ def _synth_all_edge(sentences, language, gender, build_dir):
 
 def _synth_all_espeak(sentences, language, build_dir):
     """Offline last-resort narration; requires espeak-ng installed by CI."""
-    voice = "en" if language == "english" else "hi"
+    voice = "en" if language in {"english", "hinglish"} else "hi"
     wavs = []
     for i, sentence in enumerate(sentences):
         wav = build_dir / f"s{i}.wav"

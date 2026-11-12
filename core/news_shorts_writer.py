@@ -216,7 +216,7 @@ def _build_correction_prompt(prompt, error):
     return prompt + correction
 
 
-def generate_reviewed_shorts(review_path, output_path):
+def generate_reviewed_shorts(review_path, output_path, language='hinglish'):
     packet=json.loads(open(review_path,encoding='utf-8').read())
     if packet.get('review_status')!='approved':
         raise ValueError("Story packet must have review_status='approved' after human source review.")
@@ -238,11 +238,36 @@ def generate_reviewed_shorts(review_path, output_path):
         raise ValueError('Source verification gate rejected this packet: ' + reasons)
     key=os.getenv('GEMINI_API_KEY','')
     if not key: raise RuntimeError('GEMINI_API_KEY is required to draft a script.')
-    model=os.getenv('GEMINI_MODEL','gemini-3.8-flash')
-    prompt='''Write a 35–58 second Hindi/Hinglish YouTube news Short based ONLY on this human-reviewed packet.
-Use natural spoken Devanagari Hindi in say; Roman Hinglish captions in caption. 4–6 scenes, ideally 10–16 words per scene, target 85–100 spoken words total (hard validation range 70–140 words). Leave room for deterministic same-scene HAND definition normalization before final word-count validation. Start with a precise hook, explain what happened, why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, numbers, quotes or causal claims absent from packet. No alarmism or invented eyewitness reporting. End with a concise context/disclaimer and CTA.
-
-CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
+    story_identity = " ".join(str(packet.get(k, "")) for k in ("story_title", "title", "story_id")).lower()
+    is_himalayan_packet = "himalay" in story_identity
+    default_language = "hindi" if is_himalayan_packet else "hinglish"
+    language = str(language or packet.get('language') or default_language).strip().lower()
+    if language not in {'english', 'hinglish', 'hindi'}:
+        raise ValueError("language must be one of: english, hinglish, hindi")
+    if is_himalayan_packet and language != "hindi":
+        raise ValueError(
+            "This Himalayan study currently has Hindi-only scientific wording validators. "
+            "Choose Hindi for this packet; English/Hinglish support is enabled for other reviewed stories."
+        )
+    language_instruction = {
+        "english": "Write natural spoken English narration and accurate English captions.",
+        "hinglish": "Write natural spoken Roman Hinglish narration and accurate Roman Hinglish captions. Keep English technical terms natural.",
+        "hindi": "Write natural spoken Devanagari Hindi narration and Roman Hinglish captions."
+    }[language]
+    prompt = (
+        "Write a 35–58 second YouTube news Short based ONLY on this human-reviewed packet. "
+        + language_instruction
+        + " Use 4–6 scenes, ideally 10–16 words per scene, target 85–100 spoken words total "
+        "(hard validation range 70–140 words). Start with a precise hook, explain what happened, "
+        "why it matters, and what is still unknown. Attribute reports. Do not add facts, dates, "
+        "numbers, quotes or causal claims absent from the packet. No alarmism or invented eyewitness "
+        "reporting. End with concise context/disclaimer and CTA. Return valid JSON with title, hook, "
+        "category, format, estimated_seconds, sources, claims, and 4–6 scenes. Each scene must include "
+        "say, caption, label, an English illustrative image prompt, keywords, and source_ids. "
+        "Every material factual statement must map to source_ids; visuals are illustrative, not evidence.\n"
+    )
+    if is_himalayan_packet:
+        prompt += """\nCRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
 - HAND is a strict same-scene spoken requirement: if a scene's say field contains “HAND”, that same say field MUST contain the full phrase “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई”. A definition in another scene or in a caption does NOT satisfy this rule. Do not say HAND in any other narration scene unless the full definition is repeated there. In the Nepal metrics scene, put the definition and both Nepal estimates together in one concise spoken sentence: “HAND यानी निकटतम जलधारा से ऊपर की ऊर्ध्वाधर ऊँचाई; नेपाल में 108,500 लोग 0–50 मीटर और 22,800 लोग 0–10 मीटर HAND सीमा में हैं.” Repeat the definition in the caption on the first HAND scene. Never use “vertical river height” / “वर्टिकल रिवर ऊंचाई”. Never call the 0–50 m HAND band a “50 मीटर दायरे”, “50m radius”, “50 metre zone”, distance, or buffer from a river. The phrase “0–50 मीटर HAND सीमा” may be used only after the vertical-height definition is stated in that same scene. HAND is a vertical elevation measure, not a horizontal radius around a river.
 - 293,800, 108,500 and 22,800 are modelled potential-exposure estimates, not counts of people already affected and not a prediction that they will be flooded.
 - The 46% and 77% values refer to building footprint area, not the number of buildings.
@@ -252,10 +277,9 @@ CRITICAL SCIENTIFIC GUARDRAILS FOR THIS PACKET:
 - The GLOF values refer to modelled glacial-lake outburst flood extents, not observed inundation.
 - Include all key measures accurately: 293,800 people / 18%; Nepal 108,500 and 22,800; building footprint area +46%; building footprint area in modelled GLOF extents +77%.
 - State clearly that modelled potential exposure is not a flood forecast. Use numeric figures in captions so editors can verify them quickly.
-Return JSON only: {"title":"...","hook":"...","category":"news","format":"shorts","estimated_seconds":45,"sources":[{"source_id":"S1"}],"claims":[{"claim_id":"C1","text":"...","source_ids":["S1"]}],"scenes":[{"say":"...","caption":"...","label":"...","image":"English illustrative visual prompt; no real people or logos","keywords":["..."],"source_ids":["S1"]}]}
-Every material factual statement in each scene must map to source_ids. Mark visual prompts illustrative and not documentary evidence.
-REVIEWED PACKET:
-'''+json.dumps(packet,ensure_ascii=False)
+"""
+    prompt += "\nREVIEWED PACKET:\n" + json.dumps(packet, ensure_ascii=False)
+    model=os.getenv('GEMINI_MODEL','gemini-3.8-flash')
     # Retry the configured model once through a second supported Flash model.
     # A second generation attempt also repairs validator feedback (for example,
     # a spoken HAND reference that omits the nearest-drainage definition).
@@ -291,8 +315,9 @@ REVIEWED PACKET:
             last_error = ValueError('Gemini returned no usable JSON script candidate.')
         else:
             candidate_scenes = candidate_script.get('scenes', [])
-            _normalize_spoken_hand_definitions(candidate_script)
-            _normalize_spoken_building_footprint_labels(candidate_script)
+            if is_himalayan_packet:
+                _normalize_spoken_hand_definitions(candidate_script)
+                _normalize_spoken_building_footprint_labels(candidate_script)
             candidate_scenes = candidate_script.get('scenes', [])
             candidate_words = sum(
                 len(re.findall(r'\S+', scene.get('say', '')))
@@ -303,7 +328,8 @@ REVIEWED PACKET:
                 if not 70 <= candidate_words <= 140:
                     raise ValueError(
                         f'Script word count outside safe target: {candidate_words}.')
-                _validate_scientific_wording(candidate_script)
+                if is_himalayan_packet:
+                    _validate_scientific_wording(candidate_script)
             except ValueError as exc:
                 last_error = exc
             else:
@@ -311,7 +337,7 @@ REVIEWED PACKET:
                 words = candidate_words
                 break
         if draft_attempt < 2:
-            correction_prompt = _build_correction_prompt(prompt, last_error)
+            correction_prompt = _build_correction_prompt(prompt, last_error) if is_himalayan_packet else prompt + '\nCORRECTION REQUIRED: ' + str(last_error) + '. Return corrected JSON in the selected language; preserve verified facts and source IDs.'
             if draft_attempt == 1:
                 correction_prompt += (
                     "\\n\\nFINAL COMPRESSION PASS: The prior correction still failed. "
@@ -332,6 +358,7 @@ REVIEWED PACKET:
         if not set(claim.get('source_ids',[])).issubset(known): raise ValueError('Generated claim has unknown source IDs.')
     for scene in scenes:
         if not set(scene.get('source_ids',[])).issubset(known): raise ValueError('Scene has unknown source IDs.')
+    script['language'] = language
     script['source_verification']=verification
     script['editorial_status']='draft_requires_human_script_and_visual_review'
     script['word_count']=words

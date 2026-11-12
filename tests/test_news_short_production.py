@@ -106,6 +106,14 @@ class NewsShortProductionTests(unittest.TestCase):
         self.assertIn(",90,90,300,1", rendered)
         self.assertIn("BorderStyle", rendered)
 
+    def test_hinglish_captions_use_latin_font_style(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "captions.ass"
+            _write_ass([{"say": "Aaj ki important news samajhte hain."}], [4.0], output, language="hinglish")
+            rendered = output.read_text(encoding="utf-8")
+        self.assertIn("Style: News,Noto Sans,52", rendered)
+        self.assertNotIn("Noto Sans Devanagari", rendered)
+
     def test_ass_time_format(self):
         self.assertEqual(_ass_time(65.239), "0:01:05.24")
 
