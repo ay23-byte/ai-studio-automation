@@ -74,7 +74,7 @@ jobs:
       - name: Download documentary artifact from selected render run
         uses: actions/download-artifact@v4
         with:
-          name: longform-review-package
+          name: longform-review-${{ inputs.source_run_id }}
           run-id: ${{ inputs.source_run_id }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
