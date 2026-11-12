@@ -23,14 +23,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Extract the reviewed JSON packet from the issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = context.payload.issue.body || "";
@@ -72,8 +72,10 @@ jobs:
       - name: Generate a script draft (source-verification gate runs first)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
-          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS || 'gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite' }}
+          # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+          # set the repository variable to override without a code change.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
           SCRIPT_LANGUAGE: ${{ steps.packet.outputs.language }}
         run: |
           python -m scripts.draft_reviewed_news_short \
@@ -83,7 +85,7 @@ jobs:
 
       - name: Upload script draft for human review
         id: draft-artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: news-script-draft-issue-${{ github.event.issue.number }}
           path: |
@@ -94,7 +96,7 @@ jobs:
 
       - name: Report draft artifact on the issue
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           ARTIFACT_URL: ${{ steps.draft-artifact.outputs.artifact-url }}
         with:
@@ -117,7 +119,7 @@ jobs:
 
       - name: Report a blocked or failed draft
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // Report the real reason (written by the drafting script) instead of

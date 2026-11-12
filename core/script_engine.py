@@ -222,6 +222,7 @@ def _ask_gemini_models(prompt: str) -> str:
     clock = gemini_policy.Stopwatch()
     attempted = []
     failures = []
+    kinds = []
     not_found = 0
     index = 0
     discovery_done = False
@@ -236,6 +237,7 @@ def _ask_gemini_models(prompt: str) -> str:
             return generated
         except GeminiRequestError as exc:
             failures.append(f"{model}: {exc}")
+            kinds.append(getattr(exc, "kind", None))
             # A 404 generally means this model ID is retired, unavailable to this
             # API project, or not exposed to this account. Try the next configured
             # model instead of aborting the entire script-generation workflow.
@@ -248,7 +250,11 @@ def _ask_gemini_models(prompt: str) -> str:
                                            attempted=attempted, failures=failures, seconds=clock.seconds())
                 raise RuntimeError(str(exc)) from exc
             elif index < len(models) - 1:
-                print(f"Model {model} is temporarily unavailable. Trying next fallback.")
+                kind = getattr(exc, "kind", None)
+                if kind in gemini_policy.RETRYABLE_KINDS:
+                    print(f"Model {model} is temporarily unavailable ({kind}). Trying next fallback.")
+                else:
+                    print(f"Model {model} did not return a usable response. Trying next fallback.")
         index += 1
         # Every configured ID was rejected as unknown: model names are stale.
         # Ask the API which text models this key can actually use (once).
@@ -267,6 +273,17 @@ def _ask_gemini_models(prompt: str) -> str:
     details = "\n".join(f"- {item}" for item in failures)
     gemini_policy.record_usage("script", model=None, outcome="unavailable", attempted=attempted,
                                failures=failures, seconds=clock.seconds())
+    # Say what actually happened.  "Temporarily unavailable" is only true when at
+    # least one model failed for a reason that can pass (rate limit, 5xx, network).
+    if kinds and all(kind == gemini_policy.MODEL_NOT_FOUND for kind in kinds):
+        raise RuntimeError(
+            "None of the configured Gemini model ids is served for this API key (HTTP 404 for every model). "
+            "No video was built. This is a configuration problem, not an outage: update GEMINI_MODEL / "
+            "GEMINI_FALLBACK_MODELS (repository variables) to model ids listed for your key.\n" + details)
+    if kinds and not any(kind in gemini_policy.RETRYABLE_KINDS for kind in kinds):
+        raise RuntimeError(
+            "Gemini returned no usable script from any configured model (unknown model ids, malformed or "
+            "incomplete responses; no rate limit or outage was reported). No video was built.\n" + details)
     raise RuntimeError(
         "Gemini is temporarily unavailable across all configured models. "
         "No video was built. Wait a few minutes and start a NEW workflow run. "

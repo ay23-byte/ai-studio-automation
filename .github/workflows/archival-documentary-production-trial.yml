@@ -50,8 +50,10 @@ jobs:
       ARCHIVAL_QUERY: ${{ inputs.archival_query }}
       ARCHIVAL_PERIOD: ${{ inputs.period }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: gemini-3.8-flash
-      GEMINI_FALLBACK_MODELS: gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite
+      # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+      # set the repository variable to override without a code change.
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
@@ -74,16 +76,16 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
 
       - name: Set up Node.js for the 3D presenter
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -200,7 +202,7 @@ jobs:
 
       - name: Upload diagnostic and review evidence (MP4 only when rendered)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: archival-documentary-production-trial
           path: |

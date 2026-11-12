@@ -192,8 +192,12 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
 
     # Read back what YouTube stored; never trust the request alone.
     privacy, publish_at = "private", None
+    # True only if YouTube answered with a stored privacy value.  Reports use this
+    # to say "verified" instead of assuming the requested privacy was applied.
+    privacy_verified = False
     try:
         stored = uploader.get_video_status(video_id)
+        privacy_verified = bool(stored.get("privacy_status"))
         privacy = stored.get("privacy_status") or privacy
         publish_at = stored.get("publish_at")
         if privacy != "private" and not uploader.public_publish_allowed():
@@ -212,6 +216,9 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
     record_stage(job_id, "upload", "done", detail={"youtube_id": video_id, "privacy": privacy})
 
     warnings = []
+    if not privacy_verified:
+        warnings.append("privacy: the stored privacy status could not be read back from YouTube; "
+                        "confirm in YouTube Studio that the video is private")
     thumbnail = row.get("thumb_path")
     if thumbnail and Path(thumbnail).is_file():
         try:
@@ -240,6 +247,7 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
             raise RuntimeError(f"YouTube processing did not complete: {processing}")
     url = _url(fmt, video_id)
     result = {"job_id": job_id, "youtube_id": video_id, "url": url, "privacy": privacy,
+              "privacy_verified": privacy_verified,
               "publish_at": publish_at, "status": "uploaded", "warnings": warnings,
               "processing": processing, "title": metadata["title"]}
     (build_dir / "upload_result.json").write_text(

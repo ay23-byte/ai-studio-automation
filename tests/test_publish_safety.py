@@ -195,6 +195,27 @@ class PublishJobTests(_Sandbox):
         self.assertEqual(again["status"], "already_uploaded")
         self.assertEqual(mocks["upload"].call_count, 1)
 
+    def test_result_records_whether_the_privacy_was_read_back(self):
+        self._uploader()
+        job_id = self.make_job()
+        result = publish.publish_job(job_id, notify=False)
+        self.assertIs(result["privacy_verified"], True)
+        stored = json.loads((config.BUILD_DIR / f"job_{job_id}" / "upload_result.json").read_text())
+        self.assertIs(stored["privacy_verified"], True)
+        self.assertFalse([w for w in result["warnings"] if w.startswith("privacy:")])
+
+    def test_failed_read_back_is_recorded_as_unverified_not_assumed_private(self):
+        self._uploader()
+        job_id = self.make_job()
+        with patch("core.uploader.get_video_status", side_effect=RuntimeError("quota exceeded")):
+            result = publish.publish_job(job_id, notify=False)
+        self.assertIs(result["privacy_verified"], False)
+        self.assertEqual(result["privacy"], "private")      # what was requested, explicitly unverified
+        self.assertTrue(any(w.startswith("privacy:") for w in result["warnings"]))
+        from core import run_report
+        section = run_report._upload_section(self.db.get_video(job_id), config.BUILD_DIR / f"job_{job_id}", {}, {})
+        self.assertIs(section["privacy_verified"], False)
+
     def test_same_subject_is_never_uploaded_twice(self):
         mocks = self._uploader()
         publish.publish_job(self.make_job("Compound Interest Kya Hai Aur Yeh Kaise Kaam Karta Hai"), notify=False)

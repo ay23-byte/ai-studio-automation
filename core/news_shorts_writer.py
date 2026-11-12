@@ -320,7 +320,7 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
 - State clearly that modelled potential exposure is not a flood forecast. Use numeric figures in captions so editors can verify them quickly.
 """
     prompt += "\nREVIEWED PACKET:\n" + json.dumps(packet, ensure_ascii=False)
-    model = os.getenv('GEMINI_MODEL', '').strip() or gemini_policy.DEFAULT_MODEL
+    model = os.getenv('GEMINI_MODEL', '').strip() or gemini_policy.default_model()
     # Retry the configured model once through a second supported Flash model.
     # A second generation attempt also repairs validator feedback (for example,
     # a spoken HAND reference that omits the nearest-drainage definition).
@@ -378,7 +378,7 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
             if not candidate_text.strip():
                 raise KeyError('candidates')
             candidate_script = _coerce_script_payload(json.loads(candidate_text))
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+        except (KeyError, IndexError, TypeError, ValueError):
             last_error = ValueError('Gemini returned no usable JSON script candidate.')
         else:
             candidate_scenes = candidate_script.get('scenes', [])

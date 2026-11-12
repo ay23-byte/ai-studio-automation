@@ -65,10 +65,20 @@ def run_health_check() -> dict:
         from core import gemini as gemini_policy
         bad_models = gemini_policy.invalid_model_ids(cfg.GEMINI_MODEL, cfg.GEMINI_FALLBACK_MODELS)
         chain = gemini_policy.model_chain(cfg.GEMINI_MODEL, cfg.GEMINI_FALLBACK_MODELS, strict=False)
+        import os as _os
+        overridden = bool(_os.getenv("GEMINI_MODEL", "").strip())
+        source = ("GEMINI_MODEL override" if overridden
+                  else f"built-in '{gemini_policy.profile_name()}' defaults")
         add("Gemini model configuration", "FAIL" if bad_models else "PASS",
             ("invalid model id(s): " + ", ".join(bad_models)) if bad_models
-            else "primary " + chain[0] + (", fallbacks " + ", ".join(chain[1:]) if chain[1:] else ", no fallback model"),
+            else "primary " + chain[0] + (", fallbacks " + ", ".join(chain[1:]) if chain[1:] else ", no fallback model")
+            + f" ({source})",
             "Fix GEMINI_MODEL / GEMINI_FALLBACK_MODELS (comma-separated plain model ids).")
+        unknown = gemini_policy.unknown_profile()
+        if unknown:
+            add("Gemini model profile", "WARN",
+                f"GEMINI_PROFILE='{unknown}' is not known; the default chain is used",
+                "Use GEMINI_PROFILE=default or GEMINI_PROFILE=longform, or leave it unset.")
     except Exception as exc:
         add("Gemini model configuration", "FAIL", f"{type(exc).__name__}: {exc}",
             "Set GEMINI_MODEL to a valid model id.")

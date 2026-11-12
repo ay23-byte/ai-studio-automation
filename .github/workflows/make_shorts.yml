@@ -47,9 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: "pip"
@@ -89,10 +89,13 @@ jobs:
         run: python run.py doctor
 
       - name: Build Shorts video
+        id: build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: "gemini-3.8-flash"
-          GEMINI_FALLBACK_MODELS: "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+          # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+          # set the repository variable to override without a code change.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
           # Optional free fallbacks used automatically when Gemini is unavailable.
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -109,15 +112,18 @@ jobs:
           INPUT_TOPIC: ${{ inputs.topic }}
           INPUT_CATEGORY: ${{ inputs.category || 'physics' }}
           INPUT_FORCE: ${{ inputs.force }}
+          # One bounded recovery attempt: a job that fails part-way is resumed from
+          # its checkpoint (finished narration and visuals are reused). 0 turns it off.
+          BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
         shell: bash
         run: |
           set -euo pipefail
           if [ -n "${INPUT_TOPIC// /}" ]; then
             ARGS=(shorts "$INPUT_TOPIC" --category "$INPUT_CATEGORY" --language "$SHORTS_LANGUAGE")
             if [ "$INPUT_FORCE" = "true" ]; then ARGS+=(--force); fi
-            python run.py "${ARGS[@]}"
+            python scripts/build_with_recovery.py -- python run.py "${ARGS[@]}"
           else
-            python run_daily.py --format shorts
+            python scripts/build_with_recovery.py -- python run_daily.py --format shorts
           fi
 
       - name: Upload completed Short to YouTube (Private)
@@ -140,14 +146,26 @@ jobs:
 
       - name: Persist duplicate ledger to the automation-state branch
         if: always()
+        env:
+          # Explicit token for the push to the state branch, so the step does not
+          # depend on how actions/checkout stores its credential.
+          GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/persist_state.py save --message "shorts run ${GITHUB_RUN_ID}"
 
-      - uses: actions/upload-artifact@v4
+      - name: Write job summary and run report
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}
+        run: python scripts/write_job_summary.py --pipeline shorts --artifact "shorts-review-${GITHUB_RUN_ID}"
+
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: shorts-review-${{ github.run_id }}
           path: |
             output/*.mp4
+            output/run_report.json
             output/logs/
             build/job_*/
             !build/job_*/render_work/
@@ -158,10 +176,4 @@ jobs:
 
       - name: Alert on failure
         if: failure()
-        run: |
-          python - <<'PY'
-          import os
-          from core.notify import send
-          url = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-          send(f"❌ AI Studio make-shorts failed. {url}")
-          PY
+        run: python scripts/alert_on_failure.py --name "make-shorts"

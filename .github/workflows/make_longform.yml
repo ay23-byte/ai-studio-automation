@@ -53,9 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: "pip"
@@ -103,7 +103,7 @@ jobs:
 
       - name: Set up Python for SadTalker CPU inference
         if: ${{ inputs.presenter_mode == 'sadtalker' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.8"
 
@@ -127,7 +127,7 @@ jobs:
           test -s checkpoints/mapping_00229-model.pth.tar
 
       - name: Restore project Python version
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -139,7 +139,7 @@ jobs:
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -152,8 +152,11 @@ jobs:
       - name: Build long-form video
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: "gemini-3.1-flash-lite"
-          GEMINI_FALLBACK_MODELS: "gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash"
+          # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
+          # set the repository variable to override without a code change.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL_LONGFORM }}
+          GEMINI_PROFILE: longform
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS_LONGFORM }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -235,16 +238,30 @@ jobs:
             --artifact-dir . \
             --source-run-id "$GITHUB_RUN_ID"
 
+      - name: Write job summary and run report
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          UPLOAD_REQUESTED: "true"
+        run: |
+          python scripts/write_job_summary.py --pipeline longform \
+            --artifact "longform-review-${GITHUB_RUN_ID}" \
+            --upload-result youtube-upload-result.json \
+            --upload-failure youtube-upload-failure.json
+
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions
       # and sampled frames must be downloadable after a blocked upload.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: longform-review-${{ github.run_id }}
           path: |
             output/*.mp4
+            output/run_report.json
             build/job_*/
+            youtube-upload-result.json
+            youtube-upload-failure.json
           if-no-files-found: error
           retention-days: 14
 
@@ -256,9 +273,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-              -d chat_id="$TELEGRAM_CHAT_ID" \
-              -d text="❌ AI Studio make-longform failed. Check GitHub Actions." > /dev/null
-          fi
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python scripts/alert_on_failure.py --name "make-longform"

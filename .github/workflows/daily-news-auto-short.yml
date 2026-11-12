@@ -38,9 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: "pip"
@@ -82,23 +82,41 @@ jobs:
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
           WANT_UPLOAD: ${{ github.event_name == 'schedule' || inputs.upload }}
+          # One bounded recovery attempt: a job that fails part-way is resumed from
+          # its checkpoint (finished narration and visuals are reused). 0 turns it off.
+          BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
         shell: bash
         run: |
           set -euo pipefail
-          ARGS=()
-          if [ "$WANT_UPLOAD" = "true" ]; then ARGS+=(--upload); fi
-          python scripts/run_daily_news_short.py "${ARGS[@]}"
+          if [ "$WANT_UPLOAD" = "true" ]; then
+            python scripts/build_with_recovery.py --upload-after-recovery -- \
+              python scripts/run_daily_news_short.py --upload
+          else
+            python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py
+          fi
 
       - name: Persist duplicate ledger and seen-story cache
         if: always()
+        env:
+          # Explicit token for the push to the state branch, so the step does not
+          # depend on how actions/checkout stores its credential.
+          GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/persist_state.py save --message "news run ${GITHUB_RUN_ID}"
 
-      - uses: actions/upload-artifact@v4
+      - name: Write job summary and run report
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}
+        run: python scripts/write_job_summary.py --pipeline news_short --artifact "news-short-auto-${GITHUB_RUN_ID}"
+
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: news-short-auto-${{ github.run_id }}
           path: |
             output/*.mp4
+            output/run_report.json
             output/daily_news/
             output/logs/
             build/job_*/
@@ -106,3 +124,7 @@ jobs:
             state/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Alert on failure
+        if: failure()
+        run: python scripts/alert_on_failure.py --name "daily news Short"

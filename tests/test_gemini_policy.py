@@ -300,6 +300,31 @@ class ScriptEngineFallbackTests(unittest.TestCase):
         self.assertEqual(usage["outcome"], "unavailable")
         self.assertEqual(usage["attempted_models"], ["gemini-primary", "gemini-second", "gemini-third"])
 
+    def test_unknown_model_ids_are_reported_as_configuration_not_as_an_outage(self):
+        with patch.object(script_engine.requests, "post", return_value=_error(404, "model not found")) as post:
+            with self.assertRaises(RuntimeError) as caught:
+                script_engine._ask_gemini_models("prompt")
+        message = str(caught.exception)
+        self.assertIn("None of the configured Gemini model ids is served", message)
+        self.assertIn("configuration problem", message)
+        self.assertNotIn("temporarily unavailable", message)
+        self.assertEqual(post.call_count, 3, "one request per model, no retries for 404")
+
+    def test_malformed_responses_are_not_called_an_outage(self):
+        garbled = Mock(status_code=200, text="<html>proxy error</html>", headers={})
+        garbled.json.side_effect = ValueError("not json")
+        with patch.object(script_engine.requests, "post", return_value=garbled):
+            with self.assertRaises(RuntimeError) as caught:
+                script_engine._ask_gemini_models("prompt")
+        self.assertIn("no usable script from any configured model", str(caught.exception))
+        self.assertNotIn("temporarily unavailable", str(caught.exception))
+
+    def test_a_mix_of_unknown_and_overloaded_models_is_still_reported_as_temporary(self):
+        responses = [_error(404, "nf"), _error(503, "busy"), _error(503, "busy"), _error(404, "nf")]
+        with patch.object(script_engine.requests, "post", side_effect=responses):
+            with self.assertRaisesRegex(RuntimeError, "temporarily unavailable across all configured models"):
+                script_engine._ask_gemini_models("prompt")
+
     def test_invalid_model_configuration_is_reported_before_any_request(self):
         with patch.object(script_engine, "GEMINI_MODEL", "not a model"), \
              patch.object(script_engine.requests, "post") as post:

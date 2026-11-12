@@ -108,6 +108,8 @@ jobs:
           Write-Host "Hugging Face cache: $env:HF_HOME"
 
       - name: Check out project
+        # Self-hosted runner: the Node 24 action majors need Actions Runner >= 2.327.1,
+        # which cannot be verified from the repository. Kept on the Node 20 majors.
         uses: actions/checkout@v4
 
       - name: Preflight laptop RAM before installing or exporting the model

@@ -1,7 +1,8 @@
 # Production readiness audit
 
 Repository: `ay23-byte/ai-studio-automation` · Channel: Engineering Physics (`@engineeringphysics-n5g`)
-Audited commit: `57d7081` (`main` after PR #198) · Audit date: 2026-11-12 · Phase: 1 (stabilization)
+First audited commit: `57d7081` (`main` after PR #198) · Audit date: 2026-11-12 ·
+Last updated: Phase 2 (reliability), on top of `0e2ba44` (`main` after PR #199)
 
 This document records what was **inspected and demonstrated**. Where something could not be
 checked it is marked **UNKNOWN** or **NOT VERIFIED** with the reason. It does not replace
@@ -69,7 +70,7 @@ plus small JSON files for cross-run state.
 | `archival-video-e2e-validation.yml` | manual + pull request | contents: read | 25 | `none` | no | no |
 | `avatar-studio-browser.yml` | pull request + push to `feature/free-talking-avatar-studio` | contents: read | 15 | `none` | no | no |
 | `chernobyl-documentary-production.yml` | manual | contents: read, actions: read | 300 | `chernobyl-documentary-review` | no | no |
-| `daily-news-auto-short.yml` | manual + cron `45 2 * * *`, `45 13 * * *` | contents: write | 45 | `studio-build` | yes | no |
+| `daily-news-auto-short.yml` | manual + cron `45 2 * * *`, `45 13 * * *` | contents: write | 45 | `studio-build` | yes | yes (Phase 2) |
 | `daily-news-short-artifact-render.yml` | manual | contents: read, actions: read | 90 | `daily-news-short-artifact-render` | no | no |
 | `daily-news-short-asset-prep.yml` | manual | contents: read, actions: read | 90 | `daily-news-short-asset-prep` | no | no |
 | `daily-news-short-render.yml` | manual | contents: read | 90 | `daily-news-short-review` | no | no |
@@ -82,14 +83,14 @@ plus small JSON files for cross-run state.
 | `footage-source-validation.yml` | pull request + manual | contents: read | 20 | `none` | no | no |
 | `kaggle-wan-video-worker.yml` | manual | contents: read | 360 | `kaggle-wan-worker` | no | no |
 | `live-documentary-production-validation.yml` | push to `production-trial/live-footage-e2e-v2` + manual | contents: read | 240 | `live-documentary-production-validation` | no | no |
-| `make_longform.yml` | manual | contents: read | 120 | `studio-build` | yes | no |
-| `make_shorts.yml` | manual + cron `30 3 * * *` | contents: write | 60 | `studio-build` | yes | no |
+| `make_longform.yml` | manual | contents: read | 120 | `studio-build` | yes | yes (Phase 2) |
+| `make_shorts.yml` | manual + cron `30 3 * * *` | contents: write | 60 | `studio-build` | yes | yes (Phase 2) |
 | `manual-live-documentary-e2e.yml` | manual | contents: read | 300 | `manual-live-documentary-validation` | no | no |
 | `manual-youtube-private-upload.yml` | manual | contents: read, actions: read | 45 | `manual-youtube-private-upload` | yes | no |
-| `news-script-draft.yml` | issue_comment | contents: read, issues: write | 20 | `news-script-draft-issue-<id>` | no | no |
+| `news-script-draft.yml` | issue_comment | contents: read, issues: write | 20 | `news-script-draft-issue-<id>` | no | yes (Phase 1) |
 | `news-short-one-click.yml` | manual | contents: read, issues: write | 90 | `one-click-news-short-<id>` | no | no |
 | `news-short-review-render.yml` | manual | contents: read, actions: read, issues: write | 45 | `news-review-render-<id>` | no | no |
-| `news-story-review.yml` | manual | issues: write | none | `none` | no | no |
+| `news-story-review.yml` | manual | issues: write | 5 | `news-story-review-<story id>` | no | no |
 | `news-visual-asset-review.yml` | issue_comment | contents: read, actions: read, issues: write | 50 | `news-visual-assets-issue-<id>` | no | no |
 | `openvino-ltx-local-gpu.yml` | manual | contents: read | 360 | `openvino-ltx-local-gpu` | no | no |
 | `standard-shorts-review.yml` | manual | contents: read | 90 | `standard-shorts-review` | no | no |
@@ -98,25 +99,42 @@ plus small JSON files for cross-run state.
 
 Observations:
 
-* **Only one workflow writes a job summary** (`daily-news-shorts.yml`, added in this phase).
-  The master brief requires one on every production workflow. Planned for Phase 2.
+* **Job summaries.** The three workflows that build videos for the channel
+  (`make_shorts.yml`, `daily-news-auto-short.yml`, `make_longform.yml`) now end with a job
+  summary and a `run_report.json` (Phase 2, `core/run_report.py`), in addition to
+  `daily-news-shorts.yml` and `news-script-draft.yml` from Phase 1. The summary has been
+  produced from real sandbox renders; **no run of these three workflows on Actions has been
+  observed yet**, so the summary on GitHub itself is NOT VERIFIED. The manual review and trial
+  workflows have no summary.
 * `contents: write` exists only on `make_shorts.yml` and `daily-news-auto-short.yml`, and only
   to push JSON to the `automation-state` branch. A test asserts no workflow pushes to `main`.
 * `make_shorts.yml`, `make_longform.yml` and `daily-news-auto-short.yml` share the
   `studio-build` concurrency group, so two builds never render at once.
-* `news-story-review.yml` has no timeout and no concurrency group.
+* Every job in every workflow now has `timeout-minutes` (a test enforces it).
+  `news-story-review.yml` gained a 5-minute timeout and a per-story concurrency group in Phase 2.
 * `daily-news-shorts.yml` (collect only) runs 15 minutes before `daily-news-auto-short.yml`
   (which collects again itself). The overlap is harmless but redundant.
 * Thirty workflows is more than the product needs. Many are one-off trials
   (`chernobyl-…`, `first-documentary-production-trial`, `wan21-…`, `kaggle-…`,
   `openvino-…`). None is deleted here: removal needs your explicit authorization.
-* GitHub annotated run 43305710825 with a Node.js 20 deprecation warning for
-  `actions/checkout@v4` and `actions/setup-python@v5`, and a notice that `ubuntu-latest`
-  is moving to a newer image. Not yet acted on (Phase 2).
-* Gemini model ids are pinned in the `env:` blocks of nine workflows; only
-  `news-script-draft.yml` and `news-short-one-click.yml` can be overridden by a repository
-  variable. The code no longer hard-codes ids outside `core/gemini.py`, but changing the model
-  for those nine workflows still means editing YAML (Phase 2).
+* **Action versions (Phase 2).** GitHub was already forcing the Node 20 actions onto Node 24
+  (annotation on run 43319210500). All hosted workflows now use the Node 24 majors:
+  `checkout@v7`, `setup-python@v7`, `upload-artifact@v7`, `download-artifact@v8`,
+  `github-script@v9`, `setup-node@v7`, `cache@v6`. Release notes were read for each major;
+  the one change that affected this repository is that checkout v6+ no longer stores its
+  credential in `.git/config`, which would have broken the push to the `automation-state`
+  branch. `scripts/persist_state.py` was fixed first (see `docs/ARCHITECTURE.md`).
+  `openvino-ltx-local-gpu.yml` runs on a self-hosted Windows runner whose version cannot be
+  checked from here, so it stays on the Node 20 majors. Actions used only by manual or
+  issue-triggered workflows (`download-artifact`, `github-script`, `cache`) are **not exercised
+  by pull-request checks**; their upgrade is NOT VERIFIED until those workflows run.
+  The notice that `ubuntu-latest` is moving to Ubuntu 26 is not acted on.
+* **Model ids (Phase 2).** No workflow file contains a Gemini model id any more. Ten
+  workflows read repository variables (`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`, and the
+  `…_LONGFORM` pair for the three documentary workflows); empty values select the built-in
+  chains in `core/gemini.py`. The documentary workflows keep their previous lite-model-first
+  order through `GEMINI_PROFILE=longform`. Whether any of these variables is set in the
+  repository is UNKNOWN (variables cannot be listed from the sandbox).
 
 ## 4. Providers
 
@@ -130,7 +148,7 @@ Observations:
 | Pixabay, Coverr, DVIDS, NARA, Europeana, NASA, Openverse, Wikimedia, Internet Archive, Library of Congress | Footage and images | Free (keys for some) | Two PR validation workflows pass; live results NOT VERIFIED in this audit |
 | Pollinations | Generated images | Free | NOT VERIFIED |
 | Cloudflare Workers AI | Images | Disabled in code by the zero-paid policy; secrets still passed by 9 workflows | Not applicable |
-| **Replicate** | Referenced only as `REPLICATE_API_TOKEN` in `news-short-one-click.yml`; **no Python code reads it** | **Paid** | Dead reference; recommend removing (needs authorization, Phase 2) |
+| **Replicate** | Optional text-to-video adapter in `core/images.py` (`generate_ai_video`). It runs only when `FREE_ONLY_MODE` is off **and** `AI_VIDEO_ENABLED=1` **and** both `REPLICATE_API_TOKEN` and `REPLICATE_VIDEO_MODEL` are set. Every workflow that sets `AI_VIDEO_ENABLED` sets it to `0`. `news-short-one-click.yml` passes the token to one step that also sets `FREE_ONLY_MODE=1`, so the adapter cannot run there | **Paid** | Off by default and blocked in every workflow as configured. *Correction (Phase 2): the Phase 1 version of this row said no Python code reads the token and called it a dead reference. That was wrong; nothing was removed.* Passing the secret to a step that cannot use it is unnecessary and could be dropped with the owner's approval |
 | MuAPI | AI b-roll | Paid; disabled permanently in code | Not applicable |
 | Pexels | — | — | Excluded by instruction; not used |
 | YouTube Data API | Upload, channel check, privacy read-back | Free quota | UNIT TESTED with mocks; **never verified against the real API in this audit** |
@@ -166,7 +184,10 @@ Observations:
 
 Whether any of these is actually configured is **UNKNOWN** (section 1). The code reads about
 114 distinct environment variables; the operator-facing ones are documented in `.env.example`
-and `docs/PRODUCTION_READINESS.md`. A dedicated `docs/GITHUB_SECRETS.md` is still to be written
+and `docs/PRODUCTION_READINESS.md`. Repository **variables** read by workflows:
+`YT_CHANNEL_ID`, `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`, `GEMINI_MODEL_LONGFORM`,
+`GEMINI_FALLBACK_MODELS_LONGFORM`, `BUILD_RECOVERY_ATTEMPTS`, `REPLICATE_VIDEO_MODEL`; all are
+optional. A dedicated `docs/GITHUB_SECRETS.md` is still to be written
 (Phase 7). No secret value is stored in the repository; `core/llm.redact` and the Gemini usage
 log never record keys, and tests assert this for the new code paths.
 
@@ -184,7 +205,8 @@ log never record keys, and tests assert this for the new code paths.
 
 ## 7. Tests
 
-* 93 test modules. `pytest tests -q`: **612 passed** locally with this phase (527 before).
+* 96 test modules. `pytest tests -q`: **683 passed** locally after Phase 2 (612 after Phase 1,
+  527 before it).
 * `validate.yml` runs compileall, unittest, pytest, a tracked-database check, an offline Shorts
   render with real FFmpeg, and (new) the news tests in the collect workflow's minimal environment.
 
@@ -244,11 +266,14 @@ No PR is closed by this phase; closing them is your decision.
 | Scheduling | Yes (three cron workflows) | Workflow hygiene tests | No scheduled run of the new workflows has completed yet | NOT VERIFIED |
 | Duplicate prevention | Yes (ledger + DB rows) | Yes, including concurrency | State branch does not exist yet | NOT VERIFIED across runs |
 | Dashboard | Yes (Streamlit) | No | Not exercised in this audit | NOT AUDITED (Phase 7) |
-| Recovery and retry | Yes (checkpoints, resume, bounded retries) | Yes | Resume demonstrated in the sandbox | NOT VERIFIED on Actions |
+| Recovery and retry | Yes (checkpoints, resume, bounded retries; one automatic in-run resume on the two scheduled build workflows since Phase 2) | Yes | Sandbox: a real Shorts build with the render stage forced to crash was resumed by the wrapper, reused the narration checkpoint and finished (job 1, 27.2 s, 1080x1920) | NOT VERIFIED on Actions |
+| Job summary and failure report | Yes (Phase 2) | Yes | Generated from two real sandbox renders (built; built with upload blocked by the release gate) | NOT VERIFIED on Actions |
 
 ## 11. Missing or incomplete against the brief
 
-* Job summaries on production workflows (one of about six has one).
+* Job summaries exist on the three production build workflows but have not been seen on a real
+  Actions run. The manual review-and-upload workflows (`manual-youtube-private-upload.yml`,
+  the news review renders) still have none.
 * Documentary evidence bundle as named files: `licenses.csv`, `credits.txt`,
   `asset_manifest.json`, `research_manifest.json`, `production_report.json`. Equivalent data
   exists under other names; the mapping and the release check are Phase 3.
@@ -270,7 +295,8 @@ No PR is closed by this phase; closing them is your decision.
 | Tracked SQLite file | Medium | Decision pending (section 6) |
 | Workflow sprawl (30 files, 194 branches) | Medium | Hard to tell which paths are supported |
 | Rights for presenter portrait | Medium | Blocks presenter shots |
-| Runner image and Node 20 deprecations | Low | Scheduled for Phase 2 |
+| Action major upgrades not exercised by PR checks | Low | `download-artifact@v8`, `github-script@v9`, `cache@v6` run only in manual or issue-triggered workflows; watch the first run of each |
+| Runner image moving to Ubuntu 26 | Low | apt package names (`ffmpeg`, `espeak-ng`, `libraqm0`) may change; not acted on |
 
 ## 13. Acceptance checklist
 

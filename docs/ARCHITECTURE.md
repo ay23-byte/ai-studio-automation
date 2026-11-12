@@ -312,7 +312,8 @@ python scripts/run_daily_news_short.py --upload
 
 | Symptom | Action |
 | --- | --- |
-| Build failed mid-way | `python run.py status --id N`, fix the cause, `python run.py resume --id N` |
+| Build failed mid-way | On Actions, one automatic resume is attempted in the same run (see "Recovery inside a workflow run"). Locally: `python run.py status --id N`, fix the cause, `python run.py resume --id N` |
+| A run is red and you want to know why | Open the run: the job summary states the final status and the failure reason; `run_report.json` is in the artifact |
 | Upload blocked: fallback visuals | Resume later so providers are retried, or review and set `ALLOW_FALLBACK_VISUAL_UPLOAD=1` |
 | Upload blocked: duplicate | Intended. Override with `ALLOW_DUPLICATE_UPLOAD=1` only for a deliberate remake |
 | `ChannelMismatchError` | Recreate `YT_REFRESH_TOKEN` while signed in to the correct channel, or correct `YT_CHANNEL_ID` |
@@ -327,6 +328,8 @@ python scripts/run_daily_news_short.py --upload
 | `GEMINI_API_KEY` | Scripts (free tier) |
 | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | Upload |
 | `YT_CHANNEL_ID` (repository variable) | Channel lock by id; recommended |
+| `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`, `GEMINI_MODEL_LONGFORM`, `GEMINI_FALLBACK_MODELS_LONGFORM` (repository variables) | Optional model overrides; empty uses the built-in chains |
+| `BUILD_RECOVERY_ATTEMPTS` (repository variable) | Optional; automatic resume attempts per run (default 1, 0 disables) |
 | `PIXABAY_API_KEY` | Stock footage; recommended |
 | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY` | Optional script fallbacks |
 | `TELEGRAM_BOT_TOKEN` with `TELEGRAM_CHAT_ID`, `DISCORD_WEBHOOK_URL`, `SLACK_WEBHOOK_URL` | Optional alerts |
@@ -366,7 +369,75 @@ Every Gemini call site (`core/script_engine.py`, `core/news_shorts_writer.py`,
 | Malformed response | Treated as a failed draft; nothing unparsed is saved. JSON repair is limited to code fences, trailing commas and bare source ids |
 | Which model answered? | Recorded in the script (`generation` block) and appended to `output/logs/llm_usage.jsonl` without prompts or keys |
 
-`python run.py doctor` reports the configured chain and flags invalid ids.
+`python run.py doctor` reports the configured chain, where it came from (an override or a
+built-in profile) and flags invalid ids.
+
+**Where model ids live.** No workflow file contains a model id. Workflows pass repository
+variables, which are empty unless you set them, and an empty value selects a built-in chain:
+
+| Repository variable | Used by | Empty means |
+|---|---|---|
+| `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS` | Shorts, news and the documentary trial workflows | `default` profile in `core/gemini.py` |
+| `GEMINI_MODEL_LONGFORM`, `GEMINI_FALLBACK_MODELS_LONGFORM` | `make_longform.yml`, `manual-live-documentary-e2e.yml`, `wan21-documentary-rerender.yml` (they set `GEMINI_PROFILE=longform`) | `longform` profile: the lite-model-first order those workflows already used |
+
+To change a model: Settings → Secrets and variables → Actions → Variables. No commit is needed.
+A test fails if a model id is written into any workflow file again.
+
+## Run report and job summary (`core/run_report.py`)
+
+Every production workflow (`make_shorts.yml`, `daily-news-auto-short.yml`, `make_longform.yml`)
+ends with `scripts/write_job_summary.py`, which runs even after a failure. It reads what the run
+left on disk (job row, `quality_report.json`, `narration_synthesis_report.json`,
+`asset_manifest.json`, `licenses.csv`, `checkpoint.json`, `release_gate.json`,
+`upload_result.json`) and produces:
+
+* the GitHub job summary (final status, topic, output file, duration, resolution, script model,
+  voice provider, visual providers, research status, rights status, QA status, upload status,
+  failure reason, artifact name);
+* `output/run_report.json`, uploaded with the review artifact;
+* one annotation on the run page (`error`, `warning` or `notice`).
+
+| Final status | Meaning |
+|---|---|
+| `UPLOADED (private)` | A YouTube video id exists. The summary also says whether the stored privacy was read back from YouTube; if it was not, it says so instead of assuming |
+| `BUILT, UPLOAD BLOCKED` | The video exists; the release gate, the duplicate guard or the uploader refused it. The reason is quoted |
+| `BUILT, NOT UPLOADED` | The video exists and no upload was requested |
+| `SKIPPED (nothing was built)` | No job was created: no unused topic, no corroborated news story, or a duplicate. This is a successful run |
+| `FAILED` | No finished video. The failing stage and its error are quoted |
+
+Rules the report follows: only jobs that have a build directory in this run are considered, so
+an old database row is never reported as this run's result; missing evidence is shown as
+"not recorded", never as a pass; values come from report files, not the environment, and free
+text passes through the redactor. The reporting step always exits 0, so it cannot change the
+result of a run. `scripts/alert_on_failure.py` sends the same reason to the configured
+notification channels.
+
+## Recovery inside a workflow run (`core/recovery.py`)
+
+The two scheduled build workflows run their build through `scripts/build_with_recovery.py`.
+If the command fails:
+
+| Situation | Action |
+|---|---|
+| A job created by this run failed for a possibly transient reason (FFmpeg crash, provider timeout) | Resume once from its checkpoint. Finished narration and real visuals are reused; fallback cards are retried. The duplicate ledger, topic queue and news "seen" cache are then updated exactly as on the normal path |
+| No job was created (for example every text model was busy) | Run the command once more after a pause |
+| Configuration, credential, missing tool, content gate, quality gate, release block | Never retried: it would fail the same way |
+| The build finished and a later part of the command failed | Not rebuilt |
+| Exit code 3 (built, upload blocked) | Passed through unchanged |
+
+Attempts are bounded by `BUILD_RECOVERY_ATTEMPTS` (default 1, maximum 3, 0 disables). Long-form
+jobs are not resumed automatically; `python run.py resume --id N` remains the manual route.
+
+## State branch credentials (`scripts/persist_state.py`)
+
+`save` pushes from a temporary clone, which does not inherit the credential that
+`actions/checkout` configured. The script now supports all three layouts: an explicit token in
+`GITHUB_TOKEN` (what the workflows pass), the `http.<host>/.extraheader` entry written by
+checkout v4/v5, and the separate credentials file used by checkout v6 and later. The credential
+is handed to git through `GIT_CONFIG_*` environment variables, never on a command line and
+never written into the temporary clone. A remote that cannot be reached is an error after three
+attempts; it is no longer treated as "no state yet", because starting with an empty ledger
+would switch duplicate protection off.
 
 ## Optional narration providers (`core/voice.py`)
 

@@ -9,6 +9,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from core.ffmpeg_utils import ffmpeg_bin  # honours FFMPEG_BINARY
 
 
 def _number(value: Any) -> float | None:
@@ -79,7 +80,7 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
         raise FileNotFoundError(f"Audio source video not found: {path}")
     issues, warnings = [], []
     loud_command = [
-        "ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-vn",
+        ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(path), "-vn",
         "-af", f"loudnorm=I={target_lufs}:TP={true_peak_target}:LRA={lra_target}:print_format=json",
         "-f", "null", "-",
     ]
@@ -94,14 +95,14 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
         }
 
     astats = subprocess.run([
-        "ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-vn",
+        ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(path), "-vn",
         "-af", "astats=metadata=1:reset=0", "-f", "null", "-",
     ], capture_output=True, text=True, check=False, timeout=600)
     astats_log = (astats.stderr or "") + (astats.stdout or "")
     clipped = _clipped_samples(astats_log)
 
     silence = subprocess.run([
-        "ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-vn",
+        ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(path), "-vn",
         "-af", "silencedetect=noise=-50dB:d=1.0", "-f", "null", "-",
     ], capture_output=True, text=True, check=False, timeout=600)
     silence_log = (silence.stderr or "") + (silence.stdout or "")
