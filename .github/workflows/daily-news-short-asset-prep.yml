@@ -32,6 +32,14 @@ jobs:
           sudo apt-get install --yes ffmpeg fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install requests Pillow python-dotenv
+      - name: Validate upstream workflow run ID
+        env:
+          SCRIPT_RUN_ID: ${{ inputs.script_run_id }}
+        run: |
+          if ! [[ "$SCRIPT_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "script_run_id must be the numeric ID of a successful workflow run."
+            exit 1
+          fi
       - name: Download reviewed story and script draft artifact
         uses: actions/download-artifact@v4
         with:
