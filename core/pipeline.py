@@ -398,6 +398,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     bd = build_dir or (cfg.BUILD_DIR / f"job_{job_id}")
     bd.mkdir(parents=True, exist_ok=True)
     import json
+    # Persist the exact generated storyboard so later review/mapping passes can
+    # rerender the same timeline instead of regenerating narration with Gemini.
+    (bd / "script.json").write_text(
+        json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     release_metadata = {
         "title": str(script.get("title") or script.get("video_title") or "").strip(),
         "description": str(script.get("description") or "").strip(),
