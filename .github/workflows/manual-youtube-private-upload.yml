@@ -31,6 +31,7 @@ jobs:
       YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
       YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
       HUMAN_REVIEWED: ${{ inputs.human_reviewed }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
     steps:
       - name: Require explicit human review confirmation
         shell: bash
@@ -42,7 +43,7 @@ jobs:
           test -n "$YT_CLIENT_ID" || { echo "::error::Missing YT_CLIENT_ID Actions secret."; exit 1; }
           test -n "$YT_CLIENT_SECRET" || { echo "::error::Missing YT_CLIENT_SECRET Actions secret."; exit 1; }
           test -n "$YT_REFRESH_TOKEN" || { echo "::error::Missing YT_REFRESH_TOKEN Actions secret."; exit 1; }
-          [[ "${{ inputs.source_run_id }}" =~ ^[0-9]+$ ]] || {
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || {
             echo "::error::source_run_id must be a numeric GitHub Actions run ID."
             exit 1
           }
@@ -84,7 +85,7 @@ jobs:
         run: |
           python scripts/upload_documentary_artifact.py \
             --artifact-dir source-artifact \
-            --source-run-id "${{ inputs.source_run_id }}" \
+            --source-run-id "$SOURCE_RUN_ID" \
             --human-reviewed
 
       - name: Preserve private upload result and audit record

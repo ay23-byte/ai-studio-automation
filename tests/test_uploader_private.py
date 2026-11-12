@@ -18,6 +18,12 @@ class PrivateUploadTests(unittest.TestCase):
         request.next_chunk.side_effect = [(None, {"id": "video123"})]
         youtube = MagicMock()
         youtube.videos.return_value.insert.return_value = request
+        # Uploads now verify the authenticated channel before any write.
+        youtube.channels.return_value.list.return_value.execute.return_value = {
+            "items": [{"id": "UC_test", "snippet": {
+                "title": "Engineering Physics", "customUrl": "@engineeringphysics-n5g"}}]
+        }
+        uploader._VERIFIED_CHANNEL.clear()
         build.return_value = youtube
 
         video_id = uploader.upload(

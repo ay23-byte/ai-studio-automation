@@ -138,7 +138,7 @@ def _gemini_error_detail(response):
     if response is None:
         return ''
     try:
-        detail = re.sub(r'\\s+', ' ', str(response.text)).strip()
+        detail = re.sub(r'\s+', ' ', str(response.text)).strip()
     except Exception:
         detail = ''
     return f' Response: {detail[:400]}' if detail else ''
@@ -156,8 +156,9 @@ def _post_gemini_with_retries(url, key, payload, *, attempts=3):
     last_response = None
     for attempt in range(attempts):
         try:
+            # Header auth: a key in the query string leaks into exception text and logs.
             response = requests.post(
-                url, params={'key': key}, json=payload, timeout=(10, 45))
+                url, headers={'x-goog-api-key': key}, json=payload, timeout=(10, 45))
             last_response = response
             if response.status_code in retryable_statuses:
                 detail = _gemini_error_detail(response)
@@ -257,7 +258,7 @@ def _coerce_script_payload(payload):
     return payload
 
 
-def generate_reviewed_shorts(review_path, output_path, language='hinglish'):
+def generate_reviewed_shorts(review_path, output_path, language=None):
     packet=json.loads(open(review_path,encoding='utf-8').read())
     if packet.get('review_status')!='approved':
         raise ValueError("Story packet must have review_status='approved' after human source review.")
@@ -381,7 +382,7 @@ def generate_reviewed_shorts(review_path, output_path, language='hinglish'):
             correction_prompt = _build_correction_prompt(prompt, last_error) if is_himalayan_packet else prompt + '\nCORRECTION REQUIRED: ' + str(last_error) + '. Return corrected JSON in the selected language; preserve verified facts and source IDs.'
             if draft_attempt == 1:
                 correction_prompt += (
-                    "\\n\\nFINAL COMPRESSION PASS: The prior correction still failed. "
+                    "\n\nFINAL COMPRESSION PASS: The prior correction still failed. "
                     "Keep every scene's say field to at most 22 whitespace-separated words. "
                     "Use six concise scenes if needed. Preserve every required number, "
                     "its meaning and range, the HAND definition, and both scientific caveats. "

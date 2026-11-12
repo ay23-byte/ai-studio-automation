@@ -47,11 +47,13 @@ def _image_style(category="general"):
 def _ok(p):
     try:
         if p.stat().st_size < 10_000: return False
-        out = subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0",
+        from core.ffmpeg_utils import ffprobe_bin
+        out = subprocess.check_output([ffprobe_bin(),"-v","error","-select_streams","v:0",
             "-show_entries","stream=width,height","-of","csv=p=0",str(p)],
-            stderr=subprocess.DEVNULL).decode().strip().split(",")
+            stderr=subprocess.DEVNULL, timeout=60).decode().strip().split(",")
         return int(out[0]) >= 200 and int(out[1]) >= 200
-    except: return False
+    except Exception:  # never swallow KeyboardInterrupt/SystemExit
+        return False
 
 def _write_source_metadata(path, metadata):
     import json
@@ -92,13 +94,39 @@ def _cloudflare(prompt, path):
         except Exception as e: print(f"Cloudflare {attempt+1}: {e}")
     return False
 
+# Consecutive network failures of the free image endpoint in this process.
+_POLLINATIONS_STATE = {"failures": 0}
+
+
+def _image_dimensions(prompt):
+    """Request the frame the scene needs instead of always a 9:16 portrait.
+
+    Root cause: every image (including 16:9 documentary shots and thumbnails)
+    was requested as 768x1344 and then centre-cropped to landscape, discarding
+    most of the picture and upscaling the remainder.
+    """
+    text = str(prompt or "").lower()
+    if "9:16" in text or "vertical" in text or "portrait" in text:
+        return 768, 1344
+    if "16:9" in text or "landscape" in text or "widescreen" in text:
+        return 1344, 768
+    return 768, 1344
+
+
 def _pollinations(prompt, path):
+    limit = max(1, int(os.getenv("IMAGE_PROVIDER_FAILURE_LIMIT", "2") or 2))
+    if _POLLINATIONS_STATE["failures"] >= limit:
+        # The endpoint was unreachable repeatedly: do not wait out the polite
+        # gap and a long timeout again for every remaining image of this run.
+        return False
     time.sleep(POLLINATIONS_GAP)
+    width, height = _image_dimensions(prompt)
     try:
         r = requests.get("https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt[:900]),
-            params={"width":768,"height":1344,"model":"flux","nologo":"true",
+            params={"width":width,"height":height,"model":"flux","nologo":"true",
                     "seed":random.randint(1,10**6)}, timeout=150)
         r.raise_for_status()
+        _POLLINATIONS_STATE["failures"] = 0
         if "image" not in r.headers.get("content-type","image"): return False
         path.write_bytes(r.content)
         if not _ok(path):
@@ -115,7 +143,15 @@ def _pollinations(prompt, path):
             "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
         })
         return True
-    except Exception as e: print(f"Pollinations: {e}"); return False
+    except (requests.ConnectionError, requests.Timeout) as e:
+        _POLLINATIONS_STATE["failures"] += 1
+        reason = str(e).split("(Caused by")[-1].strip(" )")[:160]
+        print(f"Pollinations unreachable ({_POLLINATIONS_STATE['failures']}/{limit}): {type(e).__name__}: {reason}")
+        if _POLLINATIONS_STATE["failures"] >= limit:
+            print("  image provider unreachable; skipping it for the rest of this run.")
+        return False
+    except Exception as e:
+        print(f"Pollinations: {type(e).__name__}: {str(e)[:200]}"); return False
 
 def generate_image(scene_prompt, path, category="general"):
     # A scene explicitly requesting real archival material must never silently
@@ -306,7 +342,7 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
     except Exception as exc:
         print(f"  public-domain/CC archive search unavailable: {exc}")
         import re
-        if re.search(r"\\b(archival|archive footage|newsreel|historical footage|period film|historical film)\\b",
+        if re.search(r"\b(archival|archive footage|newsreel|historical footage|period film|historical film)\b",
                      str(scene_prompt or ""), re.I):
             print("  archival video search failed; stock/AI-video substitution refused")
             return False

@@ -232,35 +232,40 @@ with review_tab:
                         st.error(f"Video approval blocked: {exc}")
             with b:
                 if not youtube_id and path.is_file() and row.get("approved"):
-                    if st.button("Upload as Unlisted", key=f"upload_{job_id}"):
+                    if st.button("Upload as Private", key=f"upload_{job_id}"):
                         try:
-                            from core.uploader import upload
-                            if row.get("format") == "longform":
-                                from core.release_certification import assert_release_certified
-                                assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
-                            new_id = upload(path, row.get("title") or "Untitled",
-                                            script.get("description", "Created with AI Studio."),
-                                            script.get("tags", []), privacy_status="unlisted")
-                            update_video(job_id, youtube_id=new_id, status="uploaded",
-                                         privacy_status="unlisted")
-                            st.success(f"Uploaded Unlisted: https://youtu.be/{new_id}")
+                            # Shared release gate + duplicate check + channel verification;
+                            # the upload is always private and unscheduled.
+                            from core.publish import publish_job
+                            result = publish_job(job_id, notify=False)
+                            st.success(f"Uploaded as Private: {result['url']}")
+                            for warning in result.get("warnings", []):
+                                st.warning(f"Uploaded, but {warning}")
                             st.rerun()
                         except Exception as exc:
-                            st.error(f"Upload failed: {exc}")
+                            st.error(f"Upload blocked or failed: {exc}")
             if youtube_id:
                 st.markdown("**Schedule public release (India Standard Time)**")
                 with st.form(f"schedule_{job_id}"):
                     chosen_date = st.date_input("Date", value=date.today() + timedelta(days=1), key=f"date_{job_id}")
                     chosen_time = st.time_input("Time (24-hour format)", value=time(19, 0), key=f"time_{job_id}")
+                    confirmed = st.checkbox(
+                        "I have watched this video and authorise making it PUBLIC at this time.",
+                        key=f"confirm_public_{job_id}")
                     submit = st.form_submit_button("Schedule public release")
-                if submit:
+                if submit and not confirmed:
+                    st.error("Tick the confirmation box to authorise a public release.")
+                elif submit:
                     try:
+                        from core.release_gate import assert_uploadable
+                        assert_uploadable(row, BUILD_DIR / f"job_{job_id}")
                         if row.get("format") == "longform":
                             from core.release_certification import assert_release_certified
                             assert_release_certified(BUILD_DIR / f"job_{job_id}", path)
                         from core.uploader import schedule_video
                         publish_at = datetime.combine(chosen_date, chosen_time).replace(tzinfo=IST)
-                        schedule_video(youtube_id, publish_at)
+                        # Explicit, per-video human authorisation from the form above.
+                        schedule_video(youtube_id, publish_at, authorized=True)
                         update_video(job_id, status="scheduled", scheduled_at=publish_at.isoformat(),
                                      privacy_status="private")
                         st.success(f"Scheduled for {publish_at.strftime('%d %b %Y, %H:%M')} IST.")

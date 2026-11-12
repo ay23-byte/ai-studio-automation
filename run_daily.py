@@ -15,207 +15,171 @@ from core.db import save_video, update_video, list_videos, get_conn
 from core.script_engine import generate_shorts_script, generate_longform_script, generate_seo
 from core.pipeline import build_shorts, build_longform
 from core.notify import send
+from core import dedupe, topics as topic_queue
+
+
+def _kind(fmt):
+    return "longform" if fmt in ("long", "longform") else "shorts"
 
 
 def load_topics():
-    p = Path("topics.json")
-    if not p.exists():
-        return []
-    return json.loads(p.read_text(encoding="utf-8"))
+    return topic_queue.load_topics()
 
 
 def save_topics(topics):
-    Path("topics.json").write_text(
-        json.dumps(topics, ensure_ascii=False, indent=2), encoding="utf-8")
+    """Atomic, locked write (kept for backward compatibility)."""
+    with topic_queue.locked(topic_queue.TOPICS_PATH):
+        topic_queue.save_topics(topics)
 
 
 def next_topic(fmt="shorts"):
-    topics = load_topics()
-    for t in topics:
-        if t.get("done") or t.get("skipped"):
-            continue
-        if t.get("approved") is False:
-            continue
-        if t.get("format", fmt) == fmt or not t.get("format"):
-            return topics, t
-    return topics, None
+    return topic_queue.next_topic(fmt)
 
 
 def mark_done(topics, t, youtube_id=None):
-    for item in topics:
-        if item.get("title") == t.get("title"):
-            item["done"] = True
-            if youtube_id:
-                item["youtube_id"] = youtube_id
-    save_topics(topics)
+    changes = {"done": True}
+    if youtube_id:
+        changes["youtube_id"] = youtube_id
+    topic_queue.update_topic(t.get("title") or t.get("topic"), **changes)
 
 
 def upload_latest(video_format=None):
-    rows = list_videos(limit=50)
-    for row in rows:
-        if (row.get("video_path") and not row.get("youtube_id")
-                and row.get("status") == "done"
-                and (not video_format or row.get("format") == video_format
-                 or (video_format == "long" and row.get("format") == "longform"))):
-            vpath = Path(row["video_path"])
-            if vpath.exists():
-                from core.uploader import upload, add_to_playlist, post_comment, wait_processed
-                from core.script_engine import generate_seo
-                script = json.loads(row.get("script_json") or "{}")
-                seo = generate_seo(script)
-                title = row["title"]
-                if row.get("format") == "shorts":
-                    title = title[:88] + " #Shorts"
-                desc = script.get("description", "Engineering Physics - learn one concept every day.")
-                cat = row.get("category", "")
-                if cat in ("finance", "markets", "money"):
-                    desc += ("\n\nयह वीडियो सिर्फ़ शैक्षणिक जानकारी के लिए है।"
-                             " यह निवेश सलाह नहीं है।")
-                desc += "\n\n#Shorts" if row.get("format") == "shorts" else ""
-                print(f"Uploading: {title}")
-                try:
-                    if row.get("format") == "longform":
-                        from core.config import BUILD_DIR
-                        from core.release_certification import assert_release_certified
-                        assert_release_certified(BUILD_DIR / f"job_{row['id']}", vpath)
-                    vid = upload(vpath, title, desc, seo["tags"],
-                                 contains_synthetic=True)
-                    update_video(row["id"], youtube_id=vid, status="uploaded")
-                    state = wait_processed(vid)
-                    if state != "ok":
-                        update_video(row["id"], status=f"youtube_{state}")
-                        send(f"❌ YouTube processing did not complete ({state}) for: {title}")
-                        raise RuntimeError(f"YouTube processing did not complete: {state}")
-                    playlist = {
-                        "finance": "Finance Explained | Engineering Physics",
-                        "markets": "Share Market | Engineering Physics",
-                        "money": "Paise ki Samajh | Engineering Physics",
-                        "power": "पावर के नियम | Engineering Physics",
-                        "human": "इंसानी व्यवहार | Engineering Physics",
-                    }.get(cat, "Engineering Physics")
-                    try:
-                        add_to_playlist(vid, playlist)
-                    except Exception as e:
-                        print(f"Playlist: {e}")
-                    try:
-                        post_comment(vid, seo["pinned_comment"])
-                    except Exception as e:
-                        print(f"Comment: {e}")
-                    link = (f"https://youtube.com/shorts/{vid}"
-                            if row.get("format") == "shorts"
-                            else f"https://youtube.com/watch?v={vid}")
-                    send(f"✅ Uploaded: {title}\n{link}\nTip: pin your comment in Studio.")
-                    print(f"Uploaded: {link}")
-                except Exception as e:
-                    send(f"❌ Upload failed: {str(e)[:200]}")
-                    raise
-                return
-    raise RuntimeError(f"No completed, unuploaded {video_format or ''} video was found in the database.")
+    """Upload the newest finished, unuploaded job PRIVATELY through the shared gate."""
+    from core.publish import publish_latest, DuplicateUpload
+    from core.release_gate import ReleaseBlocked
+    try:
+        result = publish_latest(_kind(video_format) if video_format else None, wait=True)
+    except (ReleaseBlocked, DuplicateUpload) as exc:
+        # A blocked upload is a deliberate, safe outcome: keep the artifacts,
+        # tell the operator, and fail the step so it is visible.
+        send(f"⚠️ Upload blocked: {str(exc)[:500]}")
+        raise
+    if result.get("youtube_id"):
+        _mark_uploaded_topic(result)
+    return result
+
+
+def _mark_uploaded_topic(result):
+    """Record the YouTube id on the matching queue entry, if there is one."""
+    try:
+        title = str(result.get("title") or "").replace(" #Shorts", "").strip()
+        for item in load_topics():
+            name = item.get("title") or item.get("topic") or ""
+            if name and dedupe.is_same_subject(name, title):
+                topic_queue.update_topic(name, youtube_id=result["youtube_id"], done=True)
+                break
+    except Exception as exc:
+        print(f"WARNING: could not record the upload in topics.json: {exc}")
+
+
+def _language_for(fmt, topic=None):
+    default = (os.getenv("SHORTS_LANGUAGE", "hinglish") if _kind(fmt) == "shorts"
+               else os.getenv("LONGFORM_LANGUAGE", "english"))
+    value = str((topic or {}).get("language") or default).strip().lower()
+    return value if value in {"english", "hindi", "hinglish"} else "english"
+
+
+def _build(script, fmt, language, category, topic_text):
+    """Save the job, build it, and record it in the duplicate ledger."""
+    kind = _kind(fmt)
+    vid_id = save_video(script.get("title", "") or topic_text, kind, language, category, script,
+                        pipeline=f"daily_{kind}", topic_key=dedupe.topic_key(topic_text or script.get("title", "")))
+    out = (build_shorts(script, vid_id, language=language) if kind == "shorts"
+           else build_longform(script, vid_id, language=language))
+    dedupe.Ledger().record(kind, script.get("title", "") or topic_text, topic=topic_text,
+                           job_id=vid_id, status="built")
+    return vid_id, out
+
+
+def _has_script_model():
+    from core import llm
+    return bool(os.getenv("GEMINI_API_KEY", "").strip()) or bool(llm.configured_providers())
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     p.add_argument("--upload-latest", action="store_true")
+    p.add_argument("--upload", action="store_true",
+                   help="Upload privately right after a successful build")
     args = p.parse_args()
 
     if args.upload_latest:
         upload_latest(args.format)
         return
 
-    # Build the next topic
+    kind = _kind(args.format)
+    # Build the next approved, non-duplicate topic from the queue.
     topics, t = next_topic(args.format)
     if not t:
-        # Try Gemini if no pending topic
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
-        if gemini_key:
-            print("No pending topics. Generating a new one with Gemini...")
-            fallback_topics = [
-                ("Compound interest kya hai", "finance"),
-                ("Bull aur Bear market kya hota hai", "markets"),
-                ("CIBIL score kaise improve karen", "money"),
-                ("Risk aur return ka rishta", "markets"),
-                ("Emergency fund kyun zaroori hai", "money"),
-            ]
-            # pick one not already in topics.json
-            existing = {t2.get("title","") for t2 in topics}
-            for topic_title, category in fallback_topics:
-                if topic_title not in existing:
-                    try:
-                        selected_language = (
-                            os.getenv("SHORTS_LANGUAGE", "hinglish").strip().lower()
-                            if args.format == "shorts"
-                            else os.getenv("LONGFORM_LANGUAGE", "english").strip().lower()
-                        )
-                        if args.format == "shorts":
-                            script = generate_shorts_script(topic_title, category, language=selected_language)
-                        else:
-                            script = generate_longform_script(topic_title, category, language=selected_language)
-                        vid_id = save_video(script.get("title", topic_title),
-                                            args.format, selected_language, category, script)
-                        if args.format == "shorts":
-                            out = build_shorts(script, vid_id, language=selected_language)
-                        else:
-                            out = build_longform(script, vid_id, language=selected_language)
-                        print(f"Built auto-generated video: {out}")
-                        return
-                    except Exception as e:
-                        send(f"❌ Auto-generate failed: {str(e)[:200]}")
-                        raise
-            send("⚠️ All fallback topics already used. Add new topics to topics.json.")
-        else:
-            send("⚠️ No unused topics in topics.json and no GEMINI_API_KEY set.")
-        return
+        if not _has_script_model():
+            send("⚠️ No unused topics in topics.json and no script model key is set "
+                 "(GEMINI_API_KEY or a fallback provider).")
+            return
+        language = _language_for(args.format)
+        print("No pending topics in topics.json. Selecting a fresh, non-duplicate topic...")
+        candidate = topic_queue.pick_fresh_topic(args.format, language=language)
+        if not candidate:
+            send("⚠️ Every proposed and curated topic has already been produced. "
+                 "Add new topics to topics.json or config/topic_bank.json.")
+            return
+        topic_title, category = candidate["topic"], candidate.get("category", "physics")
+        print(f"Selected topic ({candidate.get('source')}): {topic_title} [{category}]")
+        try:
+            if kind == "shorts":
+                script = generate_shorts_script(topic_title, category, language=language)
+            else:
+                script = generate_longform_script(topic_title, category, language=language)
+            # The generated title can still collide with something already made.
+            clash = dedupe.find_duplicate(kind, script.get("title", ""), topic=topic_title)
+            if clash:
+                send(f"⚠️ Generated script '{script.get('title')}' duplicates '{clash['match']}'; skipped.")
+                dedupe.Ledger().record(kind, topic_title, topic=topic_title, status="skipped_duplicate")
+                return
+            vid_id, out = _build(script, args.format, language, category, topic_title)
+            print(f"Built auto-generated video: {out}")
+            if args.upload:
+                upload_latest(args.format)
+            return
+        except Exception as e:
+            send(f"❌ Auto-generate failed for '{topic_title}': {str(e)[:300]}")
+            raise
 
-    print(f"Building: {t.get('title', t.get('topic',''))}")
+    title = t.get("title") or t.get("topic", "")
+    print(f"Building: {title}")
     try:
+        language = _language_for(args.format, t)
+        category = t.get("category", "physics")
         # If the topic has a pre-written script (from topics.json)
         if t.get("scenes") or t.get("sections"):
             script = t
-        elif os.getenv("GEMINI_API_KEY"):
+        elif _has_script_model():
             topic_text = t.get("title") or t.get("topic", "")
-            category = t.get("category", "finance")
-            selected_language = str(
-                t.get("language") or (
-                    os.getenv("SHORTS_LANGUAGE", "hinglish")
-                    if args.format == "shorts"
-                    else os.getenv("LONGFORM_LANGUAGE", "english")
-                )
-            ).strip().lower()
-            if args.format == "shorts":
-                script = generate_shorts_script(topic_text, category, language=selected_language)
+            if kind == "shorts":
+                script = generate_shorts_script(topic_text, category, language=language)
             else:
-                script = generate_longform_script(topic_text, category, language=selected_language)
+                script = generate_longform_script(topic_text, category, language=language)
         else:
-            send("❌ Topic has no script and GEMINI_API_KEY is not set.")
+            send("❌ Topic has no script and no script model key is set.")
             return
 
-        selected_language = str(
-            t.get("language") or (
-                os.getenv("SHORTS_LANGUAGE", "hinglish")
-                if args.format == "shorts"
-                else os.getenv("LONGFORM_LANGUAGE", "english")
-            )
-        ).strip().lower()
-        vid_id = save_video(script.get("title", ""), args.format,
-                            selected_language, t.get("category","finance"), script)
-        if args.format == "shorts":
-            out = build_shorts(script, vid_id, language=selected_language)
-        else:
-            out = build_longform(script, vid_id, language=selected_language)
-
+        vid_id, out = _build(script, args.format, language, category, t.get("topic") or title)
         mark_done(topics, t)
         print(f"Built: {out}")
-        remaining = sum(1 for x in load_topics()
-                        if not x.get("done") and not x.get("skipped"))
+        remaining = topic_queue.remaining()
         if remaining <= 3:
-            send(f"⚠️ Only {remaining} topics left in topics.json. Add more soon.")
+            send(f"⚠️ Only {remaining} topics left in topics.json. "
+                 "New topics will be selected automatically; add your own to steer the channel.")
+        if args.upload:
+            upload_latest(args.format)
     except Exception as e:
-        t["attempts"] = t.get("attempts", 0) + 1
-        if t["attempts"] >= 3:
-            t["skipped"] = True
-        save_topics(topics)
-        send(f"❌ Build failed for '{t.get('title','')}': {str(e)[:200]}")
+        attempts = int(t.get("attempts", 0) or 0) + 1
+        changes = {"attempts": attempts, "last_error": str(e)[:300]}
+        if attempts >= 3:
+            changes["skipped"] = True
+            changes["skip_reason"] = "failed three times"
+        topic_queue.update_topic(title, **changes)
+        send(f"❌ Build failed for '{title}': {str(e)[:300]}")
         raise
 
 

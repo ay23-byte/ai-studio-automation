@@ -200,7 +200,7 @@ jobs:
           (evidence / "3d-presenter-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
           print(json.dumps(report, indent=2))
           if failures:
-              raise SystemExit("\\n".join(failures))
+              raise SystemExit("\n".join(failures))
           PY
 
       - name: Probe MP4 and enforce basic production checks

@@ -19,6 +19,11 @@ from datetime import date
 TIMEOUT = 35
 # Authorization failures are stable for the lifetime of one production run.
 _DISABLED_PROVIDER_HOSTS = set()
+# Hosts that could not be reached at all (DNS/TLS/timeout) after retries. Two
+# such failures open the circuit so one unreachable archive cannot add minutes
+# of retries to every remaining shot of the run.
+_HOST_NETWORK_FAILURES = {}
+NETWORK_FAILURE_LIMIT = 2
 USER_AGENT = "AIStudioDocumentary/1.0 (educational video research)"
 
 
@@ -58,6 +63,7 @@ def _get_json(url, params=None, headers=None):
                 print(f"  footage provider unavailable for rest of this run ({host}): HTTP {status} after retries.")
                 return None
             response.raise_for_status()
+            _HOST_NETWORK_FAILURES.pop(host, None)
             content_type = response.headers.get("content-type", "")
             if "json" not in content_type.lower():
                 preview = " ".join(response.text[:180].split())
@@ -74,7 +80,14 @@ def _get_json(url, params=None, headers=None):
                 print(f"  footage provider request failed ({host}): {type(exc).__name__}; retry {attempt + 1}/2 after {delay:g}s.")
                 time.sleep(delay)
                 continue
-            print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {exc}")
+            failures = _HOST_NETWORK_FAILURES.get(host, 0) + 1
+            _HOST_NETWORK_FAILURES[host] = failures
+            reason = str(exc).split("(Caused by")[0].strip()[:160]
+            if host and failures >= NETWORK_FAILURE_LIMIT:
+                _DISABLED_PROVIDER_HOSTS.add(host)
+                print(f"  footage provider unreachable ({host}); skipping it for the rest of this run: {type(exc).__name__}")
+            else:
+                print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {reason}")
             return None
         except Exception as exc:
             print(f"  footage discovery unavailable ({host or 'unknown host'}): {type(exc).__name__}: {exc}")

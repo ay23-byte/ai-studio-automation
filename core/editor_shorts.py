@@ -1,13 +1,19 @@
-import subprocess, random
+import os, shutil, subprocess, random, tempfile
 from pathlib import Path
+
+from core import ffmpeg_utils
+from core.render_join import reduce_segments, video_chain
 
 W, H = 1080, 1920
 FADE = 0.3
 ENC = ["-c:v","libx264","-preset","fast","-crf","19","-profile:v","high",
        "-level","4.0","-pix_fmt","yuv420p","-r","30","-video_track_timescale","15360"]
 TRANSITIONS = ["fade","smoothleft","fade","smoothright"]
+# JPEG stills and some phone footage are full-range ("yuvj420p"). Convert to
+# broadcast range up front so the export is standard yuv420p everywhere.
+RANGE = "scale=out_range=tv,format=yuv420p,"
 
-def _run(cmd): subprocess.run(cmd, check=True)
+def _run(cmd): ffmpeg_utils.run(cmd)
 
 def _img_size(p):
     out = subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0",
@@ -30,13 +36,13 @@ def _img_seg(src, idx, dur, bd, settings=None):
     pos = f"x='{x}':y='{y}'"
     base = ["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30","-t",f"{dur:.3f}","-i",str(src)]
     if h/max(w,1) >= 1.5:
-        vf = (f"scale=2160:3840:force_original_aspect_ratio=increase:flags=lanczos,crop=2160:3840,"
+        vf = (f"{RANGE}scale=2160:3840:force_original_aspect_ratio=increase:flags=lanczos,crop=2160:3840,"
               f"zoompan=z='{z}':{pos}:d=1:s={W}x{H}:fps=30,"
               "eq=brightness=-0.03:saturation=1.05,vignette=PI/7,format=yuv420p")
         _run(base + ["-vf",vf,"-an",*ENC,str(out)])
     else:
         fh = min(int(round(W*h/max(w,1)/2))*2, H)
-        fc = (f"[0:v]split=2[a][b];"
+        fc = (f"[0:v]{RANGE}split=2[a][b];"
               f"[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
               f"gblur=sigma=40,eq=brightness=-0.22:saturation=0.9[bg];"
               f"[b]scale={W*2}:-2:flags=lanczos,zoompan=z='{z}':{pos}:d=1:s={W}x{fh}:fps=30[fg];"
@@ -49,28 +55,52 @@ def _clip_seg(src, idx, dur, bd, settings=None):
     sw = int(W*1.12)//2*2; sh = int(H*1.12)//2*2
     from core.cinematic_motion import video_crop_expressions
     x, y = video_crop_expressions(settings, idx, dur, sw-W, sh-H)
-    vf = (f"scale={sw}:{sh}:force_original_aspect_ratio=increase:flags=lanczos,crop={sw}:{sh},fps=30,"
+    vf = (f"{RANGE}scale={sw}:{sh}:force_original_aspect_ratio=increase:flags=lanczos,crop={sw}:{sh},fps=30,"
           f"crop={W}:{H}:x='{x}':y='{y}',setsar=1,"
           "eq=brightness=-0.08:saturation=0.85,vignette=PI/6,format=yuv420p")
     _run(["ffmpeg","-y","-loglevel","error","-stream_loop","-1",
           "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out
 
-def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.45, sfx_vol=0.15):
+def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.45, sfx_vol=0.15,
+           work_dir=None):
+    """Render a Short. Intermediate files live in a private work directory.
+
+    ``work_dir`` defaults to a unique temporary directory beside ``out`` that is
+    removed afterwards, so concurrent renders can no longer overwrite each
+    other's ``seg*.mp4``/``whoosh.wav`` in the shared output folder. The final
+    MP4 is written to a temporary name and moved into place only on success.
+    """
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    owns_work_dir = work_dir is None
+    bd = Path(tempfile.mkdtemp(prefix=f".{out.stem}_work_", dir=str(out.parent))) if owns_work_dir \
+        else Path(work_dir)
+    bd.mkdir(parents=True, exist_ok=True)
+    partial = out.with_name(f".{out.stem}.partial{out.suffix or '.mp4'}")
+    try:
+        _render(media, lens, cuts, voice, ass, total, partial, bd, music, music_vol, sfx_vol)
+        if not partial.is_file() or partial.stat().st_size == 0:
+            raise RuntimeError("FFmpeg finished without producing a Shorts video.")
+        os.replace(partial, out)
+    finally:
+        partial.unlink(missing_ok=True)
+        if owns_work_dir and os.getenv("KEEP_RENDER_WORK", "").strip().lower() not in {"1", "true", "yes"}:
+            shutil.rmtree(bd, ignore_errors=True)
+    return out
+
+
+def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx_vol):
     T = total + 0.6
-    bd = out.parent
     parts = []
     for i, m in enumerate(media):
         d = lens[i] + FADE
         parts.append(_img_seg(Path(m["path"]), i, d, bd, m.get("cinema_settings")) if m["type"]=="image"
                      else _clip_seg(Path(m["path"]), i, d, bd, m.get("cinema_settings")))
-    chain, prev, acc = [], "[0:v]", 0.0
-    for k in range(1, len(parts)):
-        acc += lens[k-1]; lab = f"[x{k}]"
-        tr = TRANSITIONS[(k-1)%len(TRANSITIONS)]
-        chain.append(f"{prev}[{k}:v]xfade=transition={tr}:duration={FADE}:offset={acc:.3f}{lab}")
-        prev = lab
-    filt = ";".join(chain + [f"{prev}subtitles={ass}[vout]"]) + ";"
+    transitions = [TRANSITIONS[(k-1)%len(TRANSITIONS)] for k in range(1, len(parts))]
+    parts, joined_lens, transitions = reduce_segments(parts, list(lens[:len(parts)]), transitions, FADE, bd)
+    filt = video_chain(joined_lens, transitions, FADE, "vjoin") \
+        + f";[vjoin]{ffmpeg_utils.subtitles_filter(ass)}[vout];"
     inputs = []
     for p in parts: inputs += ["-i",str(p)]
     inputs += ["-i",str(voice)]

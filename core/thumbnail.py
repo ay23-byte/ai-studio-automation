@@ -8,19 +8,10 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
 SIZE = (1280, 720)
 
 
-def _font(size, bold=True):
-    candidates = (
-        ["C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/Arial.ttf"]
-        if bold else ["C:/Windows/Fonts/arial.ttf"]
-    ) + (
-        ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-         "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"]
-        if bold else ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
-    )
-    for candidate in candidates:
-        if Path(candidate).exists():
-            return ImageFont.truetype(candidate, size)
-    return ImageFont.load_default()
+def _font(size, bold=True, text=""):
+    """Script-aware font: Devanagari titles need a Devanagari face, not Arial."""
+    from core.fonts import load_font
+    return load_font(size, bold, text)
 
 
 def _source_frame(source: Path, work: Path):
@@ -68,13 +59,13 @@ def _render(base, title, channel, out, style):
         draw.rectangle((0, 0, 1280, 720), fill=(5, 10, 28, 55))
         draw.rounded_rectangle((55, 400, 1225, 670), radius=22, fill=(5, 12, 30, 205))
         color, accent, y0 = (255, 255, 255, 255), (255, 205, 45, 255), 435
-    font = _font(76 if style != "minimal" else 62)
+    font = _font(76 if style != "minimal" else 62, True, title)
     lines = _wrap(draw, title, font, 1080)
     line_height = 88 if style != "minimal" else 76
     for i, line in enumerate(lines):
         y = y0 + i * line_height
         draw.text((84, y), line, font=font, fill=color, stroke_width=3, stroke_fill=(0, 0, 0, 220))
-    small = _font(30, False)
+    small = _font(30, False, channel)
     draw.text((84, 48), channel[:48], font=small, fill=accent)
     image = Image.alpha_composite(image.convert("RGBA"), overlay)
     image.convert("RGB").save(out, "JPEG", quality=94, optimize=True)
@@ -116,6 +107,7 @@ def generate_topic_variants(title, script, output_dir, channel="AI Studio"):
         "minimal": "minimal elegant editorial composition, one clear symbolic object, uncluttered background",
     }
     outputs = []
+    provider_available = True
     for style, direction in variants.items():
         background = output_dir / f"background_{style}.jpg"
         prompt = (
@@ -124,7 +116,10 @@ def generate_topic_variants(title, script, output_dir, channel="AI Studio"):
             "Use a clear central subject and polished cinematic lighting. "
             "Do not include any text, letters, numbers, logos, watermark, or typography."
         )
-        generated = generate_image(prompt, background)
+        # One failed attempt means the provider is down or rate limited; do not
+        # spend minutes retrying it for the remaining variants.
+        generated = provider_available and generate_image(prompt, background)
+        provider_available = bool(generated)
         if generated:
             with Image.open(background) as opened:
                 base = ImageOps.fit(opened.convert("RGB"), SIZE, method=Image.Resampling.LANCZOS)

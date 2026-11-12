@@ -4,7 +4,10 @@ AI Studio - Command Line Runner
 Usage:
   python run.py shorts  "Inflation kya hai"  --category finance
   python run.py long    "Mutual Fund explained" --category finance --minutes 7
-  python run.py upload  --id 1
+  python run.py upload  --id 1        (PRIVATE upload after the release gate passes)
+  python run.py resume  --id 1        (continue a failed/interrupted job from its checkpoints)
+  python run.py status  --id 1        (stage-by-stage progress of a job)
+  python run.py doctor                (check tools, fonts, providers, database and credentials)
   python run.py list
   python run.py demo    (builds a video without Gemini, using a built-in demo script)
 """
@@ -15,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()                        # reads .env if present
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.db import save_video, update_video, list_videos
+from core.db import save_video, update_video, list_videos, get_video
 from core.script_engine import generate_shorts_script, generate_longform_script, generate_seo
 from core.pipeline import build_shorts, build_longform
 from core.notify import send
@@ -74,77 +77,157 @@ DEMO_LONG = {
 }
 
 
+def _check_duplicate(kind, title, topic, force):
+    """Refuse to rebuild a subject that already exists unless --force is given."""
+    from core import dedupe
+    duplicate = dedupe.find_duplicate(kind, title, topic=topic)
+    if duplicate and not force:
+        where = f" (YouTube {duplicate['youtube_id']})" if duplicate.get("youtube_id") else ""
+        raise SystemExit(
+            f"Duplicate topic: '{topic or title}' matches '{duplicate['match']}'{where} "
+            f"[{duplicate['layer']}]. Use --force to build it anyway.")
+    return duplicate
+
+
+def _record_built(kind, script, topic, job_id):
+    from core import dedupe
+    try:
+        dedupe.Ledger().record(kind, script.get("title", "") or topic, topic=topic,
+                               job_id=job_id, status="built")
+    except Exception as exc:
+        print(f"WARNING: could not update the publish ledger: {exc}")
+
+
 def cmd_shorts(args):
+    from core import dedupe
+    topic = "" if args.demo else str(args.topic or "")
+    force = bool(getattr(args, "force", False)) or args.demo
     if args.demo:
         script = DEMO_SHORT
     else:
+        _check_duplicate("shorts", topic, topic, force)
         print(f"Generating Shorts script for: {args.topic}")
         script = generate_shorts_script(args.topic, args.category, language=args.language)
+        _check_duplicate("shorts", script.get("title", ""), topic, force)
     print(f"Script: {script.get('title')}")
-    vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script)
+    vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script,
+                        pipeline="shorts", topic_key=dedupe.topic_key(topic or script.get("title", "")))
     print(f"Building video (job #{vid_id})...")
-    out = build_shorts(script, vid_id, language=args.language, voice_gender=args.voice_gender)
+    try:
+        out = build_shorts(script, vid_id, language=args.language, voice_gender=args.voice_gender)
+    except Exception as exc:
+        send(f"❌ Shorts build failed (job #{vid_id}): {str(exc)[:300]}\nResume with: python run.py resume --id {vid_id}")
+        raise
+    if not args.demo:
+        _record_built("shorts", script, topic, vid_id)
     print(f"Done: {out}")
     send(f"✅ Shorts built: {script.get('title')}\n{out}")
+    if getattr(args, "upload", False):
+        _upload(vid_id)
 
 
 def cmd_long(args):
+    from core import dedupe
+    topic = "" if args.demo else str(args.topic or "")
+    force = bool(getattr(args, "force", False)) or args.demo
     if args.demo:
         script = DEMO_LONG
     else:
+        _check_duplicate("longform", topic, topic, force)
         print(f"Generating long-form script for: {args.topic}")
         script = generate_longform_script(args.topic, args.category,
                                            args.minutes - 2, args.minutes, args.language)
     print(f"Script: {script.get('title')} ({len(script.get('sections',[]))} sections)")
-    vid_id = save_video(script.get("title",""), "longform", args.language, args.category, script)
+    vid_id = save_video(script.get("title",""), "longform", args.language, args.category, script,
+                        pipeline="longform", topic_key=dedupe.topic_key(topic or script.get("title", "")))
     print(f"Building long-form video (job #{vid_id})...")
-    out = build_longform(script, vid_id, language=args.language, voice_gender=args.voice_gender)
+    try:
+        out = build_longform(script, vid_id, language=args.language, voice_gender=args.voice_gender,
+                             subtitle_language=getattr(args, "subtitle_language", None))
+    except Exception as exc:
+        send(f"❌ Long-form build failed (job #{vid_id}): {str(exc)[:300]}\nResume with: python run.py resume --id {vid_id}")
+        raise
+    if not args.demo:
+        _record_built("longform", script, topic, vid_id)
     print(f"Done: {out}")
     send(f"✅ Long-form built: {script.get('title')}\n{out}")
+    if getattr(args, "upload", False):
+        _upload(vid_id)
+
+
+def cmd_resume(args):
+    """Continue a failed or interrupted job; completed stages are reused."""
+    from core.db import normalize_format
+    row = get_video(args.id)
+    if not row:
+        print(f"Job #{args.id} not found"); return
+    script = json.loads(row.get("script_json") or "{}")
+    fmt = normalize_format(row.get("format"))
+    language = row.get("language") or "english"
+    update_video(args.id, attempts=int(row.get("attempts") or 0) + 1)
+    print(f"Resuming job #{args.id} ({fmt}): {row.get('title')}")
+    if fmt == "shorts":
+        out = build_shorts(script, args.id, language=language, voice_gender=args.voice_gender)
+    elif fmt == "longform":
+        out = build_longform(script, args.id, language=language, voice_gender=args.voice_gender)
+    else:
+        raise SystemExit(f"Job #{args.id} has format '{fmt}', which this command cannot resume.")
+    print(f"Done: {out}")
+    send(f"✅ Resumed job #{args.id} finished: {row.get('title')}\n{out}")
+
+
+def cmd_status(args):
+    from core.config import BUILD_DIR
+    from core.jobs import load_checkpoint_summary
+    row = get_video(args.id)
+    if not row:
+        print(f"Job #{args.id} not found"); return
+    print(f"Job #{row['id']}  {row.get('format')}  status={row.get('status')}  "
+          f"quality={row.get('quality_status') or '-'}  youtube={row.get('youtube_id') or '-'}")
+    print(f"Title: {row.get('title')}")
+    if row.get("error"):
+        print(f"Last error: {row['error']}")
+    stages = load_checkpoint_summary(BUILD_DIR / f"job_{args.id}")
+    if not stages:
+        print("No checkpoint recorded for this job."); return
+    print(f"\n{'Stage':<18}{'Status':<10}{'Attempt':>8}{'Seconds':>10}")
+    for stage in stages:
+        seconds = stage.get("duration_seconds")
+        print(f"{stage['stage']:<18}{stage.get('status',''):<10}{stage.get('attempt',1):>8}"
+              f"{(f'{seconds:.1f}' if isinstance(seconds, (int, float)) else '-'):>10}")
+        if stage.get("error"):
+            print(f"    error: {stage['error'][:200]}")
+
+
+def _upload(job_id):
+    from core.publish import publish_job
+    return publish_job(job_id)
 
 
 def cmd_upload(args):
-    from core.uploader import upload, add_to_playlist, post_comment, set_video_thumbnail
-    from core.db import get_conn
-    conn = get_conn()
-    row = conn.execute("SELECT * FROM videos WHERE id=?", (args.id,)).fetchone()
-    conn.close()
-    if not row: print(f"Job #{args.id} not found"); return
-    row = dict(row)
-    if row.get("format") == "longform":
-        from core.config import BUILD_DIR
-        from core.release_certification import assert_release_certified
-        assert_release_certified(BUILD_DIR / f"job_{args.id}", Path(row["video_path"]))
-    script = json.loads(row.get("script_json") or "{}")
-    seo = generate_seo(script)
-    title = row.get("title","") + " #Shorts" if row.get("format")=="shorts" else row.get("title","")
-    from core.config import CHANNEL_NAME
-    desc = script.get("description", f"{CHANNEL_NAME} - educational videos and explainers.")
-    print(f"Uploading: {title}")
-    vid = upload(Path(row["video_path"]), title, desc, seo["tags"])
-    update_video(args.id, youtube_id=vid, status="uploaded")
+    """Private upload through the shared release gate and duplicate checks."""
+    from core.publish import publish_job, DuplicateUpload
+    from core.release_gate import ReleaseBlocked
+    try:
+        result = publish_job(args.id, dry_run=bool(getattr(args, "dry_run", False)))
+    except LookupError as exc:
+        print(exc); return
+    except (ReleaseBlocked, DuplicateUpload) as exc:
+        send(f"⚠️ Upload blocked for job #{args.id}: {str(exc)[:400]}")
+        raise SystemExit(str(exc))
+    if result.get("status") == "dry_run":
+        print(json.dumps({k: result[k] for k in ("metadata", "marker")}, ensure_ascii=False, indent=2))
+        print("Dry run: release gate passed; nothing was uploaded.")
+    elif result.get("status") == "already_uploaded":
+        print(f"Job #{args.id} is already uploaded: {result['url']}")
 
-    # Apply the first automatically generated custom thumbnail after upload.
-    # Thumbnail failures must not invalidate an otherwise successful video upload.
-    thumbnail_path = row.get("thumb_path")
-    if thumbnail_path:
-        try:
-            set_video_thumbnail(vid, Path(thumbnail_path))
-            print(f"Custom thumbnail applied: {thumbnail_path}")
-        except Exception as e:
-            print(f"WARNING: Video uploaded, but custom thumbnail could not be applied: {e}")
-    else:
-        print("WARNING: No generated thumbnail is recorded for this video.")
 
-    cat_info = {"finance":f"Finance Explained | {CHANNEL_NAME}", "markets":f"Share Market | {CHANNEL_NAME}"}
-    playlist = cat_info.get(row.get("category",""), CHANNEL_NAME)
-    try: add_to_playlist(vid, playlist)
-    except Exception as e: print(f"Playlist: {e}")
-    try: post_comment(vid, seo["pinned_comment"])
-    except Exception as e: print(f"Comment: {e}")
-    print(f"Uploaded: https://youtube.com/shorts/{vid}" if row.get("format")=="shorts"
-          else f"Uploaded: https://youtube.com/watch?v={vid}")
-    send(f"✅ Uploaded: {title}\nhttps://youtube.com/watch?v={vid}")
+def cmd_doctor(args):
+    from core.health import run_health_check, print_health
+    report = run_health_check()
+    print_health(report)
+    if report["status"] == "FAIL":
+        raise SystemExit(1)
 
 
 def cmd_list(args):
@@ -164,21 +247,36 @@ def main():
     ps = sub.add_parser("shorts", help="Create a YouTube Short")
     ps.add_argument("topic", nargs="?", default="Inflation kya hai")
     ps.add_argument("--category", default="finance")
-    ps.add_argument("--language", default="english")
+    ps.add_argument("--language", default="english", choices=["english", "hindi", "hinglish"])
     ps.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     ps.add_argument("--demo", action="store_true", help="Use built-in demo script (no Gemini needed)")
+    ps.add_argument("--force", action="store_true", help="Build even if this topic was already produced")
+    ps.add_argument("--upload", action="store_true", help="Upload privately after a successful build")
 
     pl = sub.add_parser("long", help="Create a long-form video")
     pl.add_argument("topic", nargs="?", default="How the World Works")
     pl.add_argument("--category", default="auto", help="Documentary category; use auto to infer from any topic")
-    pl.add_argument("--language", default="english")
+    pl.add_argument("--language", default="english", choices=["english", "hindi", "hinglish"])
+    pl.add_argument("--subtitle-language", default=None, choices=["english", "hindi", "hinglish", "source"],
+                    help="Burned-in caption language (default: SUBTITLE_LANGUAGE or english)")
     pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     pl.add_argument("--minutes", type=int, choices=range(10, 16), default=12, help="Target runtime in minutes (10-15)")
     pl.add_argument("--demo", action="store_true")
+    pl.add_argument("--force", action="store_true", help="Build even if this topic was already produced")
+    pl.add_argument("--upload", action="store_true", help="Upload privately after a successful build")
 
-    pu = sub.add_parser("upload", help="Upload a built video to YouTube")
+    pu = sub.add_parser("upload", help="Upload a built video to YouTube (private)")
     pu.add_argument("--id", type=int, required=True)
+    pu.add_argument("--dry-run", action="store_true", help="Run the release gate and show metadata only")
 
+    pr = sub.add_parser("resume", help="Continue a failed or interrupted job from its checkpoints")
+    pr.add_argument("--id", type=int, required=True)
+    pr.add_argument("--voice-gender", choices=["male", "female"], default="male")
+
+    pt = sub.add_parser("status", help="Show stage-by-stage progress of a job")
+    pt.add_argument("--id", type=int, required=True)
+
+    sub.add_parser("doctor", help="Check tools, fonts, providers, database and credentials")
     sub.add_parser("list", help="List all videos")
 
     pd = sub.add_parser("demo", help="Build a demo video without any API keys")
@@ -188,6 +286,9 @@ def main():
     if args.cmd == "shorts": cmd_shorts(args)
     elif args.cmd == "long": cmd_long(args)
     elif args.cmd == "upload": cmd_upload(args)
+    elif args.cmd == "resume": cmd_resume(args)
+    elif args.cmd == "status": cmd_status(args)
+    elif args.cmd == "doctor": cmd_doctor(args)
     elif args.cmd == "list": cmd_list(args)
     elif args.cmd == "demo":
         class A: topic="demo"; category="finance"; language="english"; voice_gender="male"; demo=True

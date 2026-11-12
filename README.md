@@ -2,6 +2,23 @@
 
 Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-form videos (16:9)**. It generates scripts with Gemini, creates visuals, synthesizes narration with Chatterbox (with Edge TTS fallback when selected), renders videos with FFmpeg, and can upload them to YouTube.
 
+## Operations quick reference
+
+Architecture, safety rules and recovery steps: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Current status and what still needs a live check: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
+
+```bash
+python run.py doctor                      # check tools, fonts, database, providers, credentials
+python run.py status --id 12              # stage-by-stage progress of a job
+python run.py resume --id 12              # continue a failed job from its checkpoints
+python run.py upload --id 12 --dry-run    # run the release gate without uploading
+python scripts/run_daily_news_short.py    # autonomous, source-gated news Short
+```
+
+Uploads are always **private** and unscheduled, go only to the configured channel
+(`YT_CHANNEL_ID` / `YT_CHANNEL_HANDLE`), and are refused for duplicate subjects or
+failed quality checks. Making a video public is a confirmed action in the dashboard.
+
 ## Features
 
 - Create Shorts and long-form videos from a topic.

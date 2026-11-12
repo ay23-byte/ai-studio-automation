@@ -205,10 +205,8 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
     raise GeminiRequestError(model, f"Gemini request failed for {model}.", retryable=True)
 
 
-def _ask_gemini(prompt: str) -> str:
-    if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not set. Add it to GitHub Actions secrets.")
-
+def _ask_gemini_models(prompt: str) -> str:
+    """Try every configured Gemini model, then models discovered for this key."""
     models = []
     for model in [GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]:
         model = str(model or "").strip()
@@ -218,7 +216,11 @@ def _ask_gemini(prompt: str) -> str:
         raise RuntimeError("No Gemini model is configured. Set GEMINI_MODEL.")
 
     failures = []
-    for index, model in enumerate(models):
+    not_found = 0
+    index = 0
+    discovery_done = False
+    while index < len(models):
+        model = models[index]
         try:
             print(f"Requesting script from Gemini model: {model}")
             return _ask_model(prompt, model, attempts=2)
@@ -228,13 +230,27 @@ def _ask_gemini(prompt: str) -> str:
             # API project, or not exposed to this account. Try the next configured
             # model instead of aborting the entire script-generation workflow.
             if exc.status_code == 404:
+                not_found += 1
                 if index < len(models) - 1:
                     print(f"Model {model} is not available (HTTP 404). Skipping to next fallback.")
-                continue
-            if not exc.retryable:
+            elif not exc.retryable:
                 raise RuntimeError(str(exc)) from exc
-            if index < len(models) - 1:
+            elif index < len(models) - 1:
                 print(f"Model {model} is temporarily unavailable. Trying next fallback.")
+        index += 1
+        # Every configured ID was rejected as unknown: model names are stale.
+        # Ask the API which text models this key can actually use (once).
+        if index == len(models) and not discovery_done and not_found == len(models):
+            discovery_done = True
+            import os
+            if os.getenv("GEMINI_AUTO_DISCOVER_MODELS", "1").strip().lower() in {"1", "true", "yes"}:
+                from core.llm import discover_gemini_models
+                discovered = [m for m in discover_gemini_models(GEMINI_API_KEY) if m not in models][:3]
+                if discovered:
+                    print("Configured Gemini model IDs are unavailable; trying models listed "
+                          "for this API key: " + ", ".join(discovered)
+                          + ". Update GEMINI_MODEL/GEMINI_FALLBACK_MODELS to make this permanent.")
+                    models.extend(discovered)
 
     details = "\n".join(f"- {item}" for item in failures)
     raise RuntimeError(
@@ -243,6 +259,34 @@ def _ask_gemini(prompt: str) -> str:
         "If this continues, check Google AI Studio service status and API quota.\n"
         + details
     )
+
+
+def _ask_gemini(prompt: str) -> str:
+    """Generate text: Gemini first, then any configured free-tier fallback."""
+    from core import llm
+    gemini_error = None
+    if GEMINI_API_KEY:
+        try:
+            return _ask_gemini_models(prompt)
+        except RuntimeError as exc:
+            gemini_error = exc
+    providers = llm.configured_providers()
+    if not providers:
+        if gemini_error is not None:
+            raise gemini_error
+        raise RuntimeError(
+            "GEMINI_API_KEY is not set. Add it to GitHub Actions secrets, or configure a "
+            "fallback text provider (GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, "
+            "MISTRAL_API_KEY, GITHUB_MODELS_TOKEN, OLLAMA_BASE_URL)."
+        )
+    if gemini_error is not None:
+        print("Gemini could not serve this request; switching to fallback text providers: "
+              + llm.redact(str(gemini_error).splitlines()[0]))
+    try:
+        return llm.complete_with_fallbacks(prompt, providers)
+    except llm.LLMError as exc:
+        prefix = (str(gemini_error) + "\n") if gemini_error is not None else ""
+        raise RuntimeError(prefix + llm.redact(exc)) from exc
 
 
 def _parse(text: str) -> dict:
@@ -464,10 +508,29 @@ def generate_shorts_script(topic: str, category: str = "finance",
         topic=topic, category=category, channel_name=channel_name or CHANNEL_NAME,
         language=language_aliases[selected_language])
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
-    script = _parse(_ask_gemini(prompt))
-    script["format"] = "shorts"
-    script["category"] = category
-    return script
+    # Content QA with one corrective regeneration: a truncated, off-language or
+    # over-length script must never reach narration and rendering.
+    from core.content_qa import validate_shorts_script
+    attempts = max(1, int(os.getenv("SHORTS_SCRIPT_ATTEMPTS", "2") or 2))
+    request, last_error = prompt, None
+    for attempt in range(attempts):
+        try:
+            script = _parse(_ask_gemini(request))
+        except ValueError as exc:
+            last_error = str(exc)
+            request = prompt + "\n\nYour previous answer was not valid JSON. Return ONLY the JSON object."
+            continue
+        script["format"] = "shorts"
+        script["category"] = category
+        report = validate_shorts_script(script, selected_language)
+        if report["status"] != "FAIL":
+            script["content_qa"] = report
+            return script
+        last_error = "; ".join(report["issues"])
+        print(f"Shorts script failed content QA (attempt {attempt + 1}/{attempts}): {last_error}")
+        request = (prompt + "\n\nYour previous answer was rejected for these reasons: " + last_error
+                   + ". Fix every one of them and return ONLY the corrected JSON object.")
+    raise ValueError(f"Shorts script failed content QA after {attempts} attempts: {last_error}")
 
 
 def count_longform_narration_words(script: dict) -> int:
@@ -767,27 +830,99 @@ def generate_longform_script(topic: str, category: str = "finance",
         raise last_runtime_error
     raise RuntimeError("Long-form runtime validation ended unexpectedly.")
 
-def generate_seo(script: dict) -> dict:
-    title = script.get("title", "")
-    cat = script.get("category", "")
-    tags = script.get("tags", ["finance", "hinglish", "education"])
-    titles = [
-        f"{title} | {CHANNEL_NAME}",
-        f"{title} - Aasaan Hinglish mein",
-        f"Kya aap jaante ho? {title}",
-        f"{title} | {cat.title()} Explained",
-        f"Samjho {title} | Hindi mein",
-    ]
-    chapters, t = [], 0
-    for sec in script.get("sections", []):
-        chapters.append(f"{t//60:02d}:{t%60:02d} {sec['title']}")
-        t += 120
+_PINNED_COMMENTS = {
+    "english": "Which concept should we explain next? Tell us in the comments 👇",
+    "hinglish": "Agla video kis concept par chahiye? Comment mein batao 👇",
+    "hindi": "कौन सा concept अगले video में समझाएँ? Comment में बताओ 👇",
+}
+
+
+def _detect_language(script: dict, language=None) -> str:
+    if language:
+        return str(language).strip().lower()
+    declared = str(script.get("language") or "").strip().lower()
+    if declared in _PINNED_COMMENTS:
+        return declared
+    text = " ".join(str(script.get(key) or "") for key in ("title", "hook"))
+    for unit in (script.get("scenes") or script.get("sections") or [])[:3]:
+        if isinstance(unit, dict):
+            text += " " + str(unit.get("say") or unit.get("narration") or "")[:300]
+    if re.search(r"[\u0900-\u097F]", text):
+        return "hindi"
+    hinglish_markers = re.findall(
+        r"\b(kya|hai|hain|kaise|kyun|mein|aur|nahi|hota|karo|samjho|aap|paise|ke|ka|ki)\b", text.lower())
+    return "hinglish" if len(hinglish_markers) >= 3 else "english"
+
+
+def generate_seo(script: dict, language=None, chapter_starts=None) -> dict:
+    """Deterministic upload metadata in the video's own language.
+
+    Root causes addressed: titles/comment were hard-coded Hinglish finance
+    phrasing for every topic, tags defaulted to "finance, hinglish", and chapter
+    timestamps were invented (every chapter "120 seconds"), which is false
+    metadata. Chapters are emitted only from measured ``chapter_starts``
+    (seconds) or ``_start`` values recorded on the sections by the renderer.
+    """
+    title = str(script.get("title", "")).strip()
+    cat = str(script.get("category", "") or "").strip()
+    selected = _detect_language(script, language)
+    selected = selected if selected in _PINNED_COMMENTS else "english"
+    raw_tags = script.get("tags") if isinstance(script.get("tags"), list) else []
+    tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
+    if not tags:
+        # Derive tags from the script itself instead of assuming finance.
+        seen = set()
+        for unit in script.get("scenes") or script.get("sections") or []:
+            for keyword in (unit.get("keywords") or []) if isinstance(unit, dict) else []:
+                key = str(keyword).strip().lower()
+                if key and key not in seen and len(key) <= 30:
+                    seen.add(key)
+                    tags.append(str(keyword).strip())
+        tags = tags[:10]
+    extras = [cat, CHANNEL_NAME.lower(), "education", selected if selected != "english" else ""]
+    merged, seen = [], set()
+    for tag in tags + extras:
+        key = str(tag or "").strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            merged.append(str(tag).strip())
+    budget, final_tags = 0, []
+    for tag in merged:  # YouTube allows 500 characters of tags in total
+        if budget + len(tag) + 1 > 480:
+            break
+        final_tags.append(tag)
+        budget += len(tag) + 1
+    category_label = cat.title() if cat and cat.lower() not in {"auto", "general"} else "Explained"
+    titles = {
+        "english": [f"{title} | {CHANNEL_NAME}", f"{title} - Explained Simply",
+                    f"Did you know? {title}", f"{title} | {category_label}"],
+        "hinglish": [f"{title} | {CHANNEL_NAME}", f"{title} - Aasaan Hinglish mein",
+                     f"Kya aap jaante ho? {title}", f"{title} | {category_label}",
+                     f"Samjho {title} | Hindi mein"],
+        "hindi": [f"{title} | {CHANNEL_NAME}", f"{title} - आसान भाषा में",
+                  f"क्या आप जानते हैं? {title}", f"{title} | {category_label}"],
+    }[selected]
+    sections = [sec for sec in script.get("sections", []) if isinstance(sec, dict)]
+    starts = list(chapter_starts) if chapter_starts is not None else [sec.get("_start") for sec in sections]
+    chapters = []
+    if sections and len(starts) == len(sections) and all(isinstance(v, (int, float)) for v in starts):
+        for index, (sec, start) in enumerate(zip(sections, starts)):
+            seconds = 0 if index == 0 else int(round(float(start)))
+            stamp = (f"{seconds // 3600}:{(seconds % 3600) // 60:02d}:{seconds % 60:02d}"
+                     if seconds >= 3600 else f"{seconds // 60:02d}:{seconds % 60:02d}")
+            chapters.append(f"{stamp} {str(sec.get('title') or f'Part {index + 1}').strip()}")
+        # YouTube needs >= 3 chapters, each >= 10 s, starting at 00:00.
+        gaps = [float(b) - float(a) for a, b in zip(starts, starts[1:])]
+        if len(chapters) < 3 or any(gap < 10 for gap in gaps):
+            chapters = []
     return {
-        "titles": titles,
-        "tags": tags + [cat, CHANNEL_NAME.lower(), "education"],
+        "titles": [item[:100] for item in titles],
+        "tags": final_tags,
         "chapters": chapters,
-        "pinned_comment": "कौन सा concept अगले video में समझाएँ? Comment में बताओ 👇",
-        "hashtags": [f"#{t.replace(' ','')}" for t in tags[:5]],
+        "pinned_comment": _PINNED_COMMENTS[selected],
+        "hashtags": ["#" + compact for compact in
+                     (re.sub(r"[^0-9A-Za-z\u0900-\u097F]", "", tag) for tag in final_tags[:5]) if compact],
+        "language": selected,
     }
 
 
