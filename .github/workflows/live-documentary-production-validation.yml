@@ -1,4 +1,4 @@
-name: Live documentary production validation (current main)
+name: '⚙ Internal — Live documentary production validation (current main)'
 
 on:
   push:
