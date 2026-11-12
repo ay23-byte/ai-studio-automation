@@ -1,4 +1,4 @@
-name: Archival documentary production trial
+name: '⚙ Internal — Archival documentary production trial'
 
 on:
   workflow_dispatch:
