@@ -1,4 +1,4 @@
-name: Standard Shorts — review render
+name: '⚙ Internal — Standard Shorts — review render'
 
 on:
   workflow_dispatch:
