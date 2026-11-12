@@ -135,7 +135,7 @@ jobs:
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
       - name: Test narration provider fallback and long-form package adapter
-        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_longform_review_package -v
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_longform_review_package tests.test_upload_documentary_artifact -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
