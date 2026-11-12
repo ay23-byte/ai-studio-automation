@@ -134,7 +134,6 @@ jobs:
             output/daily_news/rendered/review_short.mp4 \
             --report output/daily_news/rendered/qa/technical.json \
             --manifest output/daily_news/rendered/production_manifest.json \
-            --skip-presenter
           test -s output/daily_news/rendered/qa/technical.json
 
       - name: Build shared review package
