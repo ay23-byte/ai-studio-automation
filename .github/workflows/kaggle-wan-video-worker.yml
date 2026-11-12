@@ -153,7 +153,7 @@ jobs:
           notebook_path.write_text(json.dumps(notebook, ensure_ascii=False), encoding="utf-8")
           metadata = {
               "id": f'{os.environ["KAGGLE_USERNAME"]}/{os.environ["KAGGLE_KERNEL_SLUG"]}',
-              "title": "AI Studio Wan2.1 free GPU worker",
+              "title": "kagglefreegpu",
               "code_file": "wan_worker.ipynb",
               "language": "python",
               "kernel_type": "notebook",
