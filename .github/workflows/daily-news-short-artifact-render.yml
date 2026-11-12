@@ -71,8 +71,10 @@ jobs:
           repository: ${{ github.repository }}
           path: input-assets
       - name: Attach artifact assets to the separately approved script
+        env:
+          APPROVED_SCRIPT_PATH: ${{ inputs.approved_script_path }}
         run: |
-          python scripts/attach_daily_news_assets.py --artifact-dir input-assets --approved-script "${{ inputs.approved_script_path }}" --output-script render-input/approved_script.json --asset-output-dir render-input/assets
+          python scripts/attach_daily_news_assets.py --artifact-dir input-assets --approved-script "$APPROVED_SCRIPT_PATH" --output-script render-input/approved_script.json --asset-output-dir render-input/assets
       - name: Validate artifact identity, approval and paths
         env:
           SCRIPT_PATH: ${{ inputs.approved_script_path }}
