@@ -72,7 +72,7 @@ jobs:
         id: draft-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: news-script-draft-issue-${{ github.event.issue.number }}
+          name: news-script-draft-${{ github.run_id }}
           path: |
             output/daily_news/reviewed_story.json
             output/daily_news/shorts_script_draft.json
