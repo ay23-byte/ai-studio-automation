@@ -16,7 +16,7 @@ def pick_voice(language="hindi", gender="male"):
     override = os.getenv("TTS_VOICE", "").strip()
     if override:
         return override
-    if language in {"english", "hinglish"}:
+    if language == "english":
         return VOICE_ENGLISH_FEMALE if gender == "female" else VOICE_ENGLISH
     if gender == "female":
         return VOICE_FEMALE
@@ -172,7 +172,7 @@ def _synth_all_chatterbox(sentences, language, build_dir):
 def _edge_voice_candidates(language, gender):
     """Try the configured voice first, then independent Edge voices."""
     preferred = pick_voice(language, gender)
-    if language in {"english", "hinglish"}:
+    if language == "english":
         fallbacks = ["en-IN-PrabhatNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"]
     elif gender == "female":
         fallbacks = ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"]
