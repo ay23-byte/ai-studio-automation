@@ -200,3 +200,10 @@ class GeminiFallbackModelTests(unittest.TestCase):
   self.assertEqual(
    _gemini_model_candidates('gemini-3.5-flash-lite'),
    ['gemini-3.5-flash-lite','gemini-3.6-flash'])
+
+ def test_reads_configured_fallback_models_from_environment(self):
+  from core.news_shorts_writer import _gemini_model_candidates
+  with patch.dict('os.environ', {'GEMINI_FALLBACK_MODELS':'gemini-3.7-flash, gemini-3.1-flash-lite'}):
+   self.assertEqual(
+    _gemini_model_candidates('gemini-3.8-flash'),
+    ['gemini-3.8-flash','gemini-3.7-flash','gemini-3.1-flash-lite'])

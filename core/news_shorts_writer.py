@@ -184,10 +184,21 @@ def _post_gemini_with_retries(url, key, payload, *, attempts=3):
 
 
  
-def _gemini_model_candidates(configured_model):
-    """Return ordered, de-duplicated models for resilient generation."""
-    ordered = [configured_model, 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
-    return list(dict.fromkeys(model.strip() for model in ordered if model and model.strip()))
+def _gemini_model_candidates(configured_model, fallback_models=None):
+    """Return configured Gemini candidates in priority order, without duplicates.
+
+    GEMINI_FALLBACK_MODELS is a comma-separated list so GitHub Actions and local
+    runs can select currently available models without a code change.
+    """
+    if fallback_models is None:
+        fallback_models = os.getenv(
+            'GEMINI_FALLBACK_MODELS',
+            'gemini-3.6-flash,gemini-3.5-flash-lite',
+        ).split(',')
+    ordered = [configured_model, *fallback_models]
+    return list(dict.fromkeys(
+        str(model).strip() for model in ordered if model and str(model).strip()
+    ))
 
 
 def _build_correction_prompt(prompt, error):
