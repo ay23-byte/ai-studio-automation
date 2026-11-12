@@ -75,7 +75,7 @@ jobs:
         run: |
           python -m scripts.draft_reviewed_news_short \
             output/daily_news/reviewed_story.json \
-            --output output/daily_news/shorts_script_draft.json \\
+            --output output/daily_news/shorts_script_draft.json \
             --language "$SCRIPT_LANGUAGE"
 
       - name: Upload script draft for human review
