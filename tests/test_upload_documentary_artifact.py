@@ -21,6 +21,7 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
         for name, value in payloads.items():
             (root / name).write_text(json.dumps(value), encoding="utf-8")
         (root / "credits.txt").write_text("Documentary source credits\\nTest credit\\n", encoding="utf-8")
+        (root / "credits.txt").write_text("Documentary source credits\\nTest credit\\n", encoding="utf-8")
         with (root / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
             writer.writeheader()
