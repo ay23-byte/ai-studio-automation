@@ -21,6 +21,11 @@ def _text(node, path, default=''):
     child = node.find(path)
     return (child.text or '').strip() if child is not None else default
 
+def _plain(html):
+    """RSS descriptions are HTML fragments; keep readable text only."""
+    import html as _html, re as _re
+    return _re.sub(r'\s+', ' ', _html.unescape(_re.sub(r'<[^>]+>', ' ', html or ''))).strip()
+
 def _item_id(url):
     return hashlib.sha256(url.strip().encode('utf-8')).hexdigest()[:20]
 
@@ -33,8 +38,14 @@ def collect_feed(url, timeout=20):
     for node in root.findall('.//item'):
         link, title = _text(node, 'link'), _text(node, 'title')
         if not link or not title: continue
+        # Aggregator feeds link to a redirect; the real publisher is the
+        # <source url="..."> attribute. Keep it so source tiers can be checked.
+        source_node = node.find('source')
+        publisher_url = (source_node.attrib.get('url', '') if source_node is not None else '').strip()
         rows.append({'id': _item_id(link), 'title': title[:300], 'url': link,
                      'publisher': (_text(node, 'source') or urlparse(url).netloc)[:120],
+                     'publisher_url': publisher_url[:300],
+                     'summary': _plain(_text(node, 'description'))[:600],
                      'published': _text(node, 'pubDate'), 'discovery_feed': url})
     ns = {'a': 'http://www.w3.org/2005/Atom'}
     for node in root.findall('.//a:entry', ns):

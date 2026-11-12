@@ -33,8 +33,26 @@ def _loudnorm_data(log: str) -> dict[str, Any]:
 
 
 def _clipped_samples(log: str) -> int | None:
+    """Count of full-scale samples reported by ``astats``; ``None`` when unknown.
+
+    FFmpeg's ``astats`` does not print an out-of-range counter, so the old
+    pattern never matched and every documentary carried a "could not be
+    completed" warning.  The Overall block is used instead: samples sitting at
+    full scale (peak at 0 dBFS) are the ones that clipped.
+    """
     match = re.search(r"Number of samples out of range:\s*(\d+)", log, flags=re.IGNORECASE)
-    return int(match.group(1)) if match else None
+    if match:
+        return int(match.group(1))
+    overall = log.rsplit("Overall", 1)[-1] if "Overall" in log else ""
+    peak = re.search(r"Peak level dB:\s*(-?inf|-?[\d.]+)", overall, flags=re.IGNORECASE)
+    if not peak:
+        return None
+    if peak.group(1).lower().endswith("inf"):
+        return 0
+    if float(peak.group(1)) < -0.01:
+        return 0
+    count = re.search(r"Peak count:\s*([\d.]+)", overall, flags=re.IGNORECASE)
+    return max(1, int(float(count.group(1)))) if count else 1
 
 
 def _silence_intervals(log: str) -> list[dict[str, float]]:
@@ -49,8 +67,13 @@ def _silence_intervals(log: str) -> list[dict[str, float]]:
 
 
 def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
-                  true_peak_target: float = -1.5, lra_target: float = 11.0) -> dict[str, Any]:
-    """Measure integrated loudness, true peak, clipped samples and long silences."""
+                  true_peak_target: float = -1.5, lra_target: float = 11.0,
+                  body_seconds: float | None = None) -> dict[str, Any]:
+    """Measure integrated loudness, true peak, clipped samples and long silences.
+
+    ``body_seconds`` is the programme length before a silent credit slate; silence
+    that begins there is the slate, not a gap in the narration.
+    """
     path = Path(video_path)
     if not path.is_file():
         raise FileNotFoundError(f"Audio source video not found: {path}")
@@ -83,6 +106,8 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
     ], capture_output=True, text=True, check=False, timeout=600)
     silence_log = (silence.stderr or "") + (silence.stdout or "")
     intervals = _silence_intervals(silence_log)
+    if body_seconds and float(body_seconds) > 0:
+        intervals = [item for item in intervals if item["start"] < float(body_seconds) - 0.5]
 
     integrated = loudness.get("input_i")
     true_peak = loudness.get("input_tp")

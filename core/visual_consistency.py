@@ -19,7 +19,8 @@ def _frame_metrics(path: str | Path) -> dict[str, Any]:
         width, height = source.size
         image = source.convert("RGB")
         image.thumbnail((160, 90))
-        pixels = list(image.getdata())
+        raw = image.tobytes()  # RGB triples (Image.getdata is removed in Pillow 14)
+        pixels = [(raw[i], raw[i + 1], raw[i + 2]) for i in range(0, len(raw), 3)]
         count = max(len(pixels), 1)
         luminance = [0.2126 * r + 0.7152 * g + 0.0722 * b for r, g, b in pixels]
         brightness = sum(luminance) / count

@@ -74,12 +74,14 @@ jobs:
               if not isinstance(scene, dict) or not str(scene.get("say") or "").strip():
                   raise SystemExit(f"Scene {i} needs a non-empty say field")
           Path("render-input/shorts_script.json").write_text(
-              json.dumps(value, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+              json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
           )
           PY
 
       - name: Render standard Short for review
         env:
+          INPUT_LANGUAGE: ${{ inputs.language }}
+          INPUT_VOICE_GENDER: ${{ inputs.voice_gender }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
           NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
@@ -91,8 +93,8 @@ jobs:
         run: |
           python scripts/render_standard_short_review.py \
             --script render-input/shorts_script.json \
-            --language "${{ inputs.language }}" \
-            --voice-gender "${{ inputs.voice_gender }}" \
+            --language "$INPUT_LANGUAGE" \
+            --voice-gender "$INPUT_VOICE_GENDER" \
             --output-dir output/standard_shorts
 
       - name: Verify review MP4

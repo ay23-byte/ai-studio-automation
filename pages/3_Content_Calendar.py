@@ -100,11 +100,16 @@ for item in planned:
 st.divider()
 st.subheader("Apply saved schedules to YouTube")
 st.warning("This action changes YouTube visibility scheduling. Only approved, already-uploaded videos with a saved future slot are eligible. Drafts and unuploaded jobs remain in the calendar.")
-if st.button("🚀 Schedule all eligible videos on YouTube", type="primary"):
+bulk_confirmed = st.checkbox(
+    "I have reviewed every eligible video and authorise making them PUBLIC at their saved times.",
+    key="confirm_bulk_public")
+if st.button("🚀 Schedule all eligible videos on YouTube", type="primary", disabled=not bulk_confirmed):
     try:
+        from functools import partial
         from core.uploader import schedule_video
+        # The checkbox above is the explicit human authorisation the uploader requires.
         results = apply_planned_schedules(
-            rows, schedule_video, update_video,
+            rows, partial(schedule_video, authorized=True), update_video,
             now=datetime.now(timezone.utc))
         if not results:
             st.info("No approved, uploaded videos are ready to schedule.")

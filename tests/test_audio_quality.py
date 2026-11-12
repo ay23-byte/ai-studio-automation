@@ -33,6 +33,12 @@ class AudioQualityTests(unittest.TestCase):
     def test_parsers_read_loudness_clipping_and_silence(self):
         self.assertEqual(_loudnorm_data(self._loud_log())["input_i"], -16.2)
         self.assertEqual(_clipped_samples("Number of samples out of range: 4"), 4)
+        # Real astats output has no such counter; the Overall peak decides.
+        clean = "[Parsed_astats_0] Channel: 1\nPeak level dB: 0.000000\n[Parsed_astats_0] Overall\nPeak level dB: -4.091496\nPeak count: 2.000000\n"
+        clipped = "[Parsed_astats_0] Overall\nPeak level dB: 0.000000\nPeak count: 37.000000\n"
+        self.assertEqual(_clipped_samples(clean), 0)
+        self.assertEqual(_clipped_samples(clipped), 37)
+        self.assertIsNone(_clipped_samples("no statistics here"))
         intervals = _silence_intervals("silence_start: 1.0\nsilence_end: 5.5 | silence_duration: 4.5")
         self.assertEqual(intervals[0]["duration"], 4.5)
 

@@ -26,6 +26,15 @@ assets/clips/*
 db/*.sqlite
 db/*.sqlite3
 db/*.db
+db/*.sqlite-wal
+db/*.sqlite-shm
+db/backups/
+
+# Automation state (duplicate ledger, news cache). Persisted on the
+# `automation-state` branch by scripts/persist_state.py, never on main.
+state/
+topics.json.lock
+topics.json.tmp
 
 # Logs and OS/editor files
 *.log

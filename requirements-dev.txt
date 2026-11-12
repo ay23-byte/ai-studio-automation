@@ -1,0 +1,3 @@
+# Test and lint tooling: pip install -r requirements-ci.txt -r requirements-dev.txt
+pytest>=7.4
+PyYAML>=6.0

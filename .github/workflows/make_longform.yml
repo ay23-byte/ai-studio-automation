@@ -183,12 +183,23 @@ jobs:
           LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
           VISUAL_SEMANTIC_MAX_SHOTS: "40"
+          # Inputs are passed through the environment, never interpolated into
+          # the shell script, so a topic containing quotes or $(...) cannot run code.
+          INPUT_TOPIC: ${{ inputs.topic }}
+          INPUT_CATEGORY: ${{ inputs.category }}
+          INPUT_MINUTES: ${{ inputs.minutes }}
+          INPUT_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          INPUT_VOICE_GENDER: ${{ inputs.voice_gender }}
+        shell: bash
         run: |
-          python run.py long "${{ inputs.topic }}" \
-            --category "${{ inputs.category }}" \
-            --minutes ${{ inputs.minutes }} \
-            --language "${{ inputs.language || 'hinglish' }}" \
-            --voice-gender "${{ inputs.voice_gender }}"
+          set -euo pipefail
+          [[ "$INPUT_MINUTES" =~ ^1[0-5]$ ]] || { echo "::error::minutes must be between 10 and 15."; exit 1; }
+          python run.py long "$INPUT_TOPIC" \
+            --category "$INPUT_CATEGORY" \
+            --minutes "$INPUT_MINUTES" \
+            --language "$INPUT_LANGUAGE" \
+            --voice-gender "$INPUT_VOICE_GENDER" \
+            --force
 
       - name: Assemble shared long-form review package
         if: success()
@@ -205,9 +216,9 @@ jobs:
           [[ "$JOB_ID" =~ ^[0-9]+$ ]] || { echo "::error::Invalid documentary job directory: $JOB_NAME"; exit 1; }
           VIDEO="output/longform_${JOB_ID}.mp4"
           test -s "$VIDEO" || { echo "::error::Final documentary MP4 is missing: $VIDEO"; exit 1; }
-          python scripts/package_longform_review.py \\
-            --build-dir "${JOB_DIRS[0]}" \\
-            --video "$VIDEO" \\
+          python scripts/package_longform_review.py \
+            --build-dir "${JOB_DIRS[0]}" \
+            --video "$VIDEO" \
             --output-dir "${JOB_DIRS[0]}/shared_review_package"
 
       - name: Run automated release checks and upload documentary to YouTube (Private)
@@ -220,8 +231,8 @@ jobs:
           PRIVACY: "private"
           PUBLISH_AT_IST: ""
         run: |
-          python scripts/upload_documentary_artifact.py \\
-            --artifact-dir . \\
+          python scripts/upload_documentary_artifact.py \
+            --artifact-dir . \
             --source-run-id "$GITHUB_RUN_ID"
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted

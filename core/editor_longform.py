@@ -1,11 +1,16 @@
-import subprocess
+import hashlib, json, os, shutil, subprocess, tempfile
 from pathlib import Path
+
+from core import ffmpeg_utils
+from core.render_join import reduce_segments, video_chain
 
 W, H = 1920, 1080
 FADE = 0.4
 ENC = ["-c:v","libx264","-preset","slow","-crf","18","-profile:v","high",
        "-level","4.1","-pix_fmt","yuv420p","-r","30","-video_track_timescale","15360"]
 TRANSITIONS = ["fade", "smoothleft", "fade", "circlecrop", "fade", "wipeleft"]
+# Normalise full-range ("yuvj420p") stills/footage to broadcast range first.
+RANGE = "scale=out_range=tv,format=yuv420p,"
 # Keep documentary transitions restrained; reserve directional wipes for chapter changes.
 TRANSITION_BY_TYPE = {
     "chart": "fade", "timeline": "fade", "document": "fade",
@@ -42,7 +47,7 @@ def _video_motion_expressions(index):
     return x, y
 
 
-def _run(cmd): subprocess.run(cmd, check=True)
+def _run(cmd): ffmpeg_utils.run(cmd)
 
 
 def _audio_master_filter():
@@ -71,7 +76,7 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
         pos = f"x='{x}':y='{y}'"
         from core.visual_consistency import color_grade_filter
         grade = color_grade_filter()
-        vf = (f"scale={W*2}:{H*2}:force_original_aspect_ratio=increase:flags=lanczos,"
+        vf = (f"{RANGE}scale={W*2}:{H*2}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W*2}:{H*2},zoompan=z='{z}':{pos}:d=1:s={W}x{H}:fps=30,"
               f"{grade},format=yuv420p")
         _run(["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30",
@@ -83,7 +88,7 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
         # prevents empty edges while the crop travels gently across the frame.
         from core.cinematic_motion import video_crop_expressions
         x_motion, y_motion = video_crop_expressions((shot or {}).get("cinema_settings"), idx, dur, 128, 72)
-        vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
+        vf = (f"{RANGE}scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W}:{H},scale=2048:1152:flags=lanczos,"
               f"crop={W}:{H}:x='{x_motion}':y='{y_motion}',"
               f"fps=30,setsar=1,{grade},format=yuv420p")
@@ -136,7 +141,7 @@ def _append_credits_card(video_path, credits_path):
         "-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}",
         "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}",
         "-filter_complex",
-        f"[1:v]subtitles='{ass_path.as_posix()}',format=yuv420p,setpts=PTS-STARTPTS[cv];"
+        f"[1:v]{ffmpeg_utils.subtitles_filter(ass_path)},format=yuv420p,setpts=PTS-STARTPTS[cv];"
         "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=44100,asetpts=PTS-STARTPTS[a0];"
         "[2:a]asetpts=PTS-STARTPTS[ca];[v0][a0][cv][ca]concat=n=2:v=1:a=1[v][a]",
         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium",
@@ -150,35 +155,88 @@ def _append_credits_card(video_path, credits_path):
             temp_out.replace(video_path)
     finally:
         temp_out.unlink(missing_ok=True)
+        ass_path.unlink(missing_ok=True)  # scratch file; never leave it beside deliverables
     return video_path
 
-def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits_path=None):
-    T = total + 1.5; bd = out.parent
+def _segment_key(src, dur, is_image, shot):
+    """Fingerprint of everything that determines a rendered segment."""
+    try:
+        stat = Path(src).stat()
+        identity = [str(Path(src).resolve()), stat.st_size, int(stat.st_mtime)]
+    except OSError:
+        identity = [str(src), 0, 0]
+    from core.visual_consistency import color_grade_filter
+    payload = [identity, round(float(dur), 3), bool(is_image),
+               (shot or {}).get("cinema_settings") or {}, color_grade_filter(), W, H, ENC]
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def _cached_seg(src, idx, dur, is_image, bd, shot=None, reuse=False):
+    """Render one segment, reusing an intact identical one from an earlier attempt."""
+    out = bd / f"lseg{idx}.mp4"
+    key_path = bd / f"lseg{idx}.key"
+    key = _segment_key(src, dur, is_image, shot)
+    if reuse and out.is_file() and out.stat().st_size > 0 and key_path.is_file():
+        try:
+            if key_path.read_text(encoding="utf-8").strip() == key:
+                return out
+        except OSError:
+            pass
+    key_path.unlink(missing_ok=True)
+    result = _seg(src, idx, dur, is_image, bd, shot)
+    key_path.write_text(key, encoding="utf-8")
+    return result
+
+
+def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits_path=None,
+           work_dir=None):
+    """Render a documentary.
+
+    Intermediate segments go to ``work_dir`` (a private temporary directory by
+    default). When the caller supplies a persistent ``work_dir``, segments
+    already rendered by an interrupted attempt are reused, so a crash near the
+    end of a long render no longer repeats hours of encoding. The final MP4 is
+    moved into place only after a complete, successful render.
+    """
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    owns_work_dir = work_dir is None
+    bd = Path(tempfile.mkdtemp(prefix=f".{out.stem}_work_", dir=str(out.parent))) if owns_work_dir \
+        else Path(work_dir)
+    bd.mkdir(parents=True, exist_ok=True)
+    partial = out.with_name(f".{out.stem}.partial{out.suffix or '.mp4'}")
+    try:
+        _render(sections, voice, ass, total, partial, bd, music, music_vol, credits_path,
+                reuse=not owns_work_dir)
+        if not partial.is_file() or partial.stat().st_size == 0:
+            raise RuntimeError("FFmpeg finished without producing a documentary video.")
+        os.replace(partial, out)
+    finally:
+        partial.unlink(missing_ok=True)
+        if owns_work_dir and os.getenv("KEEP_RENDER_WORK", "").strip().lower() not in {"1", "true", "yes"}:
+            shutil.rmtree(bd, ignore_errors=True)
+    return out
+
+
+def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path, reuse=False):
+    T = total + 1.5
     valid = []
     for i, sec in enumerate(sections):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
         if src and src.exists():
             d = sec.get("_dur",10.0)+FADE
-            valid.append((i, _seg(src, i, d, m.get("type")=="image", bd, sec), sec.get("_dur",10.0), sec))
+            valid.append((i, _cached_seg(src, i, d, m.get("type")=="image", bd, sec, reuse=reuse),
+                          sec.get("_dur",10.0), sec))
     if not valid: raise RuntimeError("No visual segments")
-    if len(valid)==1:
-        _, p, _, _shot = valid[0]
-        filt = f"subtitles={ass}[vout];"; inputs=["-i",str(p),"-i",str(voice)]
-    else:
-        offsets, acc = [], 0.0
-        for j in range(len(valid)-1):
-            acc += valid[j][2]; offsets.append(acc)
-        chain, prev = [], "[0:v]"
-        for k, (off, (_, p2, _, current_shot)) in enumerate(zip(offsets, valid[1:])):
-            lab = f"[x{k}]"
-            previous_shot = valid[k][3]
-            tr = _transition_for(previous_shot, current_shot, k)
-            chain.append(f"{prev}[{k+1}:v]xfade=transition={tr}:duration={FADE}:offset={off:.3f}{lab}")
-            prev = lab
-        filt = ";".join(chain+[f"{prev}subtitles={ass}[vout]"])+";"
-        inputs = []
-        for _, p2, _, _shot in valid: inputs += ["-i",str(p2)]
-        inputs += ["-i",str(voice)]
+    transitions = [_transition_for(valid[k][3], valid[k+1][3], k) for k in range(len(valid)-1)]
+    parts, joined_durations, transitions = reduce_segments(
+        [item[1] for item in valid], [item[2] for item in valid], transitions, FADE, bd)
+    filt = video_chain(joined_durations, transitions, FADE, "vjoin") \
+        + f";[vjoin]{ffmpeg_utils.subtitles_filter(ass)}[vout];"
+    inputs = []
+    for p2 in parts: inputs += ["-i",str(p2)]
+    inputs += ["-i",str(voice)]
+    valid = parts
     n = len(valid); norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
     afilt = [f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va]"]
     mix_in = ["[va]"]; idx = n+1

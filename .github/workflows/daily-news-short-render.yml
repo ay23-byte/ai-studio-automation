@@ -114,7 +114,7 @@ jobs:
           script["voice_gender"] = os.environ["VOICE_GENDER"]
           Path("render-input/approved_script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY
-          cp "${{ inputs.approval_path }}" render-input/render_approval.json
+          cp -- "$APPROVAL_PATH" render-input/render_approval.json
 
       - name: Render approved news Short (review copy only)
         env:

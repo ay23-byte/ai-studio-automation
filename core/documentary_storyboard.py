@@ -42,8 +42,14 @@ def infer_visual_type(beat: dict) -> str:
     text = " ".join(str(beat.get(key) or "") for key in
                    ("visual_prompt", "prompt", "description", "subject", "keywords"))
     lowered = text.lower()
-    for kind, terms in VISUAL_TYPES.items():
-        if any(term in lowered for term in terms):
+    # Whole-word matching: "graph" must not match inside "photograph", nor
+    # "map" inside "roadmap". Archival evidence wins over presentation styles.
+    def mentions(term):
+        return re.search(rf"(?<![a-z0-9]){re.escape(term)}(?:s|es)?(?![a-z0-9])", lowered) is not None
+
+    ordered = sorted(VISUAL_TYPES.items(), key=lambda item: item[0] != "archival")
+    for kind, terms in ordered:
+        if any(mentions(term) for term in terms):
             return kind
     return "stock"
 
