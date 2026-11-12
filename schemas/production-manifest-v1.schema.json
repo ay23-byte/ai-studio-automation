@@ -83,7 +83,8 @@
                       "enum": [
                         "source",
                         "ai_generated",
-                        "user_provided"
+                        "user_provided",
+                        "unknown"
                       ]
                     },
                     "provider": {
