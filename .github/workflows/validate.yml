@@ -7,9 +7,16 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same pull request supersedes the older validation run.
+# Runs on main are never cancelled, so every merged commit is fully validated.
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,8 +35,38 @@ jobs:
       - name: Verify the tracked database was not modified by tests
         run: git diff --exit-code -- db/studio.sqlite
 
+  # The scheduled news-collection workflow installs only requests + Pillow.
+  # Run 43305710825 failed there because a module imported an optional voice
+  # provider at import time. This job reproduces that exact environment on every
+  # pull request, so the next such import is caught before it reaches a schedule.
+  news-collect-minimal-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install exactly what daily-news-shorts.yml installs
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests Pillow
+          python -m pip check
+      - name: Optional providers must be absent in this job
+        run: |
+          python - <<'PY'
+          import importlib.util
+          present = [name for name in ("edge_tts", "googleapiclient", "pandas") if importlib.util.find_spec(name)]
+          raise SystemExit(f"unexpected packages installed: {present}" if present else 0)
+          PY
+      - name: Compile news modules
+        run: python -m compileall -q core scripts
+      - name: Run the news test suite without optional providers
+        run: python -m unittest discover -s tests -p 'test_*news*.py' -v
+
   ffmpeg-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Check for FFmpeg and FFprobe

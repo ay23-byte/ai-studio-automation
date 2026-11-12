@@ -61,6 +61,28 @@ def run_health_check() -> dict:
     add("stock footage key", "PASS" if cfg.PIXABAY_API_KEY else "WARN",
         "PIXABAY_API_KEY set" if cfg.PIXABAY_API_KEY else "PIXABAY_API_KEY missing; relying on public archives and generated images",
         "Create a free Pixabay API key.")
+    try:
+        from core import gemini as gemini_policy
+        bad_models = gemini_policy.invalid_model_ids(cfg.GEMINI_MODEL, cfg.GEMINI_FALLBACK_MODELS)
+        chain = gemini_policy.model_chain(cfg.GEMINI_MODEL, cfg.GEMINI_FALLBACK_MODELS, strict=False)
+        add("Gemini model configuration", "FAIL" if bad_models else "PASS",
+            ("invalid model id(s): " + ", ".join(bad_models)) if bad_models
+            else "primary " + chain[0] + (", fallbacks " + ", ".join(chain[1:]) if chain[1:] else ", no fallback model"),
+            "Fix GEMINI_MODEL / GEMINI_FALLBACK_MODELS (comma-separated plain model ids).")
+    except Exception as exc:
+        add("Gemini model configuration", "FAIL", f"{type(exc).__name__}: {exc}",
+            "Set GEMINI_MODEL to a valid model id.")
+    try:
+        from core import voice
+        narration = voice.provider_status()
+        usable = narration["edge"] or narration["espeak-ng"] or narration["chatterbox"]
+        add("narration provider", "PASS" if narration["edge"] else ("WARN" if usable else "FAIL"),
+            "edge-tts installed" if narration["edge"]
+            else ("edge-tts not installed; only the offline fallback voice is available" if usable
+                  else "no narration provider installed (edge-tts, espeak-ng)"),
+            "pip install edge-tts (included in requirements.txt and requirements-ci.txt).")
+    except Exception as exc:
+        add("narration provider", "FAIL", f"{type(exc).__name__}: {exc}", "pip install edge-tts.")
     add("offline voice fallback", "PASS" if shutil.which("espeak-ng") else "WARN",
         shutil.which("espeak-ng") or "espeak-ng not installed; narration needs Edge TTS to be reachable",
         "Install espeak-ng.")

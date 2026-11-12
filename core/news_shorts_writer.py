@@ -1,5 +1,6 @@
 """Generate a short Hinglish news script only from a human-reviewed evidence packet."""
 import json, os, re, time, requests
+from core import gemini as gemini_policy
 from core.news_source_verification import verify_packet
 
 def _normalize_spoken_hand_definitions(script):
@@ -120,17 +121,16 @@ def _validate_scientific_wording(script):
 
 
 def _gemini_retry_delay(response, attempt):
-    """Use Google's Retry-After hint when present, otherwise exponential backoff."""
-    delays = (10, 30, 60)
-    fallback = delays[min(attempt, len(delays) - 1)]
-    raw = getattr(response, 'headers', {}).get('Retry-After') if response is not None else None
-    if raw:
-        try:
-            # Retry-After is normally a number of seconds for API throttling.
-            return max(1, min(60, int(float(raw))))
-        except (TypeError, ValueError):
-            pass
-    return fallback
+    """Bounded wait before the next attempt on the same model.
+
+    Honours Retry-After (seconds or HTTP-date, clamped to 60 s), otherwise waits
+    10/30/60 s.  Up to one second of jitter is added so that scheduled runs which
+    hit the same outage do not all retry at the same instant.
+    """
+    headers = getattr(response, 'headers', None) if response is not None else None
+    raw = headers.get('Retry-After') if hasattr(headers, 'get') else None
+    return gemini_policy.backoff_delay(
+        attempt, retry_after=raw, schedule=(10, 30, 60), cap=60, jitter=1.0)
 
 
 def _gemini_error_detail(response):
@@ -160,6 +160,11 @@ def _post_gemini_with_retries(url, key, payload, *, attempts=3):
             response = requests.post(
                 url, headers={'x-goog-api-key': key}, json=payload, timeout=(10, 45))
             last_response = response
+            if gemini_policy.classify(response.status_code, getattr(response, 'text', '')) == gemini_policy.AUTH:
+                # A rejected key fails the same way on every attempt and every
+                # model.  Stop at once with the action the operator must take.
+                raise gemini_policy.GeminiCredentialError(
+                    gemini_policy.describe(gemini_policy.AUTH) + f' (HTTP {response.status_code})')
             if response.status_code in retryable_statuses:
                 detail = _gemini_error_detail(response)
                 last_error = requests.HTTPError(
@@ -189,17 +194,11 @@ def _gemini_model_candidates(configured_model, fallback_models=None):
     """Return configured Gemini candidates in priority order, without duplicates.
 
     GEMINI_FALLBACK_MODELS is a comma-separated list so GitHub Actions and local
-    runs can select currently available models without a code change.
+    runs can select currently available models without a code change.  When it is
+    not set, the shared default chain in ``core.gemini`` is used (this module no
+    longer keeps its own, shorter list).  Invalid ids raise a clear config error.
     """
-    if fallback_models is None:
-        fallback_models = os.getenv(
-            'GEMINI_FALLBACK_MODELS',
-            'gemini-3.6-flash,gemini-3.5-flash-lite',
-        ).split(',')
-    ordered = [configured_model, *fallback_models]
-    return list(dict.fromkeys(
-        str(model).strip() for model in ordered if model and str(model).strip()
-    ))
+    return gemini_policy.model_chain(configured_model, fallback_models)
 
 
 def _build_correction_prompt(prompt, error):
@@ -321,11 +320,13 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
 - State clearly that modelled potential exposure is not a flood forecast. Use numeric figures in captions so editors can verify them quickly.
 """
     prompt += "\nREVIEWED PACKET:\n" + json.dumps(packet, ensure_ascii=False)
-    model=os.getenv('GEMINI_MODEL','gemini-3.8-flash')
+    model = os.getenv('GEMINI_MODEL', '').strip() or gemini_policy.DEFAULT_MODEL
     # Retry the configured model once through a second supported Flash model.
     # A second generation attempt also repairs validator feedback (for example,
     # a spoken HAND reference that omits the nearest-drainage definition).
     model_candidates = _gemini_model_candidates(model)
+    clock = gemini_policy.Stopwatch()
+    attempted_models, model_failures, model_used = [], [], None
     payload = {'contents': [{'parts': [{'text': prompt}]}],
                'generationConfig': {'responseMimeType': 'application/json',
                                     'temperature': 0.3}}
@@ -333,27 +334,51 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
     last_error = None
     for draft_attempt in range(3):
         response = None
-        for candidate_model in model_candidates:
+        for candidate_model in list(model_candidates):
             url = f'https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent'
+            if candidate_model not in attempted_models:
+                attempted_models.append(candidate_model)
             try:
                 response = _post_gemini_with_retries(url, key, payload)
+                model_used = candidate_model
+                # Later correction drafts start with the model that just answered
+                # instead of walking through the unavailable ones again.
+                model_candidates = [candidate_model] + [m for m in model_candidates if m != candidate_model]
                 break
+            except gemini_policy.GeminiCredentialError as exc:
+                # Same key, same answer on every model: do not try the others.
+                gemini_policy.record_usage(
+                    'news_script', model=None, outcome=gemini_policy.AUTH,
+                    attempted=attempted_models, failures=[f'{candidate_model}: {exc}'],
+                    seconds=clock.seconds())
+                raise
             except (requests.RequestException, RuntimeError) as exc:
                 last_error = exc
+                model_failures.append(f'{candidate_model}: {exc}')
+                status = getattr(getattr(exc, 'response', None), 'status_code', None)
+                if status == 404 and len(model_candidates) > 1:
+                    # A retired/unknown id will not start working mid-run.
+                    model_candidates = [m for m in model_candidates if m != candidate_model]
         if response is None:
-            attempted = ', '.join(model_candidates)
+            attempted = ', '.join(attempted_models)
+            gemini_policy.record_usage(
+                'news_script', model=None, outcome='unavailable', attempted=attempted_models,
+                failures=model_failures, seconds=clock.seconds())
             raise RuntimeError(
                 'Gemini script generation failed after retries on all configured '
                 f'model candidates ({attempted}). Last error: {last_error}. '
                 'Check Google AI API availability, quota/billing, credentials, '
                 'network status, and GEMINI_MODEL.'
             ) from last_error
-        data = response.json()
         try:
-            candidate_text = ''.join(
-                p.get('text', '') for p in data['candidates'][0]['content']['parts'])
+            # A 200 with a non-JSON body (proxy/HTML error page) is a malformed
+            # response, handled like any other unusable draft, not a crash.
+            data = response.json()
+            candidate_text = gemini_policy.response_text(data)
+            if not candidate_text.strip():
+                raise KeyError('candidates')
             candidate_script = _coerce_script_payload(json.loads(candidate_text))
-        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
             last_error = ValueError('Gemini returned no usable JSON script candidate.')
         else:
             candidate_scenes = candidate_script.get('scenes', [])
@@ -390,6 +415,9 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
                 )
             payload['contents'][0]['parts'][0]['text'] = correction_prompt
     if script is None:
+        gemini_policy.record_usage(
+            'news_script', model=model_used, outcome='validation_failed', attempted=attempted_models,
+            failures=model_failures + [str(last_error)], seconds=clock.seconds())
         raise ValueError(
             'Generated script failed validation after three generation attempts (initial draft plus two targeted corrections): '
             + str(last_error)
@@ -405,5 +433,14 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
     script['editorial_status']='draft_requires_human_script_and_visual_review'
     script['word_count']=words
     script['reviewed_packet_path']=str(review_path)
+    # Provenance: which model wrote this draft (the primary may have been skipped).
+    script['generation'] = {
+        'provider': 'gemini', 'model': model_used,
+        'configured_model': model, 'attempted_models': attempted_models,
+        'fallback_used': model_used != model,
+    }
+    gemini_policy.record_usage(
+        'news_script', model=model_used, outcome='ok', attempted=attempted_models,
+        failures=model_failures, seconds=clock.seconds())
     with open(output_path,'w',encoding='utf-8') as f: json.dump(script,f,ensure_ascii=False,indent=2)
     return script

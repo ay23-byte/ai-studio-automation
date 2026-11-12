@@ -351,3 +351,27 @@ python -m unittest discover -s tests
 
 `validate.yml` now runs pytest as well as unittest. Twenty-two function-style
 tests were previously never collected in CI.
+
+## Text-model policy (`core/gemini.py`)
+
+Every Gemini call site (`core/script_engine.py`, `core/news_shorts_writer.py`,
+`core/visual_semantics.py`) takes its rules from one module:
+
+| Question | Answer |
+|---|---|
+| Which models, in which order? | `GEMINI_MODEL`, then `GEMINI_FALLBACK_MODELS` (comma-separated). Unset or empty uses the built-in chain; `none` disables fallbacks. Ids are validated before they reach a URL |
+| Invalid or unauthorised key (HTTP 401/403, or 400 `API_KEY_INVALID`) | Stop immediately. Not retried, not tried on another model. The message names the `GEMINI_API_KEY` secret |
+| Unknown or retired model (404) | Skip to the next model without waiting |
+| Rate limit (429) and server errors (500/502/503/504), timeouts | Bounded retries with jittered backoff under a hard cap; `Retry-After` is honoured (seconds or HTTP date), then the next model |
+| Malformed response | Treated as a failed draft; nothing unparsed is saved. JSON repair is limited to code fences, trailing commas and bare source ids |
+| Which model answered? | Recorded in the script (`generation` block) and appended to `output/logs/llm_usage.jsonl` without prompts or keys |
+
+`python run.py doctor` reports the configured chain and flags invalid ids.
+
+## Optional narration providers (`core/voice.py`)
+
+`edge-tts` is loaded when speech is synthesised, not when the module is imported. Code that only
+selects a voice, and workflows that never render audio, do not need the package. A missing
+provider raises `VoiceProviderUnavailable` with the install command and the cascade continues to
+the offline voice; the reason is written to `narration_synthesis_report.json`.
+

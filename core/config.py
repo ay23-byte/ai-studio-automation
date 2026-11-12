@@ -20,15 +20,11 @@ def env_flag(name, default=False):
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
 GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-GEMINI_FALLBACK_MODELS = [
-    model.strip()
-    for model in os.getenv(
-        "GEMINI_FALLBACK_MODELS",
-        os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"),
-    ).split(",")
-    if model.strip()
-]
+# Default model ids live in core.gemini (the single place they are written); an
+# empty GEMINI_MODEL (an unset Actions variable expands to "") falls back to it.
+from core.gemini import DEFAULT_MODEL as _GEMINI_DEFAULT_MODEL, configured_fallbacks as _gemini_fallbacks
+GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "").strip() or _GEMINI_DEFAULT_MODEL
+GEMINI_FALLBACK_MODELS = _gemini_fallbacks()
 PIXABAY_API_KEY  = os.getenv("PIXABAY_API_KEY", "")
 COVERR_API_KEY   = os.getenv("COVERR_API_KEY", "")
 NARA_API_KEY     = os.getenv("NARA_API_KEY", "")

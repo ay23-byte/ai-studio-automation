@@ -234,6 +234,10 @@ def complete(config: dict, prompt: str, *, json_mode: bool = True, temperature: 
     raise last_error or LLMError(config["name"], "request failed")
 
 
+# Provider and model that served the most recent fallback request (no prompt, no key).
+LAST_FALLBACK: dict = {}
+
+
 def complete_with_fallbacks(prompt: str, providers: list[dict] | None = None, **kwargs) -> str:
     """Try each configured fallback provider in order; raise one combined error."""
     providers = configured_providers() if providers is None else providers
@@ -244,6 +248,9 @@ def complete_with_fallbacks(prompt: str, providers: list[dict] | None = None, **
         try:
             print(f"Requesting text from fallback provider: {config['name']} ({config['model']})")
             text = complete(config, prompt, **kwargs)
+            LAST_FALLBACK.clear()
+            LAST_FALLBACK.update({"provider": config["name"], "model": config["model"],
+                                  "skipped": list(failures)})
             try:
                 from core.monitoring import record_event
                 record_event("llm", "fallback_generate", "success",

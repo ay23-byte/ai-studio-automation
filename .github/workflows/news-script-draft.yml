@@ -120,9 +120,27 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // Report the real reason (written by the drafting script) instead of
+            // only pointing at the logs. The file never contains credentials.
+            const fs = require("fs");
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const lines = ["## Script drafting was blocked or failed", ""];
+            try {
+              const report = JSON.parse(fs.readFileSync("output/daily_news/draft_failure.json", "utf8"));
+              lines.push("**Reason:** `" + String(report.category) + "`", "");
+              lines.push(String(report.reason || "").slice(0, 900), "");
+              if (Array.isArray(report.attempted_models) && report.attempted_models.length) {
+                lines.push("**Models tried:** " + report.attempted_models.join(", "), "");
+              }
+              lines.push("**What to do:** " + String(report.advice || ""), "");
+            } catch (error) {
+              lines.push("The packet was rejected before drafting started, or the run stopped unexpectedly.", "");
+            }
+            lines.push("Workflow run: " + runUrl, "");
+            lines.push("Source-verification failures must be corrected with inspected, eligible evidence; do not bypass the gate. Nothing was rendered or uploaded.");
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: "Script drafting was blocked or failed. Check the News script draft workflow logs. Source-verification failures must be corrected with inspected, eligible evidence; do not bypass the gate."
+              body: lines.join("\n")
             });
