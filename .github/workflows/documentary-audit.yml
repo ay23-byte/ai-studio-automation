@@ -1,4 +1,4 @@
-name: Documentary workflow audit tests
+name: '⚙ Internal — Documentary workflow audit tests'
 
 on:
   workflow_dispatch:
