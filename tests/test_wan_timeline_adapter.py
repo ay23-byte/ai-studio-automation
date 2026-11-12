@@ -27,7 +27,7 @@ class WanTimelineAdapterTests(unittest.TestCase):
             },
             "shots": [{
                 "shot_id": "shot_0001",
-                "chapter_id": "0",
+                "chapter_id": "unassigned",
                 "narration": "The factory changed the town.",
                 "media_path": str(self.clip),
                 "wan_scene_id": "factory",
