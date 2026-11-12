@@ -16,10 +16,6 @@ on:
         type: choice
         options: [hinglish, hindi, english]
         default: hinglish
-      upload:
-        description: "Upload after review (leave disabled to build only)?"
-        type: boolean
-        default: false
   schedule:
     - cron: "30 3 * * *"   # 9:00 AM IST daily
 
@@ -86,25 +82,15 @@ jobs:
             python run_daily.py --format shorts
           fi
 
-      - name: Upload to YouTube
-        if: ${{ inputs.upload }}
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "private"
-        run: python run_daily.py --upload-latest --format shorts
-
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: shorts-video
-          path: output/*.mp4
-          if-no-files-found: ignore
+          name: shorts-review-${{ github.run_id }}
+          path: |
+            output/*.mp4
+            build/job_*/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Save database
         if: always()
