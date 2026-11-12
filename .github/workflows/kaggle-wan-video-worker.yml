@@ -5,7 +5,11 @@ on:
     inputs:
       prompt:
         description: Cinematic scene prompt
-        required: true
+        required: false
+        type: string
+      scene_manifest:
+        description: Optional JSON array of up to four scenes with id, title, and prompt
+        required: false
         type: string
       size:
         description: Output orientation and resolution
@@ -109,6 +113,7 @@ jobs:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
           WAN_PROMPT: ${{ inputs.prompt }}
+          WAN_SCENE_MANIFEST: ${{ inputs.scene_manifest }}
           WAN_SIZE: ${{ inputs.size }}
           WAN_FRAME_NUM: ${{ inputs.frame_num }}
           WAN_SAMPLE_STEPS: ${{ inputs.sample_steps }}
@@ -125,18 +130,36 @@ jobs:
           notebook_path = root / "wan_worker.ipynb"
           notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
           prompt = os.environ["WAN_PROMPT"].strip()
+          raw_scenes = os.environ.get("WAN_SCENE_MANIFEST", "").strip()
+          if raw_scenes:
+              try:
+                  scenes = json.loads(raw_scenes)
+              except json.JSONDecodeError as exc:
+                  raise SystemExit(f"scene_manifest must be valid JSON: {exc}")
+              if not isinstance(scenes, list) or not 1 <= len(scenes) <= 4:
+                  raise SystemExit("scene_manifest must be a JSON array containing 1-4 scenes.")
+              normalized = []
+              for index, scene in enumerate(scenes, start=1):
+                  if not isinstance(scene, dict) or not str(scene.get("prompt", "")).strip():
+                      raise SystemExit(f"Scene {index} must be an object with a non-empty prompt.")
+                  scene_id = str(scene.get("id", f"scene_{index:02d}")).strip()
+                  if not scene_id or len(scene_id) > 64:
+                      raise SystemExit(f"Scene {index} has an invalid id.")
+                  normalized.append({"id": scene_id, "title": str(scene.get("title", scene_id))[:120], "prompt": str(scene["prompt"]).strip()})
+          elif prompt:
+              normalized = [{"id": "scene_01", "title": "Single prompt scene", "prompt": prompt}]
+          else:
+              raise SystemExit("Provide either prompt or scene_manifest.")
           size = os.environ["WAN_SIZE"]
           frames = int(os.environ["WAN_FRAME_NUM"])
           steps = int(os.environ["WAN_SAMPLE_STEPS"])
-          if not prompt:
-              raise SystemExit("Prompt must not be empty.")
           if size not in {"480*832", "832*480"}:
               raise SystemExit(f"Unsupported size: {size}")
           if frames not in {9, 17, 33} or (frames - 1) % 4:
               raise SystemExit(f"Invalid frame count: {frames}")
           if steps not in {8, 12}:
               raise SystemExit(f"Invalid sampling steps: {steps}")
-          manifest = {"prompt": prompt, "size": size, "frame_num": frames, "sample_steps": steps}
+          manifest = {"scenes": normalized, "size": size, "frame_num": frames, "sample_steps": steps}
           encoded = base64.b64encode(json.dumps(manifest).encode("utf-8")).decode("ascii")
           replaced = False
           for cell in notebook.get("cells", []):

@@ -14,11 +14,12 @@ Do not commit Kaggle credentials or put them in the notebook. The workflow check
 
 ## Run a smoke test
 
-Open **Actions → Kaggle Wan2.1 free GPU video worker → Run workflow**. Use a short, simple prompt and the initial settings: 480×832, 9 frames and 8 sampling steps. The workflow pushes a private GPU-enabled notebook, waits for Kaggle, downloads kernel output, validates MP4 metadata with ffprobe, and uploads the `wan21-generated-clips` artifact.
+Open **Actions → Kaggle Wan2.1 free GPU video worker → Run workflow**. Use either the legacy single `prompt` field or `scene_manifest` JSON. The JSON must be an array of 1-4 objects, each with a non-empty `prompt`; optional `id` and `title` fields label outputs. Example: `[{"id":"opening","title":"Opening aerial","prompt":"Cinematic aerial view of..."},{"id":"lab","title":"Research lab","prompt":"Close-up of scientists..."}]`. Start with 1-2 scenes and settings 480×832, 9 frames and 8 sampling steps. The workflow validates the manifest, runs scenes sequentially on one Kaggle GPU session, validates each MP4 with ffprobe, and uploads clips plus `scene_manifest.json` in the `wan21-generated-clips` artifact.
 
 ## Important scope and limitations
 
 - This is a standalone remote-worker validation. It does not yet replace or automatically integrate the local/CI documentary renderer.
+- A single run supports up to four sequential scenes. Each scene produces a uniquely named MP4 and a `scene_manifest.json` record with its prompt, dimensions, duration, byte size, and AI-generated provenance. This is a worker-level batch interface, not yet automatic storyboard export/import into the documentary renderer.
 - Pipeline integration is a follow-up stage: export approved storyboard prompts, invoke the worker for selected scenes, import returned clips, preserve provenance/licence metadata, then run the existing editorial, factual, and human-review gates. Do not merge this worker into publication flow until those integration tests pass.
 - Kaggle controls GPU availability, free quota and session scheduling. Runs can queue, fail when quota is exhausted, or exceed the workflow timeout.
 - The notebook uses the public Wan2.1 T2V-1.3B checkpoint and an SDPA fallback intended for constrained GPUs. Compatibility with the current upstream Wan2.1 source and Kaggle image must be proven by an actual Kaggle run; GitHub static checks alone do not prove GPU inference.
