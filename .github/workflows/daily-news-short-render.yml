@@ -1,4 +1,4 @@
-name: Daily news Short — approved render review
+name: '⚙ Internal — Daily news Short — approved render review'
 
 on:
   workflow_dispatch:
