@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.upload_documentary_artifact import _find_video, _validate_release_evidence
+from scripts.upload_documentary_artifact import _find_video, _validate_release_evidence, upload_automated_artifact
 
 
 class DocumentaryUploadEvidenceTests(unittest.TestCase):
@@ -14,16 +14,17 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             "visual_review_report.json": {"shots": [{"shot_id": "shot_0001"}], "issues": []},
             "visual_consistency_report.json": {"status": "PASS", "summary": {"fail_count": 0}},
             "audio_quality_report.json": {"status": "PASS"},
-            "research_verification_report.json": {"claim_count": 1, "source_count": 1},
+            "research_verification_report.json": {"claim_count": 1, "source_count": 1, "sources": [{"source_id": "S1", "url": "https://example.org/source", "url_valid": True, "metadata_complete": True}], "claims": [{"claim_id": "C1", "traceability_status": "source_linked_pending_human_review", "valid_source_ids": ["S1"], "evidence": "Evidence note."}]},
             "research_review_decisions.json": {"coverage_reviewed": True},
             "quality_report.json": {"status": "PASS"},
         }
         for name, value in payloads.items():
             (root / name).write_text(json.dumps(value), encoding="utf-8")
+        (root / "credits.txt").write_text("Documentary source credits\\nTest credit\\n", encoding="utf-8")
         with (root / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status"])
+            writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
             writer.writeheader()
-            writer.writerow({"shot_id": "shot_0001", "use_status": "eligible_pending_human_review"})
+            writer.writerow({"shot_id": "shot_0001", "use_status": "eligible_pending_human_review", "fallback_required": "false", "licence": "CC0", "attribution_text": "Test credit."})
 
     def test_complete_release_evidence_passes_technical_gate(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -46,10 +47,10 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             root = Path(temp)
             self._build(root)
             with (root / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status"])
+                writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
                 writer.writeheader()
-                writer.writerow({"shot_id": "shot_0001", "use_status": "blocked"})
-            with self.assertRaisesRegex(ValueError, "blocked assets"):
+                writer.writerow({"shot_id": "shot_0001", "use_status": "blocked", "fallback_required": "true", "licence": "", "attribution_text": ""})
+            with self.assertRaisesRegex(ValueError, "did not clear these assets"):
                 _validate_release_evidence(root)
 
 

@@ -1,4 +1,4 @@
-name: '2. Create a Documentary — review first'
+name: '2. Create and upload a Documentary — automatic'
 on:
   workflow_dispatch:
     inputs:
@@ -135,7 +135,7 @@ jobs:
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
       - name: Test narration provider fallback and long-form package adapter
-        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_longform_review_package -v
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_longform_review_package tests.test_upload_documentary_artifact -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
@@ -209,6 +209,20 @@ jobs:
             --build-dir "${JOB_DIRS[0]}" \\
             --video "$VIDEO" \\
             --output-dir "${JOB_DIRS[0]}/shared_review_package"
+
+      - name: Run automated release checks and upload documentary to YouTube (Private)
+        if: success()
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "private"
+          PUBLISH_AT_IST: ""
+        run: |
+          python scripts/upload_documentary_artifact.py \\
+            --artifact-dir . \\
+            --source-run-id "$GITHUB_RUN_ID"
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions
