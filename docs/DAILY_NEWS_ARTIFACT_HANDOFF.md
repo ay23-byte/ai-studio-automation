@@ -30,7 +30,13 @@ The asset-preparation workflow never renders or uploads. It can fail if no suffi
     "audio": "approved",
     "rights": "approved",
     "disclosure": "approved"
-  }
+  },
+  "asset_reviews": [
+    {"scene": 1, "status": "approved", "terms_reviewed": true},
+    {"scene": 2, "status": "approved", "terms_reviewed": true},
+    {"scene": 3, "status": "approved", "terms_reviewed": true},
+    {"scene": 4, "status": "approved", "terms_reviewed": true}
+  ]
 }
 ```
 
@@ -41,7 +47,7 @@ The asset-preparation workflow never renders or uploads. It can fail if no suffi
 
 - Both workflows are manually dispatched; the scheduled RSS job remains discovery-only.
 - No YouTube upload or publication is attempted. The resulting shared review package must remain `REVIEW_REQUIRED`.
-- The approval file is an explicit operator attestation. GitHub does not independently establish that the human actually inspected the assets or licence terms.
+- The approval file is an explicit operator attestation. It must include one asset_reviews entry per scene; AI-generated assets require terms_reviewed=true. GitHub does not independently establish that the human actually inspected the assets or licence terms.
 - Asset artifacts expire after 14 days. Run the render handoff before expiry.
 - The current renderer does not add a 3D presenter. The review checklist flags this for the reviewer.
 - A passing code/test run is not proof of a successful real MP4 render or professional visual quality. Inspect the final artifact and play the MP4 before any later upload decision.
