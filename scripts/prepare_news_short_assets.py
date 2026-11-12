@@ -249,7 +249,7 @@ def prepare_candidate_script(script: dict, packet: dict, scene_assets: list[dict
         )
     candidate = dict(reviewed_script)
     candidate["sources"] = packet["sources"]
-    candidate["language"] = "hindi"
+    candidate["language"] = str(script.get("language") or packet.get("language") or "hinglish").lower()
     candidate["voice_gender"] = "female"
     candidate["editorial_status"] = "draft_assets_require_human_visual_and_rights_review"
     candidate["visual_review_status"] = "pending_human_visual_and_rights_review"
