@@ -11,7 +11,7 @@ This connects the news research, visual review, and final render stages without 
 5. Commit those two reviewed JSON inputs to the repository, then run **Actions → Daily news Short — prepare visual review artifact** with their repository-relative paths.
 6. Inspect the uploaded `daily-news-assets-RUN_ID` artifact. It contains `production_candidate.json`, `reviewed_evidence_packet.json`, `asset_review_manifest.json`, each scene asset, and its `.source.json` provenance sidecar.
 
-The asset-preparation workflow never renders or uploads. It can fail if no sufficiently relevant visual can be sourced/generated; it must not silently substitute unrelated filler.
+The asset-preparation workflow uses the exact upstream script-draft run ID to download both JSON files. It never renders or uploads. It can fail if no sufficiently relevant visual can be sourced/generated; it must not silently substitute unrelated filler.
 
 ## Stage 2 — approve the exact artifact and render
 
