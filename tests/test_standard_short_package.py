@@ -28,7 +28,7 @@ class StandardShortPackageTests(unittest.TestCase):
                     Path(args[-1]).write_bytes(b"frame")
                     return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
                 if args[0] == "python":
-                    package = Path(args[3])
+                    package = Path(args[2])
                     manifest = json.loads((package / "production_manifest.json").read_text())
                     self.assertEqual(manifest["scenes"][0]["assets"][0]["provenance"]["origin"], "unknown")
                     (package / "package_summary.json").write_text(json.dumps({"status": "REVIEW_REQUIRED"}))
