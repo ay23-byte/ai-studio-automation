@@ -81,19 +81,27 @@ jobs:
             exit 1
           fi
           mkdir -p "$HOME/.kaggle"
-          if [ -n "$KAGGLE_API_TOKEN" ]; then
-            printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
+          CREDENTIAL_VALUE="$KAGGLE_API_TOKEN"
+          CREDENTIAL_SOURCE="KAGGLE_API_TOKEN"
+          if [ -z "$CREDENTIAL_VALUE" ]; then
+            CREDENTIAL_VALUE="$KAGGLE_KEY"
+            CREDENTIAL_SOURCE="KAGGLE_KEY"
+          fi
+          # Kaggle's newer personal API tokens use the KGAT_ prefix. Accept
+          # them under either secret name; otherwise retain legacy kaggle.json.
+          if [[ "$CREDENTIAL_VALUE" == KGAT_* ]]; then
+            printf '%s' "$CREDENTIAL_VALUE" > "$HOME/.kaggle/access_token"
             chmod 600 "$HOME/.kaggle/access_token"
-            echo "Configured Kaggle using the API access token."
+            echo "Configured Kaggle using an API access token from $CREDENTIAL_SOURCE."
           else
-            python - <<'PY'
+            KAGGLE_KEY="$CREDENTIAL_VALUE" python - <<'PY'
           import json, os
           from pathlib import Path
           path = Path.home() / ".kaggle" / "kaggle.json"
           path.write_text(json.dumps({"username": os.environ["KAGGLE_USERNAME"], "key": os.environ["KAGGLE_KEY"]}), encoding="utf-8")
           path.chmod(0o600)
           PY
-            echo "Configured Kaggle using legacy username/key credentials."
+            echo "Configured Kaggle using legacy username/key credentials from $CREDENTIAL_SOURCE."
           fi
 
       - name: Validate inputs and prepare private Kaggle kernel
