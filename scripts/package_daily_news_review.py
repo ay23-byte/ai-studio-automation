@@ -1,34 +1,64 @@
-"""Package a rendered daily-news Short for explicit human review.
+"""Package a rendered, script-reviewed daily-news Short for human review.
 
-Rights remain unknown until a human reviews the actual source terms. This tool
-never uploads or publishes.
+Translates the news renderer's output and QA reports into the shared review
+package.  Rights stay unreviewed until a human opens the actual source terms.
+This tool never uploads or publishes.
+
+Exit codes: 0 package written and awaiting human review; 2 package written but
+it fails automated QA (it cannot be approved); 1 the package could not be built.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import shutil
-import subprocess
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core import review_contract as contract
+from core import review_packaging as packaging
+
+CHECKLIST = (
+    "Verify the story facts against the evidence packet and the original sources",
+    "Check every scene visual against its narration; reject unrelated footage",
+    "Listen to the full narration and audio mix",
+    "Check caption wording, timing and safe-area placement",
+    "Open each asset's source; confirm licence terms, attribution and commercial use",
+    "Confirm the AI disclosure and platform policy requirements",
+    "Confirm the presenter is genuinely animated and lip-synced, or that its absence is acceptable",
+)
 
 
 def _json(path: Path, default=None):
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
         return default
 
 
-def _write(path: Path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
-def _status(report, fallback="REVIEW"):
+def _sub_report(root: Path, name: str, report, *, missing_blocks: bool, label: str) -> None:
+    """Carry a renderer QA report into the package without upgrading it."""
     if not isinstance(report, dict):
-        return fallback
-    value = str(report.get("status") or fallback).upper()
-    return value if value in {"PASS", "REVIEW", "FAIL", "NOT_RUN", "ERROR", "UNAVAILABLE"} else fallback
+        packaging.write_qa(root, name, "FAIL" if missing_blocks else "REVIEW",
+                           [f"The {label} report was not produced; a human must check this in full."])
+        return
+    raw = str(report.get("status") or "NOT_RUN").upper()
+    if raw in {"PASS", "REVIEW"}:
+        status = "REVIEW"  # an automated pass is evidence for the reviewer, never the approval itself
+    elif raw == "FAIL" or (raw == "ERROR" and missing_blocks):
+        status = "FAIL"
+    else:  # NOT_RUN / UNAVAILABLE / ERROR of an advisory check: never a pass
+        status = "REVIEW"
+    details = [f"Automated {label}: {raw}."]
+    for key in ("reason", "summary"):
+        if report.get(key):
+            details.append(str(report[key])[:400])
+    for item in (report.get("issues") or report.get("errors") or report.get("warnings") or [])[:8]:
+        details.append(str(item.get("message") if isinstance(item, dict) else item)[:300])
+    packaging.write_qa(root, name, status, details, automated_status=raw)
 
 
 def create_package(script_path: str | Path, render_dir: str | Path,
@@ -46,146 +76,118 @@ def create_package(script_path: str | Path, render_dir: str | Path,
         raise FileNotFoundError("Renderer must produce review_short.mp4, captions.ass and production_manifest.json.")
     if not isinstance(qa, dict):
         raise ValueError("Technical QA report is missing or invalid.")
+    if root in (render_dir, script_path.parent) or root in render_dir.parents:
+        raise ValueError("output_dir must be a dedicated package directory.")
     if root.exists():
-        shutil.rmtree(root)
-    (root / "assets").mkdir(parents=True)
+        shutil.rmtree(root)  # only ever the dedicated package directory
     (root / "qa").mkdir(parents=True)
-    (root / "preview" / "frames").mkdir(parents=True)
 
-    shutil.copy2(video, root / "video.mp4")
-    shutil.copy2(captions, root / "captions.ass")
-    shutil.copy2(script_path, root / "approved_script.json")
-    for filename, target in (("licenses.csv", "licenses.csv"), ("credits.txt", "credits.txt"),
-                             ("voice.wav", "voice.wav")):
-        source = render_dir / filename
-        if source.is_file():
-            shutil.copy2(source, root / target)
+    packaging.copy_into(video, root, "video.mp4")
+    packaging.copy_into(captions, root, "captions.ass")
+    packaging.copy_into(script_path, root, "evidence/approved_script.json")
+    packaging.copy_into(render_dir / "production_manifest.json", root, "evidence/renderer_manifest.json")
+    packaging.copy_into(qa_report_path, root, "evidence/technical_qa.json")
+    for filename in ("licenses.csv", "credits.txt"):
+        if (render_dir / filename).is_file():
+            packaging.copy_into(render_dir / filename, root, f"evidence/{filename}")
 
     source_scenes = script.get("scenes") or []
     shot_rows = renderer_manifest.get("shots") or []
-    if len(source_scenes) != len(shot_rows):
+    if not source_scenes or len(source_scenes) != len(shot_rows):
         raise ValueError("Renderer shot count does not match the approved script scene count.")
-    manifest_scenes = []
+    scenes = []
     for index, (scene, shot) in enumerate(zip(source_scenes, shot_rows), 1):
         asset = Path(str(scene.get("asset_path") or "")).resolve()
         sidecar = asset.with_suffix(asset.suffix + ".source.json")
         if not asset.is_file() or not sidecar.is_file():
             raise FileNotFoundError(f"Scene {index} source asset or provenance sidecar is missing.")
-        metadata = _json(sidecar, {})
-        if not isinstance(metadata, dict):
-            metadata = {}
-        suffix = asset.suffix.lower() or ".bin"
-        relative = Path("assets") / f"scene_{index:02d}{suffix}"
-        shutil.copy2(asset, root / relative)
-        shutil.copy2(sidecar, root / "assets" / f"scene_{index:02d}{suffix}.source.json")
-
-        provider = str(metadata.get("provider") or "").strip()
-        source_url = str(metadata.get("page_url") or metadata.get("source_url") or metadata.get("url") or "").strip()
-        asset_type = str(metadata.get("asset_type") or scene.get("asset_type") or "unknown")
-        is_ai = "ai_generated" in asset_type.lower() or metadata.get("ai_generated") is True
-        is_project_graphic = provider == "LabLens/AI Studio local graphic renderer"
-        if is_ai:
-            provenance = {"origin": "ai_generated", "provider": provider or None,
-                          "prompt": str(scene.get("image") or scene.get("say") or "Prompt not retained")}
-        elif provider and source_url:
-            provenance = {"origin": "source", "provider": provider, "source_url": source_url}
-        else:
-            provenance = {"origin": "unknown", "provider": provider or None,
-                          "source_url": source_url or None}
-        license_name = metadata.get("licence") or metadata.get("license")
-        manifest_scenes.append({
+        relative = packaging.copy_into(asset, root, f"assets/scene_{index:02d}{asset.suffix.lower() or '.bin'}")
+        provenance, rights = packaging.describe_asset(
+            packaging.load_sidecar(asset), prompt=str(scene.get("image") or ""))
+        scenes.append({
             "scene_id": str(shot.get("shot_id") or f"scene-{index:02d}"),
             "narration": str(shot.get("narration") or scene.get("say") or ""),
-            "assets": [{
-                "path": relative.as_posix(),
-                "asset_type": str(scene.get("asset_type") or asset_type),
-                "provenance": provenance,
-                "rights": {"status": "unknown", "license": license_name or None,
-                           "attribution": metadata.get("attribution_text")},
-            }],
+            "start_seconds": shot.get("start_seconds", shot.get("start")),
+            "duration_seconds": shot.get("duration_seconds", shot.get("duration")),
             "source_ids": scene.get("source_ids") or [],
             "ai_disclosure": scene.get("ai_disclosure") is True,
-            "project_graphic": is_project_graphic,
+            "assets": [{"path": relative, "asset_type": packaging.asset_type_of(asset),
+                        "provenance": provenance, "rights": rights}],
         })
 
-    _write(root / "production_manifest.json", {
-        "schema_version": 1, "mode": "daily_news",
-        "topic": str(script.get("title") or script.get("topic") or "Daily news Short"),
-        "video_file": "video.mp4", "captions_file": "captions.ass",
-        "scenes": manifest_scenes,
-        "renderer_manifest": "renderer_manifest.json",
-    })
-    shutil.copy2(render_dir / "production_manifest.json", root / "renderer_manifest.json")
-
+    extra_failures = []
+    if str(qa.get("status") or "").upper() == "FAIL":
+        extra_failures.append("The news technical QA FAILED: " + "; ".join(
+            str(item)[:200] for item in (qa.get("errors") or [])[:6]))
+    status, details = packaging.technical_report(root, "daily_news", root / "video.mp4", extra_failures)
+    packaging.write_qa(root, "technical", status, details, news_qa_status=qa.get("status"))
     advanced = render_dir / "qa" / "advanced_qa"
-    mapping = {
-        "semantic": advanced / "semantic_qa_report.json",
-        "audio": advanced / "audio_quality_report.json",
-        "captions": advanced / "caption_qa_report.json",
-        "assets": advanced / "scene_asset_provenance_report.json",
-    }
-    _write(root / "qa" / "technical.json", qa)
-    for name, path in mapping.items():
-        report = _json(path)
-        if report is None:
-            report = {"status": "NOT_RUN", "reason": f"{path.name} was not produced."}
-        _write(root / "qa" / f"{name}.json", report)
+    _sub_report(root, "semantic", _json(advanced / "semantic_qa_report.json"),
+                missing_blocks=False, label="shot-to-narration screening")
+    _sub_report(root, "audio", _json(advanced / "audio_quality_report.json"),
+                missing_blocks=True, label="audio metering")
+    _sub_report(root, "captions", _json(advanced / "caption_qa_report.json"),
+                missing_blocks=False, label="caption audit")
+    _sub_report(root, "assets", _json(advanced / "scene_asset_provenance_report.json"),
+                missing_blocks=False, label="asset provenance audit")
 
+    frames_dir = root / "preview" / "frames"
     frames = sorted((advanced / "sample_frames").glob("*.jpg")) if (advanced / "sample_frames").is_dir() else []
-    if not frames:
-        result = subprocess.run([
-            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-            "-ss", "1", "-i", str(video), "-frames:v", "1",
-            str(root / "preview" / "frames" / "frame_001.jpg")
-        ], capture_output=True, text=True, check=False, timeout=120)
-        if result.returncode:
-            raise RuntimeError("Could not extract a review preview frame.")
-    else:
+    if frames:
+        frames_dir.mkdir(parents=True)
         for index, frame in enumerate(frames, 1):
-            shutil.copy2(frame, root / "preview" / "frames" / f"frame_{index:03d}.jpg")
+            shutil.copy2(frame, frames_dir / f"frame_{index:03d}.jpg")
+    else:
+        contract.extract_preview_frames(root / "video.mp4", frames_dir, count=6)
 
-    checklist = {key: "pending" for key in
-                 ("editorial", "factual", "visual", "audio", "rights", "disclosure")}
-    checklist["human_review_status"] = "pending"
-    _write(root / "review_checklist.json", checklist)
-    (root / "review_checklist.md").write_text(
-        "# Daily news Short — human review required\n\n"
-        "- [ ] Verify story facts against the evidence packet and original sources\n"
-        "- [ ] Check every scene visual against its narration; replace unrelated footage\n"
-        "- [ ] Listen to the full narration and audio mix\n"
-        "- [ ] Check English/Hindi caption wording, timing and safe-area placement\n"
-        "- [ ] Verify each asset's actual licence terms, attribution and commercial-use rights\n"
-        "- [ ] Confirm AI disclosure and platform policy requirements\n"
-        "- [ ] Confirm presenter requirement/absence is acceptable for this release\n\n"
-        "**This package is review-only. No YouTube upload or publication was attempted.**\n",
-        encoding="utf-8",
-    )
-    summary = subprocess.run([
-        "python", "scripts/validate_review_package.py", str(root),
-        "--output", str(root / "package_summary.json")
-    ], capture_output=True, text=True, check=False, timeout=120)
-    if summary.returncode not in (0, 1):
-        raise RuntimeError("Shared package validator failed to execute: " + summary.stderr[-1200:])
-    result = _json(root / "package_summary.json", {})
-    if result.get("status") != "REVIEW_REQUIRED":
-        raise RuntimeError("New daily-news render must remain REVIEW_REQUIRED; validator returned "
-                           + str(result.get("status")) + ": " + "; ".join(result.get("errors", [])))
-    from scripts.build_review_dashboard import build_dashboard
-    build_dashboard(root)
+    sources = []
+    for number, item in enumerate(script.get("sources") or script.get("evidence") or [], 1):
+        if isinstance(item, dict):
+            sources.append({"source_id": str(item.get("source_id") or f"S{number}"),
+                            "title": str(item.get("title") or "")[:300],
+                            "publisher": str(item.get("publisher") or "")[:200],
+                            "url": str(item.get("url") or ""), "tier": item.get("tier")})
+    title = str(script.get("title") or script.get("topic") or "Daily news Short").strip()
+    try:
+        from core.publish import build_metadata
+        meta = build_metadata({"title": title, "format": "news_short", "language": script.get("language"),
+                               "category": "news"}, script, render_dir)
+        publish = packaging.publish_metadata(meta["title"], meta["description"], meta["tags"])
+        publish["category_id"] = meta.get("category_id")
+    except Exception as exc:
+        publish = packaging.publish_metadata(title, script.get("description") or "", script.get("tags") or [])
+        publish["note"] = f"Derived from the script only ({type(exc).__name__})."
+    narration = packaging.narration_metadata(render_dir)
+    manifest = contract.build_manifest(
+        root, mode="daily_news", topic=title, title=publish["title"] or title, scenes=scenes,
+        research={"sources": sources, "claims": []}, narration=narration,
+        script=packaging.script_metadata(script),
+        extra={"publish": publish, "evidence_dir": "evidence",
+               "presenter": renderer_manifest.get("presenter") or None})
+    summary = contract.write_package(root, manifest, checklist_title="Daily news Short: human review required",
+                                     checklist_items=CHECKLIST)
+    print(f"Review package created: {root}")
+    print(f"Status: {summary['status']}. No YouTube upload or publication was attempted.")
+    for line in summary["errors"]:
+        print(f"  BLOCKING: {line}")
     return root
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--script", required=True)
     parser.add_argument("--render-dir", required=True)
     parser.add_argument("--qa-report", required=True)
     parser.add_argument("--output-dir", required=True)
-    args = parser.parse_args()
-    package = create_package(args.script, args.render_dir, args.qa_report, args.output_dir)
-    print(f"Review package created: {package}")
-    print("Status: REVIEW_REQUIRED. No YouTube upload or publication was attempted.")
+    args = parser.parse_args(argv)
+    try:
+        package = create_package(args.script, args.render_dir, args.qa_report, args.output_dir)
+    except (OSError, ValueError) as exc:
+        print(f"::error::Could not build the daily-news review package: {exc}")
+        return 1
+    status = json.loads((package / "package_summary.json").read_text(encoding="utf-8"))["status"]
+    return 0 if status == "REVIEW_REQUIRED" else 2
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -370,7 +370,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     (build_dir / "verification.json").write_text(json.dumps({
         "status": "PASS", "method": "deterministic source-tier and independence gate",
         "gate": story["gate"], "sources": story["sources"], "checked_at": _now().isoformat(),
-        "notice": "Automated corroboration of headlines only; the video is uploaded PRIVATE for human review.",
+        "notice": "Automated corroboration of headlines only. Nothing is uploaded until a human has reviewed the package.",
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     video = build_shorts(script, job_id, language=language)
     # Record immediately so a later failure cannot cause the same story to be rebuilt.

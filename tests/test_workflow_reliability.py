@@ -84,23 +84,135 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
 
 
-class SharedShortReleaseWorkflowTests(unittest.TestCase):
-    def test_shared_short_release_is_private_and_fail_closed(self):
-        text = _text("release_shorts_private.yml")
-        self.assertIn("confirm_private_upload", text)
-        self.assertIn("video_sha256", text)
-        self.assertIn("review_decisions_json", text)
-        self.assertIn("scripts/release_review_package.py", text)
-        self.assertIn('PRIVACY: "private"', text)
-        self.assertIn('PUBLISH_AT_IST: ""', text)
-        self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", text)
+RELEASE_WORKFLOWS = ("release_shorts_private.yml", "release_documentary_private.yml")
+BUILD_WORKFLOWS = {"make_shorts.yml": "--mode shortform", "daily-news-auto-short.yml": "--mode daily_news",
+                   "make_longform.yml": "--mode longform"}
 
-    def test_human_decision_script_preserves_fail_closed_rules(self):
-        text = (ROOT / "scripts" / "apply_review_decisions.py").read_text(encoding="utf-8")
-        self.assertIn("unknown provenance cannot be approved", text)
-        self.assertIn("cannot be overridden", text)
-        self.assertIn("license_url", text)
-        self.assertIn("20+", text)
+
+class SharedReleaseWorkflowTests(unittest.TestCase):
+    """Documentaries, Shorts and news Shorts are released by the same steps and the same script."""
+
+    def test_both_release_workflows_run_identical_steps(self):
+        def normalised(name):
+            text = _text(name)
+            steps = text[text.index("    steps:\n"):]
+            return re.sub(r"MODE: (\$\{\{ inputs\.mode \}\}|longform)", "MODE: <mode>", steps)
+        self.assertEqual(normalised(RELEASE_WORKFLOWS[0]), normalised(RELEASE_WORKFLOWS[1]))
+        self.assertIn("MODE: longform", _text("release_documentary_private.yml"))
+        self.assertIn("- daily_news", _text("release_shorts_private.yml"))
+
+    def test_release_is_manual_private_unscheduled_and_fail_closed(self):
+        for name in RELEASE_WORKFLOWS:
+            text = _text(name)
+            steps = _steps(text)
+            names = [re.search(r"(?:name|uses):\s*(.+)", block).group(1) for block in steps]
+            trigger = text[text.index("\non:"):text.index("\npermissions:")]
+            release = next(block for block in steps if "scripts/release_review_package.py" in block)
+            verify = next(block for block in steps if "scripts/verify_source_run.py" in block)
+            download = next(block for block in steps if "actions/download-artifact@" in block)
+            with self.subTest(workflow=name):
+                self.assertIn("workflow_dispatch:", trigger)                 # a person starts it; nothing else does
+                for other in ("schedule:", "push:", "pull_request", "workflow_run:", "issues:", "issue_comment:"):
+                    self.assertNotIn(other, trigger)
+                for required in ("source_run_id", "video_sha256", "review_decisions", "confirm_private_upload"):
+                    self.assertIn(f"      {required}:", trigger)
+                self.assertIn("default: false", trigger)                     # the confirmation is never pre-ticked
+                self.assertIn("  actions: read\n  contents: read\n", text)   # no write permission at all
+                self.assertNotIn("write", text[text.index("permissions:"):text.index("concurrency:")])
+                self.assertIn("cancel-in-progress: false", text)
+                self.assertIn('PRIVACY: "private"', release)
+                self.assertIn('PUBLISH_AT_IST: ""', release)
+                self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+                self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
+                self.assertIn("--confirm-private-upload", release)
+                self.assertIn('--video-sha256 "$VIDEO_SHA256"', release)
+                self.assertIn('--source-run-id "$SOURCE_RUN_ID"', release)
+                self.assertIn('--mode "$MODE"', release)
+                self.assertNotIn("continue-on-error", text)
+                self.assertNotIn("|| true", release)
+                # the exact run is downloaded; nothing resolves "latest"
+                self.assertIn("run-id: ${{ inputs.source_run_id }}", download)
+                self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", download)
+                self.assertNotIn("latest", download)
+                # order: validate, verify the source run, download, release
+                self.assertLess(steps.index(verify), steps.index(download), names)
+                self.assertLess(steps.index(download), steps.index(release), names)
+                # YouTube secrets reach only the release step
+                for block in steps:
+                    if block is not release:
+                        self.assertNotIn("YT_REFRESH_TOKEN", block)
+                        self.assertNotIn("YT_CLIENT_SECRET", block)
+
+    def test_release_inputs_never_reach_a_shell_as_text(self):
+        # Inputs travel through env; an expression inside "run:" would let a value inject commands.
+        for name in RELEASE_WORKFLOWS + tuple(BUILD_WORKFLOWS):
+            for block in _steps(_text(name)):
+                if "run:" not in block:
+                    continue
+                script = block[block.index("run:"):]
+                with self.subTest(workflow=name, step=block.splitlines()[0].strip()):
+                    self.assertNotRegex(script, r"\$\{\{\s*(inputs|github\.event)\.")
+
+    def test_release_evidence_is_kept_for_every_outcome(self):
+        for name in RELEASE_WORKFLOWS:
+            steps = _steps(_text(name))
+            evidence = next(block for block in steps if "actions/upload-artifact@" in block)
+            summary = next(block for block in steps if "GITHUB_STEP_SUMMARY" in block)
+            with self.subTest(workflow=name):
+                self.assertIn("if: always()", evidence)
+                self.assertIn("if: always()", summary)
+                for item in ("release_report.json", "release_report.md", "youtube-upload-result.json"):
+                    self.assertIn(item, evidence)
+
+    def test_every_build_workflow_packages_for_review_and_holds_no_youtube_secret(self):
+        for name, mode in BUILD_WORKFLOWS.items():
+            text = _text(name)
+            steps = _steps(text)
+            package = next((block for block in steps if "scripts/package_build_for_review.py" in block), None)
+            artifact = next(block for block in steps if "actions/upload-artifact@" in block)
+            with self.subTest(workflow=name):
+                self.assertIsNotNone(package, "the build produces no shared review package")
+                self.assertIn(mode, package)
+                self.assertIn("if: success()", package)
+                self.assertNotIn("continue-on-error", package)
+                self.assertLess(steps.index(package), steps.index(artifact))
+                self.assertIn("build/job_*/", artifact)                # the package lives inside the build dir
+                self.assertIn("if: always()", artifact)
+                for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
+                    self.assertNotIn(secret, text)
+                self.assertNotIn("release_review_package.py", text)
+                self.assertNotIn("run.py upload", text)
+
+    def test_only_the_two_release_workflows_can_reach_youtube(self):
+        holders = sorted(path.name for path in WORKFLOWS
+                         if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
+        self.assertEqual(holders, sorted(RELEASE_WORKFLOWS))
+        for path in WORKFLOWS:
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(workflow=path.name):
+                self.assertNotRegex(text, r'PRIVACY:\s*"?(public|unlisted)')
+                self.assertNotRegex(text, r'ALLOW_PUBLIC_PUBLISH:\s*"?(1|true|yes)')
+
+    def test_retired_upload_workflow_uploads_nothing(self):
+        text = _text("manual-youtube-private-upload.yml")
+        self.assertIn("permissions: {}", text)
+        self.assertNotIn("secrets.", text)
+        self.assertNotIn("python ", text)
+        self.assertIn("exit 1", text)
+        self.assertIn("release_documentary_private.yml", text)
+
+    def test_each_mode_builds_in_its_own_queue(self):
+        groups = {name: re.search(r"^concurrency:\n  group: (\S+)", _text(name), flags=re.M).group(1)
+                  for name in BUILD_WORKFLOWS}
+        self.assertEqual(len(set(groups.values())), len(groups), groups)
+
+    def test_review_rules_live_in_one_place(self):
+        contract = (ROOT / "core" / "review_contract.py").read_text(encoding="utf-8")
+        for rule in ("origin is unknown", "cannot be overridden by a reviewer", "license_url", "MIN_NOTE_CHARS"):
+            self.assertIn(rule, contract)
+        for script in ("apply_review_decisions.py", "release_review_package.py", "validate_review_package.py"):
+            text = (ROOT / "scripts" / script).read_text(encoding="utf-8")
+            self.assertIn("contract.", text, script)                   # wrappers call the contract, no own rules
 
 
 class WorkflowStructureTests(unittest.TestCase):

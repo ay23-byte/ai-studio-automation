@@ -21,8 +21,10 @@ on:
 permissions:
   contents: write   # only to push JSON state to the automation-state branch
 
+# One run of this mode at a time. Each mode has its own queue, so a long
+# documentary build cannot hold back (or displace) the daily Shorts and news runs.
 concurrency:
-  group: studio-build
+  group: studio-build-daily-news
   cancel-in-progress: false
 
 env:
@@ -84,6 +86,12 @@ jobs:
           set -euo pipefail
           # Discovery/render only. Never upload from a scheduled or build workflow.
           python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py
+
+      # Review-only: assembles the shared package (manifest, sources, QA, dashboard).
+      # "No story qualified today" is a normal outcome and is not a failure.
+      - name: Assemble the review package (no upload)
+        if: success()
+        run: python scripts/package_build_for_review.py --mode daily_news --allow-no-build
 
       - name: Persist duplicate ledger and seen-story cache
         if: always()

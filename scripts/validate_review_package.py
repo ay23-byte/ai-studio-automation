@@ -8,7 +8,11 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 MODES = {"longform": (16 / 9, 0.08), "shortform": (9 / 16, 0.08), "daily_news": (9 / 16, 0.08)}
 QA_FILES = {
@@ -67,6 +71,32 @@ def _probe(video: Path):
 
 
 def validate_package(package_dir: str | Path) -> dict:
+    """Validate a review package.
+
+    Schema v2 packages are evaluated by ``core.review_contract`` (approval is
+    bound to the job id and the MP4 SHA-256).  Schema v1 packages are still
+    inspected for defects, but can never be APPROVED_FOR_UPLOAD: their
+    checklist names no job, no video hash and no reviewer.
+    """
+    manifest_path = Path(package_dir) / "production_manifest.json"
+    try:
+        version = json.loads(manifest_path.read_text(encoding="utf-8")).get("schema_version")
+    except (OSError, UnicodeError, ValueError, AttributeError):
+        version = None
+    if version == 2:
+        from core.review_contract import package_status
+        return package_status(package_dir)
+    result = _validate_v1(package_dir)
+    if result.get("status") == "APPROVED_FOR_UPLOAD":
+        result["status"] = "REVIEW_REQUIRED"
+        result["publication_eligible"] = False
+        result.setdefault("required_human_reviews", []).append(
+            "This is a schema v1 package. Its approvals are not tied to a job id or a video hash, so it "
+            "cannot be released; rebuild it with the current build workflow.")
+    return result
+
+
+def _validate_v1(package_dir: str | Path) -> dict:
     root = Path(package_dir).resolve()
     errors, warnings, required_reviews = [], [], []
     if not root.is_dir():

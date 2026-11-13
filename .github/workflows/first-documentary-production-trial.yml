@@ -87,7 +87,7 @@ jobs:
           SADTALKER_DEVICE: "cpu"
           LONGFORM_VISUAL_MODE: "video_first"
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "unlisted"
+          PRIVACY: "private"
           VISUAL_SEMANTIC_CHECK: "1"
         run: |
           test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY repository Actions secret. Add it under Settings > Secrets and variables > Actions." && exit 1)

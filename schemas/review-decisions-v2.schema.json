@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-studio/review-decisions-v2.schema.json",
+  "title": "AI Studio human review decisions (schema v2)",
+  "description": "Exported by review_dashboard.html. A release is allowed only when this file names the exact job, video SHA-256 and manifest fingerprint of the package and every item is approved. core/review_contract.evaluate_release applies the rules; the schema documents the structure.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "mode",
+    "video_sha256",
+    "manifest_fingerprint",
+    "reviewer",
+    "reviewed_at",
+    "overall",
+    "confirmations",
+    "scene_reviews",
+    "asset_reviews",
+    "claim_reviews",
+    "source_reviews",
+    "qa_reviews"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "enum": [
+        "longform",
+        "shortform",
+        "daily_news"
+      ]
+    },
+    "video_sha256": {
+      "type": "string"
+    },
+    "manifest_fingerprint": {
+      "type": "string"
+    },
+    "reviewer": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "overall": {
+      "type": "object",
+      "required": [
+        "decision",
+        "notes"
+      ],
+      "properties": {
+        "decision": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "confirmations": {
+      "type": "object",
+      "required": [
+        "editorial",
+        "factual",
+        "visual",
+        "audio",
+        "rights",
+        "disclosure"
+      ],
+      "properties": {
+        "editorial": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "factual": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "visual": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "audio": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "rights": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "disclosure": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        }
+      }
+    },
+    "scene_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "decision"
+        ],
+        "properties": {
+          "scene_id": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "asset_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "asset_id",
+          "source_verified",
+          "rights_decision"
+        ],
+        "properties": {
+          "scene_id": {
+            "type": "string"
+          },
+          "asset_id": {
+            "type": "string"
+          },
+          "source_verified": {
+            "type": "boolean"
+          },
+          "rights_decision": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "license_url": {
+            "type": "string"
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "claim_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "decision"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "decision"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "qa_reviews": {
+      "type": "object",
+      "properties": {
+        "semantic": {
+          "type": "object",
+          "required": [
+            "decision",
+            "notes"
+          ],
+          "properties": {
+            "decision": {
+              "enum": [
+                "pending",
+                "accepted",
+                "rejected"
+              ]
+            },
+            "notes": {
+              "type": "string",
+              "description": "At least 20 characters when a REVIEW report is accepted."
+            }
+          }
+        },
+        "audio": {
+          "type": "object",
+          "required": [
+            "decision",
+            "notes"
+          ],
+          "properties": {
+            "decision": {
+              "enum": [
+                "pending",
+                "accepted",
+                "rejected"
+              ]
+            },
+            "notes": {
+              "type": "string",
+              "description": "At least 20 characters when a REVIEW report is accepted."
+            }
+          }
+        },
+        "captions": {
+          "type": "object",
+          "required": [
+            "decision",
+            "notes"
+          ],
+          "properties": {
+            "decision": {
+              "enum": [
+                "pending",
+                "accepted",
+                "rejected"
+              ]
+            },
+            "notes": {
+              "type": "string",
+              "description": "At least 20 characters when a REVIEW report is accepted."
+            }
+          }
+        },
+        "assets": {
+          "type": "object",
+          "required": [
+            "decision",
+            "notes"
+          ],
+          "properties": {
+            "decision": {
+              "enum": [
+                "pending",
+                "accepted",
+                "rejected"
+              ]
+            },
+            "notes": {
+              "type": "string",
+              "description": "At least 20 characters when a REVIEW report is accepted."
+            }
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "array"
+    }
+  }
+}

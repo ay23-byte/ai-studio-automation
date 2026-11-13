@@ -147,7 +147,7 @@ python -m pip install -r requirements.txt
 streamlit run dashboard.py
 ```
 
-The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as Unlisted, schedules uploaded videos for public release using India Standard Time, automatically generates three topic-based thumbnail options after rendering, can regenerate them from the title and script without a local MP4, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses a local SQLite database created at runtime. GitHub Actions runners are ephemeral: their SQLite state is not persisted between runs or synced to your PC. Do not commit the database; use explicit export/import or a protected external database service if durable shared state is required.
+The dashboard shows local video jobs, previews available local files, records approval decisions, uploads approved local videos as **private** and unscheduled, lets you (as an explicit, confirmed action) schedule an already-uploaded video for public release using India Standard Time, automatically generates three topic-based thumbnail options after rendering, can regenerate them from the title and script without a local MP4, saves a selected thumbnail, and can upload that thumbnail to an existing YouTube video. Configure `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, and `YT_REFRESH_TOKEN` in your local `.env` file to enable YouTube actions. The dashboard uses a local SQLite database created at runtime. GitHub Actions runners are ephemeral: their SQLite state is not persisted between runs or synced to your PC. Do not commit the database; use explicit export/import or a protected external database service if durable shared state is required.
 
 ## Visual editorial review (Milestone 19)
 
@@ -271,7 +271,7 @@ To enable cloud builds, open **GitHub → repository → Settings → Secrets an
 - `TELEGRAM_BOT_TOKEN` (optional)
 - `TELEGRAM_CHAT_ID` (optional)
 
-The Shorts workflow runs daily at 09:00 IST. Both workflows upload videos as `unlisted` by default, so they will not appear publicly on your channel. Review each video in YouTube Studio and publish or schedule it when ready. If `PUBLISH_AT_IST` is set, the uploader uses YouTube's scheduled-publication flow, which requires the video to be private until its scheduled time. Long-form runs are manually triggered. The upload step selects only completed, unuploaded videos matching that workflow's format.
+The Shorts workflow runs daily at 09:00 IST. Build workflows never upload: each run produces a review package as an Actions artifact. After you have reviewed it in the dashboard, the separate release workflow uploads that exact file as **private** and unscheduled. Publishing is done by you in YouTube Studio. See [docs/GITHUB_ACTIONS_START_HERE.md](docs/GITHUB_ACTIONS_START_HERE.md) and [docs/SHARED_REVIEW_PACKAGE.md](docs/SHARED_REVIEW_PACKAGE.md).
 
 ## Project structure
 

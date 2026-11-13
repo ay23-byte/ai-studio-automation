@@ -1,22 +1,36 @@
-# GitHub Actions — Start Here
+# GitHub Actions: start here
 
-Use these three numbered workflows for normal production:
+Normal production uses a build workflow, a review, and a release workflow.
 
-1. **1. Create a Short — review first**  
-   Open [Create a Short](../actions/workflows/make_shorts.yml). Enter a topic and choose the language. Leave the upload option disabled. The run builds a Short and stores its output as an Actions artifact for review. The existing scheduled run is preserved.
+## 1. Build (never uploads)
 
-2. **2. Create a Documentary — review first**  
-   Open [Create a Documentary](../actions/workflows/make_longform.yml). Enter the topic, duration, language, voice and visual settings. Review the generated artifact before any upload.
+| Workflow | Produces |
+|---|---|
+| [Create a Short](../actions/workflows/make_shorts.yml) | `shorts-review-<run id>` |
+| [Create a Documentary](../actions/workflows/make_longform.yml) | `longform-review-<run id>` |
+| [Daily news Short](../actions/workflows/daily-news-auto-short.yml) | `news-short-auto-<run id>` |
 
-3. **3. Upload Approved Documentary — Private**  
-   Open [Private documentary upload](../actions/workflows/manual-youtube-private-upload.yml) only after watching the complete MP4 and checking its facts, visuals, audio and rights. Supply the source render run ID and confirm the human-review checkbox. This workflow uploads as **Private**, not Public.
+A green run means a review package is waiting for you. A red run means the video could
+not be built or failed automated quality checks; the run summary says why.
 
-## What the ⚙ Internal label means
+## 2. Review
 
-Workflows prefixed with **⚙ Internal** are specialist steps, diagnostics, provider checks, experimental renderers, or parts of multi-step handoffs. Avoid them for an ordinary Short or documentary. They are retained because some are scheduled, provide validation, or are required for specialist workflows.
+Download the artifact, open `build/job_<id>/shared_review_package/review_dashboard.html`,
+watch the video and decide every item. Copy the decisions from the dashboard.
 
-The daily news research queue remains scheduled. Specialist workflow triggers and underlying code are preserved. This cleanup changes display names and adds a clear starting point; it does not delete or disable workflows.
+## 3. Release (private only)
 
-## Important limitation
+| Workflow | For |
+|---|---|
+| [Release approved Short (Private)](../actions/workflows/release_shorts_private.yml) | Standard and daily-news Shorts |
+| [Release approved documentary (Private)](../actions/workflows/release_documentary_private.yml) | Documentaries |
 
-The news one-click workflow currently prepares a script/visual review package; it is not the final MP4 renderer or YouTube uploader. It is therefore marked Internal until the full review-to-MP4 path is consolidated and verified.
+Enter the build run id, the MP4 SHA-256 from the dashboard and the copied decisions, and
+tick the confirmation. The video is uploaded as **private** and unscheduled. Publishing is
+done by you in YouTube Studio. Details: [SHARED_REVIEW_PACKAGE.md](SHARED_REVIEW_PACKAGE.md).
+
+## Other workflows
+
+Workflows prefixed with **⚙ Internal** are specialist steps, diagnostics, provider checks,
+experimental renderers, or parts of multi-step handoffs. None of them holds YouTube
+credentials. `manual-youtube-private-upload.yml` is retired and uploads nothing.

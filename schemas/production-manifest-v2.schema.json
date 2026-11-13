@@ -1,0 +1,552 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-studio/production-manifest-v2.schema.json",
+  "title": "AI Studio production manifest (schema v2)",
+  "description": "Describes one rendered video and everything a reviewer must decide. The same shape is used for documentaries (longform), standard Shorts (shortform) and daily-news Shorts (daily_news). core/review_contract.py is the authority; this schema documents the structure and is checked against real packages in tests/test_review_schemas.py.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "mode",
+    "topic",
+    "title",
+    "created_at",
+    "source",
+    "video",
+    "captions",
+    "scenes",
+    "research",
+    "qa",
+    "review",
+    "upload",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^(longform|shortform|daily_news)-run[0-9A-Za-z]+-a[0-9]+-j[0-9A-Za-z_-]+$",
+      "description": "<mode>-run<workflow run id>-a<attempt>-j<pipeline job id>; unique per build."
+    },
+    "mode": {
+      "enum": [
+        "longform",
+        "shortform",
+        "daily_news"
+      ]
+    },
+    "topic": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "workflow_run_id",
+        "workflow_run_attempt"
+      ],
+      "properties": {
+        "workflow_run_id": {
+          "type": "string"
+        },
+        "workflow_run_attempt": {
+          "type": "string"
+        },
+        "workflow": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repository": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pipeline_job_id": {
+          "type": [
+            "integer",
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "video": {
+      "type": "object",
+      "required": [
+        "file",
+        "sha256",
+        "bytes",
+        "width",
+        "height",
+        "duration_seconds",
+        "video_codec",
+        "audio_codec"
+      ],
+      "properties": {
+        "file": {
+          "const": "video.mp4"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "fps": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "video_codec": {
+          "type": "string"
+        },
+        "audio_codec": {
+          "type": "string"
+        }
+      }
+    },
+    "captions": {
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "script": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fallback_used": {
+          "type": "boolean"
+        }
+      }
+    },
+    "narration": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "voice": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fallback_used": {
+          "type": "boolean"
+        },
+        "fallback_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "narration",
+          "assets"
+        ],
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "narration": {
+            "type": "string"
+          },
+          "start_seconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "duration_seconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "assets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "asset_id",
+                "asset_type",
+                "path",
+                "sha256",
+                "provenance",
+                "rights"
+              ],
+              "properties": {
+                "asset_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "asset_type": {
+                  "enum": [
+                    "image",
+                    "video",
+                    "audio",
+                    "graphic"
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Relative to the package root."
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "bytes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "provenance": {
+                  "type": "object",
+                  "required": [
+                    "origin"
+                  ],
+                  "properties": {
+                    "origin": {
+                      "enum": [
+                        "source",
+                        "ai_generated",
+                        "project_graphic",
+                        "user_provided",
+                        "unknown"
+                      ],
+                      "description": "'unknown' can never be approved."
+                    },
+                    "provider": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "creator": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "source_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "download_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "date_accessed": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "fallback": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "rights": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "unreviewed",
+                        "approved",
+                        "rejected"
+                      ],
+                      "description": "Packagers always write 'unreviewed'. Only an applied human decision changes it."
+                    },
+                    "license": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "license_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "attribution": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "usage_scope": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "licence_document_ref": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "research": {
+      "type": "object",
+      "required": [
+        "sources",
+        "claims"
+      ],
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "source_id"
+            ],
+            "properties": {
+              "source_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "publisher": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "claim_id",
+              "text"
+            ],
+            "properties": {
+              "claim_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string"
+              },
+              "source_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "qa": {
+      "type": "object",
+      "required": [
+        "technical",
+        "semantic",
+        "audio",
+        "captions",
+        "assets"
+      ],
+      "properties": {
+        "technical": {
+          "const": "qa/technical.json"
+        },
+        "semantic": {
+          "const": "qa/semantic.json"
+        },
+        "audio": {
+          "const": "qa/audio.json"
+        },
+        "captions": {
+          "const": "qa/captions.json"
+        },
+        "assets": {
+          "const": "qa/assets.json"
+        }
+      },
+      "description": "Paths of the five QA reports. Each report has a 'status' of PASS, REVIEW or FAIL. 'technical' must be PASS; the others may be REVIEW and then need a written human decision; a FAIL or missing report can never be approved."
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "release_authorization"
+      ],
+      "properties": {
+        "release_authorization": {
+          "enum": [
+            "not_authorized",
+            "authorized_private_upload_of_this_exact_video"
+          ],
+          "description": "Written by apply_review_decisions.py. The release re-checks the decisions; it never trusts this field."
+        },
+        "reviewer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "upload": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_uploaded",
+            "uploaded_private"
+          ]
+        },
+        "video_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "privacy_status": {
+          "enum": [
+            "private",
+            null
+          ]
+        }
+      }
+    },
+    "publish": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}
