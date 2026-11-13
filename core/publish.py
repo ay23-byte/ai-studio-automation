@@ -1,6 +1,7 @@
 """Upload orchestration shared by the CLI, the daily runner and the dashboard.
 
-One code path now performs, in order: release gate → duplicate check (ledger,
+One code path now performs, in order: release gate (including the human review
+of the exact MP4, see ``core/local_review.py``) → duplicate check (ledger,
 database, channel marker) → PRIVATE upload to the verified channel → read-back
 of the stored privacy → thumbnail/playlist/comment (best effort) → ledger and
 database bookkeeping → notification. ``run.py upload`` and
@@ -166,6 +167,11 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
 
     script = json.loads(row.get("script_json") or "{}")
     metadata = build_metadata(row, script, build_dir)
+    reviewed_sha = (gate.get("human_review") or {}).get("video_sha256")
+    if reviewed_sha:
+        # Same marker the release workflows write: ties the upload to the reviewed file.
+        metadata["description"] = (metadata["description"][:4700].rstrip()
+                                   + f"\n\nAI-STUDIO-REVIEWED-SHA256:{reviewed_sha}")
     marker = upload_marker(row)
     (build_dir / "upload_metadata.json").write_text(json.dumps(
         {**metadata, "marker": marker, "privacy": "private", "prepared_at": _now()},

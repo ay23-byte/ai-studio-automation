@@ -118,8 +118,10 @@ class ShortsEndToEndTests(unittest.TestCase):
 
             row = self.db.get_video(job_id)
             self.assertEqual(row["status"], "done")
+            # Every automated gate passes; the only thing a fresh build lacks is the human review.
             gate = release_gate.evaluate(row, job_dir)
-            self.assertEqual(gate["status"], "PASS", gate["blocking"])
+            self.assertEqual([item.split(":")[0] for item in gate["blocking"]], ["human_review"], gate["blocking"])
+            self.assertEqual({c["status"] for c in gate["checks"] if c["check"] != "human_review"}, {"PASS"})
 
             # Resume: nothing expensive is repeated and the same file is returned.
             voice_calls, image_calls = self.synth.call_count, len(self.image_calls)

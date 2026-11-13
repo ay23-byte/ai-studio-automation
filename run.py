@@ -4,7 +4,9 @@ AI Studio - Command Line Runner
 Usage:
   python run.py shorts  "Inflation kya hai"  --category finance
   python run.py long    "Mutual Fund explained" --category finance --minutes 7
-  python run.py upload  --id 1        (PRIVATE upload after the release gate passes)
+  python run.py review  --id 1        (build the human-review package and dashboard)
+  python run.py upload  --id 1 --decisions review_decisions.json
+                                      (PRIVATE upload of the reviewed file only)
   python run.py resume  --id 1        (continue a failed/interrupted job from its checkpoints)
   python run.py status  --id 1        (stage-by-stage progress of a job)
   python run.py doctor                (check tools, fonts, providers, database and credentials)
@@ -200,8 +202,12 @@ def cmd_status(args):
 
 
 def _upload(job_id):
-    from core.publish import publish_job
-    return publish_job(job_id)
+    """``--upload`` after a build: a fresh video has no human review yet, so the
+    review package is prepared and the upload waits for the reviewer's decisions."""
+    class _Args:
+        id = job_id
+    print("\nA new video cannot be uploaded before a person has reviewed it. Preparing the review package.")
+    cmd_review(_Args())
 
 
 def cmd_upload(args):
@@ -209,6 +215,18 @@ def cmd_upload(args):
     from core.publish import publish_job, DuplicateUpload
     from core.release_gate import ReleaseBlocked
     try:
+        if getattr(args, "decisions", None):
+            from core.db import get_video
+            from core.local_review import ReviewUnavailable, record_decisions
+            from scripts.apply_review_decisions import DecisionsRejected
+            row = get_video(args.id)
+            if not row:
+                raise LookupError(f"Job #{args.id} was not found.")
+            try:
+                applied = record_decisions(row, args.decisions)
+            except (DecisionsRejected, ReviewUnavailable) as exc:
+                raise SystemExit(f"Review decisions refused; nothing was uploaded.\n{exc}")
+            print(f"Review decisions recorded (reviewer: {applied.get('reviewer')}).")
         result = publish_job(args.id, dry_run=bool(getattr(args, "dry_run", False)))
     except LookupError as exc:
         print(exc); return
@@ -220,6 +238,30 @@ def cmd_upload(args):
         print("Dry run: release gate passed; nothing was uploaded.")
     elif result.get("status") == "already_uploaded":
         print(f"Job #{args.id} is already uploaded: {result['url']}")
+
+
+def cmd_review(args):
+    """Build the review package of a finished job. Uploads nothing."""
+    from core.db import get_video
+    from core.local_review import ReviewUnavailable, build_package
+    row = get_video(args.id)
+    if not row:
+        raise SystemExit(f"Job #{args.id} was not found.")
+    try:
+        summary = build_package(row)
+    except ReviewUnavailable as exc:
+        raise SystemExit(str(exc))
+    print(f"\nReview package: {summary['package_dir']}")
+    print(f"Status: {summary['status']}. Nothing was uploaded.")
+    if summary["status"] != "REVIEW_REQUIRED":
+        for line in summary.get("errors", []):
+            print(f"  BLOCKING: {line}")
+        raise SystemExit("This video fails automated QA and cannot be approved. Fix the cause and rebuild.")
+    print("\nNext steps:")
+    print(f"  1. Open in a browser: {summary['dashboard']}")
+    print("  2. Watch the whole video and decide every scene, asset, source and QA report.")
+    print("  3. Download review_decisions.json from the dashboard.")
+    print(f"  4. python run.py upload --id {args.id} --decisions <path to review_decisions.json>")
 
 
 def cmd_doctor(args):
@@ -251,7 +293,7 @@ def main():
     ps.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     ps.add_argument("--demo", action="store_true", help="Use built-in demo script (no Gemini needed)")
     ps.add_argument("--force", action="store_true", help="Build even if this topic was already produced")
-    ps.add_argument("--upload", action="store_true", help="Upload privately after a successful build")
+    ps.add_argument("--upload", action="store_true", help="After the build, prepare the review package needed for a private upload")
 
     pl = sub.add_parser("long", help="Create a long-form video")
     pl.add_argument("topic", nargs="?", default="How the World Works")
@@ -263,11 +305,16 @@ def main():
     pl.add_argument("--minutes", type=int, choices=range(10, 16), default=12, help="Target runtime in minutes (10-15)")
     pl.add_argument("--demo", action="store_true")
     pl.add_argument("--force", action="store_true", help="Build even if this topic was already produced")
-    pl.add_argument("--upload", action="store_true", help="Upload privately after a successful build")
+    pl.add_argument("--upload", action="store_true", help="After the build, prepare the review package needed for a private upload")
 
     pu = sub.add_parser("upload", help="Upload a built video to YouTube (private)")
     pu.add_argument("--id", type=int, required=True)
     pu.add_argument("--dry-run", action="store_true", help="Run the release gate and show metadata only")
+    pu.add_argument("--decisions", default=None,
+                    help="review_decisions.json exported from the job's review dashboard")
+
+    pv = sub.add_parser("review", help="Build the human-review package of a finished job (no upload)")
+    pv.add_argument("--id", type=int, required=True)
 
     pr = sub.add_parser("resume", help="Continue a failed or interrupted job from its checkpoints")
     pr.add_argument("--id", type=int, required=True)
@@ -286,6 +333,7 @@ def main():
     if args.cmd == "shorts": cmd_shorts(args)
     elif args.cmd == "long": cmd_long(args)
     elif args.cmd == "upload": cmd_upload(args)
+    elif args.cmd == "review": cmd_review(args)
     elif args.cmd == "resume": cmd_resume(args)
     elif args.cmd == "status": cmd_status(args)
     elif args.cmd == "doctor": cmd_doctor(args)
