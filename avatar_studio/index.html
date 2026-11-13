@@ -55,7 +55,7 @@
 <script type="module">
   import { AVATARS, TalkingAvatar } from "@interviewflowai/talking-avatar";
   const el = id => document.getElementById(id);
-  let avatar = null, audioUrl = null, recorder = null, chunks = [], sourceAudio = null, sourceStream = null, canvasStream = null;
+  let avatar = null, audioUrl = null, recorder = null, chunks = [], sourceAudio = null, sourceStream = null, canvasStream = null, framePump = null;
   const status = message => { el("status").textContent = message; };
   const enable = (id, yes) => { el(id).disabled = !yes; };
   async function loadAvatar(){
@@ -123,7 +123,16 @@
       await prepareAudioStream();
       const canvas=el("avatar").querySelector("canvas");
       if(!canvas)throw new Error("Avatar canvas not found. Reload the presenter.");
-      canvasStream=canvas.captureStream(30);
+      // Manually request canvas frames to prevent headless Chromium compositor
+      // throttling from truncating the presenter video before narration ends.
+      const manualCapture=typeof canvas.captureStream==="function" &&
+        typeof CanvasCaptureMediaStreamTrack!=="undefined" &&
+        "requestFrame" in CanvasCaptureMediaStreamTrack.prototype;
+      canvasStream=canvas.captureStream(manualCapture?0:30);
+      if(manualCapture){
+        const videoTrack=canvasStream.getVideoTracks()[0];
+        framePump=setInterval(()=>{if(videoTrack.readyState==="live")videoTrack.requestFrame();},33);
+      }
       const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
       chunks=[];
       const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")?"video/webm;codecs=vp8,opus":(MediaRecorder.isTypeSupported("video/webm")?"video/webm":"");
@@ -135,12 +144,14 @@
         const blob=new Blob(chunks,{type:"video/webm"});
         if(blob.size===0){
           const trackInfo={videoTracks:canvasStream?.getVideoTracks().length||0,audioTracks:sourceStream?.getAudioTracks().length||0,recorderState:recorder?.state||"unknown",mimeType:recorder?.mimeType||mime};
+          if(framePump!==null){clearInterval(framePump);framePump=null;}
           canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
           canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
           enable("record",true);enable("finish",false);enable("play",true);
           status("Recording produced no media data ("+JSON.stringify(trackInfo)+"). Check browser MediaRecorder support and try Chrome or Edge.");
           return;
         }
+        if(framePump!==null){clearInterval(framePump);framePump=null;}
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download="talking_presenter.webm";a.click();
         setTimeout(()=>URL.revokeObjectURL(url),30000);
@@ -164,6 +175,7 @@
       },{once:true});
       await sourceAudio.play();
     }catch(error){
+      if(framePump!==null){clearInterval(framePump);framePump=null;}
       canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
       canvasStream=null;sourceStream=null;avatar?.detachStream();
       enable("record",true);enable("finish",false);enable("play",true);

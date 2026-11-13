@@ -18,7 +18,7 @@ try {
   await sleep(1200);
   browser = await chromium.launch({
     headless: true,
-    args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-webgl", "--autoplay-policy=no-user-gesture-required"]
+    args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-webgl", "--autoplay-policy=no-user-gesture-required", "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"]
   });
   const context = await browser.newContext({ acceptDownloads: true });
   // Use a fresh page for every chapter so MediaRecorder, audio streams and SDK
@@ -56,6 +56,11 @@ try {
       const webm=path.join(outputDir,`presenter_section_${String(i).padStart(2,"0")}.webm`);
       await download.saveAs(webm);
       if(fs.statSync(webm).size<10000) throw new Error(`Chapter ${i} WebM is too small.`);
+      const webmProbe=spawnSync("ffprobe",["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",webm],{encoding:"utf8"});
+      const webmDuration=Number(webmProbe.stdout.trim());
+      if(webmProbe.status!==0||!Number.isFinite(webmDuration)||Math.abs(webmDuration-audioDuration)>0.35) {
+        throw new Error(`Chapter ${i} browser recording ended early: WebM ${webmProbe.stdout.trim()}s vs narration ${audioDuration.toFixed(3)}s. Refusing to freeze or stretch the presenter to hide a failed recording.`);
+      }
       const mp4=webm.replace(/\.webm$/,".mp4");
       const conversion=spawn("ffmpeg",["-y","-i",webm,"-i",audio,"-map","0:v:0","-map","1:a:0","-t",audioDuration.toFixed(3),"-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",mp4],{stdio:"inherit"});
       const exitCode=await new Promise((resolve,reject)=>{conversion.on("error",reject);conversion.on("close",resolve);});
