@@ -5,7 +5,9 @@ from scripts.apply_review_decisions import apply_decisions
 from scripts.validate_review_package import validate_package
 def release_package(package_dir,decisions_path,expected_sha256,confirm_private_upload=False):
  if confirm_private_upload is not True: raise ValueError("explicit confirm_private_upload=true required")
- r=Path(package_dir).resolve();m=json.loads((r/"production_manifest.json").read_text())\n if m.get("mode") not in {"shortform","daily_news"}: raise ValueError("shared Short release only accepts shortform or daily_news packages")\n v=(r/str(m.get("video_file") or "video.mp4")).resolve()
+ r=Path(package_dir).resolve();m=json.loads((r/"production_manifest.json").read_text())
+ if m.get("mode") not in {"shortform","daily_news"}: raise ValueError("shared Short release only accepts shortform or daily_news packages")
+ v=(r/str(m.get("video_file") or "video.mp4")).resolve()
  if r not in v.parents or not v.is_file(): raise ValueError("manifest video missing or escapes package")
  digest=hashlib.sha256(v.read_bytes()).hexdigest()
  if digest.lower()!=str(expected_sha256).lower(): raise ValueError("MP4 SHA-256 mismatch")
