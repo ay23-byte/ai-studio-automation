@@ -81,7 +81,7 @@ def _search_query(value: str) -> str:
 
 def _search(query: str) -> list[dict]:
     global _LAST_SEARCH_AT
-    cache_key = re.sub(r"\\s+", " ", query).strip().casefold()
+    cache_key = re.sub(r"\s+", " ", query).strip().casefold()
     with _SEARCH_LOCK:
         cached = _SEARCH_CACHE.get(cache_key)
         if cached is not None:
@@ -132,12 +132,12 @@ def fetch_archival_image(query: str, path: str | Path,
             break
         except requests.HTTPError as exc:
             status = getattr(exc.response, "status_code", None)
-            if status == 429 and attempt < 2:
+            if status in (429, 500, 502, 503, 504) and attempt < 2:
                 delay = _retry_delay(
                     exc.response.headers if exc.response is not None else {},
                     attempt,
                 )
-                print(f"  Wikimedia archival search rate-limited; retry {attempt + 1}/2 after {delay:g}s.")
+                print(f"  Wikimedia archival search transient HTTP {status}; retry {attempt + 1}/2 after {delay:g}s.")
                 time.sleep(delay)
                 continue
             print(f"  archival image search unavailable: HTTP {status or 'error'}; trying Openverse fallback.")
