@@ -123,7 +123,17 @@
       await prepareAudioStream();
       const canvas=el("avatar").querySelector("canvas");
       if(!canvas)throw new Error("Avatar canvas not found. Reload the presenter.");
-      // Chromium can emit only a couple of canvas frames in headless CI when its\n      // compositor is throttled. Use manual frame requests so the video track\n      // remains live for the entire narration, even when the avatar scene is static.\n      const manualCapture=typeof canvas.captureStream==="function" &&\n        typeof CanvasCaptureMediaStreamTrack!=="undefined" &&\n        "requestFrame" in CanvasCaptureMediaStreamTrack.prototype;\n      canvasStream=canvas.captureStream(manualCapture?0:30);\n      if(manualCapture){\n        const videoTrack=canvasStream.getVideoTracks()[0];\n        framePump=setInterval(()=>{if(videoTrack.readyState==="live")videoTrack.requestFrame();},33);\n      }\n      const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
+      // Manually request canvas frames to prevent headless Chromium compositor
+      // throttling from truncating the presenter video before narration ends.
+      const manualCapture=typeof canvas.captureStream==="function" &&
+        typeof CanvasCaptureMediaStreamTrack!=="undefined" &&
+        "requestFrame" in CanvasCaptureMediaStreamTrack.prototype;
+      canvasStream=canvas.captureStream(manualCapture?0:30);
+      if(manualCapture){
+        const videoTrack=canvasStream.getVideoTracks()[0];
+        framePump=setInterval(()=>{if(videoTrack.readyState==="live")videoTrack.requestFrame();},33);
+      }
+      const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
       chunks=[];
       const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")?"video/webm;codecs=vp8,opus":(MediaRecorder.isTypeSupported("video/webm")?"video/webm":"");
       if(!mime)throw new Error("This browser has no supported WebM recording format.");
