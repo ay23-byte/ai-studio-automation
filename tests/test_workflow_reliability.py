@@ -68,6 +68,27 @@ class ActionVersionTests(unittest.TestCase):
             self.assertNotRegex(path.read_text(encoding="utf-8"), r"require\(['\"]@actions/github['\"]\)", path.name)
 
 
+class ReviewReleaseHandoffTests(unittest.TestCase):
+    def test_documentary_build_is_review_only(self):
+        text = _text("make_longform.yml")
+        self.assertNotIn("scripts/upload_documentary_artifact.py", text)
+        self.assertIn("longform-review-${{ github.run_id }}", text)
+        self.assertIn('UPLOAD_REQUESTED: "false"', text)
+        self.assertIn("Release approved documentary (Private)", text)
+
+    def test_private_documentary_release_requires_hash_and_explicit_approval(self):
+        text = _text("release_documentary_private.yml")
+        self.assertIn("confirm_private_upload", text)
+        self.assertIn('CONFIRM_PRIVATE_UPLOAD" == "true"', text)
+        self.assertIn("sha256sum", text)
+        self.assertIn("EXPECTED_SHA256", text)
+        self.assertIn("visual_review_decisions.json", text)
+        self.assertIn("scripts/upload_documentary_artifact.py", text)
+        self.assertIn('PRIVACY: "private"', text)
+        self.assertIn('PUBLISH_AT_IST: ""', text)
+        self.assertNotIn("privacyStatus.*public", text)
+
+
 class WorkflowStructureTests(unittest.TestCase):
     def test_every_job_has_a_timeout(self):
         for path in WORKFLOWS:
