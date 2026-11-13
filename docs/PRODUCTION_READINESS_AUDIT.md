@@ -2,7 +2,9 @@
 
 Repository: `ay23-byte/ai-studio-automation` · Channel: Engineering Physics (`@engineeringphysics-n5g`)
 First audited commit: `57d7081` (`main` after PR #198) · Audit date: 2026-11-12 ·
-Last updated: Phase 2 (reliability), on top of `0e2ba44` (`main` after PR #199)
+Last updated: review-and-release pass (section 14), on top of `2e721fa` (`main` after PR #207).
+Sections 1 to 13 describe the state after Phase 2 and are superseded by section 14 where they differ
+(release workflows, concurrency groups, the retired upload workflow).
 
 This document records what was **inspected and demonstrated**. Where something could not be
 checked it is marked **UNKNOWN** or **NOT VERIFIED** with the reason. It does not replace
@@ -305,3 +307,58 @@ No PR is closed by this phase; closing them is your decision.
 None of the 23 acceptance items in the brief is ticked. Ticking requires demonstrated
 evidence; the earliest candidates are "validate passes on main" and "daily news collection
 succeeds on schedule", both to be confirmed from Actions runs after this phase merges.
+
+## 14. Review-and-release pass (on top of `2e721fa`)
+
+Scope: one review contract and one private-release path for documentaries, standard Shorts and
+daily-news Shorts; repair of the documentary packaging failure; workflow wiring; tests.
+
+### 14.1 Audit matrix
+
+Severity: **Critical** = can publish unreviewed content or the wrong file; **High** = a production
+mode cannot complete or a safety gate can be bypassed; **Medium** = reliability or correctness gap
+with a workaround; **Low** = clarity and hygiene.
+
+| # | Severity | Finding | Evidence | Status |
+|---|---|---|---|---|
+| 1 | High | Documentary build failed at "Assemble shared long-form review package" (run 43484926451). `scripts/package_longform_review.py` lazily imported `scripts.build_review_dashboard`; run by path, the repository root is not on `sys.path` | Reproduced with the old code on a real local documentary build: `ModuleNotFoundError: No module named 'scripts'` | **Fixed.** The new packager ran on the same build. A source scan test now fails if any script imports `core`/`scripts` without the path fix |
+| 2 | High | 15 scripts imported `core`/`scripts` without the path fix; `--help` passing did not show it because the imports are lazy | AST scan; old `release_review_package.py --help` failed outright | **Fixed and tested** (`tests/test_review_release_e2e.py`, `tests/test_release_plumbing.py`) |
+| 3 | High | `make_shorts.yml` and `daily-news-auto-short.yml` produced no review package, so their videos could not go through the release path at all | Workflow files | **Fixed**: both package after the build; not run on Actions |
+| 4 | High | Review decisions (v1) named no job, no video hash and no reviewer; one decision file fitted any package | `scripts/apply_review_decisions.py` at `2e721fa` | **Fixed**: decisions v2 are bound to job id, MP4 SHA-256 and manifest fingerprint; v1 is rejected |
+| 5 | High | Documentaries used a separate upload path with a single "I reviewed it" tick box (`manual-youtube-private-upload.yml`) | Workflow file | **Retired**: the workflow holds no credentials and exits with a pointer. The stricter documentary gates were carried into the packager |
+| 6 | High | A release could use the artifact of a failed or unrelated run; only "numeric id" was checked | `release_shorts_private.yml` at `2e721fa` | **Fixed**: `scripts/verify_source_run.py` (unit tested; the GitHub API call itself is not exercised) |
+| 7 | High | Privacy was requested as private but not read back after upload | Release script at `2e721fa` | **Fixed**: privacy, schedule and channel are read back; a mismatch is exit 3. Tested with a fake uploader only |
+| 8 | Medium | Duplicate-upload lookup used YouTube search, which lags behind new uploads, so a quick rerun could upload twice | `core/uploader.py` | **Fixed**: the uploads playlist is read first. Fake-API tests only |
+| 9 | Medium | Robotic fallback narration and card-slideshow builds were packaged as reviewable | Local Shorts and documentary builds in the sandbox | **Fixed**: such packages are `FAIL`, the build run is red |
+| 10 | Medium | The three build workflows shared one concurrency group; a documentary could hold back or displace the scheduled Shorts and news runs | Workflow files | **Fixed**: one group per mode. The state branch push already merges and retries |
+| 11 | Medium | `make_shorts.yml` passed YouTube credentials to the preflight step of a build that never uploads | Workflow file | **Fixed**: removed; a test asserts only the two release workflows reference them |
+| 12 | Medium | Local uploads (`python run.py upload`, the local dashboard) use `core/publish.py` and `core/release_gate.py`, not the review contract | Code reading | **Open.** Private-only and channel-locked, but without per-item human decisions. Not reachable from Actions |
+| 13 | Low | `scripts/create_voice_audition.py` had no argument parser; `--help` started synthesis | Ran it | **Fixed** |
+| 14 | Low | Three trial workflows declared `PRIVACY: "unlisted"` (they hold no credentials) | Workflow files | **Fixed**: set to `private` |
+| 15 | Low | README said workflows upload as unlisted | README | **Fixed** |
+| 16 | Low | Schema existed only for manifest v1 | `schemas/` | **Fixed**: v2 manifest and decisions schemas, validated against real packages in tests |
+
+### 14.2 What was demonstrated
+
+| Check | Result |
+|---|---|
+| Full suite (`python -m pytest tests -q`) | 808 passed locally; `main` at `2e721fa` had 697 |
+| Shorts build in the sandbox (`python run.py demo --format shorts`) | MP4 1080x1920, 27.2 s. Packager: `FAIL` as designed (espeak fallback voice, 4 of 4 fallback cards) |
+| Documentary build in the sandbox (`python run.py demo --format long`) | MP4 1920x1080, 107.4 s. Packager: `FAIL` as designed (fallback voice, 12 of 12 cards, no research ledger in demo mode) |
+| Package, review, release for all three modes | `tests/test_review_release_e2e.py`: real FFmpeg, packaging run as a subprocess from another directory, fake uploader. Empty decisions refused; complete decisions uploaded once as private; rerun reused the upload; re-encoded MP4 refused |
+| Dashboard | Loaded in jsdom: no script injection from hostile text, nothing pre-selected, exported decisions accepted by the contract |
+
+### 14.3 Not verified
+
+- **No real YouTube upload or read-back was performed.** The release path ran only against a fake uploader.
+- **No workflow changed here has run on GitHub Actions.** Workflows cannot be dispatched from the audit sandbox (HTTP 403). The release workflows, `actions/download-artifact@v8` with `run-id`, and the packaging steps are untested there. No workflow linter new enough for these files was available offline.
+- A package that passes automated QA could not be produced from a sandbox build (no narration provider or footage host is reachable), so the approve-and-release path was exercised with constructed build outputs, not a pipeline-built video.
+- The dashboard was not opened from disk in a real browser.
+- Real Gemini and fallback script providers, Edge TTS and the footage sources remain unverified, as in section 4.
+
+### 14.4 Decisions left to the owner
+
+- `db/studio.sqlite` is still tracked user data. It was not touched.
+- Merged branches, trial workflows and the seven open pull requests (#154, #87, #86, #37, #28, #10, #2) were not deleted or closed.
+- Whether local uploads (finding 12) should also require the review contract.
+
