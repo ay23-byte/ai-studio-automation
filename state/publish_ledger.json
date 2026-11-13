@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-13T12:00:14+00:00",
+  "updated_at": "2026-11-13T21:05:12+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -25,6 +25,20 @@
       "job_id": 7,
       "youtube_id": "tozD35RpBgY",
       "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "3a2db5418924b505a2f79b6f",
+      "created_at": "2026-11-13T21:05:12+00:00",
+      "title": "Microsoft Outage Impacts Global Services",
+      "status": "built",
+      "updated_at": "2026-11-13T21:05:12+00:00",
+      "topic": "What we know so far about the Microsoft outage",
+      "source_refs": [
+        "82c7a02c82378a75c984",
+        "cfd115ed130a52e14877"
+      ],
+      "job_id": 7
     }
   ]
 }
