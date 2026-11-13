@@ -43,7 +43,8 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self._build(root)
-            report = _validate_release_evidence(root)
+            with patch("core.editorial_review.assert_visual_review_ready", return_value={"publication_ready": True}):
+                report = _validate_release_evidence(root)
             self.assertEqual(report["shot_count"], 1)
             self.assertEqual(report["licence_rows"], 1)
 
@@ -63,8 +64,9 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
                 writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
                 writer.writeheader()
                 writer.writerow({"shot_id": "shot_0001", "use_status": "blocked", "fallback_required": "true", "licence": "", "attribution_text": ""})
-            with self.assertRaisesRegex(ValueError, "did not clear these assets"):
-                _validate_release_evidence(root)
+            with patch("core.editorial_review.assert_visual_review_ready", return_value={"publication_ready": True}):
+                with self.assertRaisesRegex(ValueError, "did not clear these assets"):
+                    _validate_release_evidence(root)
 
 
     def test_find_video_probes_single_packaged_mp4_without_external_report(self):
