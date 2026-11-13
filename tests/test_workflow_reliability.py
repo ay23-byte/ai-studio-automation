@@ -138,8 +138,8 @@ class WorkflowStructureTests(unittest.TestCase):
             text = _text(name)
             self.assertIn("scripts/build_with_recovery.py", text, name)
             self.assertIn("BUILD_RECOVERY_ATTEMPTS", text, name)
-        # The news workflow uploads inside the build command, so a recovered job must too.
-        self.assertIn("--upload-after-recovery", _text("daily-news-auto-short.yml"))
+        # All production build workflows are review-only; release is a separate approved action.
+        self.assertNotIn("--upload-after-recovery", _text("daily-news-auto-short.yml"))
 
     def test_state_is_saved_even_when_the_build_fails(self):
         for name in ("make_shorts.yml", "daily-news-auto-short.yml"):
