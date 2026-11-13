@@ -84,6 +84,25 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
 
 
+class SharedShortReleaseWorkflowTests(unittest.TestCase):
+    def test_shared_short_release_is_private_and_fail_closed(self):
+        text = _text("release_shorts_private.yml")
+        self.assertIn("confirm_private_upload", text)
+        self.assertIn("video_sha256", text)
+        self.assertIn("review_decisions_json", text)
+        self.assertIn("scripts/release_review_package.py", text)
+        self.assertIn('PRIVACY: "private"', text)
+        self.assertIn('PUBLISH_AT_IST: ""', text)
+        self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", text)
+
+    def test_human_decision_script_preserves_fail_closed_rules(self):
+        text = (ROOT / "scripts" / "apply_review_decisions.py").read_text(encoding="utf-8")
+        self.assertIn("unknown provenance cannot be approved", text)
+        self.assertIn("cannot be overridden", text)
+        self.assertIn("license_url", text)
+        self.assertIn("20+", text)
+
+
 class WorkflowStructureTests(unittest.TestCase):
     def test_every_job_has_a_timeout(self):
         for path in WORKFLOWS:
