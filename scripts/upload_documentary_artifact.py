@@ -90,8 +90,26 @@ def _validate_release_evidence(build_dir: Path) -> dict:
     visual = reports["visual_review_report.json"]
     if not isinstance(visual.get("shots"), list) or not visual["shots"]:
         raise ValueError("Visual review report contains no shot manifest.")
-    if any(item.get("level") == "error" for item in visual.get("issues", [])):
-        raise ValueError("Visual review report contains unresolved media errors.")
+    # Validate the persistent human decision store as the publication authority.
+    # The raw manifest also contains AI semantic-screening triage flags; those
+    # are not silently promoted to a hard media failure when a reviewer has
+    # inspected the shot and explicitly approved it with substantive notes.
+    from core.editorial_review import assert_visual_review_ready
+    try:
+        editorial_gate = assert_visual_review_ready(build_dir)
+    except Exception as exc:
+        raise ValueError(f"Visual/editorial review is not approved for release: {exc}") from exc
+    unresolved_media = [
+        item for item in visual.get("issues", [])
+        if item.get("level") == "error"
+        and "AI visual-to-narration screening status" not in str(item.get("message") or "")
+    ]
+    if unresolved_media:
+        details = "; ".join(
+            f"{item.get('shot', 'unknown')}: {item.get('message', 'unresolved media issue')}"
+            for item in unresolved_media[:12]
+        )
+        raise ValueError("Visual review report contains unresolved media errors: " + details)
     consistency = reports["visual_consistency_report.json"]
     summary = consistency.get("summary") or {}
     consistency_status = str(consistency.get("status") or "MISSING").upper()
