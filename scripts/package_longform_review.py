@@ -182,17 +182,62 @@ def create_package(build_dir: str | Path, video_file: str | Path,
         "details": ["FFprobe verified video/audio streams and positive duration.", probe],
     })
 
-    report_map = {
-        "semantic": ("visual_consistency_report.json", "REVIEW",
-                     "Automated visual consistency is not proof of semantic relevance; human scene-to-narration review is required."),
-        "audio": ("audio_quality_report.json", "REVIEW",
-                  "Human listening review remains required even when automated audio metering passes."),
-        "captions": ("quality_report.json", "REVIEW",
-                    "Human review of subtitle wording, timing, readability and synchronization is required."),
+    # Keep semantic screening separate from technical image-quality metrics.
+    # A mismatch/error is important evidence for the human reviewer, but this
+    # package is deliberately review-only: it must be assembled as REVIEW_REQUIRED
+    # rather than misreporting a technical consistency FAIL as semantic FAIL.
+    screening_counts = {
+        status: sum(
+            1 for shot in shots
+            if str((shot.get("semantic_screening") or {}).get("status") or "not_run").lower() == status
+        )
+        for status in ("match", "mismatch", "uncertain", "unavailable", "error", "skipped", "not_run")
     }
-    for name, (filename, fallback, detail) in report_map.items():
+    semantic_review = {
+        "status": "REVIEW",
+        "source_report": "visual_review_report.json",
+        "semantic_screening_enabled": bool(visual.get("semantic_screening_enabled")),
+        "screening_counts": screening_counts,
+        "shots": [
+            {
+                "shot_id": str(shot.get("shot_id") or f"shot_{index + 1:04d}"),
+                "status": str((shot.get("semantic_screening") or {}).get("status") or "not_run").lower(),
+                "match_score": (shot.get("semantic_screening") or {}).get("match_score"),
+                "recommendation": (shot.get("semantic_screening") or {}).get("recommendation"),
+                "reason": (shot.get("semantic_screening") or {}).get("reason"),
+            }
+            for index, shot in enumerate(shots)
+        ],
+        "details": [
+            "Automated visual-to-narration screening is advisory evidence, not human approval.",
+            "Every mismatch, uncertain, error or not-run result must be inspected and resolved by a human reviewer before publication.",
+        ],
+    }
+    _write_json(qa_dir / "semantic.json", semantic_review)
+
+    visual_quality = _read_json(build / "visual_consistency_report.json", required=False)
+    visual_quality_status = _status(visual_quality, "REVIEW")
+    _write_json(qa_dir / "visual_quality.json", {
+        "status": "REVIEW",
+        "automated_status": visual_quality_status,
+        "source_report": "visual_consistency_report.json" if visual_quality else None,
+        "summary": visual_quality.get("summary") or {},
+        "issues": visual_quality.get("issues") or [],
+        "details": [
+            "Resolution, exposure, contrast, saturation and sharpness diagnostics are technical quality signals, not semantic relevance.",
+            "Any automated FAIL must be corrected or explicitly assessed during human visual review; it is not silently converted into PASS.",
+        ],
+    })
+
+    report_map = {
+        "audio": ("audio_quality_report.json",
+                  "Human listening review remains required even when automated audio metering passes."),
+        "captions": ("quality_report.json",
+                     "Human review of subtitle wording, timing, readability and synchronization is required."),
+    }
+    for name, (filename, detail) in report_map.items():
         report = _read_json(build / filename, required=False)
-        status = _status(report, fallback)
+        status = _status(report, "REVIEW")
         _write_json(qa_dir / f"{name}.json", {
             "status": "FAIL" if status == "FAIL" else "REVIEW",
             "source_report": filename if report else None,
