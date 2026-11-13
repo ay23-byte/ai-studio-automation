@@ -9,13 +9,39 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import date, datetime, timezone
+from email.utils import parsedate_to_datetime
+import threading
+import time
 from pathlib import Path
 
 import requests
 
 API = "https://commons.wikimedia.org/w/api.php"
-USER_AGENT = "AIStudioDocumentary/1.0 (archival image research)"
+USER_AGENT = "AIStudioDocumentary/1.1 (archival image research)"
+# Commons asks automated clients to identify themselves and avoid burst traffic.
+# Cache successful metadata searches and serialize requests for the life of a build.
+_SEARCH_CACHE: dict[str, list[dict]] = {}
+_SEARCH_LOCK = threading.Lock()
+_LAST_SEARCH_AT = 0.0
+_MIN_SEARCH_INTERVAL_SECONDS = 1.0
+
+
+def _retry_delay(headers: dict | None, attempt: int) -> float:
+    """Respect Retry-After in either seconds or HTTP-date form."""
+    raw = str((headers or {}).get("Retry-After") or "").strip()
+    if raw:
+        try:
+            return min(30.0, max(1.0, float(raw)))
+        except ValueError:
+            try:
+                retry_at = parsedate_to_datetime(raw)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                return min(30.0, max(1.0, (retry_at - datetime.now(timezone.utc)).total_seconds()))
+            except (TypeError, ValueError, OverflowError):
+                pass
+    return min(20.0, 2.0 ** (attempt + 1))
 _ALLOWED = re.compile(r"^(?:cc0|public domain|cc by(?:-sa)?(?:\s|$))", re.I)
 
 
@@ -54,6 +80,16 @@ def _search_query(value: str) -> str:
 
 
 def _search(query: str) -> list[dict]:
+    global _LAST_SEARCH_AT
+    cache_key = re.sub(r"\\s+", " ", query).strip().casefold()
+    with _SEARCH_LOCK:
+        cached = _SEARCH_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+        wait = _MIN_SEARCH_INTERVAL_SECONDS - (time.monotonic() - _LAST_SEARCH_AT)
+        if wait > 0:
+            time.sleep(wait)
+        _LAST_SEARCH_AT = time.monotonic()
     response = requests.get(
         API,
         params={
@@ -68,7 +104,10 @@ def _search(query: str) -> list[dict]:
     response.raise_for_status()
     payload = response.json()
     pages = (payload.get("query") or {}).get("pages") or {}
-    return list(pages.values()) if isinstance(pages, dict) else []
+    result = list(pages.values()) if isinstance(pages, dict) else []
+    with _SEARCH_LOCK:
+        _SEARCH_CACHE[cache_key] = result
+    return result
 
 
 def fetch_archival_image(query: str, path: str | Path,
@@ -94,12 +133,10 @@ def fetch_archival_image(query: str, path: str | Path,
         except requests.HTTPError as exc:
             status = getattr(exc.response, "status_code", None)
             if status == 429 and attempt < 2:
-                retry_after = (exc.response.headers.get("Retry-After", "") if exc.response is not None else "")
-                try:
-                    delay = min(10.0, max(1.0, float(retry_after)))
-                except (TypeError, ValueError):
-                    delay = 2.0 * (attempt + 1)
-                import time
+                delay = _retry_delay(
+                    exc.response.headers if exc.response is not None else {},
+                    attempt,
+                )
                 print(f"  Wikimedia archival search rate-limited; retry {attempt + 1}/2 after {delay:g}s.")
                 time.sleep(delay)
                 continue
