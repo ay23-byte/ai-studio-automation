@@ -1,6 +1,13 @@
 """Create comparable female documentary narration audition tracks."""
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+
+if __package__ in (None, ""):  # run as "python scripts/<name>.py": make the repo importable
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
+import argparse
 import json
 import os
 import shutil
@@ -17,8 +24,12 @@ VOICES = [
 ]
 
 
-def main():
-    root = Path("voice_audition")
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", default="voice_audition",
+                        help="Folder for the audition tracks (default: ./voice_audition)")
+    args = parser.parse_args(argv)
+    root = Path(args.output_dir)
     root.mkdir(parents=True, exist_ok=True)
     rows = []
     for label, voice, description in VOICES:

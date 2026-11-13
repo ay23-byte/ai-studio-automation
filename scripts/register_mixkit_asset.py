@@ -3,6 +3,12 @@
 Mixkit automated scraping/bulk downloading is intentionally not implemented.
 The operator must inspect the asset page and confirm its Free License.
 """
+import sys as _sys
+from pathlib import Path as _Path
+
+if __package__ in (None, ""):  # run as "python scripts/<name>.py": make the repo importable
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 from core.footage_sources import register_mixkit_asset
 

@@ -35,13 +35,16 @@ class ReviewPackageValidatorTests(unittest.TestCase):
     @patch("scripts.validate_review_package._probe", return_value={
         "width": 1080, "height": 1920, "duration_seconds": 40,
         "video_codec": "h264", "audio_codecs": ["aac"]})
-    def test_complete_package_requires_all_human_and_qa_gates(self, _probe):
+    def test_schema_v1_package_is_never_approved_even_with_a_complete_checklist(self, _probe):
+        # A v1 checklist names no job, no video hash and no reviewer, so a fully
+        # "approved" v1 package still cannot be released.
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.make_package(root)
             result = validate_package(root)
-            self.assertEqual(result["status"], "APPROVED_FOR_UPLOAD")
-            self.assertTrue(result["publication_eligible"])
+            self.assertEqual(result["status"], "REVIEW_REQUIRED")
+            self.assertFalse(result["publication_eligible"])
+            self.assertIn("schema v1 package", " ".join(result["required_human_reviews"]))
 
     @patch("scripts.validate_review_package._probe", return_value={
         "width": 1920, "height": 1080, "duration_seconds": 60,

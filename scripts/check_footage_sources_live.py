@@ -3,6 +3,12 @@
 Checks archive APIs plus the stock-video providers used by the production
 renderer. A discovery candidate is not a downloaded or publication-cleared clip.
 """
+import sys as _sys
+from pathlib import Path as _Path
+
+if __package__ in (None, ""):  # run as "python scripts/<name>.py": make the repo importable
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 import json
 from datetime import date

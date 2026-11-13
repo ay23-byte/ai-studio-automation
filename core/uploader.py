@@ -248,35 +248,79 @@ def post_comment(vid: str, text: str):
                           "topLevelComment": {"snippet": {"textOriginal": text}}}}).execute()
 
 
+def _marker_match(yt, video_ids, marker: str) -> str | None:
+    """Return the id of the video whose description carries ``marker``.
+
+    Raises when such a video exists but is not private: that needs a human, not
+    a second upload.
+    """
+    ids = [str(item) for item in video_ids if item]
+    for start in range(0, len(ids), 50):
+        batch = ids[start:start + 50]
+        details = yt.videos().list(part="snippet,status", id=",".join(batch)).execute(num_retries=5)
+        for video in details.get("items", []):
+            description = str((video.get("snippet") or {}).get("description") or "")
+            if marker not in description:
+                continue
+            video_id = str(video.get("id") or (batch[0] if len(batch) == 1 else ""))
+            if not video_id:
+                raise RuntimeError("YouTube returned a matching video without an id; refusing to upload again.")
+            privacy = str((video.get("status") or {}).get("privacyStatus") or "")
+            if privacy != "private":
+                raise RuntimeError(
+                    f"Existing video {video_id} has the source-run marker but is not private; "
+                    "refusing another upload. Review its privacy manually.")
+            return video_id
+    return None
+
+
+def _recent_upload_ids(yt, limit: int = 100) -> list[str]:
+    """Ids of the channel's most recent uploads, read from its uploads playlist.
+
+    Unlike ``search().list`` this has no indexing delay, so an upload made a
+    minute ago is found.  One quota unit per page instead of 100.
+    """
+    channels = yt.channels().list(part="contentDetails", mine=True).execute(num_retries=5)
+    items = channels.get("items") or []
+    if not isinstance(items, list) or not items:
+        return []
+    playlist = (((items[0].get("contentDetails") or {}).get("relatedPlaylists") or {}).get("uploads"))
+    if not isinstance(playlist, str) or not playlist:
+        return []
+    found, token = [], None
+    while len(found) < limit:
+        page = yt.playlistItems().list(part="contentDetails", playlistId=playlist, maxResults=50,
+                                       pageToken=token).execute(num_retries=5)
+        for item in page.get("items") or []:
+            video_id = (item.get("contentDetails") or {}).get("videoId")
+            if video_id:
+                found.append(str(video_id))
+        token = page.get("nextPageToken")
+        if not isinstance(token, str) or not token:
+            break
+    return found[:limit]
+
+
 def find_private_video_by_marker(marker: str) -> str | None:
-    """Find an existing private upload carrying this immutable source-run marker.
-    
-    Search failures are raised to the caller: uncertainty must never trigger a duplicate upload.
+    """Find an existing private upload carrying this immutable idempotency marker.
+
+    The channel's recent uploads are checked first (no indexing delay), then
+    YouTube search.  Any API failure is raised to the caller: uncertainty must
+    never trigger a duplicate upload.
     """
     marker = str(marker or "").strip()
     if not marker:
         raise ValueError("An upload idempotency marker is required.")
     yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
+    recent = _marker_match(yt, _recent_upload_ids(yt), marker)
+    if recent:
+        return recent
     response = yt.search().list(
         part="id", forMine=True, type="video", q=marker, maxResults=50
     ).execute(num_retries=5)
-    for item in response.get("items", []):
-        video_id = (item.get("id") or {}).get("videoId")
-        if not video_id:
-            continue
-        details = yt.videos().list(part="snippet,status", id=video_id).execute(num_retries=5)
-        for video in details.get("items", []):
-            description = str((video.get("snippet") or {}).get("description") or "")
-            if marker not in description:
-                continue
-            privacy = str((video.get("status") or {}).get("privacyStatus") or "")
-            if privacy != "private":
-                raise RuntimeError(
-                    f"Existing video {video_id} has the source-run marker but is not private; "
-                    "refusing another upload. Review its privacy manually."
-                )
-            return video_id
-    return None
+    return _marker_match(yt, [(item.get("id") or {}).get("videoId") for item in response.get("items", [])],
+                         marker)
+
 
 def wait_processed(vid: str, max_wait: int = 600) -> str:
     yt = build("youtube", "v3", credentials=_creds(), cache_discovery=False)
