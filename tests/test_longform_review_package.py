@@ -21,7 +21,10 @@ class LongformReviewPackageTests(unittest.TestCase):
                 "shot_id": "shot_0001", "media_path": str(media), "media_type": "video",
                 "narration": "A verified test narration.", "visual_prompt": "A test visual",
                 "sample_frames": [], "source": {"provider": "Test Archive", "page_url": "https://example.org/item/1"},
-            }]
+                "semantic_screening": {"status": "mismatch", "match_score": 0.12,
+                                       "recommendation": "Replace with a scene matching the narration."},
+            }],
+            "semantic_screening_enabled": True,
         }), encoding="utf-8")
         with (build / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["shot_id", "source", "url", "licence", "attribution_text", "use_status"])
@@ -29,7 +32,12 @@ class LongformReviewPackageTests(unittest.TestCase):
             writer.writerow({"shot_id": "shot_0001", "source": "Test Archive", "url": "https://example.org/item/1",
                              "licence": "CC BY 4.0", "attribution_text": "Test credit", "use_status": "eligible_pending_human_review"})
         for name, data in {
-            "visual_consistency_report.json": {"status": "PASS"},
+            "visual_consistency_report.json": {
+                "status": "FAIL",
+                "summary": {"fail_count": 1, "review_count": 0, "measured_shot_count": 1},
+                "issues": [{"level": "error", "shot_id": "shot_0001",
+                            "message": "Sampled visual is below the recommended 640x360 source resolution."}],
+            },
             "audio_quality_report.json": {"status": "PASS"},
             "quality_report.json": {"status": "PASS"},
         }.items():
@@ -67,6 +75,14 @@ class LongformReviewPackageTests(unittest.TestCase):
             self.assertTrue((package / "captions.ass").is_file())
             self.assertTrue((package / "licenses.csv").is_file())
             self.assertEqual(json.loads((package / "review_checklist.json").read_text())["human_review_status"], "pending")
+            semantic = json.loads((package / "qa" / "semantic.json").read_text(encoding="utf-8"))
+            self.assertEqual(semantic["status"], "REVIEW")
+            self.assertEqual(semantic["screening_counts"]["mismatch"], 1)
+            self.assertEqual(semantic["shots"][0]["status"], "mismatch")
+            visual_quality = json.loads((package / "qa" / "visual_quality.json").read_text(encoding="utf-8"))
+            self.assertEqual(visual_quality["status"], "REVIEW")
+            self.assertEqual(visual_quality["automated_status"], "FAIL")
+            self.assertEqual(visual_quality["summary"]["fail_count"], 1)
             probe.assert_called_once()
 
     def test_missing_visual_media_fails_closed(self):
