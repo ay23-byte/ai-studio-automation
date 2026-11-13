@@ -1,4 +1,4 @@
-name: 'Daily news Short — automatic (private upload)'
+name: 'Daily news Short — build review package'
 # Fully automatic path: discover → corroborate with the source-tier gate → script →
 # render → PRIVATE upload. Stories that are single-source, stale, sensitive or
 # cannot be grounded are skipped; a skipped run is a success, not a failure.
@@ -11,9 +11,9 @@ on:
         options: [english, hinglish, hindi]
         default: english
       upload:
-        description: "Upload the finished Short to YouTube as PRIVATE"
+        description: "Deprecated: daily news builds are review-only; use guarded release after human approval"
         type: boolean
-        default: true
+        default: false
   schedule:
     - cron: '45 2 * * *'    # 08:15 IST
     - cron: '45 13 * * *'   # 19:15 IST
@@ -64,7 +64,7 @@ jobs:
       - name: Restore duplicate ledger and seen-story cache
         run: python scripts/persist_state.py restore
 
-      - name: Select, write, render and upload (private) one news Short
+      - name: Select, write and render one news Short for review
         id: news
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -73,27 +73,17 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
-          PRIVACY: "private"
-          PUBLISH_AT_IST: ""
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
-          WANT_UPLOAD: ${{ github.event_name == 'schedule' || inputs.upload }}
+          WANT_UPLOAD: "false"
           # One bounded recovery attempt: a job that fails part-way is resumed from
           # its checkpoint (finished narration and visuals are reused). 0 turns it off.
           BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$WANT_UPLOAD" = "true" ]; then
-            python scripts/build_with_recovery.py --upload-after-recovery -- \
-              python scripts/run_daily_news_short.py --upload
-          else
-            python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py
-          fi
+          # Discovery/render only. Never upload from a scheduled or build workflow.
+          python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py
 
       - name: Persist duplicate ledger and seen-story cache
         if: always()
@@ -107,7 +97,7 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}
+          UPLOAD_REQUESTED: "false"
         run: python scripts/write_job_summary.py --pipeline news_short --artifact "news-short-auto-${GITHUB_RUN_ID}"
 
       - uses: actions/upload-artifact@v7
