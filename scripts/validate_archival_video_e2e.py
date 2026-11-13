@@ -32,7 +32,7 @@ def _probe_video(path: Path) -> dict:
         "ffprobe", "-v", "error", "-show_entries",
         "format=duration:stream=codec_type,width,height",
         "-of", "json", str(path),
-    ], text=True)
+    ], text=True, timeout=120)
     data = json.loads(raw)
     video = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), None)
     duration = float((data.get("format") or {}).get("duration") or 0)

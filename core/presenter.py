@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from core.ffmpeg_utils import render_timeout, tool_timeout
 
 def generate_section_presenter(audio_path, section_start, duration, section_index, build_dir, ffmpeg="ffmpeg", ffprobe="ffprobe"):
     """Generate a short lip-synced chapter intro, or return None if disabled."""
@@ -37,7 +38,7 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
     out_dir = Path(build_dir) / "presenter" / f"section_{section_index:02d}"
     out_dir.mkdir(parents=True, exist_ok=True)
     audio_segment = out_dir / "narration_intro.wav"
-    subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-ss", f"{float(section_start):.3f}", "-t", f"{duration:.3f}", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "16000", str(audio_segment)], check=True)
+    subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-ss", f"{float(section_start):.3f}", "-t", f"{duration:.3f}", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "16000", str(audio_segment)], check=True, timeout=render_timeout())
     result_dir = out_dir / "sadtalker_results"
     if result_dir.exists():
         shutil.rmtree(result_dir)
@@ -56,7 +57,7 @@ def generate_section_presenter(audio_path, section_start, duration, section_inde
     ]
     if device == "cpu":
         command.append("--cpu")
-    subprocess.run(command, cwd=str(repo), check=True)
+    subprocess.run(command, cwd=str(repo), check=True, timeout=tool_timeout())
     candidates = sorted(result_dir.rglob("*.mp4"), key=lambda item: item.stat().st_mtime, reverse=True)
     if not candidates:
         raise RuntimeError("SadTalker completed but did not produce an MP4 presenter clip.")

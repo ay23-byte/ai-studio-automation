@@ -29,7 +29,7 @@ def verify(manifest_path):
         "ffprobe", "-v", "error", "-show_entries",
         "stream=codec_type,width,height,r_frame_rate:format=duration",
         "-of", "json", str(video)
-    ], text=True)
+    ], text=True, timeout=120)
     info = json.loads(probe)
     stream = next((x for x in info.get("streams", []) if x.get("codec_type") == "video"), None)
     if not stream or int(stream.get("width", 0)) != 1080 or int(stream.get("height", 0)) != 1920:

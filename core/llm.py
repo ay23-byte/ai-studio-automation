@@ -208,7 +208,8 @@ def complete(config: dict, prompt: str, *, json_mode: bool = True, temperature: 
     discovered = False
     json_supported = json_mode
     last_error: LLMError | None = None
-    for attempt in range(max(1, attempts) + 2):
+    retries = 0     # only real retries count; switching JSON mode or model does not
+    for _ in range(max(1, attempts) + 2):
         try:
             return _post_chat(config, model, prompt, json_mode=json_supported,
                               temperature=temperature, max_tokens=max_tokens, timeout=timeout)
@@ -226,9 +227,10 @@ def complete(config: dict, prompt: str, *, json_mode: bool = True, temperature: 
                     print(f"{config['name']}: model '{model}' unavailable; trying discovered model '{candidates[0]}'.")
                     model = candidates[0]
                     continue
-            if not exc.retryable or attempt >= attempts - 1:
+            if not exc.retryable or retries >= attempts - 1:
                 raise
-            delay = min(5 * (2 ** attempt), 30) + random.uniform(0, 1)
+            delay = min(5 * (2 ** retries), 30) + random.uniform(0, 1)
+            retries += 1
             print(f"{config['name']} temporary failure (HTTP {exc.status_code}); retrying in {delay:.0f}s.")
             time.sleep(delay)
     raise last_error or LLMError(config["name"], "request failed")

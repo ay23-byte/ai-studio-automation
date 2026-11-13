@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from core.config import ROOT
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin, render_timeout, tool_timeout
 
 
 def presenter_intro_duration(section_duration, max_seconds=8.0):
@@ -43,10 +44,10 @@ def generate_chapter_avatar_clips(voice_path, sections, voice_gender, build_dir)
             max_intro = 8.0
         duration = presenter_intro_duration(chapter_duration, max_intro)
         subprocess.run([
-            "ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(voice_path),
+            ffmpeg_bin(), "-y", "-ss", f"{start:.3f}", "-i", str(voice_path),
             "-t", f"{duration:.3f}", "-vn", "-ac", "1", "-ar", "24000",
             "-c:a", "pcm_s16le", str(audio_path)
-        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=render_timeout())
         if not audio_path.is_file() or audio_path.stat().st_size < 1024:
             raise RuntimeError(f"Chapter {index} narration slice is missing or too small.")
 
@@ -55,7 +56,7 @@ def generate_chapter_avatar_clips(voice_path, sections, voice_gender, build_dir)
     env["AVATAR_OUTPUT_DIR"] = str(output_dir.resolve())
     env["AVATAR_GENDER"] = str(voice_gender or "female").lower()
     runner = ROOT / "avatar_studio" / "generate-clips.mjs"
-    subprocess.run(["node", str(runner), str(len(sections))], cwd=ROOT, env=env, check=True)
+    subprocess.run(["node", str(runner), str(len(sections))], cwd=ROOT, env=env, check=True, timeout=tool_timeout())
 
     # Require every generated chapter clip and verify it has decodable streams.
     for index, section in enumerate(sections, start=1):
@@ -63,9 +64,9 @@ def generate_chapter_avatar_clips(voice_path, sections, voice_gender, build_dir)
         if not clip.is_file() or clip.stat().st_size < 10000:
             raise RuntimeError(f"3D avatar generation did not produce chapter {index}: {clip}")
         probe = subprocess.run([
-            "ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
+            ffprobe_bin(), "-v", "error", "-show_entries", "stream=codec_type",
             "-of", "csv=p=0", str(clip)
-        ], check=True, capture_output=True, text=True)
+        ], check=True, capture_output=True, text=True, timeout=PROBE_TIMEOUT)
         streams = set(probe.stdout.splitlines())
         if not {"video", "audio"}.issubset(streams):
             raise RuntimeError(f"3D avatar chapter {index} must contain both audio and video.")

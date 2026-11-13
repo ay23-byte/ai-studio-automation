@@ -3,6 +3,7 @@ from __future__ import annotations
 import math, subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+from core.ffmpeg_utils import ffmpeg_bin
 
 W,H=1920,1080
 BG=(10,15,24); PANEL=(21,29,40); WHITE=(238,236,229); MUTED=(157,168,180)
@@ -84,7 +85,7 @@ def render_graphic_scene(shot,duration,build_dir,scene_id):
         if frame is None: return None
         frame.save(root/f"frame_{i:04d}.png",optimize=True)
     out=Path(build_dir)/(scene_id+".mp4")
-    cmd=["ffmpeg","-y","-loglevel","error","-framerate",str(fps),"-i",str(root/"frame_%04d.png"),
+    cmd=[ffmpeg_bin(),"-y","-loglevel","error","-framerate",str(fps),"-i",str(root/"frame_%04d.png"),
          "-t",f"{float(duration):.3f}","-vf","fps=30,format=yuv420p","-c:v","libx264",
          "-preset","veryfast","-crf","20","-movflags","+faststart",str(out)]
     try: subprocess.run(cmd,check=True,timeout=max(90,int(duration*20)))

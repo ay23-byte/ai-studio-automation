@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from core.asset_licensing import build_licence_register
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin, render_timeout
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_MEDIA = {"image", "video"}
@@ -115,7 +116,7 @@ def _render_media_timeline(scenes: list[dict], durations: list[float], output: P
         kind = scene["asset_type"]
         segment = workdir / f"visual_{index:02d}.mp4"
         common = [
-            "ffmpeg", "-y", "-loglevel", "error",
+            ffmpeg_bin(), "-y", "-loglevel", "error",
         ]
         if kind == "video":
             # Loop only when a source clip is shorter than the narration beat;
@@ -147,7 +148,7 @@ def _render_media_timeline(scenes: list[dict], durations: list[float], output: P
                 "-crf", "18", "-pix_fmt", "yuv420p",
                 "-r", "30", "-t", f"{duration:.3f}", str(segment),
             ]
-        subprocess.run(args, check=True)
+        subprocess.run(args, check=True, timeout=render_timeout())
         segments.append(segment)
         report.append({
             "shot": index, "asset_type": kind, "asset_path": str(source),
@@ -162,10 +163,10 @@ def _render_media_timeline(scenes: list[dict], durations: list[float], output: P
         encoding="utf-8",
     )
     subprocess.run([
-        "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+        ffmpeg_bin(), "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
         "-i", str(concat_list), "-an", "-c:v", "libx264", "-preset", "veryfast",
         "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", str(output),
-    ], check=True)
+    ], check=True, timeout=render_timeout())
     return {
         "renderer": "ffmpeg_media_asset_timeline",
         "segments": report,
@@ -213,9 +214,9 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
                             gender=script.get("voice_gender", "female"))
         wavs.append(wav)
         probe = subprocess.check_output([
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1", str(wav)
-        ], text=True).strip()
+        ], text=True, timeout=PROBE_TIMEOUT).strip()
         durations.append(float(probe))
 
     voice_path = outdir / "voice.wav"
@@ -228,10 +229,10 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
                        + f"[a{index}]")
     filters.append("".join(f"[a{i}]" for i in range(len(wavs)))
                    + f"concat=n={len(wavs)}:v=0:a=1[out]")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *inputs,
+    subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[out]",
                     "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(voice_path)],
-                   check=True)
+                   check=True, timeout=render_timeout())
     total = sum(durations) + 0.25 * (len(durations)-1)
     ass_path = outdir / "captions.ass"
     _write_ass(scenes, durations, ass_path, language=script.get('language', 'hindi'))
@@ -244,7 +245,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     subtitle_filter = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     mux_duration = total + 0.6
     subprocess.run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual_path),
+        ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(visual_path),
         "-i", str(voice_path), "-vf", f"subtitles={subtitle_filter}",
         "-map", "0:v:0", "-map", "1:a:0",
         "-af", f"aresample=44100,apad,atrim=duration={mux_duration:.3f},"
@@ -252,7 +253,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         "-t", f"{mux_duration:.3f}", "-c:v", "libx264", "-preset", "fast",
         "-crf", "19", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
         "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(final_path)
-    ], check=True)
+    ], check=True, timeout=render_timeout())
     shot_manifest = []
     shot_cursor = 0.0
     for index, (scene, duration) in enumerate(zip(scenes, durations), start=1):

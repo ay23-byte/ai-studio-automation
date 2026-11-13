@@ -23,7 +23,7 @@ def _sample_video_frames(video, duration, output_dir):
 def run(video, report_dir=None, manifest_path=None):
     video = Path(video)
     data = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams",
-        "-show_format", "-of", "json", str(video)], text=True))
+        "-show_format", "-of", "json", str(video)], text=True, timeout=120))
     vs = [s for s in data["streams"] if s["codec_type"] == "video"]
     aus = [s for s in data["streams"] if s["codec_type"] == "audio"]
     errors, warnings = [], []
@@ -46,7 +46,7 @@ def run(video, report_dir=None, manifest_path=None):
                                ("silencedetect=n=-45dB:d=0.5","silence","silence_start:")]:
         result = subprocess.run(["ffmpeg","-hide_banner","-i",str(video),
             "-vf" if label=="black frames" else "-af",filt,"-f","null","-"],
-            capture_output=True,text=True,check=False)
+            capture_output=True,text=True,check=False, timeout=3600)
         if result.returncode != 0: warnings.append(f"{label} scan could not be completed.")
         elif marker in (result.stderr or ""): warnings.append(f"{label} detected; inspect timestamps.")
     if errors:

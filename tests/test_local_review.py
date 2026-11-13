@@ -281,6 +281,32 @@ class LocalUploadTests(_Sandbox):
         self.assertTrue((local_review.package_dir(job_id) / "review_dashboard.html").is_file())
 
 
+class ScheduledBuildTests(_Sandbox):
+    def test_run_daily_upload_flag_prepares_the_review_and_never_raises(self):
+        import run_daily
+        job_id = self.make_job()
+        with fake_media("shortform"), contextlib.redirect_stdout(io.StringIO()), \
+                patch.object(run_daily, "send") as send, patch("core.uploader.upload") as upload:
+            summary = run_daily.prepare_review(job_id)
+            self.assertIsNone(run_daily.prepare_review(9999))          # unknown job: reported, not raised
+        upload.assert_not_called()
+        self.assertEqual(summary["status"], "REVIEW_REQUIRED")
+        self.assertIn(f"python run.py upload --id {job_id} --decisions", send.call_args_list[0].args[0])
+        self.assertIn("could not be prepared", send.call_args_list[1].args[0])
+
+    def test_run_daily_no_longer_uploads_inside_the_topic_error_handler(self):
+        """A review block after a successful build used to be counted as a failed topic."""
+        text = (Path(run_daily_path())).read_text(encoding="utf-8")
+        build_section = text[text.index("def main():"):]
+        self.assertEqual(build_section.count("upload_latest(args.format)"), 1)     # only --upload-latest
+        self.assertEqual(build_section.count("prepare_review(vid_id)"), 2)
+
+
+def run_daily_path():
+    import run_daily
+    return run_daily.__file__
+
+
 @unittest.skipUnless(have_ffmpeg(), "FFmpeg/FFprobe are required")
 class RealMediaLocalReviewTests(_Sandbox):
     def test_real_video_is_probed_decoded_and_matched_by_hash(self):

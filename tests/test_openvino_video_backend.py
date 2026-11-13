@@ -45,7 +45,7 @@ class OpenVINOVideoBackendTests(unittest.TestCase):
             model.mkdir()
             output = root / "generated.mp4"
 
-            def fake_ffmpeg(command, input=None, check=None, capture_output=None):
+            def fake_ffmpeg(command, input=None, check=None, capture_output=None, timeout=None):
                 output.write_bytes(b"mock mp4 bytes" * 5000)
                 return types.SimpleNamespace(returncode=0)
 

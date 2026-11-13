@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from core.editorial_review import assert_visual_review_ready, review_store_path
+from core.ffmpeg_utils import ffprobe_bin
 
 REQUIRED_REPORTS = (
     "visual_review_report.json",
@@ -60,7 +61,7 @@ def probe_release_video(video_path: str | Path) -> dict[str, Any]:
     if not path.is_file() or path.stat().st_size < 100_000:
         raise ValueError("Final documentary video is missing or unexpectedly small.")
     raw = subprocess.check_output([
-        "ffprobe", "-v", "error", "-show_streams", "-show_format",
+        ffprobe_bin(), "-v", "error", "-show_streams", "-show_format",
         "-of", "json", str(path),
     ], text=True, timeout=60)
     data = json.loads(raw or "{}")

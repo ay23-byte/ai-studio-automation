@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from core.ffmpeg_utils import PROBE_TIMEOUT, render_timeout
 
 W, H = 1920, 1080
 
@@ -72,11 +73,11 @@ def render_presenter_scene(section_index, duration, build_dir, image_path=None,
         "-pix_fmt", "yuv420p", "-r", "30", "-movflags", "+faststart",
         str(output),
     ]
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, timeout=render_timeout())
     measured = float(subprocess.check_output([
         ffprobe, "-v", "error", "-show_entries", "format=duration",
         "-of", "csv=p=0", str(output)
-    ]).strip())
+    ], timeout=PROBE_TIMEOUT).strip())
     if abs(measured - duration) > 0.75:
         raise RuntimeError(
             f"Presenter scene duration {measured:.2f}s differs from requested {duration:.2f}s."

@@ -24,6 +24,38 @@ class FFmpegUnavailable(RuntimeError):
     """Raised when ffmpeg/ffprobe are required but not installed."""
 
 
+class FFmpegTimeout(RuntimeError):
+    """A media command exceeded its time limit and was stopped."""
+
+
+# A probe reads headers only; two minutes means the file or the disk is broken.
+PROBE_TIMEOUT = 120
+
+
+def _seconds(name: str, default: int):
+    """Time limit from the environment; ``0`` or a negative value disables it."""
+    try:
+        value = float(os.getenv(name, "") or default)
+    except ValueError:
+        value = float(default)
+    return value if value > 0 else None
+
+
+def render_timeout():
+    """Limit for one FFmpeg render or mix (``FFMPEG_TIMEOUT_SECONDS``, default 1 hour).
+
+    Without a limit a stalled encoder runs until the workflow itself is killed,
+    which loses the checkpoint, the run report and every artifact.
+    """
+    return _seconds("FFMPEG_TIMEOUT_SECONDS", 3600)
+
+
+def tool_timeout():
+    """Limit for an external generator such as the avatar or SadTalker runner
+    (``EXTERNAL_TOOL_TIMEOUT_SECONDS``, default 2 hours)."""
+    return _seconds("EXTERNAL_TOOL_TIMEOUT_SECONDS", 7200)
+
+
 def ffmpeg_bin() -> str:
     return os.getenv("FFMPEG_BINARY", "ffmpeg")
 
@@ -160,14 +192,26 @@ class FFmpegError(subprocess.CalledProcessError):
 
 
 def run(cmd, timeout=None) -> None:
-    """Run an FFmpeg command, surfacing stderr in the exception on failure."""
+    """Run an FFmpeg command, surfacing stderr in the exception on failure.
+
+    ``timeout=None`` applies :func:`render_timeout`; the process is killed when
+    the limit is reached, so a stalled render fails instead of hanging the job.
+    """
     cmd = [str(part) for part in cmd]
+    limit = render_timeout() if timeout is None else (timeout if timeout > 0 else None)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=limit,
                                 encoding="utf-8", errors="replace")
     except FileNotFoundError as exc:
         raise FFmpegUnavailable(
             f"{cmd[0]} was not found on PATH. Install FFmpeg and reopen the terminal."
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        tail = str(exc.stderr or "").strip().splitlines()[-6:] if isinstance(exc.stderr, str) else []
+        raise FFmpegTimeout(
+            f"{Path(cmd[0]).name} was stopped after {int(limit)} seconds without finishing "
+            f"(output: {cmd[-1]}). Raise FFMPEG_TIMEOUT_SECONDS if this render is expected to take longer."
+            + ("\n" + "\n".join(tail) if tail else "")
         ) from exc
     if result.returncode != 0:
         tail = (result.stderr or "").strip().splitlines()[-12:]

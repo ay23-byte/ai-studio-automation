@@ -227,9 +227,7 @@ jobs:
           UPLOAD_REQUESTED: "false"
         run: |
           python scripts/write_job_summary.py --pipeline longform \
-            --artifact "longform-review-${GITHUB_RUN_ID}" \
-            --upload-result youtube-upload-result.json \
-            --upload-failure youtube-upload-failure.json
+            --artifact "longform-review-${GITHUB_RUN_ID}"
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions

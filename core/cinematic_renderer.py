@@ -208,9 +208,16 @@ def render_cinematic_video(scenes: list[dict[str, Any]], durations: list[float],
             frame_count += 1
         process.stdin.close()
         stderr = process.stderr.read() if process.stderr else b""
-        code = process.wait()
+        from core.ffmpeg_utils import render_timeout
+        code = process.wait(timeout=render_timeout())
         if code:
             raise RuntimeError(f"FFmpeg cinematic render failed: {stderr.decode(errors='replace')[-2000:]}")
+    except BrokenPipeError as exc:
+        # FFmpeg exited while frames were still being written: its own message is the cause.
+        process.kill()
+        process.wait()
+        detail = (process.stderr.read() if process.stderr else b"").decode(errors="replace")[-2000:]
+        raise RuntimeError(f"FFmpeg cinematic render stopped early: {detail or exc}") from exc
     except Exception:
         if process.poll() is None:
             process.kill()

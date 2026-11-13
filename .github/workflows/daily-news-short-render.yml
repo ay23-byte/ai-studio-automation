@@ -145,10 +145,13 @@ jobs:
             --output-dir output/daily_news/review_package
           python scripts/validate_review_package.py output/daily_news/review_package
 
+      # Runs after a failed packaging step too: the packager stops with exit 2 when
+      # automated QA fails, and the reviewer needs the package to see why.
       - name: Upload human-review artifact (no YouTube upload)
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: daily-news-short-review-${{ github.run_id }}
           path: output/daily_news/review_package/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14

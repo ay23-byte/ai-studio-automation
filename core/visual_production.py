@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 
 
 def _source_metadata(media_path: Path) -> dict:
@@ -26,9 +27,9 @@ def _sample_frames(media_path: Path, out_dir: Path, shot_id: str, count: int = 3
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         raw = subprocess.check_output([
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1", str(media_path)
-        ], stderr=subprocess.DEVNULL, text=True).strip()
+        ], stderr=subprocess.DEVNULL, text=True, timeout=PROBE_TIMEOUT).strip()
         duration = max(float(raw), 0.1)
     except Exception:
         return []
@@ -38,7 +39,7 @@ def _sample_frames(media_path: Path, out_dir: Path, shot_id: str, count: int = 3
         target = out_dir / f"{shot_id}_frame_{index + 1}.jpg"
         try:
             subprocess.run([
-                "ffmpeg", "-y", "-ss", f"{timestamp:.3f}", "-i", str(media_path),
+                ffmpeg_bin(), "-y", "-ss", f"{timestamp:.3f}", "-i", str(media_path),
                 "-frames:v", "1", "-q:v", "3", str(target)
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=45)
             if target.is_file() and target.stat().st_size > 1000:

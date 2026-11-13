@@ -59,6 +59,30 @@ def upload_latest(video_format=None):
     return result
 
 
+def prepare_review(job_id):
+    """``--upload`` right after a build: a new video has no human review yet, so the
+    review package is prepared and the upload waits for the reviewer's decisions.
+
+    Never raises: the build succeeded, and a missing review must not be recorded
+    as a failed topic.
+    """
+    from core.db import get_video
+    from core.local_review import ReviewUnavailable, build_package
+    try:
+        summary = build_package(get_video(job_id))
+    except ReviewUnavailable as exc:
+        send(f"⚠️ Job #{job_id} was built but its review package could not be prepared: {str(exc)[:300]}")
+        return None
+    if summary["status"] != "REVIEW_REQUIRED":
+        send(f"⚠️ Job #{job_id} fails automated QA and cannot be approved: "
+             + "; ".join(summary.get("errors", [])[:3])[:400])
+        return summary
+    print(f"Review package ready: {summary['dashboard']}")
+    send(f"📝 Job #{job_id} is ready for review. Open {summary['dashboard']}, decide every item, then run: "
+         f"python run.py upload --id {job_id} --decisions review_decisions.json")
+    return summary
+
+
 def _mark_uploaded_topic(result):
     """Record the YouTube id on the matching queue entry, if there is one."""
     try:
@@ -101,7 +125,7 @@ def main():
     p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     p.add_argument("--upload-latest", action="store_true")
     p.add_argument("--upload", action="store_true",
-                   help="Upload privately right after a successful build")
+                   help="After the build, prepare the review package needed for a private upload")
     args = p.parse_args()
 
     if args.upload_latest:
@@ -139,7 +163,7 @@ def main():
             vid_id, out = _build(script, args.format, language, category, topic_title)
             print(f"Built auto-generated video: {out}")
             if args.upload:
-                upload_latest(args.format)
+                prepare_review(vid_id)
             return
         except Exception as e:
             send(f"❌ Auto-generate failed for '{topic_title}': {str(e)[:300]}")
@@ -171,7 +195,7 @@ def main():
             send(f"⚠️ Only {remaining} topics left in topics.json. "
                  "New topics will be selected automatically; add your own to steer the channel.")
         if args.upload:
-            upload_latest(args.format)
+            prepare_review(vid_id)
     except Exception as e:
         attempts = int(t.get("attempts", 0) or 0) + 1
         changes = {"attempts": attempts, "last_error": str(e)[:300]}

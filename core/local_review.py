@@ -41,6 +41,8 @@ def build_package(row: dict, build_dir: Path | None = None) -> dict:
     rebuilt package gets a new job id, so decisions made for an earlier package
     no longer apply.  Nothing is uploaded.
     """
+    if not row:
+        raise ReviewUnavailable("The job was not found in the database.")
     job_id = row.get("id")
     build = Path(build_dir) if build_dir else cfg.BUILD_DIR / f"job_{job_id}"
     video = Path(str(row.get("video_path") or ""))
