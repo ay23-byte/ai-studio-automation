@@ -6,10 +6,15 @@ from unittest.mock import Mock, patch
 
 from PIL import Image
 
+from core import archival_images as archival
 from core.archival_images import fetch_archival_image
 
 
 class ArchivalImageTests(unittest.TestCase):
+    def setUp(self):
+        archival._SEARCH_CACHE.clear()
+        archival._LAST_SEARCH_AT = 0.0
+
     def _page(self, licence="CC BY-SA 4.0", title="File:Kolkata 1940s street.jpg",
               date="1944"):
         return {
@@ -82,6 +87,21 @@ class ArchivalImageTests(unittest.TestCase):
         get.return_value = response
         with tempfile.TemporaryDirectory() as tmp:
             self.assertFalse(fetch_archival_image("Kolkata 1940s street", Path(tmp) / "archive.jpg"))
+
+    @patch("core.archival_images.requests.get")
+    def test_successful_search_is_cached_for_repeated_query(self, get):
+        response = Mock()
+        response.json.return_value = {"query": {"pages": {"42": self._page()}}}
+        response.raise_for_status.return_value = None
+        get.return_value = response
+        first = archival._search("Apollo 11")
+        second = archival._search("Apollo 11")
+        self.assertEqual(first, second)
+        get.assert_called_once()
+
+    def test_retry_after_supports_seconds_and_http_date(self):
+        self.assertEqual(archival._retry_delay({"Retry-After": "7"}, 0), 7.0)
+        self.assertGreaterEqual(archival._retry_delay({}, 0), 2.0)
 
     @patch("core.archival_images.requests.get")
     def test_empty_query_does_not_make_network_request(self, get):
