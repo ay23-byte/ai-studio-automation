@@ -177,6 +177,40 @@ class EditorialReviewTests(unittest.TestCase):
         self.assertTrue(any("screening is 'mismatch'" in issue["message"]
                             for issue in result["issues"]))
 
+    def test_human_approval_with_substantive_notes_resolves_semantic_mismatch(self):
+        load_reviews(self.report_path, self.report["shots"])
+        report = dict(self.report, semantic_screening_enabled=True, shots=[
+            dict(self.report["shots"][0], semantic_screening={"status": "mismatch"})
+        ])
+        load_reviews(self.report_path, report["shots"])
+        save_review(
+            self.report_path, "shot_0001", status="approved",
+            reviewer_notes="I inspected the full shot and confirmed the visible river valley matches the narration.",
+            source_review_status="reviewed", rights_review_status="reviewed",
+            rights_notes="Checked original source page and reuse restrictions.",
+            licence_name="Documented source licence",
+        )
+        store = load_reviews(self.report_path, report["shots"])
+        result = audit_visual_reviews(report, store)
+        self.assertTrue(result["publication_ready"], result["issues"])
+
+    def test_semantic_mismatch_approval_without_notes_remains_blocked(self):
+        load_reviews(self.report_path, self.report["shots"])
+        report = dict(self.report, semantic_screening_enabled=True, shots=[
+            dict(self.report["shots"][0], semantic_screening={"status": "mismatch"})
+        ])
+        load_reviews(self.report_path, report["shots"])
+        save_review(
+            self.report_path, "shot_0001", status="approved",
+            source_review_status="reviewed", rights_review_status="reviewed",
+            rights_notes="Checked original source page and reuse restrictions.",
+            licence_name="Documented source licence",
+        )
+        store = load_reviews(self.report_path, report["shots"])
+        result = audit_visual_reviews(report, store)
+        self.assertFalse(result["publication_ready"])
+        self.assertTrue(any("at least 20 characters" in issue["message"] for issue in result["issues"]))
+
     def test_semantic_match_does_not_replace_human_editorial_approval(self):
         report = dict(self.report, semantic_screening_enabled=True, shots=[
             dict(self.report["shots"][0], semantic_screening={"status": "match", "match_score": 0.9})
