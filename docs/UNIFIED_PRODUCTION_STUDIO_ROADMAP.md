@@ -76,10 +76,27 @@ The package status must be one of `FAIL`, `REVIEW_REQUIRED`, or `APPROVED_FOR_UP
 
 ## Release handoff implementation notes
 
-The long-form documentary build, standard Shorts build, and scheduled daily-news Short workflows are now configured as **review-only** producers. Their build workflows do not call YouTube. Standard Shorts and daily-news Shorts preserve their generated MP4s, reports, and build directories in run-scoped artifacts. Documentary builds use the separate **Release approved documentary (Private)** workflow, which downloads the exact source artifact, verifies the MP4 SHA-256, attaches the exported per-shot human decisions, requires an explicit private-upload confirmation, and then invokes the existing fail-closed documentary uploader.
+All three build modes are review-only producers:
+- Long-form documentary build no longer calls YouTube.
+- Standard Shorts build no longer calls YouTube, including scheduled runs.
+- Daily-news Shorts build no longer calls YouTube or receives YouTube credentials.
 
-Important remaining limitation: the generic shared review manifest/dashboard and guarded release workflow for standard Shorts and daily-news Shorts are not yet implemented. Those modes are protected from build-time auto-upload, but a complete human review-to-private-release path for them is still outstanding. Daily-news automatic story selection also remains a distinct editorial risk boundary: only the existing source verification policy can select an auto-eligible story, and the review-only workflow must not be described as human story approval. No public upload or scheduling is enabled by this PR.
+The shared review package contract is `schemas/production-manifest-v1.schema.json` and `scripts/validate_review_package.py`. Documentary, standard Short and daily-news package adapters now generate an offline `review_dashboard.html` and `review_decisions_template.json` with the video, scene narration, visual assets, provenance and QA statuses. The dashboard is part of the review artifact; it is not a public website and requires no paid hosting.
 
+Private release paths:
+- Documentary: `Release approved documentary (Private)` checks the selected build artifact and MP4 hash, attaches per-shot human decisions and invokes the existing fail-closed documentary uploader.
+- Standard Short and daily-news Short: `Release approved Short (Private)` downloads the exact run artifact, verifies mode and MP4 hash, applies explicit per-scene and per-asset decisions, reruns the shared package validator, and uploads PRIVATE only.
+
+The shared human decision handler requires all six review confirmations, notes for every scene, exact per-asset licence/terms URL and attribution, and human notes for QA reports marked REVIEW. Unknown provenance, missing automated QA evidence, and any QA FAIL remain blocked. The existing uploader verifies the configured Engineering Physics channel; scheduling is disabled and public publishing is unsupported by the new release workflows.
+
+Remaining before production sign-off:
+- Wait for the latest PR CI to finish and fix any failures.
+- Exercise one real documentary, one standard Short and one daily-news Short through artifact generation and offline dashboard review.
+- Verify the actual MP4s, captions, narration, visual relevance, source-page licences and attribution, and the final release-gate behavior.
+- Verify private upload read-back on the Engineering Physics channel using an explicitly authorized test video; no public publishing.
+- Confirm the full run artifacts and audit evidence remain available.
+
+A passing unit suite or a successful render alone does not prove production readiness. No end-to-end production claim should be made until the above live validations are completed.
 ## Prioritized implementation sequence
 
 ### P0 — Establish a shared contract and fail-closed package validator
