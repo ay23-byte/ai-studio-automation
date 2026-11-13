@@ -272,12 +272,21 @@ def audit_visual_reviews(report: dict[str, Any], store: dict[str, Any]) -> dict[
         if report.get("semantic_screening_enabled"):
             screening = shot.get("semantic_screening") or {}
             screening_status = screening.get("status", "not_run")
-            if screening_status != "match":
+            # A model mismatch/error is a triage flag, not a final editorial
+            # verdict. It may be resolved only by an explicit human approval
+            # with substantive reviewer notes; the ordinary approval, source,
+            # rights and media checks above/below remain mandatory.
+            semantic_review_resolved = (
+                record["status"] == "approved"
+                and len(record["reviewer_notes"].strip()) >= 20
+            )
+            if screening_status != "match" and not semantic_review_resolved:
                 issues.append({
                     "level": "error", "shot_id": shot_id,
                     "message": (
                         f"AI visual-to-narration screening is '{screening_status}'; "
-                        "resolve the screening concern and regenerate/review this shot before publication."
+                        "inspect the actual shot and add at least 20 characters of reviewer notes "
+                        "when explicitly approving the visual, or replace it."
                     ),
                 })
         presenter_sync_status = str(shot.get("presenter_sync_status") or "").lower()

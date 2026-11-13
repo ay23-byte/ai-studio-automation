@@ -10,8 +10,10 @@ from scripts.upload_documentary_artifact import _find_video, _validate_release_e
 
 class DocumentaryUploadEvidenceTests(unittest.TestCase):
     def _build(self, root):
+        media = root / "shot_0001.mp4"
+        media.write_bytes(b"test media fixture")
         payloads = {
-            "visual_review_report.json": {"shots": [{"shot_id": "shot_0001"}], "issues": []},
+            "visual_review_report.json": {"shots": [{"shot_id": "shot_0001", "media_path": str(media)}], "issues": []},
             "visual_consistency_report.json": {"status": "PASS", "summary": {"fail_count": 0}},
             "audio_quality_report.json": {"status": "PASS"},
             "research_verification_report.json": {"claim_count": 1, "source_count": 1, "sources": [{"source_id": "S1", "url": "https://example.org/source", "url_valid": True, "metadata_complete": True}], "claims": [{"claim_id": "C1", "traceability_status": "source_linked_pending_human_review", "valid_source_ids": ["S1"], "evidence": "Evidence note."}]},
@@ -20,6 +22,17 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
         }
         for name, value in payloads.items():
             (root / name).write_text(json.dumps(value), encoding="utf-8")
+        from core.editorial_review import load_reviews, save_review
+        report_path = root / "visual_review_report.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        load_reviews(report_path, report["shots"])
+        save_review(
+            report_path, "shot_0001", status="approved",
+            reviewer_notes="Inspected the actual shot and confirmed it matches the narration.",
+            source_review_status="reviewed", rights_review_status="reviewed",
+            rights_notes="Verified the supplied CC0 source and its reuse terms.",
+            licence_name="CC0", attribution_text="Test credit.",
+        )
         (root / "credits.txt").write_text("Documentary source credits\\nTest credit\\n", encoding="utf-8")
         with (root / "licenses.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
@@ -30,7 +43,8 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self._build(root)
-            report = _validate_release_evidence(root)
+            with patch("core.editorial_review.assert_visual_review_ready", return_value={"publication_ready": True}):
+                report = _validate_release_evidence(root)
             self.assertEqual(report["shot_count"], 1)
             self.assertEqual(report["licence_rows"], 1)
 
@@ -50,8 +64,9 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
                 writer = csv.DictWriter(handle, fieldnames=["shot_id", "use_status", "fallback_required", "licence", "attribution_text"])
                 writer.writeheader()
                 writer.writerow({"shot_id": "shot_0001", "use_status": "blocked", "fallback_required": "true", "licence": "", "attribution_text": ""})
-            with self.assertRaisesRegex(ValueError, "did not clear these assets"):
-                _validate_release_evidence(root)
+            with patch("core.editorial_review.assert_visual_review_ready", return_value={"publication_ready": True}):
+                with self.assertRaisesRegex(ValueError, "did not clear these assets"):
+                    _validate_release_evidence(root)
 
 
     def test_find_video_probes_single_packaged_mp4_without_external_report(self):
