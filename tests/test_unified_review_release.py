@@ -20,7 +20,7 @@ class HumanDecisionTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    r=Path(d);self.setup_package(r);(r/"qa/semantic.json").write_text('{"status":"FAIL"}')
    with self.assertRaisesRegex(ValueError,"cannot be overridden"):apply_decisions(r,r/"decisions.json")
- def test_requires_explicit_private_upload(self):
+ def test_documentary_mode_is_not_accepted_by_shorts_releaser(self):\n  with tempfile.TemporaryDirectory() as d:\n   r=Path(d);m=self.setup_package(r);m["mode"]="longform";(r/"production_manifest.json").write_text(json.dumps(m))\n   with self.assertRaisesRegex(ValueError,"only accepts shortform or daily_news"):release_package(r,r/"decisions.json","0"*64,True)\n def test_requires_explicit_private_upload(self):
   with tempfile.TemporaryDirectory() as d:
    r=Path(d);self.setup_package(r)
    with self.assertRaisesRegex(ValueError,"confirm_private_upload"):release_package(r,r/"decisions.json","0"*64)

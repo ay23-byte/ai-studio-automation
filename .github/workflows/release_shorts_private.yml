@@ -60,6 +60,37 @@ jobs:
           [[ -n "$ARTIFACT_NAME" ]] || { echo "::error::Exact artifact_name is required"; exit 1; }
           [[ "$CONFIRM" == "true" ]] || { echo "::error::Explicit private-upload confirmation is required"; exit 1; }
 
+      - name: Verify source run succeeded and contains the exact artifact
+        id: source
+        uses: actions/github-script@v9
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        with:
+          script: |
+            const runId = Number(process.env.SOURCE_RUN_ID);
+            if (!Number.isSafeInteger(runId)) {
+              core.setFailed("source_run_id must be a numeric workflow run ID.");
+              return;
+            }
+            const run = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId
+            });
+            if (run.data.conclusion !== "success" ||
+                run.data.repository.full_name !== context.repo.owner + "/" + context.repo.repo) {
+              core.setFailed("Selected source run must have succeeded in this repository.");
+              return;
+            }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId, per_page: 100
+            });
+            const artifact = artifacts.find(a => a.name === process.env.ARTIFACT_NAME && !a.expired);
+            if (!artifact) {
+              core.setFailed("Exact unexpired review artifact was not found in the selected source run.");
+              return;
+            }
+            core.info("Verified successful source run and exact review artifact.");
+
       - name: Download exact review artifact
         uses: actions/download-artifact@v8
         with:
