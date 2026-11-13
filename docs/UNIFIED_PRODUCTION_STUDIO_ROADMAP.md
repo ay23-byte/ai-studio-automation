@@ -74,7 +74,11 @@ Every completed mode should emit a package directory with:
 
 The package status must be one of `FAIL`, `REVIEW_REQUIRED`, or `APPROVED_FOR_UPLOAD`. Technical success alone must never imply editorial approval or publication readiness. Unknown licence status must remain unknown and block upload until resolved.
 
-## Release handoff implementation notes\n\nThe documentary build workflow is review-only: it creates the MP4 and `longform-review-<run_id>` artifact, and does not call YouTube. The separate **Release approved documentary (Private)** workflow downloads that exact artifact, verifies the MP4 SHA-256 supplied by the reviewer, attaches the exported `visual_review_decisions.json`, and then runs the existing fail-closed uploader. Dispatch requires an explicit confirmation checkbox for private upload. The release gate still independently checks shot approvals, source review, rights/licence/attribution, research, audio, visual consistency and final video QA. A hash mismatch or missing/incomplete review decisions blocks release. This is a documentary handoff; standard Shorts and daily-news orchestration remain separate roadmap work and must not be represented as complete by this change.\n\n## Prioritized implementation sequence
+## Release handoff implementation notes
+
+The documentary build workflow is review-only: it creates the MP4 and `longform-review-<run_id>` artifact, and does not call YouTube. The separate **Release approved documentary (Private)** workflow downloads that exact artifact, verifies the MP4 SHA-256 supplied by the reviewer, attaches the exported `visual_review_decisions.json`, and then runs the existing fail-closed uploader. Dispatch requires an explicit confirmation checkbox for private upload. The release gate still independently checks shot approvals, source review, rights/licence/attribution, research, audio, visual consistency and final video QA. A hash mismatch or missing/incomplete review decisions blocks release. This is a documentary handoff; standard Shorts and daily-news orchestration remain separate roadmap work and must not be represented as complete by this change.
+
+## Prioritized implementation sequence
 
 ### P0 — Establish a shared contract and fail-closed package validator
 
