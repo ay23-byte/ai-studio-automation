@@ -7,7 +7,7 @@ from core.ffmpeg_utils import ffmpeg_bin  # honours FFMPEG_BINARY
 
 W, H = 1920, 1080
 FADE = 0.4
-ENC = ["-c:v","libx264","-preset","slow","-crf","18","-profile:v","high",
+ENC = ["-c:v","libx264","-preset","medium","-crf","18","-profile:v","high",
        "-level","4.1","-pix_fmt","yuv420p","-r","30","-video_track_timescale","15360"]
 TRANSITIONS = ["fade", "smoothleft", "fade", "circlecrop", "fade", "wipeleft"]
 # Normalise full-range ("yuvj420p") stills/footage to broadcast range first.
