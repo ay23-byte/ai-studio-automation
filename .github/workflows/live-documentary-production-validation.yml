@@ -158,7 +158,7 @@ jobs:
           SADTALKER_DEVICE: "cpu"
           LONGFORM_VISUAL_MODE: "video_first"
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "unlisted"
+          PRIVACY: "private"
           VISUAL_SEMANTIC_CHECK: "1"
           VISUAL_SEMANTIC_MAX_SHOTS: "40"
         run: |

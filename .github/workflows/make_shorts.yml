@@ -30,8 +30,10 @@ on:
 permissions:
   contents: write   # only to push JSON state to the automation-state branch
 
+# One run of this mode at a time. Each mode has its own queue, so a long
+# documentary build cannot hold back (or displace) the daily Shorts and news runs.
 concurrency:
-  group: studio-build
+  group: studio-build-shortform
   cancel-in-progress: false
 
 env:
@@ -83,9 +85,8 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          # No YouTube credentials here: a build workflow never uploads, so it never
+          # receives them. The doctor reports their absence as a warning only.
         run: python run.py doctor
 
       - name: Build Shorts video
@@ -126,11 +127,12 @@ jobs:
             python scripts/build_with_recovery.py -- python run_daily.py --format shorts
           fi
 
-      - name: Mark Short as review-only
+      # Review-only: assembles the shared package (manifest, QA, dashboard). No upload.
+      # Fails the run when the Short cannot be approved (failed QA, robotic fallback
+      # voice, card slideshow), so a green run always means "ready for a human".
+      - name: Assemble the review package (no upload)
         if: success()
-        run: |
-          echo "Short build completed. No YouTube upload is attempted in this workflow."
-          echo "Inspect the shorts-review artifact and use the guarded private-release workflow only after review."
+        run: python scripts/package_build_for_review.py --mode shortform
 
       - name: Persist duplicate ledger to the automation-state branch
         if: always()

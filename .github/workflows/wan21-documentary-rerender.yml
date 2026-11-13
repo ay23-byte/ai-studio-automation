@@ -132,7 +132,7 @@ jobs:
           TTS_ENGINE: "edge"
           ALLOW_CHATTERBOX_ON_CI: "false"
           CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "unlisted"
+          PRIVACY: "private"
           WAN_MAPPED_REVIEW_REPORT: build/job_${{ inputs.job_id }}/wan_mapped/visual_review_report.json
           JOB_ID: ${{ inputs.job_id }}
         run: |
