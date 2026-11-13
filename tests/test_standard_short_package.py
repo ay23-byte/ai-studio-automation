@@ -1,4 +1,6 @@
 """Pipeline-built Short -> shared review package (schema v2)."""
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -135,7 +137,9 @@ class StandardShortPackageTests(unittest.TestCase):
 
     def test_cli_and_legacy_render_dir_call(self):
         build, video = self.build()
-        with fake_media():
+        # stdout is captured: an "::error::" line printed by a passing test would
+        # otherwise appear as a failure annotation on the Actions run.
+        with fake_media(), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["--build-dir", str(build), "--video", str(video)]), 0)
             self.assertEqual(main(["--build-dir", str(build), "--video", str(self.root / "none.mp4")]), 1)
         render = self.root / "render"

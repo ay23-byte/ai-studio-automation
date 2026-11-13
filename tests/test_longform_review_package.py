@@ -1,5 +1,7 @@
 """Documentary dossier -> shared review package (schema v2)."""
+import contextlib
 import csv
+import io
 import json
 import tempfile
 import unittest
@@ -156,7 +158,9 @@ class LongformReviewPackageTests(unittest.TestCase):
 
     def test_cli_exit_codes_distinguish_review_from_unapprovable(self):
         build, video = self._fixture()
-        with fake_media("longform"):
+        # stdout is captured: an "::error::" line printed by a passing test would
+        # otherwise appear as a failure annotation on the Actions run.
+        with fake_media("longform"), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["--build-dir", str(build), "--video", str(video)]), 0)
             (build / "quality_report.json").write_text(json.dumps({"status": "FAIL"}))
             self.assertEqual(main(["--build-dir", str(build), "--video", str(video)]), 2)
