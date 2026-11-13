@@ -302,8 +302,9 @@ python run.py shorts "Why ice floats" --category physics --language hinglish
 python run.py long "How the grid stays at 50 Hz" --minutes 12 --subtitle-language english
 python run.py status --id 12         # stage-by-stage progress and last error
 python run.py resume --id 12         # continue from the failed stage
-python run.py upload --id 12 --dry-run   # release gate and metadata, no upload
-python run.py upload --id 12         # private upload
+python run.py review --id 12         # human-review package and dashboard
+python run.py upload --id 12 --dry-run   # release gate (including the review) and metadata, no upload
+python run.py upload --id 12 --decisions review_decisions.json   # private upload of the reviewed file
 python run_daily.py --format shorts  # next unused topic
 python scripts/run_daily_news_short.py --upload
 ```

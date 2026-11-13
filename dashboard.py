@@ -235,11 +235,6 @@ with review_tab:
                 # workflows: a review package for this exact file plus exported decisions.
                 from core.local_review import ReviewUnavailable, build_package, record_decisions, review_status
                 with st.expander("Human review (required before upload)"):
-                    state = review_status(row, BUILD_DIR / f"job_{job_id}", decode=False)
-                    if state["ok"]:
-                        st.success(f"Reviewed: {state['detail']}.")
-                    else:
-                        st.warning(f"Not ready to upload: {state['detail']}")
                     if st.button("Build review package", key=f"review_pkg_{job_id}"):
                         try:
                             summary = build_package(row, BUILD_DIR / f"job_{job_id}")
@@ -262,6 +257,12 @@ with review_tab:
                             st.success(f"Decisions recorded (reviewer: {applied.get('reviewer')}).")
                         except Exception as exc:
                             st.error(f"Decisions refused; nothing was recorded: {exc}")
+                    # Evaluated after the actions above so the line reflects what was just done.
+                    state = review_status(row, BUILD_DIR / f"job_{job_id}", decode=False)
+                    if state["ok"]:
+                        st.success(f"Reviewed: {state['detail']}.")
+                    else:
+                        st.warning(f"Not ready to upload: {state['detail']}")
             with b:
                 if not youtube_id and path.is_file() and row.get("approved"):
                     if st.button("Upload as Private", key=f"upload_{job_id}"):

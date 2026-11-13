@@ -332,7 +332,7 @@ with a workaround; **Low** = clarity and hygiene.
 | 9 | Medium | Robotic fallback narration and card-slideshow builds were packaged as reviewable | Local Shorts and documentary builds in the sandbox | **Fixed**: such packages are `FAIL`, the build run is red |
 | 10 | Medium | The three build workflows shared one concurrency group; a documentary could hold back or displace the scheduled Shorts and news runs | Workflow files | **Fixed**: one group per mode. The state branch push already merges and retries |
 | 11 | Medium | `make_shorts.yml` passed YouTube credentials to the preflight step of a build that never uploads | Workflow file | **Fixed**: removed; a test asserts only the two release workflows reference them |
-| 12 | Medium | Local uploads (`python run.py upload`, the local dashboard) use `core/publish.py` and `core/release_gate.py`, not the review contract | Code reading | **Open.** Private-only and channel-locked, but without per-item human decisions. Not reachable from Actions |
+| 12 | Medium | Local uploads (`python run.py upload`, the local dashboard) use `core/publish.py` and `core/release_gate.py`, not the review contract | Code reading | **Fixed** in the follow-up pass (section 15): the release gate has a `human_review` check that evaluates the package and decisions of the exact file with `core/review_contract.py` |
 | 13 | Low | `scripts/create_voice_audition.py` had no argument parser; `--help` started synthesis | Ran it | **Fixed** |
 | 14 | Low | Three trial workflows declared `PRIVACY: "unlisted"` (they hold no credentials) | Workflow files | **Fixed**: set to `private` |
 | 15 | Low | README said workflows upload as unlisted | README | **Fixed** |
@@ -362,3 +362,53 @@ with a workaround; **Low** = clarity and hygiene.
 - Merged branches, trial workflows and the seven open pull requests (#154, #87, #86, #37, #28, #10, #2) were not deleted or closed.
 - Whether local uploads (finding 12) should also require the review contract.
 
+
+## 15. Whole-repository audit and reliability pass (on top of `64a9c35`)
+
+Scope: every tracked Python file (`core/` 82 files, `scripts/` 35, `run.py`, `run_daily.py`,
+`dashboard.py`, `pages/`), all 32 workflows, the three requirements files, both environment
+templates, `.gitignore`, the tracked database and the 24 documents. Method: AST scans
+(subprocess calls, HTTP calls, hard-coded binaries, function length), pyflakes, import-graph
+and test-reference scans, a YAML scan of every workflow step for expression injection,
+secret references and permissions, and reading of the upload, provider and render paths.
+The full account, including what is unverified, is in [`FINAL_REPORT.md`](FINAL_REPORT.md).
+
+### 15.1 Findings
+
+| # | Severity | Finding | Evidence | Status |
+|---|----------|---------|----------|--------|
+| 17 | High | Local uploads bypassed the human review (finding 12, re-rated: a safety gate could be bypassed) | `core/publish.py` called only the automated gate | **Fixed**: `human_review` check in `core/release_gate.py`, `core/local_review.py`, `python run.py review`, `upload --decisions`, dashboard section. Tests: `tests/test_local_review.py` |
+| 18 | High | `ffmpeg_utils.run` had no time limit, so every render and mix could hang until the workflow was killed, losing checkpoint, report and artifacts | `def run(cmd, timeout=None)` passed `None` to `subprocess.run` | **Fixed**: `FFMPEG_TIMEOUT_SECONDS` (1 h), `FFmpegTimeout` |
+| 19 | High | 37 other `subprocess` calls in `core/` and `scripts/` had no time limit | AST scan | **Fixed**; a test fails on any new call without one |
+| 20 | Medium | Downloads had a per-read timeout only: no total time limit, no size limit, no length check; two providers wrote straight to the final path | `core/footage_sources.py`, `core/images.py` (2), `core/archival_images.py`, `core/openverse_images.py` | **Fixed**: `core/downloads.fetch` |
+| 21 | Medium | An Edge TTS request had no deadline; a stalled websocket held the build | `core/voice.py::_synth_edge` | **Fixed**: `EDGE_TTS_TIMEOUT_SECONDS` (90 s) inside the existing three attempts |
+| 22 | Medium | `FFMPEG_BINARY` / `FFPROBE_BINARY` were ignored by 32 command lists in 15 modules | AST scan for literal `"ffmpeg"` / `"ffprobe"` | **Fixed**; test-enforced |
+| 23 | Medium | `run_daily.py --upload` called the upload inside the topic's error handler: a blocked upload after a good build was recorded as a failed topic attempt | `run_daily.py::main` | **Fixed**: `prepare_review` never raises |
+| 24 | Medium | Two legacy news render workflows skipped the artifact upload when packaging failed, so a QA failure left nothing to inspect | `daily-news-short-render.yml`, `daily-news-short-artifact-render.yml` | **Fixed**: `if: ${{ !cancelled() }}`. Not run on Actions |
+| 25 | Low | LLM fallback: switching JSON mode or model used up the one retry | `core/llm.py::complete` | **Fixed** |
+| 26 | Low | `cinematic_renderer` reported `BrokenPipeError` instead of FFmpeg's message when the encoder exited early | Code reading | **Fixed** |
+| 27 | Low | `make_longform.yml` summary step named upload result files that the workflow never writes | Workflow file | **Fixed** |
+| 28 | Medium | Dependencies are version ranges with no lock file; a build today and a build next month can differ | `requirements*.txt` (23 ranges, 0 pins) | **Open** (recommendation) |
+| 29 | Medium | Actions are pinned by tag, not commit; `FedericoCarboni/setup-ffmpeg@v3` is third-party (`documentary-e2e-smoke.yml`, no secrets) | Workflow scan | **Open** (recommendation) |
+| 30 | Medium | `build_longform` is one 588-line function; a change to one stage cannot be tested alone | Function-length scan (6 of 794 functions exceed 150 lines) | **Open** |
+| 31 | Low | `streamlit>=1.30` is unpinned and `dashboard.py` uses `use_container_width` (7 uses), which Streamlit has announced for removal | Warning under Streamlit 1.67 | **Open** |
+| 32 | Low | `core/content_lab.py` is imported by nothing and has no tests; `core/muapi_video.py` and `core/cinematic_renderer.py` are reachable only from tests | Import scan | **Open** (owner decides) |
+| 33 | Low | 41 environment variables read by the code are documented nowhere (about 12 are GitHub or pytest built-ins); `env.example` is a stale second template | Scan against `.env.example`, README and `docs/` | **Partly fixed**: the six new limits are documented |
+| 34 | Low | Seven modules have no test that names them (`news_research`, `render_join`, `review_packaging`, `subtitles_export`, `thumbnail`, `timing`, `content_lab`); some are exercised indirectly | Test-reference scan | **Open** |
+| 35 | Low | 36 unused imports, 6 unused local variables, 5 `except Exception: pass` blocks | pyflakes, grep | **Open**; none on the upload path |
+| 36 | Low | `db/studio.sqlite` is tracked although `.gitignore` excludes `db/*.sqlite`; it holds 6 runner job rows, 4 of them uploads | Read-only copy inspected | **Open** (owner decides; not touched) |
+| 37 | Low | 205 remote branches, 165 fully merged; 7 open pull requests, 6 of them conflicting | `git ls-remote`, compare API | **Open** (owner decides; not touched) |
+
+Checked and found sound: no `shell=True`, `eval`, `exec`, `pickle`, `yaml.load`, `verify=False`
+or `os.system`; every `requests` call has a timeout; no workflow step interpolates `inputs.*`
+or `github.event.*` into a shell or script body; every workflow declares `permissions` and
+every job a timeout; only two workflows hold `contents: write` (state branch) and only the two
+release workflows reference YouTube credentials; no `pull_request_target` or `workflow_run`.
+
+### 15.2 Not verified
+
+Everything in 14.3 still applies. In addition: the three edited legacy workflows and the
+`validate.yml` change have not run on Actions before this pull request's own checks; the time
+limits were tested with a stand-in command, not a stalled FFmpeg; the download limits were
+tested against fake responses; the local dashboard was driven through Streamlit's `AppTest`
+harness, not a browser.

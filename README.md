@@ -11,7 +11,8 @@ Current status and what still needs a live check: [`docs/PRODUCTION_READINESS.md
 python run.py doctor                      # check tools, fonts, database, providers, credentials
 python run.py status --id 12              # stage-by-stage progress of a job
 python run.py resume --id 12              # continue a failed job from its checkpoints
-python run.py upload --id 12 --dry-run    # run the release gate without uploading
+python run.py review --id 12              # build the human-review package and dashboard
+python run.py upload --id 12 --dry-run    # run the release gate (including the review) without uploading
 python scripts/run_daily_news_short.py    # autonomous, source-gated news Short
 ```
 
@@ -133,10 +134,17 @@ List generated video jobs:
 python run.py list
 ```
 
-Upload a completed job (keep `PRIVACY=private` while testing):
+Upload a completed job. Every upload is private, and it is refused until a person has
+reviewed that exact file:
 ```bash
-python run.py upload --id 1
+python run.py review --id 1          # writes build/job_1/shared_review_package/review_dashboard.html
+# open the dashboard, watch the video, decide every item, download review_decisions.json
+python run.py upload --id 1 --decisions review_decisions.json
 ```
+The rules are the ones the GitHub release workflows use
+([`docs/SHARED_REVIEW_PACKAGE.md`](docs/SHARED_REVIEW_PACKAGE.md)). Re-rendering the video
+or rebuilding the package cancels the approval. `--upload` on `run.py shorts`, `run.py long`
+and `run_daily.py` prepares the review package after the build; it no longer uploads.
 
 ## Local creator dashboard
 

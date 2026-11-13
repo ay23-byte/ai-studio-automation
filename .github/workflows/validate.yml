@@ -121,7 +121,7 @@ jobs:
       # Documentary, standard Short and news Short: package -> review -> private release
       # (fake uploader), with real FFmpeg and the packaging step run the way a workflow runs it.
       - name: Run the review-and-release path for all three modes (real FFmpeg, no upload)
-        run: python -m pytest tests/test_review_release_e2e.py -q -rs
+        run: python -m pytest tests/test_review_release_e2e.py tests/test_local_review.py -q -rs
       - name: Run cinematic FFmpeg render smoke tests
         run: python -m unittest discover -s tests -p 'test_cinematic_ffmpeg_render.py' -v
       - name: Run release certification FFmpeg smoke test
