@@ -144,12 +144,14 @@
         const blob=new Blob(chunks,{type:"video/webm"});
         if(blob.size===0){
           const trackInfo={videoTracks:canvasStream?.getVideoTracks().length||0,audioTracks:sourceStream?.getAudioTracks().length||0,recorderState:recorder?.state||"unknown",mimeType:recorder?.mimeType||mime};
-          if(framePump!==null){clearInterval(framePump);framePump=null;}\n          if(framePump!==null){clearInterval(framePump);framePump=null;}\n        if(framePump!==null){clearInterval(framePump);framePump=null;}\n      canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
+          if(framePump!==null){clearInterval(framePump);framePump=null;}
+          canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
           canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
           enable("record",true);enable("finish",false);enable("play",true);
           status("Recording produced no media data ("+JSON.stringify(trackInfo)+"). Check browser MediaRecorder support and try Chrome or Edge.");
           return;
         }
+        if(framePump!==null){clearInterval(framePump);framePump=null;}
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download="talking_presenter.webm";a.click();
         setTimeout(()=>URL.revokeObjectURL(url),30000);
@@ -173,6 +175,7 @@
       },{once:true});
       await sourceAudio.play();
     }catch(error){
+      if(framePump!==null){clearInterval(framePump);framePump=null;}
       canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
       canvasStream=null;sourceStream=null;avatar?.detachStream();
       enable("record",true);enable("finish",false);enable("play",true);
