@@ -56,11 +56,20 @@ try {
       const webm=path.join(outputDir,`presenter_section_${String(i).padStart(2,"0")}.webm`);
       await download.saveAs(webm);
       if(fs.statSync(webm).size<10000) throw new Error(`Chapter ${i} WebM is too small.`);
-      const webmProbe=spawnSync("ffprobe",["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",webm],{encoding:"utf8"});
-      const webmDuration=Number(webmProbe.stdout.trim());
-      if(webmProbe.status!==0||!Number.isFinite(webmDuration)||Math.abs(webmDuration-audioDuration)>0.35) {
-        throw new Error(`Chapter ${i} browser recording ended early: WebM ${webmProbe.stdout.trim()}s vs narration ${audioDuration.toFixed(3)}s. Refusing to freeze or stretch the presenter to hide a failed recording.`);
+      // MediaRecorder WebM commonly omits the container Duration element.
+      // ffprobe then prints "N/A" even when Chromium recorded a complete,
+      // playable stream. Validate the actual streams and decode a frame here;
+      // the converted MP4 duration check below is the authoritative
+      // end-to-end guard against a genuinely truncated recording.
+      const webmProbe=spawnSync("ffprobe",["-v","error","-show_entries","stream=codec_type,codec_name,width,height","-of","json",webm],{encoding:"utf8"});
+      let webmStreams;
+      try { webmStreams=JSON.parse(webmProbe.stdout).streams||[]; }
+      catch { throw new Error(`Chapter ${i} WebM stream probe returned invalid output: ${webmProbe.stderr||webmProbe.stdout}`); }
+      if(webmProbe.status!==0||!webmStreams.some(stream=>stream.codec_type==="video")||!webmStreams.some(stream=>stream.codec_type==="audio")) {
+        throw new Error(`Chapter ${i} WebM is missing a decodable video or audio stream: ${webmProbe.stderr||webmProbe.stdout}`);
       }
+      const frameProbe=spawnSync("ffmpeg",["-v","error","-i",webm,"-map","0:v:0","-frames:v","1","-f","null","-"],{encoding:"utf8"});
+      if(frameProbe.status!==0) throw new Error(`Chapter ${i} WebM video could not be decoded: ${frameProbe.stderr||frameProbe.stdout}`);
       const mp4=webm.replace(/\.webm$/,".mp4");
       const conversion=spawn("ffmpeg",["-y","-i",webm,"-i",audio,"-map","0:v:0","-map","1:a:0","-t",audioDuration.toFixed(3),"-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",mp4],{stdio:"inherit"});
       const exitCode=await new Promise((resolve,reject)=>{conversion.on("error",reject);conversion.on("close",resolve);});
