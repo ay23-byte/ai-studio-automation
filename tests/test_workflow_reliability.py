@@ -68,6 +68,41 @@ class ActionVersionTests(unittest.TestCase):
             self.assertNotRegex(path.read_text(encoding="utf-8"), r"require\(['\"]@actions/github['\"]\)", path.name)
 
 
+    def test_standard_shorts_workflow_is_review_only(self):
+        text = _text("make_shorts.yml")
+        self.assertNotIn("run_daily.py --format shorts --upload-latest", text)
+        self.assertNotIn("Upload completed Short to YouTube", text)
+        self.assertIn('UPLOAD_REQUESTED: "false"', text)
+        self.assertIn("shorts-review-${{ github.run_id }}", text)
+
+    def test_daily_news_workflow_never_uploads_during_build(self):
+        text = _text("daily-news-auto-short.yml")
+        self.assertNotIn("run_daily_news_short.py --upload", text)
+        self.assertNotIn("--upload-after-recovery", text)
+        self.assertNotIn("YT_REFRESH_TOKEN", text)
+        self.assertIn('UPLOAD_REQUESTED: "false"', text)
+        self.assertIn("news-short-auto-${{ github.run_id }}", text)
+
+
+class SharedShortReleaseWorkflowTests(unittest.TestCase):
+    def test_shared_short_release_is_private_and_fail_closed(self):
+        text = _text("release_shorts_private.yml")
+        self.assertIn("confirm_private_upload", text)
+        self.assertIn("video_sha256", text)
+        self.assertIn("review_decisions_json", text)
+        self.assertIn("scripts/release_review_package.py", text)
+        self.assertIn('PRIVACY: "private"', text)
+        self.assertIn('PUBLISH_AT_IST: ""', text)
+        self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", text)
+
+    def test_human_decision_script_preserves_fail_closed_rules(self):
+        text = (ROOT / "scripts" / "apply_review_decisions.py").read_text(encoding="utf-8")
+        self.assertIn("unknown provenance cannot be approved", text)
+        self.assertIn("cannot be overridden", text)
+        self.assertIn("license_url", text)
+        self.assertIn("20+", text)
+
+
 class WorkflowStructureTests(unittest.TestCase):
     def test_every_job_has_a_timeout(self):
         for path in WORKFLOWS:
@@ -122,8 +157,8 @@ class WorkflowStructureTests(unittest.TestCase):
             text = _text(name)
             self.assertIn("scripts/build_with_recovery.py", text, name)
             self.assertIn("BUILD_RECOVERY_ATTEMPTS", text, name)
-        # The news workflow uploads inside the build command, so a recovered job must too.
-        self.assertIn("--upload-after-recovery", _text("daily-news-auto-short.yml"))
+        # All production build workflows are review-only; release is a separate approved action.
+        self.assertNotIn("--upload-after-recovery", _text("daily-news-auto-short.yml"))
 
     def test_state_is_saved_even_when_the_build_fails(self):
         for name in ("make_shorts.yml", "daily-news-auto-short.yml"):

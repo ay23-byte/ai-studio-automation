@@ -224,25 +224,18 @@ jobs:
             --video "$VIDEO" \
             --output-dir "${JOB_DIRS[0]}/shared_review_package"
 
-      - name: Run automated release checks and upload documentary to YouTube (Private)
-        if: success()
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          CHANNEL_NAME: "Engineering Physics"
-          PRIVACY: "private"
-          PUBLISH_AT_IST: ""
+      - name: Mark build as review-only (upload is a separate approved workflow)
+        if: always()
         run: |
-          python scripts/upload_documentary_artifact.py \
-            --artifact-dir . \
-            --source-run-id "$GITHUB_RUN_ID"
+          echo "This workflow only builds and packages a review artifact."
+          echo "No YouTube upload is attempted here."
+          echo "Use the separate 'Release approved documentary (Private)' workflow after human review."
 
       - name: Write job summary and run report
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          UPLOAD_REQUESTED: "true"
+          UPLOAD_REQUESTED: "false"
         run: |
           python scripts/write_job_summary.py --pipeline longform \
             --artifact "longform-review-${GITHUB_RUN_ID}" \

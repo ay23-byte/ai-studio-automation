@@ -74,6 +74,29 @@ Every completed mode should emit a package directory with:
 
 The package status must be one of `FAIL`, `REVIEW_REQUIRED`, or `APPROVED_FOR_UPLOAD`. Technical success alone must never imply editorial approval or publication readiness. Unknown licence status must remain unknown and block upload until resolved.
 
+## Release handoff implementation notes
+
+All three build modes are review-only producers:
+- Long-form documentary build no longer calls YouTube.
+- Standard Shorts build no longer calls YouTube, including scheduled runs.
+- Daily-news Shorts build no longer calls YouTube or receives YouTube credentials.
+
+The shared review package contract is `schemas/production-manifest-v1.schema.json` and `scripts/validate_review_package.py`. Documentary, standard Short and daily-news package adapters now generate an offline `review_dashboard.html` and `review_decisions_template.json` with the video, scene narration, visual assets, provenance and QA statuses. The dashboard is part of the review artifact; it is not a public website and requires no paid hosting.
+
+Private release paths:
+- Documentary: `Release approved documentary (Private)` checks the selected build artifact and MP4 hash, attaches per-shot human decisions and invokes the existing fail-closed documentary uploader.
+- Standard Short and daily-news Short: `Release approved Short (Private)` downloads the exact run artifact, verifies mode and MP4 hash, applies explicit per-scene and per-asset decisions, reruns the shared package validator, and uploads PRIVATE only.
+
+The shared human decision handler requires all six review confirmations, notes for every scene, exact per-asset licence/terms URL and attribution, and human notes for QA reports marked REVIEW. Unknown provenance, missing automated QA evidence, and any QA FAIL remain blocked. The existing uploader verifies the configured Engineering Physics channel; scheduling is disabled and public publishing is unsupported by the new release workflows.
+
+Remaining before production sign-off:
+- Wait for the latest PR CI to finish and fix any failures.
+- Exercise one real documentary, one standard Short and one daily-news Short through artifact generation and offline dashboard review.
+- Verify the actual MP4s, captions, narration, visual relevance, source-page licences and attribution, and the final release-gate behavior.
+- Verify private upload read-back on the Engineering Physics channel using an explicitly authorized test video; no public publishing.
+- Confirm the full run artifacts and audit evidence remain available.
+
+A passing unit suite or a successful render alone does not prove production readiness. No end-to-end production claim should be made until the above live validations are completed.
 ## Prioritized implementation sequence
 
 ### P0 — Establish a shared contract and fail-closed package validator

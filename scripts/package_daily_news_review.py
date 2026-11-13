@@ -170,6 +170,8 @@ def create_package(script_path: str | Path, render_dir: str | Path,
     if result.get("status") != "REVIEW_REQUIRED":
         raise RuntimeError("New daily-news render must remain REVIEW_REQUIRED; validator returned "
                            + str(result.get("status")) + ": " + "; ".join(result.get("errors", [])))
+    from scripts.build_review_dashboard import build_dashboard
+    build_dashboard(root)
     return root
 
 

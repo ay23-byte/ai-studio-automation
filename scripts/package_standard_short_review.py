@@ -141,4 +141,6 @@ def create_review_package(script: dict, build_dir: str | Path, render_dir: str |
         raise RuntimeError("Shared review-package validation failed: " + "; ".join(result.get("errors", [])))
     if result.get("status") != "REVIEW_REQUIRED":
         raise RuntimeError("A new render must remain REVIEW_REQUIRED until a human completes the checklist.")
+    from scripts.build_review_dashboard import build_dashboard
+    build_dashboard(root)
     return root

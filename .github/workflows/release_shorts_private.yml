@@ -1,0 +1,175 @@
+name: "Release approved Short (Private)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which reviewed Shorts package to release"
+        required: true
+        type: choice
+        options:
+          - shortform
+          - daily_news
+      source_run_id:
+        description: "Successful build/review workflow run ID"
+        required: true
+        type: string
+      artifact_name:
+        description: "Exact artifact name from the selected run"
+        required: true
+        type: string
+      video_sha256:
+        description: "SHA-256 of the exact reviewed video.mp4 inside the package"
+        required: true
+        type: string
+      review_decisions_json:
+        description: "Full JSON export from the human review checklist (see docs/SHARED_REVIEW_PACKAGE.md)"
+        required: true
+        type: string
+      confirm_private_upload:
+        description: "I watched the complete MP4 and approve this exact file for PRIVATE upload to Engineering Physics"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: shorts-private-release-${{ inputs.source_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate explicit authorization and source identity
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          VIDEO_SHA256: ${{ inputs.video_sha256 }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          CONFIRM: ${{ inputs.confirm_private_upload }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::source_run_id must be numeric"; exit 1; }
+          [[ "$VIDEO_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::video_sha256 must be 64 hex characters"; exit 1; }
+          [[ -n "$ARTIFACT_NAME" ]] || { echo "::error::Exact artifact_name is required"; exit 1; }
+          [[ "$CONFIRM" == "true" ]] || { echo "::error::Explicit private-upload confirmation is required"; exit 1; }
+
+      - name: Verify source run succeeded and contains the exact artifact
+        id: source
+        uses: actions/github-script@v9
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        with:
+          script: |
+            const runId = Number(process.env.SOURCE_RUN_ID);
+            if (!Number.isSafeInteger(runId)) {
+              core.setFailed("source_run_id must be a numeric workflow run ID.");
+              return;
+            }
+            const run = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId
+            });
+            if (run.data.conclusion !== "success" ||
+                run.data.repository.full_name !== context.repo.owner + "/" + context.repo.repo) {
+              core.setFailed("Selected source run must have succeeded in this repository.");
+              return;
+            }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId, per_page: 100
+            });
+            const artifact = artifacts.find(a => a.name === process.env.ARTIFACT_NAME && !a.expired);
+            if (!artifact) {
+              core.setFailed("Exact unexpired review artifact was not found in the selected source run.");
+              return;
+            }
+            core.info("Verified successful source run and exact review artifact.");
+
+      - name: Download exact review artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.source_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: source-artifact
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install FFmpeg and YouTube uploader dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+          ffprobe -version | head -n 1
+
+      - name: Locate exactly one shared review package and verify mode
+        env:
+          EXPECTED_MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          mapfile -t MANIFESTS < <(find source-artifact -type f -name production_manifest.json)
+          [[ "${#MANIFESTS[@]}" -eq 1 ]] || { echo "::error::Expected exactly one production_manifest.json in artifact"; exit 1; }
+          PACKAGE_DIR="$(dirname "${MANIFESTS[0]}")"
+          python - "$PACKAGE_DIR" "$EXPECTED_MODE" <<'PY'
+          import json,sys
+          from pathlib import Path
+          root=Path(sys.argv[1]); expected=sys.argv[2]
+          m=json.loads((root/"production_manifest.json").read_text(encoding="utf-8"))
+          if m.get("mode") != expected:
+              raise SystemExit(f"Artifact mode {m.get('mode')!r} does not match selected mode {expected!r}")
+          if not (root/"video.mp4").is_file():
+              raise SystemExit("Shared package video.mp4 is missing")
+          print(f"Selected {expected} review package: {root}")
+          PY
+          echo "PACKAGE_DIR=$PACKAGE_DIR" >> "$GITHUB_ENV"
+
+      - name: Attach human decisions, validate package, and upload PRIVATE only
+        env:
+          REVIEW_DECISIONS_JSON: ${{ inputs.review_decisions_json }}
+          EXPECTED_SHA256: ${{ inputs.video_sha256 }}
+          CONFIRM_PRIVATE_UPLOAD: ${{ inputs.confirm_private_upload }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "private"
+          PUBLISH_AT_IST: ""
+        run: |
+          set -euo pipefail
+          test -n "$YT_CLIENT_ID" || { echo "::error::Missing YT_CLIENT_ID secret"; exit 1; }
+          test -n "$YT_CLIENT_SECRET" || { echo "::error::Missing YT_CLIENT_SECRET secret"; exit 1; }
+          test -n "$YT_REFRESH_TOKEN" || { echo "::error::Missing YT_REFRESH_TOKEN secret"; exit 1; }
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          Path("review-decisions.json").write_text(os.environ["REVIEW_DECISIONS_JSON"],encoding="utf-8")
+          PY
+          python scripts/release_review_package.py \
+            --package-dir "$PACKAGE_DIR" \
+            --decisions review-decisions.json \
+            --video-sha256 "$EXPECTED_SHA256" \
+            --confirm-private-upload
+
+      - name: Preserve audit evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shorts-private-release-${{ github.run_id }}
+          path: |
+            source-artifact/**/package_summary.json
+            source-artifact/**/review_checklist.json
+            source-artifact/**/youtube-upload-result.json
+          if-no-files-found: ignore
+          retention-days: 90

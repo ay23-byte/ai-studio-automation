@@ -1,4 +1,4 @@
-name: '1. Create and upload a Short — automatic'
+name: '1. Build a Short — review required'
 on:
   workflow_dispatch:
     inputs:
@@ -17,9 +17,9 @@ on:
         options: [hinglish, hindi, english]
         default: hinglish
       upload:
-        description: "Upload the finished Short to YouTube as PRIVATE"
+        description: "Deprecated: builds are review-only; use the separate approved private-release workflow"
         type: boolean
-        default: true
+        default: false
       force:
         description: "Build even if this topic was already produced"
         type: boolean
@@ -126,23 +126,11 @@ jobs:
             python scripts/build_with_recovery.py -- python run_daily.py --format shorts
           fi
 
-      - name: Upload completed Short to YouTube (Private)
-        if: success() && (github.event_name == 'schedule' || inputs.upload)
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
-          PRIVACY: "private"
-          PUBLISH_AT_IST: ""
-        shell: bash
+      - name: Mark Short as review-only
+        if: success()
         run: |
-          set -euo pipefail
-          if ! ls output/shorts_*.mp4 >/dev/null 2>&1; then
-            echo "::notice::No new Short was built in this run (no unused topic or nothing to do); skipping upload."
-            exit 0
-          fi
-          python run_daily.py --format shorts --upload-latest
+          echo "Short build completed. No YouTube upload is attempted in this workflow."
+          echo "Inspect the shorts-review artifact and use the guarded private-release workflow only after review."
 
       - name: Persist duplicate ledger to the automation-state branch
         if: always()
@@ -156,7 +144,7 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}
+          UPLOAD_REQUESTED: "false"
         run: python scripts/write_job_summary.py --pipeline shorts --artifact "shorts-review-${GITHUB_RUN_ID}"
 
       - uses: actions/upload-artifact@v7

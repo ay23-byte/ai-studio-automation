@@ -1,0 +1,129 @@
+name: "Release approved documentary (Private)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful documentary build run ID containing the longform-review artifact"
+        required: true
+        type: string
+      video_sha256:
+        description: "Exact SHA-256 of the reviewed output/longform_<job_id>.mp4"
+        required: true
+        type: string
+      review_decisions_json:
+        description: "Complete visual_review_decisions.json exported after human visual/source/rights review"
+        required: true
+        type: string
+      confirm_private_upload:
+        description: "I approve this exact reviewed MP4 for PRIVATE upload to the configured Engineering Physics channel"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: documentary-private-release-${{ inputs.source_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install uploader dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install FFmpeg for independent media validation
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Validate source run and explicit approval
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          VIDEO_SHA256: ${{ inputs.video_sha256 }}
+          CONFIRM_PRIVATE_UPLOAD: ${{ inputs.confirm_private_upload }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::source_run_id must be numeric"; exit 1; }
+          [[ "$VIDEO_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::video_sha256 must be a 64-character SHA-256"; exit 1; }
+          [[ "$CONFIRM_PRIVATE_UPLOAD" == "true" ]] || { echo "::error::Explicit private-upload confirmation is required"; exit 1; }
+
+      - name: Download the exact build review artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: longform-review-${{ inputs.source_run_id }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-artifact
+
+      - name: Validate package identity and attach human review decisions
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          EXPECTED_SHA256: ${{ inputs.video_sha256 }}
+          REVIEW_DECISIONS_JSON: ${{ inputs.review_decisions_json }}
+        run: |
+          set -euo pipefail
+          mapfile -t BUILDS < <(find release-artifact/build -mindepth 1 -maxdepth 1 -type d -name 'job_*' | sort)
+          [[ "${#BUILDS[@]}" -eq 1 ]] || { echo "::error::Expected exactly one build/job_* directory"; exit 1; }
+          JOB_ID="${BUILDS[0]##*/job_}"
+          [[ "$JOB_ID" =~ ^[0-9]+$ ]] || { echo "::error::Invalid job ID"; exit 1; }
+          VIDEO="release-artifact/output/longform_${JOB_ID}.mp4"
+          test -s "$VIDEO" || { echo "::error::Reviewed documentary MP4 is missing"; exit 1; }
+          ACTUAL_SHA256="$(sha256sum "$VIDEO" | cut -d' ' -f1)"
+          [[ "$ACTUAL_SHA256" == "$EXPECTED_SHA256" ]] || {
+            echo "::error::MP4 hash mismatch. Reviewed file does not match the selected build artifact."
+            exit 1
+          }
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          raw = os.environ.get("REVIEW_DECISIONS_JSON", "")
+          try:
+              payload = json.loads(raw)
+          except Exception as exc:
+              raise SystemExit(f"Review decisions are not valid JSON: {exc}")
+          if not isinstance(payload, dict) or payload.get("schema_version") not in {1, 2} or not isinstance(payload.get("shots"), dict):
+              raise SystemExit("Review decisions must be a schema v1/v2 object with a shots map.")
+          build = next(Path("release-artifact/build").glob("job_*"))
+          (build / "visual_review_decisions.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          print(f"Attached {len(payload['shots'])} human shot decisions to {build.name}.")
+          PY
+
+      - name: Run fail-closed release validation and upload as Private
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "private"
+          PUBLISH_AT_IST: ""
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          python scripts/upload_documentary_artifact.py \
+            --artifact-dir release-artifact \
+            --source-run-id "$SOURCE_RUN_ID"
+
+      - name: Preserve release evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentary-private-release-${{ github.run_id }}
+          path: |
+            release-artifact/build/job_*/visual_review_decisions.json
+            youtube-upload-result.json
+            youtube-upload-failure.json
+          if-no-files-found: ignore
+          retention-days: 14

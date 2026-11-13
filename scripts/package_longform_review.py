@@ -303,6 +303,8 @@ def create_package(build_dir: str | Path, video_file: str | Path,
             "A new documentary package must remain REVIEW_REQUIRED; validator returned "
             + str(result.get("status")) + ": " + "; ".join(result.get("errors") or [])
         )
+    from scripts.build_review_dashboard import build_dashboard
+    build_dashboard(root)
     return root
 
 
