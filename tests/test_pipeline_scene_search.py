@@ -16,6 +16,7 @@ class SceneSearchBriefTests(unittest.TestCase):
         self.assertIn("Veldhoven", brief)
         self.assertIn("ASML EUV", brief)
         self.assertIn("silicon wafer", brief)
+        self.assertNotIn("projects extreme ultraviolet light", brief)
 
     def test_does_not_use_generic_cinematic_generation_instructions(self):
         beat = {
