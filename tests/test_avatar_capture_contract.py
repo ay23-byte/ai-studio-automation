@@ -23,3 +23,11 @@ def test_runner_requires_video_only_webm_and_muxes_original_narration():
     assert '"-map","0:v:0","-map","1:a:0"' in runner
     assert 'const audioDuration = Number(durationProbe.stdout.trim())' in runner
     assert "muxed MP4 duration mismatch" in runner
+
+
+def test_browser_smoke_test_expects_video_only_recording():
+    smoke = (ROOT / "avatar_studio" / "ci-smoke-test.mjs").read_text(encoding="utf-8")
+    assert 'Recording avatar video while narration drives lip-sync' in smoke
+    assert 'Saved video-only talking_presenter.webm' in smoke
+    assert 'result.audioTracks !== 0' in smoke
+    assert 'result.audioTracks < 1' not in smoke
