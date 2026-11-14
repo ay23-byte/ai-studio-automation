@@ -58,6 +58,18 @@
   let avatar = null, audioUrl = null, recorder = null, chunks = [], sourceAudio = null, sourceStream = null, canvasStream = null, framePump = null;
   const status = message => { el("status").textContent = message; };
   const enable = (id, yes) => { el(id).disabled = !yes; };
+  function startFramePump(videoTrack){
+    // Follow the WebGL render cadence; setInterval is heavily throttled in headless Chromium.
+    const pump = () => {
+      if(videoTrack.readyState !== "live"){framePump=null;return;}
+      videoTrack.requestFrame();
+      framePump=requestAnimationFrame(pump);
+    };
+    framePump=requestAnimationFrame(pump);
+  }
+  function stopFramePump(){
+    if(framePump!==null){cancelAnimationFrame(framePump);framePump=null;}
+  }
   async function loadAvatar(){
     try{
       if(avatar){avatar.dispose();avatar=null;}
@@ -131,7 +143,7 @@
       canvasStream=canvas.captureStream(manualCapture?0:30);
       if(manualCapture){
         const videoTrack=canvasStream.getVideoTracks()[0];
-        framePump=setInterval(()=>{if(videoTrack.readyState==="live")videoTrack.requestFrame();},33);
+        startFramePump(videoTrack);
       }
       const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
       chunks=[];
@@ -144,7 +156,7 @@
         const blob=new Blob(chunks,{type:"video/webm"});
         if(blob.size===0){
           const trackInfo={videoTracks:canvasStream?.getVideoTracks().length||0,audioTracks:sourceStream?.getAudioTracks().length||0,recorderState:recorder?.state||"unknown",mimeType:recorder?.mimeType||mime};
-          if(framePump!==null){clearInterval(framePump);framePump=null;}
+          stopFramePump();
           canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
           canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
           enable("record",true);enable("finish",false);enable("play",true);
