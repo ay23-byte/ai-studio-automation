@@ -514,6 +514,9 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         from core.timing import align_units
         n = len(scenes)
         used_ids = set()
+        from core import footage_report, footage_sources
+        footage_sources.reset_run_state()
+        footage_run = footage_report.begin_run(f"short job {job_id}")
         T = total + TAIL
         spans = align_units(scene_texts, timings, total)
         starts = [span[0] for span in spans]
@@ -598,6 +601,11 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         music = _pick_music()
         cfg.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         out = cfg.OUTPUT_DIR / f"shorts_{job_id}.mp4"
+        if footage_run.scenes:
+            try:
+                footage_run.write(bd)
+            except OSError as exc:
+                print(f"WARNING: footage provider report could not be written: {exc}")
         checkpoint.mark("render", "running")
         shorts_render(media, lens, cuts, voice_path, ass, total, out, music, work_dir=bd / "render_work")
         checkpoint.mark("render", "done", files=[str(out)])
@@ -686,6 +694,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # thirds and visuals change exactly when each chapter is spoken.
     from core.timing import align_units
     used_ids = set()
+    # One footage report per documentary: which providers answered, what was
+    # rejected and why, and which scenes still need a person.
+    from core import footage_report, footage_sources
+    footage_sources.reset_run_state()
+    footage_run = footage_report.begin_run(f"long-form job {job_id}")
     section_spans = align_units([str(sec.get("narration", "")) for sec in sections], timings, total,
                                 min_duration=3.0)
     for sec, (span_start, span_end) in zip(sections, section_spans):
@@ -1136,6 +1149,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         from core.asset_licensing import build_licence_register
         licence_report = build_licence_register(shot_timeline, bd)
         visual_report["licence_register"] = licence_report
+        # A resumed build reuses acquired visuals and searches nothing; keep the
+        # report written by the run that did the searching.
+        if footage_run.scenes or not (bd / footage_report.REPORT_JSON).is_file():
+            footage_summary = footage_run.write(bd)["summary"]
+            visual_report["footage_provider_report"] = dict(footage_summary, file=footage_report.REPORT_JSON)
+            print(
+                f"Footage providers: {footage_summary['scenes_with_footage']} of "
+                f"{footage_summary['scenes_searched']} searched scenes received validated footage from "
+                f"{len(footage_summary['providers_with_validated_download'])} provider(s); "
+                f"{footage_summary['scenes_needing_manual_review']} need manual review. "
+                f"See {footage_report.REPORT_MARKDOWN}."
+            )
         (bd / "visual_review_report.json").write_text(
             json.dumps(visual_report, ensure_ascii=False, indent=2), encoding="utf-8"
         )

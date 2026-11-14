@@ -26,10 +26,13 @@ GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
 from core.gemini import default_model as _gemini_default_model, configured_fallbacks as _gemini_fallbacks
 GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "").strip() or _gemini_default_model()
 GEMINI_FALLBACK_MODELS = _gemini_fallbacks()
-PIXABAY_API_KEY  = os.getenv("PIXABAY_API_KEY", "")
-COVERR_API_KEY   = os.getenv("COVERR_API_KEY", "")
-NARA_API_KEY     = os.getenv("NARA_API_KEY", "")
-EUROPEANA_API_KEY = os.getenv("EUROPEANA_API_KEY", "")
+# Footage provider keys. Surrounding whitespace is removed: a secret pasted with a
+# trailing newline is sent as part of the key and the provider answers 401/403.
+PIXABAY_API_KEY  = os.getenv("PIXABAY_API_KEY", "").strip()
+COVERR_API_KEY   = os.getenv("COVERR_API_KEY", "").strip()
+NARA_API_KEY     = os.getenv("NARA_API_KEY", "").strip()
+EUROPEANA_API_KEY = os.getenv("EUROPEANA_API_KEY", "").strip()
+DVIDS_API_KEY    = os.getenv("DVIDS_API_KEY", "").strip()
 CF_ACCOUNT_ID    = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
 CF_API_TOKEN     = os.getenv("CLOUDFLARE_API_TOKEN", "")
 POLLINATIONS_GAP = float(os.getenv("POLLINATIONS_GAP", "16"))

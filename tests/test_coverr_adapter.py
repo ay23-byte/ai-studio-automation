@@ -7,6 +7,7 @@ from core import images
 class CoverrAdapterTests(unittest.TestCase):
     def setUp(self):
         images._DISABLED_VIDEO_PROVIDERS.discard("coverr")
+        images._STOCK_SEARCH_CACHE.clear()
 
     @patch.object(images.requests, "get")
     def test_search_uses_official_api_and_api_key(self, get):
@@ -16,7 +17,11 @@ class CoverrAdapterTests(unittest.TestCase):
         self.assertEqual(hits, [{"id": "abc"}])
         args, kwargs = get.call_args
         self.assertEqual(args[0], "https://api.coverr.co/videos")
-        self.assertEqual(kwargs["headers"]["x-api-key"], "test-key")
+        # Coverr documents "Authorization: Bearer <key>" (or an api_key parameter); it does
+        # not document an x-api-key header, which is what this adapter used to send.
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test-key")
+        self.assertNotIn("x-api-key", kwargs["headers"])
+        self.assertNotIn("api_key", kwargs["params"])
         self.assertEqual(kwargs["params"]["query"], "mountain village")
         images.COVERR_API_KEY = ""
 

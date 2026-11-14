@@ -16,6 +16,7 @@ class ArchivalVideoTests(unittest.TestCase):
             ["modern city skyline"], "cinematic present-day city footage"
         ))
 
+    @patch("core.config.NARA_API_KEY", "nara-test")
     @patch("core.footage_sources._download", return_value=True)
     @patch("core.footage_sources._nasa", return_value=[])
     @patch("core.footage_sources._nara")
@@ -69,6 +70,9 @@ class ArchivalVideoTests(unittest.TestCase):
         self.assertIn("Chernobyl 1986 disaster film", queries)
         self.assertIn("Pripyat 1986 Soviet newsreel", queries)
 
+    # Keyed providers are searched only when their key is configured.
+    @patch("core.config.NARA_API_KEY", "nara-test")
+    @patch("core.config.EUROPEANA_API_KEY", "eu-test")
     @patch("core.footage_sources._nara", return_value=[])
     @patch("core.footage_sources._dvids", return_value=[])
     @patch("core.footage_sources._loc", side_effect=RuntimeError("HTTP 429"))
@@ -89,6 +93,9 @@ class ArchivalVideoTests(unittest.TestCase):
         self.assertGreater(europeana.call_count, 0)
 
 
+    # Keyed providers are searched only when their key is configured.
+    @patch("core.config.NARA_API_KEY", "nara-test")
+    @patch("core.config.EUROPEANA_API_KEY", "eu-test")
     @patch("core.footage_sources._download", return_value=True)
     @patch("core.footage_sources._nara")
     @patch("core.footage_sources._dvids", return_value=[])

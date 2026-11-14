@@ -174,34 +174,138 @@ def generate_image(scene_prompt, path, category="general"):
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
 
+COVERR_LICENCE_URL = "https://coverr.co/license"
+PIXABAY_LICENCE_URL = "https://pixabay.com/service/license-summary/"
+# One answer per query per run: scenes repeat queries, and both libraries meter requests.
+_STOCK_SEARCH_CACHE = {}
+_STOCK_DISABLED_REASON = {}
+
+
+def _stock_event(provider, *, status=None, failure=None, search_status=None, retry=False, disabled=None):
+    """Record a stock-library HTTP outcome in the run's provider report."""
+    if disabled:
+        _STOCK_DISABLED_REASON[str(provider).lower()] = str(disabled)
+    try:
+        from core.footage_report import active_scope, current_report
+        _name, report = active_scope()
+        report = report or current_report()
+        if status is not None:
+            report.http_status(provider, status)
+        if retry:
+            report.add(provider, "retries")
+        if failure:
+            report.fail(provider, failure, search_status=search_status)
+        if disabled:
+            report.set(provider, disabled_reason=disabled)
+    except Exception:
+        pass
+
+
+def _wait_seconds(response, default):
+    """Seconds a rate-limited provider asked us to wait (Retry-After or X-RateLimit-Reset)."""
+    headers = getattr(response, "headers", None) or {}
+    for name in ("Retry-After", "X-RateLimit-Reset"):
+        try:
+            value = headers.get(name)
+            if value is not None and str(value).strip() != "":
+                return max(0.0, float(value))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return float(default)
+
+
+_STOCK_NETWORK_FAILURES = {}
+STOCK_NETWORK_FAILURE_LIMIT = 2
+
+
+def _stock_unreachable(provider, exc):
+    """Count a search that failed on every attempt; switch the provider off after two in a row.
+
+    Without this an unreachable provider costs three timeouts for every query of every scene.
+    """
+    key = provider.lower()
+    _STOCK_NETWORK_FAILURES[key] = _STOCK_NETWORK_FAILURES.get(key, 0) + 1
+    if _STOCK_NETWORK_FAILURES[key] >= STOCK_NETWORK_FAILURE_LIMIT:
+        reason = f"unreachable after repeated attempts ({type(exc).__name__}); skipped for the rest of this run"
+        _DISABLED_VIDEO_PROVIDERS.add(key)
+        _stock_event(provider, disabled=reason)
+        print(f"  {provider} unreachable; skipping it for the rest of this run.")
+
+
+def reset_stock_state():
+    """Forget stock-provider circuit breakers and cached searches (new run or test)."""
+    _DISABLED_VIDEO_PROVIDERS.clear()
+    _STOCK_NETWORK_FAILURES.clear()
+    _STOCK_SEARCH_CACHE.clear()
+    _STOCK_DISABLED_REASON.clear()
+
+
+def _max_rate_limit_wait():
+    try:
+        return float(os.getenv("FOOTAGE_MAX_RETRY_AFTER_SECONDS", "") or 30)
+    except ValueError:
+        return 30.0
+
+
 def _search_coverr(q):
-    """Search Coverr's official API. Returns raw hits; no scraping is used."""
+    """Search Coverr's official API. Returns raw hits; no scraping is used.
+
+    Coverr documents two ways to send the key: ``Authorization: Bearer <key>`` or
+    an ``api_key`` query parameter. The header keeps the key out of URLs and logs.
+    """
     if not COVERR_API_KEY or "coverr" in _DISABLED_VIDEO_PROVIDERS:
         return []
+    key = ("coverr", q)
+    if key in _STOCK_SEARCH_CACHE:
+        return _STOCK_SEARCH_CACHE[key]
     for attempt in range(3):
         try:
             response = requests.get(
                 "https://api.coverr.co/videos",
-                headers={"x-api-key": COVERR_API_KEY},
+                headers={"Authorization": f"Bearer {COVERR_API_KEY}", "Accept": "application/json"},
                 params={"query": q, "page_size": 20, "urls": "true"},
-                timeout=30,
+                timeout=(10, 30),
             )
-            if response.status_code == 429:
-                time.sleep(15 * (attempt + 1))
+            status = response.status_code
+            _stock_event("Coverr", status=status)
+            if status == 429:
+                wait = _wait_seconds(response, 5 * (attempt + 1))
+                if wait > _max_rate_limit_wait() or attempt == 2:
+                    reason = (f"HTTP 429 (rate limited); Coverr asked for a {wait:.0f}s wait. The free API tier "
+                              "allows about 50 requests an hour, so Coverr is skipped for the rest of this run")
+                    _DISABLED_VIDEO_PROVIDERS.add("coverr")
+                    _stock_event("Coverr", failure=reason, search_status="rate_limited", disabled=reason)
+                    print(f"  Coverr paused for this run: {reason}.")
+                    return []
+                _stock_event("Coverr", retry=True)
+                time.sleep(wait + random.uniform(0, 1))
                 continue
-            if response.status_code in (401, 403):
+            if status in (401, 403):
+                reason = (f"HTTP {status}: Coverr did not accept the key. Check COVERR_API_KEY (sent as "
+                          "'Authorization: Bearer'); a demo key must be approved by Coverr before it works")
                 _DISABLED_VIDEO_PROVIDERS.add("coverr")
-                print(f"  Coverr disabled for this run: HTTP {response.status_code}")
+                _stock_event("Coverr", failure=reason, search_status="auth_rejected", disabled=reason)
+                print(f"  Coverr disabled for this run: HTTP {status}")
                 return []
-            if response.status_code in (400, 404):
-                print(f"  Coverr query unsupported (HTTP {response.status_code}); skipping retries")
+            if status in (400, 404):
+                _stock_event("Coverr", failure=f"HTTP {status} for this query", search_status="http_error")
+                print(f"  Coverr query unsupported (HTTP {status}); skipping retries")
                 return []
             response.raise_for_status()
             payload = response.json()
-            hits = payload.get("hits", [])
-            return hits if isinstance(hits, list) else []
+            hits = payload.get("hits", []) if isinstance(payload, dict) else []
+            hits = hits if isinstance(hits, list) else []
+            _STOCK_SEARCH_CACHE[key] = hits
+            _STOCK_NETWORK_FAILURES.pop("coverr", None)
+            return hits
         except Exception as exc:
-            print(f"  Coverr search attempt {attempt + 1} failed: {exc}")
+            from core.footage_report import redact
+            _stock_event("Coverr", failure=f"{type(exc).__name__}: {redact(exc)}"[:300], search_status="network_error")
+            print(f"  Coverr search attempt {attempt + 1} failed: {type(exc).__name__}: {redact(exc)}")
+            if attempt < 2:
+                time.sleep(1 + attempt + random.uniform(0, 1))
+            else:
+                _stock_unreachable("Coverr", exc)
     return []
 
 
@@ -234,8 +338,8 @@ def _coverr_candidate(hit, query):
         _relevance(query, title, tags_text),
         _relevance(query, description, tags_text),
     )
-    width = int(hit.get("width") or hit.get("video_width") or 0)
-    height = int(hit.get("height") or hit.get("video_height") or 0)
+    width = int(hit.get("max_width") or hit.get("width") or hit.get("video_width") or 0)
+    height = int(hit.get("max_height") or hit.get("height") or hit.get("video_height") or 0)
     asset_id = hit.get("id") or hit.get("video_id") or hit.get("slug")
     if not asset_id:
         return None
@@ -243,20 +347,35 @@ def _coverr_candidate(hit, query):
     page_url = str(hit.get("url") or hit.get("page_url") or "")
     if page_url and page_url.startswith("/"):
         page_url = "https://coverr.co" + page_url
+    page_derived = False
+    if not page_url:
+        page_url = f"https://coverr.co/videos/{hit.get('slug') or asset_id}"
+        page_derived = True
+    creator = hit.get("creator") or hit.get("author") or hit.get("user") or ""
+    if isinstance(creator, dict):
+        creator = creator.get("name") or creator.get("username") or ""
+    creator = str(creator or "").strip()
+    try:
+        duration = float(hit.get("duration") or 0)
+    except (TypeError, ValueError):
+        duration = 0.0
     metadata = {
         "provider": "Coverr",
         "asset_id": str(asset_id),
         "title": title,
         "description": description,
         "tags": tags_text,
-        "page_url": page_url or "https://coverr.co/",
+        "creator": creator,
+        "page_url": page_url,
         "query": query,
         "relevance_score": relevance,
-        "width": width,
-        "height": height,
+        "declared_width": width,
+        "declared_height": height,
+        "declared_duration_seconds": duration,
         "licence": "Coverr License",
-        "licence_url": "https://coverr.co/license",
-        "attribution_text": f"{title or 'Video'} — Coverr; {page_url or 'https://coverr.co/'}",
+        "licence_url": COVERR_LICENCE_URL,
+        # Coverr's free API tier requires a visible credit with a link.
+        "attribution_text": (f"Video by {creator} on Coverr" if creator else f"{title or 'Video'}, Coverr") + f"; {page_url}",
         "date_accessed": date.today().isoformat(),
         "terms_reviewed": False,
         "human_visual_inspection_required": True,
@@ -266,7 +385,27 @@ def _coverr_candidate(hit, query):
             "private_person_privacy": "not_automatically_verified",
         },
     }
+    if page_derived:
+        metadata["review_notes"] = "The Coverr API gave no page link; the page URL was built from the video id and must be opened by the reviewer."
+    if hit.get("is_ai_generated"):
+        # AI-generated stock is not real-world footage; the licence policy refuses it.
+        metadata["ai_generated"] = True
     return video_url, metadata
+
+
+def _coverr_download_ping(metadata):
+    """Tell Coverr a video was downloaded, as its API terms require for real downloads."""
+    asset_id = str((metadata or {}).get("asset_id") or "").strip()
+    if not asset_id or not COVERR_API_KEY:
+        return
+    try:
+        response = requests.patch(
+            f"https://api.coverr.co/videos/{urllib.parse.quote(asset_id)}/stats/downloads",
+            headers={"Authorization": f"Bearer {COVERR_API_KEY}"}, timeout=(10, 20))
+        metadata["coverr_download_reported"] = response.status_code < 400
+    except Exception as exc:
+        metadata["coverr_download_reported"] = False
+        print(f"  Coverr download report failed: {type(exc).__name__}")
 
 
 def _search_pixabay(q):
@@ -278,49 +417,174 @@ def _search_pixabay(q):
     if not PIXABAY_API_KEY:
         print("  Pixabay skipped: PIXABAY_API_KEY is not configured.")
         return []
+    if "pixabay" in _DISABLED_VIDEO_PROVIDERS:
+        return []
+    key = ("pixabay", q)
+    if key in _STOCK_SEARCH_CACHE:
+        return _STOCK_SEARCH_CACHE[key]
     for attempt in range(3):
         try:
             r = requests.get("https://pixabay.com/api/videos/",
                 params={"key":PIXABAY_API_KEY,"q":q,"per_page":30,
-                        "safesearch":"true","video_type":"film"}, timeout=30)
+                        "safesearch":"true","video_type":"film"}, timeout=(10, 30))
+            _stock_event("Pixabay", status=r.status_code)
             if r.status_code == 429:
-                print("  Pixabay rate limited (HTTP 429); retrying.")
-                time.sleep(20*(attempt+1))
+                # Pixabay allows 100 requests per 60 seconds and reports the reset time.
+                wait = _wait_seconds(r, 10 * (attempt + 1))
+                if wait > _max_rate_limit_wait() or attempt == 2:
+                    reason = (f"HTTP 429 (rate limited); Pixabay asked for a {wait:.0f}s wait, "
+                              "so it is skipped for the rest of this run")
+                    _DISABLED_VIDEO_PROVIDERS.add("pixabay")
+                    _stock_event("Pixabay", failure=reason, search_status="rate_limited", disabled=reason)
+                    print(f"  Pixabay paused for this run: {reason}.")
+                    return []
+                print(f"  Pixabay rate limited (HTTP 429); retrying after {wait:.0f}s.")
+                _stock_event("Pixabay", retry=True)
+                time.sleep(wait + random.uniform(0, 1))
                 continue
             if r.status_code in (401, 403):
+                reason = f"HTTP {r.status_code}: Pixabay did not accept the key; check PIXABAY_API_KEY"
                 _DISABLED_VIDEO_PROVIDERS.add("pixabay")
+                _stock_event("Pixabay", failure=reason, search_status="auth_rejected", disabled=reason)
                 print(f"  Pixabay disabled for this run: HTTP {r.status_code}; check the repository secret.")
                 return []
             if r.status_code != 200:
-                # Pixabay returns actionable JSON error messages for invalid keys,
+                # Pixabay returns short plain-text error messages for invalid keys,
                 # unsupported parameters and exhausted quotas. Keep the diagnostic
                 # short and never print the request URL (which contains the API key).
                 try:
                     error_payload = r.json()
                     detail = error_payload.get("message") or error_payload.get("error") or str(error_payload)
-                except ValueError:
+                except (ValueError, AttributeError):
                     detail = " ".join((r.text or "")[:240].split())
+                invalid_key = "api key" in str(detail).lower()
+                if invalid_key:
+                    _DISABLED_VIDEO_PROVIDERS.add("pixabay")
+                _stock_event("Pixabay", failure=f"HTTP {r.status_code}: {str(detail)[:200]}",
+                             search_status="auth_rejected" if invalid_key else "http_error")
                 print(f"  Pixabay search failed: HTTP {r.status_code}: {str(detail)[:300]}; query skipped.")
                 return []
             payload = r.json()
             hits = payload.get("hits", []) if isinstance(payload, dict) else []
             if not isinstance(hits, list):
+                _stock_event("Pixabay", failure="unexpected response shape", search_status="invalid_response")
                 print("  Pixabay returned an unexpected response shape.")
                 return []
+            _STOCK_SEARCH_CACHE[key] = hits
+            _STOCK_NETWORK_FAILURES.pop("pixabay", None)
             return hits
         except Exception as exc:
-            print(f"  Pixabay search attempt {attempt + 1} failed: {type(exc).__name__}: {exc}")
+            from core.footage_report import redact
+            _stock_event("Pixabay", failure=f"{type(exc).__name__}: {redact(exc)}"[:300], search_status="network_error")
+            print(f"  Pixabay search attempt {attempt + 1} failed: {type(exc).__name__}: {redact(exc)}")
+            if attempt < 2:
+                time.sleep(1 + attempt + random.uniform(0, 1))
+            else:
+                _stock_unreachable("Pixabay", exc)
     return []
 
 
+def _pixabay_candidate(hit, query, scene_prompt=""):
+    """Convert a Pixabay API hit into a downloadable candidate and licence record."""
+    from datetime import date
+    if not isinstance(hit, dict) or not hit.get("id"):
+        return None
+    try:
+        duration = float(hit.get("duration") or 0)
+    except (TypeError, ValueError):
+        duration = 0.0
+    if duration < 3:
+        return None
+    tags = str(hit.get("tags") or "")
+    # Largest rendition up to full HD first; 4K files are slow to fetch and unnecessary.
+    renditions = []
+    for name, variant in (hit.get("videos") or {}).items():
+        if not isinstance(variant, dict) or not str(variant.get("url") or "").startswith("https://"):
+            continue
+        width, height = int(variant.get("width") or 0), int(variant.get("height") or 0)
+        if width < 720 or height < 400:
+            continue
+        renditions.append((max(width, height) > 1920, -(width * height), variant["url"], width, height,
+                           int(variant.get("size") or 0), name))
+    if not renditions:
+        return None
+    renditions.sort()
+    _over, _area, url, width, height, size, name = renditions[0]
+    user = str(hit.get("user") or "")
+    page_url = str(hit.get("pageURL") or "")
+    metadata = {
+        "provider": "Pixabay", "asset_id": hit.get("id"),
+        "title": tags, "tags": tags, "creator": user,
+        "page_url": page_url, "query": query,
+        "relevance_score": max(_relevance(query, tags), _relevance(scene_prompt, tags)),
+        "declared_width": width, "declared_height": height, "declared_size_bytes": size,
+        "declared_duration_seconds": duration, "rendition": name,
+        "alternate_urls": [item[2] for item in renditions[1:3]],
+        "licence": "Pixabay Content License",
+        "licence_url": PIXABAY_LICENCE_URL,
+        "attribution_text": f"{tags} by {user or 'Pixabay contributor'} — Pixabay Content License; {page_url}",
+        "date_accessed": date.today().isoformat(),
+        "human_visual_inspection_required": True,
+        "visual_checks": {"steady_clean": "not_automatically_verified",
+                          "watermark_logo": "not_automatically_verified",
+                          "private_person_privacy": "not_automatically_verified"},
+    }
+    return url, metadata
+
+
+def stock_providers(scene_prompt=""):
+    """Coverr and Pixabay behind the common provider interface (see ``core.footage_engine``)."""
+    from core.footage_engine import Provider
+
+    def coverr_search(query):
+        query = _compact_search_query(query, 100)
+        hits = _search_coverr(query) if query else []
+        _stock_count("Coverr", len(hits))
+        return [item for item in (_coverr_candidate(hit, query) for hit in hits) if item]
+
+    def pixabay_search(query):
+        query = _compact_search_query(query, 100)
+        hits = _search_pixabay(query) if query else []
+        _stock_count("Pixabay", len(hits))
+        return [item for item in (_pixabay_candidate(hit, query, scene_prompt) for hit in hits) if item]
+
+    def status(name, key, env_name):
+        def check():
+            if not key:
+                return False, "missing_key", f"{env_name} is not set"
+            if name in _DISABLED_VIDEO_PROVIDERS:
+                return False, "configured", _STOCK_DISABLED_REASON.get(
+                    name, "switched off earlier in this run (see failure reason)")
+            return True, "configured", ""
+        return check
+
+    return [
+        Provider("Coverr", coverr_search, kind="stock", min_relevance=0.45,
+                 status=status("coverr", COVERR_API_KEY, "COVERR_API_KEY"), after_download=_coverr_download_ping),
+        Provider("Pixabay", pixabay_search, kind="stock", min_relevance=0.45,
+                 status=status("pixabay", PIXABAY_API_KEY, "PIXABAY_API_KEY")),
+    ]
+
+
+def _stock_count(provider, amount):
+    try:
+        from core.footage_report import active_scope
+        _name, report = active_scope()
+        if report is not None:
+            report.add(provider, "results_found", amount)
+    except Exception:
+        pass
+
 
 def fetch_clip(keywords, path, used, scene_prompt=""):
-    """Search archives, Coverr and Pixabay.
+    """Find one licensed, validated clip for a scene across every footage source.
 
-    Mixkit is handled through explicit human-selected local assets because its
-    published terms prohibit scripted/bot mass downloading and site scraping.
+    Archives (NASA, Wikimedia Commons, Internet Archive, Library of Congress,
+    DVIDS, Europeana, NARA) and stock libraries (Coverr, Pixabay) are searched
+    together and ranked as one pool. Mixkit is handled through explicit
+    human-selected local assets because its published terms prohibit
+    scripted/bot mass downloading and site scraping.
     """
-    from datetime import date
     queries = []
     for value in list(keywords or []) + [scene_prompt]:
         query = _compact_search_query(value, 100)
@@ -329,79 +593,29 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
         if len(queries) >= 8:
             break
 
+    path = Path(path)
+    archival_request = False
     try:
         from core.footage_sources import fetch_documentary_clip, _is_archival_video_request
         archival_request = _is_archival_video_request(queries, scene_prompt)
-        if fetch_documentary_clip(queries, path, used, scene_prompt=scene_prompt):
+        # A scene that asks for real archival moving images never receives
+        # generic stock: the stock libraries are left out of its pool.
+        extra = [] if archival_request else stock_providers(scene_prompt)
+        if fetch_documentary_clip(queries, path, used, scene_prompt=scene_prompt, extra_providers=extra):
             return True
         if archival_request:
-            # Do not substitute generic stock or AI-generated footage when the
-            # storyboard explicitly calls for real archival moving images.
             print("  archival video unavailable; stock/AI-video substitution refused")
-            return False
+        else:
+            print("  no clip met the relevance, licence and validation gates across configured sources")
+        return False
     except Exception as exc:
-        print(f"  public-domain/CC archive search unavailable: {exc}")
+        from core.footage_report import redact
+        print(f"  footage search unavailable: {type(exc).__name__}: {redact(exc)}")
         import re
-        if re.search(r"\b(archival|archive footage|newsreel|historical footage|period film|historical film)\b",
-                     str(scene_prompt or ""), re.I):
+        if archival_request or re.search(r"\b(archival|archive footage|newsreel|historical footage|period film|historical film)\b",
+                                         str(scene_prompt or ""), re.I):
             print("  archival video search failed; stock/AI-video substitution refused")
-            return False
-
-    candidates = []
-    for query in queries:
-        for hit in _search_coverr(query):
-            item = _coverr_candidate(hit, query)
-            if item:
-                url, metadata = item
-                candidates.append((url, metadata, hit.get("id"), "Coverr"))
-        for hit in _search_pixabay(query):
-            if ("Pixabay:" + str(hit.get("id"))) in used or (hit.get("duration") or 0) < 3:
-                continue
-            tags = hit.get("tags", "")
-            match = max(_relevance(query, tags), _relevance(scene_prompt, tags))
-            variants = hit.get("videos") or {}
-            best = max(variants.values(), key=lambda v: (v.get("width") or 0) * (v.get("height") or 0), default={})
-            width, height = int(best.get("width") or 0), int(best.get("height") or 0)
-            if width < 720 or height < 400 or not best.get("url"):
-                continue
-            metadata = {
-                "provider": "Pixabay", "asset_id": hit.get("id"),
-                "title": tags, "creator": str(hit.get("user") or ""),
-                "page_url": str(hit.get("pageURL") or ""), "query": query,
-                "relevance_score": match, "width": width, "height": height,
-                "licence": "Pixabay Content License",
-                "licence_url": "https://pixabay.com/service/license-summary/",
-                "attribution_text": f"{tags} by {hit.get('user') or 'Pixabay contributor'} — Pixabay Content License; {hit.get('pageURL') or ''}",
-                "date_accessed": date.today().isoformat(),
-                "human_visual_inspection_required": True,
-                "visual_checks": {"steady_clean": "not_automatically_verified",
-                                  "watermark_logo": "not_automatically_verified",
-                                  "private_person_privacy": "not_automatically_verified"},
-            }
-            candidates.append((best["url"], metadata, hit.get("id"), "Pixabay"))
-
-    candidates.sort(key=lambda item: (
-        float(item[1].get("relevance_score") or 0),
-        int(item[1].get("width") or 0) * int(item[1].get("height") or 0)
-    ), reverse=True)
-    for url, metadata, asset_id, provider in candidates[:20]:
-        if (provider + ":" + str(asset_id)) in used or float(metadata.get("relevance_score") or 0) < 0.45:
-            continue
-        metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
-        try:
-            from core.downloads import fetch
-            fetch(url, path, kind="video", timeout=(20, 120))
-            if path.stat().st_size > 50_000 and _video_ok(path):
-                used.add(f"{provider}:{asset_id}")
-                _write_source_metadata(path, metadata)
-                print(f"  clip candidate ok ({provider}, relevance {metadata['relevance_score']:.2f}); human visual review required")
-                return True
-            path.unlink(missing_ok=True)
-        except Exception as exc:
-            path.unlink(missing_ok=True)
-            print(f"  {provider} download failed: {exc}")
-    print("  no stock clip met the relevance/quality gate across configured sources")
-    return False
+        return False
 
 
 def _video_ok(path):

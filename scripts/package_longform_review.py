@@ -39,6 +39,7 @@ EVIDENCE_FILES = (
     "licenses.csv", "credits.txt", "visual_review_report.json", "visual_consistency_report.json",
     "audio_quality_report.json", "quality_report.json", "research_verification_report.json",
     "narration_synthesis_report.json", "release_metadata.json", "script.json", "chapter_timing.json",
+    "provider_report.json", "provider_report.md",
 )
 
 

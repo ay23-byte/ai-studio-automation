@@ -44,11 +44,17 @@ def max_seconds() -> float:
     return _limit("MAX_DOWNLOAD_SECONDS", 600)
 
 
-def fetch(url, path, *, kind: str = "video", headers: dict | None = None, timeout=(20, 90)) -> Path:
-    """Download ``url`` to ``path``; raise :class:`DownloadError` and leave nothing behind on failure."""
+def fetch(url, path, *, kind: str = "video", headers: dict | None = None, timeout=(20, 90),
+          max_mb: float | None = None) -> Path:
+    """Download ``url`` to ``path``; raise :class:`DownloadError` and leave nothing behind on failure.
+
+    ``max_mb`` lowers the size limit for this call; it can never raise it above the configured limit.
+    """
     path = Path(path)
     part = path.with_name(path.name + ".part")
     size_limit, time_limit = max_bytes(kind), max_seconds()
+    if max_mb:
+        size_limit = min(size_limit, float(max_mb) * 1024 * 1024)
     started, written = time.monotonic(), 0
     try:
         with requests.get(url, stream=True, timeout=timeout, headers=headers or {}) as response:
