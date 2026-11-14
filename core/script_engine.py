@@ -1,4 +1,5 @@
 import json, re, requests, time, random  # noqa: F401  (random stays importable: tests patch script_engine.random)
+from urllib.parse import urlparse
 from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, CHANNEL_NAME
 from core.news_research import research_topic, format_research_context
 from core.channel_profile import apply_configured_channel_profile
@@ -770,6 +771,76 @@ def _expand_longform_narration(script: dict, topic: str, category: str,
     )
 
 
+def validate_longform_research_quality(script: dict, min_sources: int = 8,
+                                         min_claims: int = 15, min_domains: int = 5,
+                                         min_claim_coverage: float = 0.80) -> dict:
+    """Reject thin or poorly linked research before expensive video rendering.
+
+    This checks dossier completeness and traceability only. It does not verify
+    that a source is genuine or that it supports a claim; human review remains
+    mandatory before release.
+    """
+    sources = script.get("sources") if isinstance(script.get("sources"), list) else []
+    claims = script.get("claims") if isinstance(script.get("claims"), list) else []
+    valid_sources = {}
+    domains = set()
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        source_id = str(source.get("source_id") or source.get("id") or "").strip()
+        title = str(source.get("title") or "").strip()
+        publisher = str(source.get("publisher") or "").strip()
+        url = str(source.get("url") or "").strip()
+        try:
+            parsed = urlparse(url)
+            valid_url = parsed.scheme in {"http", "https"} and bool(parsed.hostname)
+        except ValueError:
+            valid_url = False
+            parsed = None
+        if source_id and title and publisher and valid_url:
+            valid_sources[source_id] = source
+            domains.add(parsed.hostname.lower().removeprefix("www."))
+    linked_claims = 0
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        refs = claim.get("source_ids") or []
+        if isinstance(refs, str):
+            refs = [refs]
+        refs = [str(ref).strip() for ref in refs]
+        evidence = " ".join(str(claim.get("evidence") or "").split())
+        if claim.get("text") and evidence and refs and all(ref in valid_sources for ref in refs):
+            linked_claims += 1
+    coverage = linked_claims / len(claims) if claims else 0.0
+    problems = []
+    if len(valid_sources) < min_sources:
+        problems.append(f"only {len(valid_sources)} complete source records; need at least {min_sources}")
+    if len(domains) < min_domains:
+        problems.append(f"only {len(domains)} distinct publisher domains; need at least {min_domains}")
+    if len(claims) < min_claims:
+        problems.append(f"only {len(claims)} structured claims; need at least {min_claims}")
+    if coverage < min_claim_coverage:
+        problems.append(f"only {linked_claims}/{len(claims)} claims have valid source links and evidence notes "
+                        f"({coverage:.0%}); need at least {min_claim_coverage:.0%}")
+    result = {
+        "passed": not problems,
+        "source_count": len(valid_sources),
+        "publisher_domain_count": len(domains),
+        "claim_count": len(claims),
+        "linked_claim_count": linked_claims,
+        "claim_coverage": round(coverage, 3),
+        "minimums": {"sources": min_sources, "publisher_domains": min_domains,
+                     "claims": min_claims, "claim_coverage": min_claim_coverage},
+        "problems": problems,
+        "human_verification_required": True,
+    }
+    if problems:
+        raise ValueError("Long-form research dossier is too thin or incomplete: "
+                         + "; ".join(problems) + ". Regenerate the research before rendering.")
+    script["research_quality"] = result
+    return script
+
+
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
@@ -834,6 +905,24 @@ def generate_longform_script(topic: str, category: str = "finance",
         script = append_source_citations_to_description(script)
         script = _repair_longform_visual_anchors(script)
         script = validate_longform_storyboard(script)
+        try:
+            script = validate_longform_research_quality(script)
+        except ValueError as exc:
+            if attempt == 2:
+                raise
+            prompt += (
+                "\\n\\nRESEARCH QUALITY REPAIR REQUIRED: The previous complete script failed "
+                "the automated research-dossier completeness check: " + str(exc) + ". "
+                "Rewrite the complete documentary JSON with at least 8 complete source records "
+                "from at least 5 distinct publisher domains and at least 15 specific, checkable "
+                "claims. At least 80% of claims must link to existing source_ids and include a "
+                "specific evidence note. Prefer primary sources, official datasets, peer-reviewed "
+                "research and reputable independent reporting. Do not invent URLs, publications, "
+                "dates, source records, evidence or claims. If evidence cannot be found, narrow "
+                "the narration rather than fabricate it. Keep all source and claim IDs consistent."
+            )
+            print(f"Research dossier failed quality gate; requesting evidence-led rewrite {attempt + 1}/2.")
+            continue
         try:
             script = validate_longform_runtime(script, duration_max)
             print(
