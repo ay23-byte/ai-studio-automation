@@ -57,8 +57,10 @@ def _technical_failures(build: Path) -> list[str]:
     quality = packaging.load_json(build / "quality_report.json")
     if not quality:
         failures.append("The build produced no quality_report.json.")
-    elif str(quality.get("status") or "").upper() == "FAIL":
-        failures.append("The final video quality report is FAIL.")
+    else:
+        quality_status = str(quality.get("status") or "").upper()
+        if quality_status not in {"PASS", "REVIEW"}:
+            failures.append(f"The final video quality report has invalid status {quality_status!r}.")
     # REVIEW is a human/editorial state, not an encoded-stream defect. Keep it
     # visible in the review package and let the separate release gate block upload.
     consistency = packaging.load_json(build / "visual_consistency_report.json")
