@@ -991,6 +991,20 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 continue
             clip_p = bd / f"lraw{i}_{j}.mp4"
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
+            # Search with the scene's semantic subject, not the full cinematic
+            # generation prompt. The latter contains many generic production terms
+            # (camera, lens, lighting, documentary, shot) that dilute relevance
+            # scoring and can cause every valid provider result to be rejected.
+            scene_search_parts = [
+                str(beat.get("subject") or ""),
+                str(beat.get("location") or ""),
+                str(beat.get("time_period") or ""),
+                " ".join(str(item) for item in (kws or []) if str(item).strip()),
+                str(beat.get("anchor") or ""),
+            ]
+            scene_search_brief = " ".join(
+                " ".join(part.split()) for part in scene_search_parts if part.strip()
+            )[:600]
             # Resume: a visual acquired for this exact prompt by an interrupted
             # attempt is reused instead of being searched/generated again.
             prompt_signature = stable_hash(prompt, beat.get("visual_type"), kws)
@@ -1017,7 +1031,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 if ai_video_mode == "prefer" and generate_ai_video(prompt, clip_p, aspect_ratio="16:9"):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: AI-generated video (preferred mode)")
-                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
+                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_search_brief):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: stock video")
                 elif ai_video_mode != "prefer" and generate_ai_video(prompt, clip_p, aspect_ratio="16:9"):
@@ -1065,7 +1079,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             else:
                 if generate_image(prompt, img_p, category=script.get("category", "general")):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
-                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=prompt):
+                elif fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_search_brief):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                 else:
                     card_p = bd / f"lcard{i}_{j}.jpg"
