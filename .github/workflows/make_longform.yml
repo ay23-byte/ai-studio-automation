@@ -18,8 +18,8 @@ on:
       minutes:
         description: "Target length in minutes"
         type: choice
-        options: ["10", "12", "15"]
-        default: "12"
+        options: ["18", "20", "22", "25"]
+        default: "22"
       language:
         description: "Narration and subtitle language"
         type: choice
@@ -198,7 +198,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$INPUT_MINUTES" =~ ^1[0-5]$ ]] || { echo "::error::minutes must be between 10 and 15."; exit 1; }
+          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25)$ ]] || { echo "::error::minutes must be one of 18, 20, 22 or 25."; exit 1; }
           python run.py long "$INPUT_TOPIC" \
             --category "$INPUT_CATEGORY" \
             --minutes "$INPUT_MINUTES" \
