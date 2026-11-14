@@ -4,6 +4,7 @@ GDELT discovers recent coverage; it is not a fact-checker and does not grant
 rights to reuse article text, photos, or broadcast footage.
 """
 from datetime import datetime, timezone
+import time
 from urllib.parse import urlparse
 import requests
 
@@ -27,13 +28,38 @@ def research_topic(topic, max_records=8, timeout=25):
         "maxrecords": max(1, min(int(max_records), 10)),
         "timespan": "7d",
     }
-    try:
-        response = requests.get(GDELT_URL, params=params, timeout=timeout,
-                                headers={"User-Agent": "AI-Studio-Documentary/1.0"})
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError) as exc:
-        print(f"News research unavailable (continuing without live references): {exc}")
+    payload = None
+    for attempt in range(3):
+        try:
+            response = requests.get(GDELT_URL, params=params, timeout=timeout,
+                                    headers={"User-Agent": "AI-Studio-Documentary/1.0"})
+            if response.status_code == 429 or response.status_code in (500, 502, 503, 504):
+                # Honour short Retry-After values. Do not stall a documentary
+                # build for a long provider cooldown; the structured source and
+                # claim gates independently prevent a thin dossier being rendered.
+                raw_retry = response.headers.get("Retry-After", "")
+                try:
+                    delay = max(0.0, float(raw_retry)) if raw_retry else min(8.0, 1.5 * (2 ** attempt))
+                except (TypeError, ValueError):
+                    delay = min(8.0, 1.5 * (2 ** attempt))
+                if attempt == 2 or delay > 8.0:
+                    response.raise_for_status()
+                print(f"GDELT returned HTTP {response.status_code}; retrying in {delay:.1f}s "
+                      f"({attempt + 1}/3).")
+                time.sleep(delay)
+                continue
+            response.raise_for_status()
+            payload = response.json()
+            break
+        except (requests.RequestException, ValueError) as exc:
+            if attempt == 2:
+                print(f"News research unavailable (continuing without live references): {exc}")
+                return []
+            delay = min(8.0, 1.5 * (2 ** attempt))
+            print(f"GDELT request failed; retrying in {delay:.1f}s ({attempt + 1}/3): {exc}")
+            time.sleep(delay)
+    if not isinstance(payload, dict):
+        print("News research unavailable (continuing without live references): invalid response.")
         return []
 
     articles = []
