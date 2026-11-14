@@ -25,6 +25,11 @@ on:
         type: choice
         options: [hinglish, hindi, english]
         default: hinglish
+      channel_profile:
+        description: "Editorial profile for this build"
+        type: choice
+        options: [beyond_science, standard]
+        default: beyond_science
       voice_gender:
         description: "Narration voice and matching presenter portrait"
         type: choice
@@ -185,6 +190,7 @@ jobs:
           SADTALKER_DEVICE: cpu
           PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
+          CHANNEL_PROFILE: ${{ inputs.channel_profile || 'beyond_science' }}
           LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
           VISUAL_SEMANTIC_MAX_SHOTS: "40"
