@@ -48,3 +48,6 @@ client_secret.json
 client_secret*.json
 oauth_token*.json
 token.json
+
+# Offline presenter renderer dependencies (installed with npm ci in CI)
+avatar_studio/node_modules/

@@ -4,7 +4,11 @@ on:
     branches: [main]
     paths:
       - "avatar_studio/**"
+      - "core/presenter_quality.py"
+      - "core/avatar_clip_generation.py"
+      - "scripts/check_presenter_clips.py"
       - ".github/workflows/avatar-studio-browser.yml"
+  workflow_dispatch:
   push:
     branches: [feature/free-talking-avatar-studio]
     paths:
@@ -39,3 +43,59 @@ jobs:
           path: |
             avatar_studio/test-results/
             /tmp/avatar-server.log
+
+  # Renders real presenter clips on the same kind of runner the documentary build uses and
+  # measures them. This is the evidence for frame rate, freezes and mouth movement; the
+  # rendered clips and face contact sheets are uploaded for a person to watch.
+  offline-presenter-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        gender: [female, male]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg, a speech synthesiser for the test narration, and NumPy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+          pip install "numpy>=1.24"
+      - name: Install the pinned browser packages
+        working-directory: avatar_studio
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Synthesise two chapter narrations
+        run: |
+          mkdir -p "$RUNNER_TEMP/presenter/audio" "$RUNNER_TEMP/presenter/clips"
+          espeak-ng -v en-us -s 150 -w "$RUNNER_TEMP/presenter/one.wav" \
+            "A nuclear reactor is a controlled chain reaction. Every fission releases neutrons, and the control rods decide how many of them go on to split another atom."
+          espeak-ng -v en-us -s 150 -w "$RUNNER_TEMP/presenter/two.wav" \
+            "In nineteen forty two, under the stands of a stadium in Chicago, the first reactor ran for four and a half minutes at half a watt."
+          for n in one:01 two:02; do
+            ffmpeg -y -v error -i "$RUNNER_TEMP/presenter/${n%%:*}.wav" -t 8 -ac 1 -ar 24000 -c:a pcm_s16le \
+              "$RUNNER_TEMP/presenter/audio/chapter_${n##*:}.wav"
+          done
+      - name: Render the clips at 1920x1080, 30 fps
+        env:
+          AVATAR_GENDER: ${{ matrix.gender }}
+        run: |
+          export AVATAR_AUDIO_DIR="$RUNNER_TEMP/presenter/audio" AVATAR_OUTPUT_DIR="$RUNNER_TEMP/presenter/clips"
+          nproc
+          node avatar_studio/render-offline.mjs 2
+      - name: Measure frames, freezes and mouth movement
+        run: python scripts/check_presenter_clips.py "$RUNNER_TEMP/presenter/clips" --report "$RUNNER_TEMP/presenter/clips/presenter_report.json"
+      - name: Upload rendered clips, measurements and contact sheets
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: offline-presenter-render-${{ matrix.gender }}
+          path: ${{ runner.temp }}/presenter/clips/
+          if-no-files-found: warn

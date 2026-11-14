@@ -721,8 +721,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # The spoken audio and its timing remain untouched; only visible subtitle text
     # changes. This runs BEFORE visuals so a translation outage fails fast instead
     # of after every asset has been produced, and its result is checkpointed.
-    from core.subtitle_translation import translate_longform_subtitles, normalize_subtitle_language
-    subtitle_target = normalize_subtitle_language(
+    from core.subtitle_translation import (
+        documentary_subtitle_language, english_subtitle_report, translate_longform_subtitles,
+    )
+    # English subtitles only: Hindi, Hinglish or as-spoken subtitles are refused here.
+    subtitle_target = documentary_subtitle_language(
         subtitle_language or os.getenv("SUBTITLE_LANGUAGE", "english"))
     translation_path = bd / "subtitle_translation.json"
 
@@ -738,8 +741,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                   "because SUBTITLE_TRANSLATION_FALLBACK=source.")
             lines, titles = list(timings), [str(sec.get("title") or "") for sec in sections]
             mode = "source_fallback"
+        english_check = None
+        if subtitle_target == "english":
+            # Whatever produced the text (translation, or the narration as spoken), it is
+            # only burned in and exported if it really is English.
+            english_check = english_subtitle_report([text for _, _, text in lines] + list(titles))
+            if english_check["status"] != "PASS":
+                raise RuntimeError(
+                    "Subtitles are not English and were not rendered: " + " ".join(english_check["issues"])
+                    + (" The translation failed and the spoken text is not English." if mode == "source_fallback" else "")
+                )
         translation_path.write_text(json.dumps(
-            {"target": subtitle_target, "mode": mode,
+            {"target": subtitle_target, "mode": mode, "english_check": english_check,
              "captions": [[float(a), float(b), str(c)] for a, b, c in lines], "titles": titles},
             ensure_ascii=False, indent=2), encoding="utf-8")
         return {"target": subtitle_target, "mode": mode}
@@ -818,15 +831,36 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     f"but the chapter narration is {sec['_dur']:.2f}s. Recreate the clip "
                     "from that chapter's exact narration audio so lip-sync stays aligned."
                 )
-            from core.presenter_quality import inspect_presenter_clip, write_presenter_metadata
+            from core.presenter_quality import (
+                analyse_presenter_motion, inspect_presenter_clip, read_presenter_metadata,
+                read_render_record, write_presenter_metadata,
+            )
+            # The narration slice the clip was rendered from, when it is on record. Comparing
+            # the clip with its own length proves nothing.
+            recorded = read_presenter_metadata(avatar_clip)
+            render_record = read_render_record(avatar_clip)
+            expected_duration = recorded.get("narration_segment_seconds")
             validation = inspect_presenter_clip(
-                avatar_clip, expected_duration=actual_duration,
-                tolerance_seconds=0.75, require_audio=True,
+                avatar_clip, expected_duration=expected_duration,
+                tolerance_seconds=0.75 if expected_duration is None else 0.25, require_audio=True,
+                ffprobe=ffprobe_bin(),
             )
             if validation["status"] == "FAIL":
                 raise ValueError(
                     f"Talking Avatar clip for chapter {i + 1} failed A/V validation: "
                     + "; ".join(validation["issues"])
+                )
+            # Count the frames that are really different and check the mouth moves with the
+            # voice. A file that states 30 fps but repeats one picture is not accepted.
+            motion = analyse_presenter_motion(
+                avatar_clip, mouth_box=render_record.get("mouth_box"),
+                mouth_track=render_record.get("mouth_open_per_frame"),
+                ffmpeg=ffmpeg_bin(), ffprobe=ffprobe_bin(),
+            )
+            if motion["status"] == "FAIL":
+                raise ValueError(
+                    f"Talking Avatar clip for chapter {i + 1} failed the motion check: "
+                    + "; ".join(motion["issues"])
                 )
             write_presenter_metadata(avatar_clip, {
                 "provider": "AI Studio Avatar Studio (Talking Avatar SDK)",
@@ -834,9 +868,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "model": "AI Studio Avatar Studio 3D renderer",
                 "prompt": "3D virtual documentary presenter generated from the chapter narration audio; an illustrative host, not a real interview or documentary source.",
                 "presenter_mode": "talking_avatar",
-                "validation": validation, "lip_sync_verified": False,
-                "licence_status": "Review the Avatar Studio/SDK and built-in avatar terms before redistribution or commercial use.",
-                "notice": "AI-generated presenter footage. Stream and duration alignment do not prove phoneme-level lip-sync; human visual/audio and terms review remains required.",
+                "validation": validation, "motion": motion, "lip_sync_verified": False,
+                "human_visual_review": "pending",
+                "licence": "MIT",
+                "licence_status": "Talking Avatar SDK and the built-in Microsoft Rocketbox avatars are MIT licensed; keep the licence notice with redistributed copies.",
+                "notice": "AI-generated presenter footage. Frame, freeze and mouth-movement measurements do not prove phoneme-level lip-sync; a person must watch the clip before release.",
             })
             presenter_shot = dict(sec)
             presenter_shot["visual_type"] = "presenter"
@@ -848,9 +884,17 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             presenter_shot["_chapter_index"] = i
             presenter_shot["title"] = sec.get("title", "")
             presenter_shot["presenter_mode"] = "talking_avatar"
+            measured = motion["status"] == "PASS" and validation["status"] == "PASS"
             presenter_shot["presenter_sync_status"] = (
-                "duration_aligned" if validation["status"] == "PASS" else "duration_aligned_review"
+                "motion_measured_human_review_pending" if measured else "duration_aligned_review"
             )
+            presenter_shot["presenter_motion"] = {
+                key: motion.get(key) for key in (
+                    "status", "distinct_frame_rate", "longest_frozen_seconds", "repeated_frame_ratio",
+                    "voiced_mouth_motion_ratio", "mouth_track_offset_frames", "mouth_measured", "warnings",
+                )
+            }
+            presenter_shot["presenter_human_review"] = "pending"
             presenter_shot["presenter_lip_sync_verified"] = False
             presenter_shot["_start"] = shot_cursor
             presenter_shot["_dur"] = actual_duration
@@ -1295,6 +1339,6 @@ build_longform = _record_failures(build_longform)
 
 # Record one event per complete render operation.
 from core.monitoring import monitored as _monitored
-from core.ffmpeg_utils import PROBE_TIMEOUT, ffprobe_bin
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 build_shorts = _monitored("pipeline", "build_shorts", build_shorts)
 build_longform = _monitored("pipeline", "build_longform", build_longform)

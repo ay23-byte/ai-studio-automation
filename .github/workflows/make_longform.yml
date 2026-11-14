@@ -18,10 +18,10 @@ on:
       minutes:
         description: "Target length in minutes"
         type: choice
-        options: ["18", "20", "22", "25"]
+        options: ["18", "20", "22", "25", "28", "30"]
         default: "22"
       language:
-        description: "Narration and subtitle language"
+        description: "Narration language (subtitles are always English)"
         type: choice
         options: [hinglish, hindi, english]
         default: hinglish
@@ -36,7 +36,7 @@ on:
         options: [male, female]
         default: male
       presenter_mode:
-        description: "Presenter animation (auto 3D avatar records each chapter from its narration)"
+        description: "Presenter animation (auto 3D avatar renders each chapter opening from its narration)"
         type: choice
         options: [talking_avatar_auto, talking_avatar, sadtalker, still_cpu, off]
         default: talking_avatar_auto
@@ -151,10 +151,13 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install browser automation dependencies
+      # Pinned versions from avatar_studio/package-lock.json: the 3D engine, the avatar SDK
+      # with its models, and the browser driver. Nothing is fetched from a CDN during the build.
+      - name: Install the 3D presenter's pinned browser packages
         if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        working-directory: avatar_studio
         run: |
-          npm install --no-save playwright
+          npm ci
           npx playwright install --with-deps chromium
 
       - name: Build long-form video
@@ -194,6 +197,8 @@ jobs:
           CHANNEL_NAME: "Engineering Physics"
           CHANNEL_PROFILE: ${{ inputs.channel_profile || 'beyond_science' }}
           LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          # Narration may be Hindi or Hinglish; subtitles are English only.
+          SUBTITLE_LANGUAGE: "english"
           VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
           VISUAL_SEMANTIC_MAX_SHOTS: "40"
           # Inputs are passed through the environment, never interpolated into

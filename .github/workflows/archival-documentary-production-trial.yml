@@ -96,8 +96,9 @@ jobs:
           sudo apt-get install -y ffmpeg fonts-noto-core fonts-dejavu-core
           ffmpeg -version
           ffprobe -version
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          # Pinned 3D engine, avatar SDK and browser driver for the offline presenter renderer.
+          npm ci --prefix avatar_studio
+          (cd avatar_studio && npx playwright install --with-deps chromium)
 
       - name: Verify required configuration
         run: |
@@ -105,11 +106,11 @@ jobs:
             echo "::error::GEMINI_API_KEY is required for documentary research and script generation."
             exit 1
           }
-          test -f avatar_studio/generate-clips.mjs || {
+          test -f avatar_studio/render-offline.mjs || {
             echo "::error::3D presenter clip generator is missing."
             exit 1
           }
-          test -f avatar_studio/index.html || {
+          test -f avatar_studio/offline.html || {
             echo "::error::Avatar Studio page is missing."
             exit 1
           }

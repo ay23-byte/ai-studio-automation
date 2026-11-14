@@ -1,0 +1,12 @@
+{
+  "name": "ai-studio-avatar-studio",
+  "private": true,
+  "description": "Pinned browser dependencies for the offline 3D presenter renderer (render-offline.mjs).",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@interviewflowai/talking-avatar": "0.3.0",
+    "playwright": "1.65.1",
+    "three": "0.186.0"
+  }
+}

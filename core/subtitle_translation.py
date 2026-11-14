@@ -37,6 +37,70 @@ def normalize_subtitle_language(value, default="english") -> str:
     return text if text in {"english", "hindi", "hinglish", "source"} else default
 
 
+# Function words of Hindi written in Latin letters. None of them is an English word, so a
+# caption set where they are common is Hinglish, whatever script it is written in.
+_ROMAN_HINDI = frozenset("""
+hai hain tha thi ka ki ke ko aur nahi nahin yeh ye woh kya kyun kyunki mein bhi liye lekin
+agar toh jab tab kaise hota hoti hote karta karti karte raha rahi rahe gaya gayi gaye hum aap
+iska iske uska uske unka unke isse usse apne apni sirf bahut kuch sab phir jo se par tak wala
+wali wale hua hui hue kar diya diye kiya kiye jata jati jate sakta sakti sakte chahiye
+""".split())
+_WORD = re.compile(r"[A-Za-z']+")
+
+
+def english_subtitle_report(texts) -> dict[str, Any]:
+    """Check that subtitle text is English: no Devanagari and no Latin-script Hindi.
+
+    Returns {"status": "PASS" | "FAIL", "issues": [...], ...}. Documentaries may be narrated
+    in Hindi or Hinglish, but their subtitles are English only.
+    """
+    texts = [str(text or "") for text in texts]
+    devanagari = [index for index, text in enumerate(texts) if _DEVANAGARI.search(text)]
+    words = hindi = 0
+    hinglish_lines = []
+    for index, text in enumerate(texts):
+        tokens = [token.lower() for token in _WORD.findall(text)]
+        found = sum(1 for token in tokens if token in _ROMAN_HINDI)
+        words += len(tokens)
+        hindi += found
+        if found >= 2 and found / max(len(tokens), 1) >= 0.25:
+            hinglish_lines.append(index)
+    ratio = hindi / words if words else 0.0
+    issues = []
+    if devanagari:
+        issues.append(f"{len(devanagari)} subtitle lines contain Devanagari (first: line {devanagari[0] + 1}).")
+    if hinglish_lines and (ratio >= 0.06 or len(hinglish_lines) >= max(2, len(texts) // 20)):
+        issues.append(
+            f"{len(hinglish_lines)} subtitle lines read as Hindi in Latin letters "
+            f"(first: line {hinglish_lines[0] + 1}: {texts[hinglish_lines[0]][:80]!r})."
+        )
+    return {
+        "status": "FAIL" if issues else "PASS", "issues": issues, "lines": len(texts),
+        "devanagari_lines": len(devanagari), "roman_hindi_lines": len(hinglish_lines),
+        "roman_hindi_word_ratio": round(ratio, 4),
+    }
+
+
+def documentary_subtitle_language(requested, policy: str | None = None) -> str:
+    """The subtitle language a documentary may use: English, unless the policy is lifted.
+
+    Narration may be Hindi, Hinglish or English. Subtitles are English only, so a request
+    for Hindi, Hinglish or as-spoken subtitles is refused here rather than rendered.
+    ``DOCUMENTARY_SUBTITLE_POLICY=any`` restores the free choice for non-channel use.
+    """
+    import os
+
+    target = normalize_subtitle_language(requested)
+    policy = str(policy if policy is not None else os.getenv("DOCUMENTARY_SUBTITLE_POLICY", "english_only")).strip().lower()
+    if policy == "any" or target == "english":
+        return target
+    raise ValueError(
+        f"Documentary subtitles are English only; '{target}' subtitles were requested. "
+        "Narration can stay in Hindi or Hinglish. Remove SUBTITLE_LANGUAGE/--subtitle-language "
+        "or set it to english."
+    )
+
+
 def _translate_batch(items: list[dict[str, Any]], target: str = "english") -> dict[int, str]:
     payload = [{"id": int(item["id"]), "text": str(item["text"])} for item in items]
     description, script_rule = _TARGETS[target]
