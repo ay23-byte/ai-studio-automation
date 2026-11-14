@@ -1,0 +1,12 @@
+{
+  "_note": "Production test request. The documentary workflow builds this only when the newest commit message of the pull request contains [documentary-run]. A build started this way can never be released.",
+  "topic": "How the James Webb Space Telescope Sees the First Galaxies",
+  "category": "science",
+  "minutes": 18,
+  "language": "hinglish",
+  "channel_profile": "beyond_science",
+  "voice_gender": "male",
+  "presenter_mode": "talking_avatar_auto",
+  "visual_mode": "video_first",
+  "semantic_review": false
+}
