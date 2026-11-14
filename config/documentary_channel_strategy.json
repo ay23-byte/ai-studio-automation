@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "channel_name": "Engineering Physics",
+  "channel_handle": "@engineeringphysics-n5g",
+  "strategy_name": "Beyond Science — World Explained",
+  "strategy_type": "existing_channel_pilot",
+  "language": {
+    "primary": "hinglish",
+    "script": "Roman Hinglish with natural Hindi-English code mixing",
+    "subtitles": "English",
+    "avoid": [
+      "formal textbook Hindi",
+      "pure English narration unless explicitly requested"
+    ]
+  },
+  "positioning": "Evidence-led cinematic explainers that connect science, technology, engineering, economics, history and geopolitics to explain how the modern world works.",
+  "audience_bridge": "Start with subjects that connect naturally to the existing Engineering Physics audience (semiconductors, energy, space, infrastructure, strategic technology), then gradually test broader country, history and geopolitics stories. Do not abruptly replace the existing physics education identity before audience response is measured.",
+  "content_pillars": [
+    {
+      "id": "technology_and_power",
+      "weight": 30,
+      "description": "Semiconductors, AI infrastructure, energy, satellites, nuclear technology, strategic resources and the global competition around them."
+    },
+    {
+      "id": "countries_and_economics",
+      "weight": 25,
+      "description": "How countries industrialized, built wealth, developed infrastructure or faced economic constraints."
+    },
+    {
+      "id": "geopolitics_and_history",
+      "weight": 25,
+      "description": "International relations, conflicts, borders, historical turning points and their documented consequences."
+    },
+    {
+      "id": "science_and_infrastructure",
+      "weight": 20,
+      "description": "Engineering systems, megaprojects, transport, energy networks, communications and the science behind global change."
+    }
+  ],
+  "formats": {
+    "longform": {
+      "target_minutes": 22,
+      "allowed_minutes": [
+        18,
+        20,
+        22,
+        25
+      ],
+      "aspect_ratio": "16:9",
+      "minimum_resolution": "1920x1080",
+      "cadence": "one carefully researched documentary per week"
+    },
+    "shorts": {
+      "target_seconds": [
+        35,
+        58
+      ],
+      "aspect_ratio": "9:16",
+      "minimum_resolution": "1080x1920",
+      "cadence": "three Shorts per week during the pilot",
+      "purpose": "standalone insight or teaser that points to the related long-form documentary"
+    }
+  },
+  "editorial_formula": [
+    "curiosity hook with a real contradiction or question",
+    "clear promise to answer one central question",
+    "historical and geographic context",
+    "mechanism: how the system actually works",
+    "documented turning points and named case studies",
+    "human/economic/political consequences",
+    "counterarguments and uncertainty",
+    "evidence-led conclusion"
+  ],
+  "production_rules": {
+    "original_scripts_only": true,
+    "no_creator_asset_copying": true,
+    "no_unverified_claims_as_facts": true,
+    "no_fake_interviews_or_quotes": true,
+    "no_ai_reconstruction_as_archival_footage": true,
+    "all_external_assets_require_source_page_and_licence_review": true,
+    "human_full_video_review_required": true,
+    "initial_youtube_privacy": "private",
+    "public_publish_requires_separate_human_approval": true,
+    "paid_providers_disabled_by_default": true,
+    "excluded_providers": [
+      "Pexels"
+    ],
+    "manual_import_only_providers": [
+      "Mixkit"
+    ]
+  },
+  "pilot": {
+    "duration_weeks": 8,
+    "review_after_weeks": 4,
+    "success_metrics": [
+      "impressions click-through rate",
+      "first 30-second retention",
+      "average view duration",
+      "percentage viewed",
+      "returning viewers",
+      "subscribers gained per video",
+      "Shorts viewed vs swiped away"
+    ],
+    "decision_rule": "Compare the documentary pilot against the channel's own recent baseline; do not pivot the whole channel based on one video."
+  }
+}
