@@ -103,7 +103,10 @@ failure pass.
   The adapter's handling of real DVIDS answers is untested.
 - NARA: the search and the reading of use restrictions are confirmed by the
   live run. No NARA file has been downloaded, because none passed the rights rule.
-- Live results are from one day on GitHub runners. Providers change, and the
-  Library of Congress answered HTTP 429 in three of the four runs.
+- Live results are five runs on one day from GitHub runners. The Library of
+  Congress answered HTTP 429 in four of them, and Coverr answered HTTP 403 in
+  the last one for a reason that is not confirmed.
+- Internet Archive: the licence is whatever the uploader declared. One run
+  selected an unrelated user upload marked public domain. This is not fixed.
 - Nobody has looked at the downloaded clips. Relevance is word matching against
   the provider's text; whether a clip shows what its title says was not checked.

@@ -5,30 +5,38 @@ work, and what the system will not do.
 
 ## Verification status
 
-Measured by the **Live footage provider verification** workflow on GitHub
-(run 43584838524, commit `2cacdb0`). For each provider it made a real search,
-downloaded one real file and inspected it with ffprobe.
+Measured by the **Live footage provider verification** workflow on GitHub. For
+each provider it makes a real search, downloads one real file and inspects it
+with ffprobe. It ran five times on the pull request that introduced this engine
+(commits `6cafa70`, `a44fc36`, `b5ca16f`, `2cacdb0`, `04faebb`).
 
-| Provider | Result | Evidence from the run |
+| Provider | Verified in | What the runs showed |
 |---|---|---|
-| NASA | LIVE-VERIFIED | 1920x1080, 113 s, H.264 |
-| Wikimedia Commons | LIVE-VERIFIED | 1920x1080, 16 s, VP9, CC0 |
-| Internet Archive | LIVE-VERIFIED | 426x240, 38 s, H.264, public domain. Low resolution; see Limits. |
-| Library of Congress | LIVE-VERIFIED | 1920x1080, 40 s, H.264, film published before the public-domain cutoff |
-| Europeana | LIVE-VERIFIED | 720x576, 64 s, H.264, public domain |
-| Pixabay | LIVE-VERIFIED | 1920x1080, 28 s, H.264 |
-| Coverr | LIVE-VERIFIED | 1920x1080, 10 s, H.264; 3 AI-generated results refused |
-| DVIDS | AUTH-FAILED | HTTP 403 with and without a Referer. The key is not accepted. See "DVIDS key". |
-| US National Archives (NARA) | NO-ELIGIBLE-RESULTS | Search works (60 results). All refused by the rights rule. See "NARA". |
-| Mixkit | MANUAL-IMPORT-ONLY | Never fetched automatically |
+| NASA | 5 of 5 runs | 1920x1080 H.264 |
+| Wikimedia Commons | 5 of 5 | 1920x1080 VP9, CC0 |
+| Europeana | 5 of 5 | 720x576 H.264, public domain |
+| Pixabay | 5 of 5 | 1920x1080 H.264 |
+| Internet Archive | 5 of 5 | 426x240 and 854x480 H.264. See the warning below. |
+| Coverr | 4 of 5 | 1920x1080 H.264. The fifth run got HTTP 403. The cause is not confirmed; the runs used the key many times within an hour. |
+| Library of Congress | 1 of 5 | 1920x1080 H.264 in the fourth run. In the other four the Library answered HTTP 429, on the item record or on the file. |
+| DVIDS | 0 of 5 | HTTP 403 with and without a Referer. The key is not accepted. See "DVIDS key". |
+| US National Archives (NARA) | 0 of 5 | Search works (60 results). All refused by the rights rule. See "NARA". |
+| Mixkit | not applicable | Manual import only; never fetched automatically |
 
-In the same run a six-scene selection got validated footage for 6 of 6 scenes,
-from Pixabay (2), Wikimedia Commons (2), Coverr (1) and Library of Congress (1).
+In every run a six-scene selection got validated footage for 6 of 6 scenes,
+from three or four providers.
 
-What this does not show: the result is one run, one clip per provider, from a
-GitHub runner. In the three runs before it the Library of Congress answered
-HTTP 429 and asked for a 20-minute wait, so it can be unavailable to a build.
-No complete documentary has been rendered with this engine yet.
+What this does not show:
+
+- No complete documentary has been rendered with this engine.
+- Nobody has looked at the downloaded clips. Relevance is word matching.
+- **Internet Archive warning.** One run selected an item titled "THIS BABY IS
+  SO SHY - TWO" for a query about city traffic, steam trains or ocean waves.
+  Anyone can upload to the Internet Archive and mark the upload public domain,
+  and can fill its description with unrelated words. The engine reads that
+  licence as stated. Treat every Internet Archive clip as unproven until a
+  person has checked the item page. Limiting the search to curated collections
+  would reduce this risk and the number of results; that choice is open.
 
 ## Run the live verification
 
@@ -203,10 +211,13 @@ All optional.
 
 - DVIDS and NARA supply nothing at present (see the top of this page).
 - Live verification is one clip per provider in one run. It is not a rendered documentary.
-- The Library of Congress limits requests strictly and may be skipped for a whole run.
-- Internet Archive files that carry a usable licence are often small. The clip
-  verified live was 426x240. The minimum accepted size is 320x240; raise
-  `FOOTAGE_MIN_WIDTH` and `FOOTAGE_MIN_HEIGHT` to refuse such files.
+- The Library of Congress limits requests strictly. In four of five live runs
+  it supplied nothing.
+- Internet Archive licences are declared by the uploader and are not checked by
+  the Archive (see the warning at the top of this page).
+- Internet Archive files are often small. One clip verified live was 426x240.
+  The minimum accepted size is 320x240; raise `FOOTAGE_MIN_WIDTH` and
+  `FOOTAGE_MIN_HEIGHT` to refuse such files.
 - Relevance is text matching, not image understanding.
 - The engine cannot guarantee a real clip for every scene; scenes without one
   are listed in the provider report.
