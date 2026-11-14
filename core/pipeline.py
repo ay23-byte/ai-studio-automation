@@ -159,6 +159,18 @@ def _ts(s):
 
 def _clean(s): return s.replace("{","(").replace("}",")")
 
+
+def _scene_search_brief(beat: dict, keywords) -> str:
+    """Build concise semantic search text, separate from cinematic generation prose."""
+    parts = (
+        beat.get("subject", ""),
+        beat.get("location", ""),
+        beat.get("time_period", ""),
+        " ".join(str(item) for item in (keywords or []) if str(item).strip()),
+        beat.get("anchor", ""),
+    )
+    return " ".join(" ".join(str(part or "").split()) for part in parts if str(part or "").strip())[:600]
+
 def _caption_style(preset, is_shorts):
     if is_shorts:
         styles = {
@@ -991,20 +1003,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 continue
             clip_p = bd / f"lraw{i}_{j}.mp4"
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
-            # Search with the scene's semantic subject, not the full cinematic
-            # generation prompt. The latter contains many generic production terms
-            # (camera, lens, lighting, documentary, shot) that dilute relevance
-            # scoring and can cause every valid provider result to be rejected.
-            scene_search_parts = [
-                str(beat.get("subject") or ""),
-                str(beat.get("location") or ""),
-                str(beat.get("time_period") or ""),
-                " ".join(str(item) for item in (kws or []) if str(item).strip()),
-                str(beat.get("anchor") or ""),
-            ]
-            scene_search_brief = " ".join(
-                " ".join(part.split()) for part in scene_search_parts if part.strip()
-            )[:600]
+            # Search with concise semantic anchors, not cinematic camera/lens prose.
+            scene_search_brief = _scene_search_brief(beat, kws)
             # Resume: a visual acquired for this exact prompt by an interrupted
             # attempt is reused instead of being searched/generated again.
             prompt_signature = stable_hash(prompt, beat.get("visual_type"), kws)
