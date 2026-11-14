@@ -57,8 +57,10 @@ def _technical_failures(build: Path) -> list[str]:
     quality = packaging.load_json(build / "quality_report.json")
     if not quality:
         failures.append("The build produced no quality_report.json.")
-    elif str(quality.get("status") or "").upper() != "PASS":
-        failures.append(f"The final video quality report is {quality.get('status')!r}, not PASS.")
+    elif str(quality.get("status") or "").upper() == "FAIL":
+        failures.append("The final video quality report is FAIL.")
+    # REVIEW is a human/editorial state, not an encoded-stream defect. Keep it
+    # visible in the review package and let the separate release gate block upload.
     consistency = packaging.load_json(build / "visual_consistency_report.json")
     summary = consistency.get("summary") if isinstance(consistency.get("summary"), dict) else {}
     if not consistency:
@@ -129,6 +131,12 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
     if not captions.is_file() or captions.stat().st_size == 0:
         raise FileNotFoundError("The documentary build is missing its non-empty subs.ass captions file.")
     licences = _license_rows(build)
+    quality = packaging.load_json(build / "quality_report.json")
+    if quality.get("upload_blocked"):
+        licence_blocks_reason = str(quality.get("upload_block_reason") or
+                                    "The video quality gate blocks release pending visual remediation.")
+    else:
+        licence_blocks_reason = ""
     root = Path(output_dir).resolve() if output_dir else build / "shared_review_package"
     if root == build:
         raise ValueError("output_dir must be a dedicated directory, not the build root.")
@@ -248,6 +256,8 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
     credits = build / "credits.txt"
     if not credits.is_file() or credits.stat().st_size < 20:
         licence_blocks.append("credits.txt is missing or empty.")
+    if licence_blocks_reason:
+        licence_blocks.append("Release quality gate: " + licence_blocks_reason)
     packaging.write_qa(
         root, "assets", "FAIL" if licence_blocks else "REVIEW",
         licence_blocks[:20] + licence_review_notes[:20] +
