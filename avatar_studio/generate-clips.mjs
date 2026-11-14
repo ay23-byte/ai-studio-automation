@@ -77,6 +77,17 @@ try {
       const finalProbe=spawnSync("ffprobe",["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",mp4],{encoding:"utf8"});
       const finalDuration=Number(finalProbe.stdout.trim());
       if(finalProbe.status!==0||!Number.isFinite(finalDuration)||Math.abs(finalDuration-audioDuration)>0.25) throw new Error(`Chapter ${i} duration mismatch: video ${finalProbe.stdout.trim()}s vs audio ${audioDuration.toFixed(3)}s.`);
+      // A duration-correct but nearly-static canvas recording is not a usable presenter.
+      const motionProbe=spawnSync("ffprobe",["-v","error","-count_frames","-select_streams","v:0","-show_entries","stream=avg_frame_rate,nb_read_frames","-of","json",mp4],{encoding:"utf8"});
+      let motionStream;
+      try { motionStream=(JSON.parse(motionProbe.stdout).streams||[])[0]; }
+      catch { throw new Error(`Chapter ${i} frame-count probe returned invalid output: ${motionProbe.stderr||motionProbe.stdout}`); }
+      const [fpsNum,fpsDen]=String(motionStream?.avg_frame_rate||"0/1").split("/").map(Number);
+      const actualFps=fpsDen>0?fpsNum/fpsDen:0;
+      const decodedFrames=Number(motionStream?.nb_read_frames||0);
+      if(motionProbe.status!==0||actualFps<15||decodedFrames<Math.floor(audioDuration*15)) {
+        throw new Error(`Chapter ${i} avatar recording is too sparse (${actualFps.toFixed(2)} fps, ${decodedFrames} decoded frames for ${audioDuration.toFixed(2)}s). The browser renderer did not produce reviewable motion frames.`);
+      }
       fs.unlinkSync(webm);
       if(errors.length) throw new Error("Browser runtime errors: "+errors.join("; "));
       console.log(`Generated chapter ${i}/${count}: ${mp4} (${finalDuration.toFixed(2)}s)`);
