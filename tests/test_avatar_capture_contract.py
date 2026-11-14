@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_browser_recorder_captures_video_only_and_keeps_audio_for_lipsync():
     html = (ROOT / "avatar_studio" / "index.html").read_text(encoding="utf-8")
-    assert "new MediaStream([...canvasStream.getVideoTracks()])" in html
+    assert "\n      const videoOnlyStream=new MediaStream([...canvasStream.getVideoTracks()]);" in html
     assert "new MediaRecorder(videoOnlyStream" in html
     assert "new MediaRecorder(combined" not in html
     capture_setup = html.split("const videoOnlyStream", 1)[1].split("recorder=new MediaRecorder", 1)[0]
