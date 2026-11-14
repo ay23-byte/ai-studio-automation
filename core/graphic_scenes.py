@@ -71,6 +71,30 @@ def _evidence(text,p,title):
         d.text((155,y),s,font=_font(43,True,s),fill=YELLOW if i==0 else WHITE); y+=112
     return im
 
+def _write_graphic_provenance(path, graphic_kind, source_text="", source_refs=None):
+    """Record project ownership and font terms for every locally rendered graphic."""
+    import json
+    from pathlib import Path
+    media = Path(path)
+    payload = {
+        "provider": "LabLens/AI Studio local graphic renderer",
+        "asset_type": "programmatic_graphic",
+        "ai_generated": False,
+        "graphic_kind": str(graphic_kind or "documentary_graphic"),
+        "licence": "Project-created original graphic",
+        "font_licence": "SIL Open Font License 1.1 (Noto Sans / Noto Sans Devanagari)",
+        "font_licence_url": "https://openfontlicense.org",
+        "font_attribution": "Typeface: Noto Sans, © The Noto Project Authors, SIL OFL 1.1.",
+        "attribution_required": False,
+        "source_text": str(source_text or "")[:1200],
+        "source_refs": list(source_refs or []),
+        "human_fact_check_required": True,
+    }
+    media.with_suffix(media.suffix + ".source.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
 def render_graphic_scene(shot,duration,build_dir,scene_id):
     kind=str(shot.get("visual_type") or "").lower()
     chart=shot.get("chart_spec"); events=shot.get("timeline_events") or []; text=shot.get("on_screen_text") or ""
@@ -90,7 +114,13 @@ def render_graphic_scene(shot,duration,build_dir,scene_id):
          "-preset","veryfast","-crf","20","-movflags","+faststart",str(out)]
     try: subprocess.run(cmd,check=True,timeout=max(90,int(duration*20)))
     except (OSError,subprocess.SubprocessError): return None
-    return out if out.is_file() and out.stat().st_size>1000 else None
+    if not (out.is_file() and out.stat().st_size>1000):
+        return None
+    _write_graphic_provenance(
+        out, kind, shot.get("title") or shot.get("visual_prompt") or "",
+        shot.get("source_refs") or [],
+    )
+    return out
 
 
 def render_context_graphic(shot, duration, build_dir, scene_id):
@@ -119,7 +149,10 @@ def render_context_graphic(shot, duration, build_dir, scene_id):
            font=_font(24, True), fill=YELLOW)
     out = root / f"{scene_id}.png"
     im.save(out, optimize=True)
-    return out if out.is_file() and out.stat().st_size > 1000 else None
+    if not (out.is_file() and out.stat().st_size > 1000):
+        return None
+    _write_graphic_provenance(out, "context_graphic", subject + " · " + location + " · " + period)
+    return out
 
 
 def _slate_brand():
