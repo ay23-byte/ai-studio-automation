@@ -116,7 +116,7 @@ class AssetLicensingTests(unittest.TestCase):
             with open(result["csv_path"], newline="", encoding="utf-8-sig") as handle:
                 row = next(csv.DictReader(handle))
             self.assertEqual(row["use_status"], "ai_reconstruction_disclosure_and_terms_review")
-            self.assertFalse(row["fallback_required"])
+            self.assertEqual(row["fallback_required"], "False")
             self.assertEqual(result["blocked_count"], 0)
 
     def test_score_does_not_claim_unobserved_visual_checks(self):
