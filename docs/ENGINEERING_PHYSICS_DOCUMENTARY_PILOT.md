@@ -76,7 +76,7 @@ Adjust chapter lengths to the subject; this is a planning guide, not a rigid scr
 
 ## Automation usage
 
-- Long-form: GitHub Actions → **2. Create and upload a Documentary — automatic**. This workflow builds a review package only; despite its legacy name, it does not upload.
+- Long-form: GitHub Actions → **2. Build a Documentary — review required**. This workflow builds a review package only; despite its legacy name, it does not upload.
 - Shorts: GitHub Actions → **1. Build a Short — review required**. Provide a topic and choose one of the new categories. It also builds a review package only.
 - Start with a manually selected topic from `config/documentary_topic_bank.json`.
 - Set language to Hinglish.
