@@ -83,6 +83,13 @@ def describe_asset(metadata: dict, *, prompt: str = "", licence_row: dict | None
         "usage_scope": metadata.get("usage_scope") or None,
         "licence_document_ref": metadata.get("licence_document_ref") or None,
     }
+    # Evidence the licence policy needs for particular sources: the dated public-domain
+    # basis of a Library of Congress item, and the operator's confirmation of a Mixkit
+    # licence. Recorded only when the build recorded it; a reviewer cannot add it.
+    if metadata.get("rights_basis"):
+        rights["rights_basis"] = str(metadata["rights_basis"])[:600]
+    if metadata.get("terms_reviewed") is True:
+        rights["terms_reviewed"] = True
     return provenance, rights
 
 

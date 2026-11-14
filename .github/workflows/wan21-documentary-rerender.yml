@@ -125,6 +125,7 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          DVIDS_API_REFERER: ${{ vars.DVIDS_API_REFERER }}
           NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
           FREE_ONLY_MODE: "1"

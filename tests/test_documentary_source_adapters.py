@@ -77,6 +77,12 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         self.assertEqual(result[0][1]["licence"], "Public Domain")
         self.assertEqual(get_json.call_args.args[0], "https://catalog.archives.gov/api/v2/records/search")
         self.assertEqual(get_json.call_args.args[2]["x-api-key"], "nara-test")
+        # Names from NARA's published OpenAPI description; "rows" is not one of them.
+        params = get_json.call_args.args[1]
+        self.assertEqual(params["typeOfMaterials"], "Moving Images")
+        self.assertEqual(params["availableOnline"], "true")
+        self.assertIn("limit", params)
+        self.assertNotIn("rows", params)
 
     # The fixtures below copy the response shapes the providers' live APIs returned
     # on 2026-11-14 (field names and nesting), reduced to the fields the adapters read.

@@ -851,7 +851,9 @@ def _nara(query):
         return []
     data = _get_json(
         "https://catalog.archives.gov/api/v2/records/search",
-        {"q": query, "availableOnline": "true", "typeOfMaterials": "Moving Images", "rows": 10},
+        # Parameter names from the published OpenAPI description (swagger.json): the page size is
+        # "limit". The earlier "rows" is not a documented parameter.
+        {"q": query, "availableOnline": "true", "typeOfMaterials": "Moving Images", "limit": 20},
         {"x-api-key": NARA_API_KEY, "Content-Type": "application/json"},
     )
     hits = (((data or {}).get("body") or {}).get("hits") or {}).get("hits") or []

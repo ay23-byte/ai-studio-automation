@@ -212,15 +212,15 @@ Open the local dashboard and select **🧠 Content lab**.
 Generated Content Lab results are also saved locally under `output/content_lab/`. Gemini API access is required for these AI features.
 
 
-### Expanded documentary footage libraries
+### Documentary footage libraries
 
-When a scene has no suitable Pixabay result, the renderer can search additional public libraries in this order: NASA Image and Video Library, Wikimedia Commons, and Internet Archive. NASA, Wikimedia Commons and Internet Archive discovery do not require a paid account. 
+For each scene the renderer searches every configured footage source at the same time: NASA, Wikimedia Commons, Internet Archive, Library of Congress, DVIDS, Europeana, US National Archives, Pixabay and Coverr. Results are merged, checked against one licence policy, ranked, downloaded and inspected with FFprobe. Only a file that plays is used. A penalty for reusing the same provider keeps a documentary from drawing every clip from one library.
 
-For Wikimedia Commons, the asset's file-specific licence and attribution are captured in a `.source.json` sidecar. Other providers also receive a provenance sidecar with the asset page and rights-review link where available. **A search result is not automatically cleared for commercial reuse**: review each asset's rights statement, third-party credits, attribution and any restrictions before publishing. Internet Archive contains material with differing rights status; do not assume every item is public domain. NASA media can also contain third-party material or identifiable people/trademarks, so check item guidance.
+Each used clip gets a `.source.json` provenance record. Each build writes `provider_report.json` and `provider_report.md`, which say what every provider returned and why any scene has no clip. **A selected clip is not automatically cleared for publication**: a person must still confirm the rights statement, the credit and that the clip shows what the narration says.
 
-Mixkit is listed as a manual research source only because it does not expose a supported public stock-video search API. The project intentionally does not scrape its website or bypass access controls. Browse [Mixkit free stock video](https://mixkit.co/free-stock-video/) and manually add only clips whose licence permits your intended use.
+Mixkit has no public API, so its clips are downloaded by a person and imported with `scripts/register_mixkit_asset.py`. The project never scrapes a website and never downloads broadcast or news-agency footage.
 
-All discovered clips are downloaded only after HTTPS checks and validated with FFprobe for minimum file size, duration and resolution. If no real clip is found, the existing generated-image fallback remains available. The engine does not guarantee a real video for every narration beat, and it does not download copyrighted news-broadcast footage from YouTube, AP, Reuters or other broadcasters.
+Whether each provider works with your keys is checked by the manually run **Live footage provider verification** workflow. See [docs/FOOTAGE_ENGINE.md](docs/FOOTAGE_ENGINE.md).
 
 ### Long-form visual fallback order
 

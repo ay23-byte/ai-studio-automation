@@ -129,8 +129,6 @@ class LicencePolicyTests(unittest.TestCase):
             ("restricted", dict(licence="All rights reserved", licence_url=cc + "by/4.0/")),
             ("rejected", dict(licence="CC BY-NC 4.0", licence_url=cc + "by/4.0/")),
             ("unknown", dict(licence="CC BY 4.0", licence_url=cc + "by-sa/4.0/")),
-            ("unknown", dict(licence="Public Domain")),                      # no rights URL
-            ("unknown", dict(licence="CC BY 4.0")),                          # no licence URL
             ("unknown", dict(provider="Wikimedia Commons", licence="NASA Media Usage Guidelines")),
             ("unknown", dict(provider="Library of Congress", licence="No known copyright restrictions",
                              licence_url="https://www.loc.gov/item/x/")),     # no dated basis
@@ -162,6 +160,54 @@ class LicencePolicyTests(unittest.TestCase):
         metadata = {"licence": "CC BY 4.0", "licence_url": "https://creativecommons.org/licenses/by/4.0/"}
         self.assertEqual(provenance_gaps(metadata), ["source page URL missing"])
         self.assertEqual(provenance_gaps(dict(metadata, page_url="https://example.org/a")), [])
+
+    def test_named_licence_without_a_url_is_an_incomplete_record_not_an_unknown_licence(self):
+        # The release check lets a reviewer supply a missing licence URL, so the licence itself
+        # stays recognised; automatic selection is stopped by the gap instead.
+        for label, state in (("CC BY 4.0", "eligible_with_attribution"), ("Public Domain", "eligible")):
+            metadata = {"licence": label, "page_url": "https://example.org/a"}
+            decision = classify_licence(metadata)
+            self.assertEqual(decision["state"], state)
+            self.assertTrue(any("URL missing" in note for note in decision["notes"]), decision["notes"])
+            self.assertEqual(provenance_gaps(metadata), ["licence URL missing"])
+
+
+class ReleaseCheckAgreementTests(unittest.TestCase):
+    """A clip the engine may select must not then be refused by the release check for its licence."""
+
+    SIDECARS = [
+        {"provider": "Library of Congress", "licence": "No known copyright restrictions",
+         "licence_url": "https://www.loc.gov/item/00694/", "page_url": "https://www.loc.gov/item/00694/",
+         "rights_basis": "published in 1903, before the US public-domain cutoff", "attribution_text": "Library of Congress"},
+        {"provider": "Mixkit (manual user-selected import)", "licence": "Mixkit Free License", "terms_reviewed": True,
+         "licence_url": "https://mixkit.co/license/", "page_url": "https://mixkit.co/free-stock-video/waves-1/",
+         "attribution_text": "Mixkit"},
+        {"provider": "DVIDS", "licence": "DVIDS API Commercial Use Terms", "attribution_text": "Sgt. A via DVIDS",
+         "licence_url": "https://api.dvidshub.net/docs/tos", "page_url": "https://www.dvidshub.net/video/7"},
+        {"provider": "Coverr", "licence": "Coverr License", "licence_url": "https://coverr.co/license",
+         "page_url": "https://coverr.co/videos/x", "attribution_text": "Video by A on Coverr"},
+        {"provider": "Internet Archive", "licence": "Public Domain", "attribution_text": "Internet Archive",
+         "licence_url": "http://creativecommons.org/licenses/publicdomain/", "page_url": "https://archive.org/details/x"},
+    ]
+
+    def test_selected_sources_carry_their_evidence_into_the_review_manifest(self):
+        from core import review_contract, review_packaging
+        for sidecar in self.SIDECARS:
+            with self.subTest(provider=sidecar["provider"]):
+                self.assertTrue(classify_licence(sidecar)["publishable"])
+                provenance, rights = review_packaging.describe_asset(sidecar)
+                asset = {"asset_id": "a1", "provenance": provenance, "rights": rights}
+                self.assertEqual(review_contract.rights_evidence_problems(asset), [])
+
+    def test_evidence_missing_from_the_build_still_blocks_the_release(self):
+        from core import review_contract, review_packaging
+        for index in (0, 1):
+            sidecar = {key: value for key, value in self.SIDECARS[index].items()
+                       if key not in ("rights_basis", "terms_reviewed")}
+            provenance, rights = review_packaging.describe_asset(sidecar)
+            problems = review_contract.rights_evidence_problems(
+                {"asset_id": "a1", "provenance": provenance, "rights": rights})
+            self.assertTrue(any("unclear or not accepted" in problem for problem in problems), problems)
 
 
 class ProviderHttpTests(_Temp):
@@ -581,6 +627,7 @@ class SyntheticDocumentaryTests(_Temp):
         return used, shots
 
     def test_documentary_uses_many_providers_and_records_everything(self):
+        from core import review_contract, review_packaging
         web = self.build_web()
         used, shots = self.run_documentary(web)
         data = self.report.to_dict()
@@ -610,6 +657,12 @@ class SyntheticDocumentaryTests(_Temp):
             self.assertIn(sidecar["licence_state"], ("eligible", "eligible_with_attribution"))
             self.assertTrue(sidecar["validation"]["ok"])
             hashes.add(sidecar["media_sha256"])
+            # The release check, which sees only the review manifest, accepts the same licence.
+            provenance, rights = review_packaging.describe_asset(sidecar)
+            self.assertEqual(provenance["origin"], "source", sidecar["provider"])
+            self.assertEqual(review_contract.rights_evidence_problems(
+                {"asset_id": clip.stem, "provenance": provenance, "rights": rights}), [], sidecar["provider"])
+            self.assertTrue(rights["attribution"], sidecar["provider"])
         self.assertEqual(len(hashes), len(shots))
 
         # Rejections were counted against the provider that offered them.
@@ -751,6 +804,78 @@ class MixkitImportTests(_Temp):
             os.chdir(old)
         scene = self.report.to_dict()["scenes"][0]
         self.assertEqual(scene["selected"]["provider"], "Mixkit (manual user-selected import)")
+
+
+    def test_command_line_imports_a_manifest_and_refuses_without_confirmation(self):
+        import contextlib
+        import io
+        from scripts import register_mixkit_asset as cli
+        make_clip(self.tmp / "in" / "good.mp4")
+        manifest = self.tmp / "in" / "manifest.json"
+        manifest.write_text(json.dumps([{
+            "file": "good.mp4", "title": "City lights", "licence": "Mixkit Free License",
+            "source_url": "https://mixkit.co/free-stock-video/city-lights-77/"}]), encoding="utf-8")
+        old = Path.cwd()
+        os.chdir(self.tmp)
+        try:
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                cli.main(["--manifest", str(manifest)])
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = cli.main(["--manifest", str(manifest), "--confirm-free-license"])
+            self.assertEqual(code, 0, out.getvalue())
+            self.assertIn("Registered Mixkit clip", out.getvalue())
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = cli.main([str(self.tmp / "in" / "good.mp4"), "--title", "Restricted clip", "--licence",
+                                 "Mixkit Restricted License", "--confirm-free-license",
+                                 "--source-url", "https://mixkit.co/free-stock-video/restricted-9/"])
+            self.assertEqual(code, 1)
+            self.assertIn("Not registered", out.getvalue())
+        finally:
+            os.chdir(old)
+
+
+class DiscoveryCheckScriptTests(_Temp):
+    def test_only_licensed_results_count_and_unconfigured_providers_are_named(self):
+        from scripts.check_footage_sources_live import run_checks
+        licensed = _lead("A", "1", "Village", "https://a/1.mp4")
+        unlicensed = _lead("A", "2", "Village", "https://a/2.mp4", licence="", licence_url="")
+        called = Mock(return_value=[])
+        result = run_checks("topic", providers=[
+            ("A", lambda query: [licensed, unlicensed]),
+            ("Keyed", called, lambda: (False, "missing_key", "KEYED_API_KEY is not set")),
+        ])
+        by_name = {item["provider"]: item for item in result["providers"]}
+        self.assertEqual(by_name["A"]["eligible_candidates"], 3)        # one licensed result for each of 3 queries
+        self.assertEqual(by_name["Keyed"]["status"], "not_configured")
+        self.assertIn("KEYED_API_KEY", by_name["Keyed"]["reason"])
+        called.assert_not_called()
+        self.assertEqual(result["providers_with_results"], ["A"])
+        self.assertIn("nothing was downloaded", result["important"])
+
+    def test_default_run_names_why_each_provider_returned_nothing(self):
+        from scripts.check_footage_sources_live import run_checks
+        web = FakeWeb(self.tmp / "web")
+        web.add_wikimedia(11, "Topic film", "A film about the topic")
+        web.failures["www.loc.gov"] = 429
+        web.failure_headers["www.loc.gov"] = {"Retry-After": "3600"}
+        web.failures["archive.org"] = requests.ConnectionError("no route")
+        web.failures["api.dvidshub.net"] = 403
+        with patch("requests.get", web.get), patch.object(fs.time, "sleep"), patch.object(images.time, "sleep"), \
+                patch.dict(os.environ, {"DVIDS_API_KEY": "key-dvids-test"}), \
+                patch("core.config.EUROPEANA_API_KEY", ""), patch("core.config.NARA_API_KEY", ""), \
+                patch.object(images, "PIXABAY_API_KEY", ""), patch.object(images, "COVERR_API_KEY", ""):
+            result = run_checks("topic")
+        status = {item["provider"]: item["status"] for item in result["providers"]}
+        self.assertEqual(status["Wikimedia Commons"], "ok")
+        self.assertEqual(status["Library of Congress"], "rate_limited")
+        self.assertEqual(status["Internet Archive"], "unreachable")
+        self.assertEqual(status["DVIDS"], "auth_failed")
+        for name in ("Europeana", "National Archives (NARA)", "Pixabay", "Coverr"):
+            self.assertEqual(status[name], "not_configured", name)
+        self.assertEqual(result["status"], "passed")
+        self.assertNotIn("key-dvids-test", json.dumps(result))
 
 
 class LiveVerificationScriptTests(_Temp):

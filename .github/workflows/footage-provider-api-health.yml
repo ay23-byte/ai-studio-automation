@@ -41,6 +41,7 @@ jobs:
         env:
           NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          DVIDS_API_REFERER: ${{ vars.DVIDS_API_REFERER }}
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}

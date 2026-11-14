@@ -186,11 +186,11 @@ def classify_licence(metadata: dict | None) -> dict:
             return _decision(REJECTED, f"{cc['label']} forbids derivative works; editing into a film is a derivative",
                              attribution_required=True, commercial_use=True, modification=False,
                              evidence=evidence)
-        if not licence_url:
-            return _decision(UNKNOWN, f"{cc['label']} named without a licence URL for this item",
-                             attribution_required=True, commercial_use=True, modification=True,
-                             evidence=evidence)
         notes = []
+        if not licence_url:
+            # The licence is known by name. The missing URL is a gap in the record
+            # (see provenance_gaps), which blocks automatic use until it is supplied.
+            notes.append("licence URL missing: the licence is named but not linked for this item")
         if not page_url:
             notes.append("source page URL missing: the credit this licence requires cannot be completed without it")
         if not creator:
@@ -202,11 +202,11 @@ def classify_licence(metadata: dict | None) -> dict:
                          share_alike="sa" in parts, evidence=evidence, notes=notes)
 
     if label in {"public domain", "public domain mark", "public domain mark 1.0", "pd"}:
-        if not licence_url:
-            return _decision(UNKNOWN, "public-domain label without a rights URL or statement for this item")
         return _decision(ELIGIBLE, "public-domain statement recorded for this item",
                          attribution_required=False, commercial_use=True, modification=True,
-                         evidence=licence_url)
+                         evidence=licence_url or f"licence label: {metadata.get('licence') or metadata.get('license')}",
+                         notes=[] if licence_url else
+                         ["rights URL missing: the public-domain claim is named but not linked for this item"])
 
     if label == "nasa media usage guidelines":
         if provider != "nasa":

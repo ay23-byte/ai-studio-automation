@@ -69,7 +69,7 @@ class FakeWeb:
 
     # -- media ---------------------------------------------------------------
     def clip(self, url, *, size="640x360", seconds=4, pattern=None, kind="valid"):
-        """Publish a media file at ``url``. ``kind``: valid | html | truncated | tiny | audio."""
+        """Publish a media file at ``url``. ``kind``: valid | html | truncated."""
         self._clip_number += 1
         path = self.root / f"media_{self._clip_number}.mp4"
         if kind == "html":
