@@ -10,41 +10,34 @@ import csv
 import json
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlparse
 
+# The first thirteen columns are the original register; release packaging and
+# review tools read them by name. The columns after "notes" were added with the
+# multi-source footage engine and record what each licence permits and which
+# exact file was used. "unknown" means the source did not say.
 CSV_FIELDS = [
     "shot_id", "source", "url", "author", "licence", "attribution_text",
     "date_accessed", "licence_url", "score_0_10", "use_status",
     "human_review_required", "fallback_required", "notes",
+    "provider_asset_id", "title", "media_type", "licence_state",
+    "commercial_use_allowed", "modification_allowed", "attribution_required", "share_alike",
+    "download_url", "local_file", "media_sha256", "width", "height", "duration_seconds",
+    "file_validated",
 ]
-
-PUBLIC_DOMAIN = {"public domain", "public domain mark", "cc0", "cc0 1.0", "creative commons zero"}
-CC_BY = {"cc by", "cc by 2.0", "cc by 3.0", "cc by 4.0",
-         "cc by sa", "cc by sa 2.0", "cc by sa 3.0", "cc by sa 4.0"}
-STOCK = {"pixabay content license", "coverr license", "mixkit free license", "dvids api commercial use terms"}
-
 
 def _normal(value: object) -> str:
     return " ".join(str(value or "").strip().lower().replace("-", " ").split())
 
 
 def licence_is_usable(metadata: dict) -> tuple[bool, str]:
-    """Accept only a known licence; provider name alone is never sufficient."""
-    label = _normal(metadata.get("licence") or metadata.get("license"))
-    if label in PUBLIC_DOMAIN or label in CC_BY:
-        return True, "verified_label_requires_human_file_page_check"
-    if label == "nasa media usage guidelines" and _normal(metadata.get("provider")) == "nasa":
-        return True, "nasa_media_guidelines_item_level_center_metadata_and_third_party_screening_require_human_review"
-    if label in {"ncaa written permission", "prasar bharati licensed footage"}:
-        scope = _normal(metadata.get("usage_scope"))
-        has_youtube = "youtube" in scope
-        has_commercial = any(term in scope for term in ("commercial", "monetized", "monetised"))
-        if metadata.get("licence_document_ref") and has_youtube and has_commercial:
-            return True, "written_permission_reference_and_commercial_youtube_scope_recorded"
-        return False, "indian_archive_permission_reference_or_commercial_youtube_scope_missing"
-    if label in STOCK:
-        return True, "stock_terms_apply_human_restrictions_check_required"
-    return False, "unclear_or_unrecognized_licence"
+    """Accept only a known licence; provider name alone is never sufficient.
+
+    The decision comes from ``core.footage_licence.classify_licence``, the one
+    rule set shared by footage discovery, download and this register.
+    """
+    from core.footage_licence import classify_licence
+    decision = classify_licence(metadata)
+    return bool(decision["publishable"]), str(decision["reason"])
 
 
 def score_asset(metadata: dict, width: int = 0, height: int = 0) -> dict:
@@ -78,7 +71,7 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
     """Write licenses.csv and a human-readable end-credit/description text file."""
     root = Path(build_dir)
     root.mkdir(parents=True, exist_ok=True)
-    rows, blocked, credits = [], [], []
+    rows, blocked, credits, courtesy = [], [], [], []
     seen_recent: list[tuple[float, str]] = []
     for index, shot in enumerate(shot_timeline, start=1):
         shot_id = f"shot_{index:04d}"
@@ -100,7 +93,11 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             and bool(metadata.get("font_licence"))
             and bool(metadata.get("font_licence_url"))
         )
-        licensed, licence_status = licence_is_usable(metadata)
+        from core.footage_licence import attribution_line, classify_licence, provenance_gaps, tri_state
+        decision = classify_licence(metadata)
+        licensed, licence_status = bool(decision["publishable"]), str(decision["reason"])
+        if decision.get("notes"):
+            licence_status += "; " + "; ".join(decision["notes"])
         if is_ai:
             licensed = False
             licence_status = "AI-generated; not a real-world source; provider terms require separate review"
@@ -120,25 +117,40 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
                       "Font attribution details must be reviewed before publication.")
             )
         if licensed and not attribution:
-            if _normal(licence).startswith("cc by"):
-                attribution = f"{author or 'Author not supplied'}, {metadata.get('title') or path.name if path else 'Untitled'}, {licence}, {url}"
-            else:
-                attribution = f"{metadata.get('title') or path.name if path else 'Untitled'} — {provider} ({licence}); source: {url}"
+            named = dict(metadata)
+            named.setdefault("title", path.name if path else "Untitled")
+            attribution = attribution_line(named, decision)
         quality = metadata.get("quality_score")
         if quality is None:
             quality = score_asset(metadata, int(metadata.get("width") or 0), int(metadata.get("height") or 0))["score_0_10"]
         fallback = not (path and path.is_file()) or (not licensed and not is_ai)
         note = licence_status
-        if not url and not is_project_graphic:
-            note += "; source page URL missing"
-        if not licence_url and not is_project_graphic:
-            note += "; licence URL missing"
+        if not is_project_graphic:
+            for gap in provenance_gaps(metadata, decision):
+                note += "; " + gap
         if fallback:
             blocked.append({"shot_id": shot_id, "source": provider, "reason": note,
                             "replacement": "Request a licensed asset or route to clearly disclosed AI_IMAGE/AI_VIDEO replacement."})
         if licensed and not is_ai and (url and licence_url or is_project_graphic):
-            credits.append(attribution)
+            # A credit the licence requires must appear; the rest are listed as sources.
+            (credits if decision.get("attribution_required") or is_project_graphic else courtesy).append(attribution)
+        validation = metadata.get("validation") if isinstance(metadata.get("validation"), dict) else {}
         rows.append({
+            "provider_asset_id": str(metadata.get("asset_id") or ""),
+            "title": str(metadata.get("title") or ""),
+            "media_type": str(metadata.get("media_type") or media.get("type") or ""),
+            "licence_state": ("ai_generated" if is_ai else
+                              ("project_created" if is_project_graphic else decision["state"])),
+            "commercial_use_allowed": "unknown" if is_ai else ("yes" if is_project_graphic else tri_state(decision["commercial_use"])),
+            "modification_allowed": "unknown" if is_ai else ("yes" if is_project_graphic else tri_state(decision["modification"])),
+            "attribution_required": "unknown" if is_ai else tri_state(decision["attribution_required"]),
+            "share_alike": "unknown" if is_ai else tri_state(decision["share_alike"]),
+            "download_url": str(metadata.get("download_url") or ""),
+            "local_file": str(path) if path else "",
+            "media_sha256": str(metadata.get("media_sha256") or ""),
+            "width": metadata.get("width") or "", "height": metadata.get("height") or "",
+            "duration_seconds": metadata.get("duration_seconds") or "",
+            "file_validated": "yes" if validation.get("ok") else "not_recorded",
             "shot_id": shot_id, "source": provider, "url": url, "author": author,
             "licence": licence or ("AI-generated" if is_ai else "UNKNOWN"),
             "attribution_text": attribution, "date_accessed": str(metadata.get("date_accessed") or date.today().isoformat()),
@@ -169,10 +181,13 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
         writer.writerows(rows)
     credits_path = root / "credits.txt"
     unique_credits = list(dict.fromkeys(credits))
+    unique_courtesy = [line for line in dict.fromkeys(courtesy) if line not in unique_credits]
+    if unique_credits or unique_courtesy:
+        body = "\n".join(unique_credits + unique_courtesy)
+    else:
+        body = "No externally sourced assets currently have complete, verified licence and attribution metadata."
     credits_path.write_text(
-        "DOCUMENTARY SOURCE CREDITS\n\n" +
-        ("\n".join(unique_credits) if unique_credits else
-         "No externally sourced assets currently have complete, verified licence and attribution metadata.") +
+        "DOCUMENTARY SOURCE CREDITS\n\n" + body +
         "\n\nHuman rights and context review is required before publication.\n",
         encoding="utf-8",
     )
@@ -182,6 +197,10 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             1 for row in rows if row["use_status"] == "eligible_pending_human_review"
         ),
         "blocked_count": len(blocked), "blocked_assets": blocked,
+        "credits_required_by_licence": len(unique_credits),
+        "sources_listed_without_obligation": len(unique_courtesy),
+        "licence_states": {state: sum(1 for row in rows if row["licence_state"] == state)
+                           for state in sorted({row["licence_state"] for row in rows})},
         "publication_ready": False,
         "notice": "Scores are metadata-only screening. Human inspection must confirm exact visual match, clean/stable frames, watermarks, privacy, context, licence terms and attribution before publication.",
     }

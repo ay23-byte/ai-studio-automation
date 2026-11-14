@@ -1,0 +1,109 @@
+name: '⚙ Internal — Live footage provider verification (search, download, ffprobe)'
+
+# For every footage provider this performs one real search, downloads one real
+# file and inspects it with ffprobe. A provider is reported LIVE-VERIFIED only
+# when all three succeeded in this run. Nothing is rendered, uploaded or
+# published, and the downloaded media is deleted; the reports, provenance
+# records and one still frame per provider are kept as the evidence.
+#
+# Runs by hand, and on pull requests that change the footage code, in the same
+# way the two footage search-check workflows already run against the live APIs.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/footage_sources.py"
+      - "core/footage_engine.py"
+      - "core/footage_licence.py"
+      - "core/footage_validation.py"
+      - "core/images.py"
+      - "core/downloads.py"
+      - "scripts/verify_footage_providers.py"
+      - ".github/workflows/footage-live-verification.yml"
+  workflow_dispatch:
+    inputs:
+      providers:
+        description: 'Comma-separated provider names; leave empty for all'
+        required: false
+        default: ''
+      topic:
+        description: 'Optional search phrase tried first for every provider'
+        required: false
+        default: ''
+      min_verified:
+        description: 'Fail unless at least this many providers are LIVE-VERIFIED'
+        required: false
+        default: '1'
+      strict:
+        description: 'Fail if any provider that has a key configured is not LIVE-VERIFIED'
+        type: boolean
+        required: false
+        default: false
+      selection:
+        description: 'Also run a six-scene selection to measure provider diversity'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: footage-live-verification-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Search, download and probe one clip per provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install requests Pillow numpy python-dotenv
+
+      - name: Verify providers
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          DVIDS_API_REFERER: ${{ vars.DVIDS_API_REFERER }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          # One clip per provider is enough evidence; keep the downloads small.
+          FOOTAGE_MAX_CLIP_MB: "120"
+          INPUT_PROVIDERS: ${{ inputs.providers }}
+          INPUT_TOPIC: ${{ inputs.topic }}
+          INPUT_MIN_VERIFIED: ${{ inputs.min_verified }}
+          INPUT_STRICT: ${{ inputs.strict }}
+          INPUT_SELECTION: ${{ inputs.selection }}
+        run: |
+          set -o pipefail
+          args=(--output-dir build/footage_live_verification --min-verified "${INPUT_MIN_VERIFIED:-1}")
+          if [ -n "$INPUT_PROVIDERS" ]; then args+=(--providers "$INPUT_PROVIDERS"); fi
+          if [ -n "$INPUT_TOPIC" ]; then args+=(--topic "$INPUT_TOPIC"); fi
+          if [ "$INPUT_STRICT" = "true" ]; then args+=(--strict); fi
+          # On a pull request the inputs are empty: run the selection unless it was switched off.
+          if [ "$INPUT_SELECTION" != "false" ]; then args+=(--selection); fi
+          mkdir -p build/footage_live_verification
+          python -m scripts.verify_footage_providers "${args[@]}" 2>&1 | tee build/footage_live_verification/run.log
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: footage-live-verification
+          path: build/footage_live_verification/
+          if-no-files-found: warn
+          retention-days: 30

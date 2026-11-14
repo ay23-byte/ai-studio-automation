@@ -1,7 +1,9 @@
-"""Live, read-only footage discovery validation for a supplied documentary topic.
+"""Live, read-only footage discovery check for a supplied documentary topic.
 
-Checks archive APIs plus the stock-video providers used by the production
-renderer. A discovery candidate is not a downloaded or publication-cleared clip.
+Searches the archive APIs and stock libraries the renderer uses and counts the
+results that pass the licence policy. Nothing is downloaded: a passing result
+shows that search works, not that files download and play. The check that
+downloads and probes one file per provider is scripts/verify_footage_providers.py.
 """
 import sys as _sys
 from pathlib import Path as _Path
@@ -11,10 +13,11 @@ if __package__ in (None, ""):  # run as "python scripts/<name>.py": make the rep
 
 import argparse
 import json
-from datetime import date
 
+from core import footage_report
 from core import footage_sources as fs
 from core import images
+from core.footage_licence import classify_licence, provenance_gaps
 
 DEFAULT_QUERY = "India disappearing villages rural migration abandoned villages"
 DEFAULT_QUERY_VARIANTS = (
@@ -29,47 +32,6 @@ DEFAULT_QUERY_VARIANTS = (
     "rural India agriculture",
     "India village migration",
 )
-
-
-def _coverr(query):
-    results = []
-    for hit in images._search_coverr(query):
-        item = images._coverr_candidate(hit, query)
-        if item:
-            results.append(item)
-    return results
-
-
-def _pixabay(query):
-    results = []
-    for hit in images._search_pixabay(query):
-        if not isinstance(hit, dict) or (hit.get("duration") or 0) < 3:
-            continue
-        variants = hit.get("videos") or {}
-        best = max(
-            variants.values(),
-            key=lambda v: (v.get("width") or 0) * (v.get("height") or 0),
-            default={},
-        )
-        width, height = int(best.get("width") or 0), int(best.get("height") or 0)
-        if width < 720 or height < 400 or not best.get("url"):
-            continue
-        tags = str(hit.get("tags") or "")
-        results.append((best["url"], {
-            "provider": "Pixabay",
-            "asset_id": str(hit.get("id") or ""),
-            "title": tags,
-            "creator": str(hit.get("user") or ""),
-            "page_url": str(hit.get("pageURL") or ""),
-            "licence": "Pixabay Content License",
-            "licence_url": "https://pixabay.com/service/license-summary/",
-            "query": query,
-            "date_accessed": date.today().isoformat(),
-            "width": width,
-            "height": height,
-            "licence_status": "Pixabay Content License identified; check restrictions and item context",
-        }))
-    return results
 
 
 def _query_variants(query):
@@ -93,59 +55,123 @@ def _query_variants(query):
     return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:8]
 
 
+def _default_providers():
+    """Every automatic source the renderer uses, as ``(name, search, status)``."""
+    providers = fs.archive_providers("space nasa") + images.stock_providers("")
+    return [(provider.name, provider.search, provider.status) for provider in providers]
+
+
+def _licensed(items):
+    """Count results the licence policy would let the renderer download."""
+    count = 0
+    for item in items or []:
+        if isinstance(item, tuple) and len(item) == 2 and isinstance(item[1], dict):
+            if not classify_licence(item[1])["publishable"] or provenance_gaps(item[1]):
+                continue
+        count += 1
+    return count
+
+
 def run_checks(query, min_total=1, providers=None):
-    providers = providers or [
-        ("NASA", fs._nasa),
-        ("Library of Congress", fs._loc),
-        ("Wikimedia Commons", fs._wikimedia),
-        ("Internet Archive", fs._internet_archive),
-        ("NARA", fs._nara),
-        ("DVIDS", fs._dvids),
-        ("Europeana CC", fs._europeana_cc),
-        ("Coverr", _coverr),
-        ("Pixabay", _pixabay),
-    ]
+    """Search each provider and count licensed discovery results. Nothing is downloaded.
+
+    A provider that returns results here has a working search. It is not proof
+    that its files download and play; scripts/verify_footage_providers.py does that.
+    """
+    fs.reset_run_state()
+    run = footage_report.begin_run(f"discovery check: {query}"[:120])
     report = []
     total = 0
     queries = _query_variants(query)
-    for name, call in providers:
+    for entry in providers or _default_providers():
+        name, call = entry[0], entry[1]
+        status_check = entry[2] if len(entry) > 2 else None
         provider_count = 0
         errors = []
-        for candidate_query in queries:
-            try:
-                provider_count += len(call(candidate_query) or [])
-            except Exception as exc:
-                errors.append(str(exc)[:500])
+        enabled, auth, reason = status_check() if status_check else (True, "not_required", "")
+        run.set(name, enabled=bool(enabled), auth_status=auth)
+        if enabled:
+            with footage_report.provider_scope(name, run):
+                for candidate_query in queries:
+                    try:
+                        provider_count += _licensed(call(candidate_query))
+                    except Exception as exc:
+                        errors.append(footage_report.redact(str(exc))[:500])
         total += provider_count
+        facts = run.provider(name)
+        failure = footage_report.redact(facts.get("failure_reason") or "")
         if provider_count:
             status = "ok"
+        elif not enabled:
+            status = "not_configured" if auth == "missing_key" else "disabled"
         elif errors:
             status = "error"
+        elif facts.get("auth_status") == "rejected":
+            status = "auth_failed"
+        elif facts.get("search_status") == "rate_limited":
+            status = "rate_limited"
+        elif facts.get("search_status") in ("network_error", "timeout", "server_error", "blocked"):
+            status = "unreachable"
         else:
             status = "no_eligible_results"
-        entry = {
+        entry_report = {
             "provider": name,
             "status": status,
             "eligible_candidates": provider_count,
             "queries_checked": queries,
         }
         if errors:
-            entry["errors"] = errors[:3]
-        report.append(entry)
+            entry_report["errors"] = errors[:3]
+        if not enabled and reason:
+            entry_report["reason"] = footage_report.redact(reason)
+        elif failure and not provider_count:
+            entry_report["reason"] = failure
+        if facts.get("http_status_counts"):
+            entry_report["http_status_counts"] = dict(facts["http_status_counts"])
+        if facts.get("rejection_reasons"):
+            entry_report["results_found"] = facts.get("results_found", 0)
+            entry_report["rejection_reasons"] = dict(facts["rejection_reasons"])
+        if facts.get("auth_note"):
+            entry_report["auth_note"] = facts["auth_note"]
+        report.append(entry_report)
+    footage_report.end_run()
     result = {
         "query": query,
         "queries_checked": queries,
         "minimum_total_candidates": min_total,
         "total_eligible_candidates": total,
         "providers": report,
+        "providers_with_results": [item["provider"] for item in report if item["status"] == "ok"],
         "status": "passed" if total >= min_total else "failed",
         "important": (
-            "Discovery candidates are not downloaded or publication-cleared. "
-            "Coverr candidates remain subject to exact-item licence review. "
+            "This is a search check only: nothing was downloaded or played, so no provider is proven "
+            "to deliver usable files by this result. Run scripts/verify_footage_providers.py for that. "
             "Each selected asset still requires file-level rights and visual review."
         ),
     }
     return result
+
+
+def annotate(result):
+    """One GitHub Actions annotation per provider, so the outcome is visible on the run page."""
+    import os
+    if os.getenv("GITHUB_ACTIONS", "").lower() != "true":
+        return
+    for item in result.get("providers") or []:
+        level = "notice" if item.get("status") in ("ok", "not_configured") else "warning"
+        detail = (f"{item.get('status')}: {item.get('eligible_candidates', 0)} licensed search result(s) over "
+                  f"{len(item.get('queries_checked') or [])} queries; HTTP {item.get('http_status_counts') or {}}")
+        if item.get("reason"):
+            detail += f"; {item['reason']}"
+        if item.get("errors"):
+            detail += f"; {item['errors'][0]}"
+        reasons = sorted((item.get("rejection_reasons") or {}).items(), key=lambda pair: -pair[1])
+        if reasons:
+            detail += "; not offered: " + "; ".join(f"{count} x {reason}" for reason, count in reasons[:3])
+        if item.get("auth_note"):
+            detail += f"; {item['auth_note']}"
+        detail = detail.replace("%", "%25").replace("\r", " ").replace("\n", " ")[:1400]
+        print(f"::{level} title=Footage search {item.get('provider')}::{detail} (search only; nothing downloaded)")
 
 
 def main():
@@ -161,6 +187,7 @@ def main():
         result["status"] = "diagnostic_warning"
         result["note"] = "Topic-title discovery is diagnostic only; each rendered scene still needs its own valid, relevant visual."
     print(json.dumps(result, indent=2))
+    annotate(result)
     if result["status"] == "failed":
         raise SystemExit(
             f"Footage discovery produced {result['total_eligible_candidates']} "

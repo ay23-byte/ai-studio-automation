@@ -11,7 +11,7 @@ class AssetLicensingTests(unittest.TestCase):
     def test_unknown_licence_is_blocked(self):
         ok, reason = licence_is_usable({"provider": "Internet Archive", "licence_status": "check rights"})
         self.assertFalse(ok)
-        self.assertEqual(reason, "unclear_or_unrecognized_licence")
+        self.assertIn("no licence name or licence URL", reason)
 
     def test_known_stock_licence_is_only_pending_human_review(self):
         ok, _ = licence_is_usable({

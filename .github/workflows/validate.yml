@@ -128,3 +128,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_release_certification_smoke.py' -v
       - name: Run archival video FFmpeg integration tests
         run: python -m unittest discover -s tests -p 'test_archival_video_e2e.py' -v
+      # Offline provider stand-ins with real clips: validation, selection, licence register.
+      # -rs lists any skipped test, so a missing FFmpeg cannot pass unnoticed here.
+      - name: Run footage engine tests (offline providers, real FFmpeg clips)
+        run: python -m pytest tests/test_footage_engine.py tests/test_documentary_source_adapters.py -q -rs

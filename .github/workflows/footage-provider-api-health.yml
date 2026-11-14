@@ -37,10 +37,13 @@ jobs:
       - name: Compile provider code
         run: python -m compileall -q core scripts
 
-      - name: Run live read-only API checks
+      # Search only. A provider reported "ok" here answered a search; whether its files
+      # download and play is checked by the "Live footage provider verification" workflow.
+      - name: Run live read-only API search checks
         env:
           NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
           DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          DVIDS_API_REFERER: ${{ vars.DVIDS_API_REFERER }}
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
@@ -50,11 +53,12 @@ jobs:
           python - <<'PY' 2>&1 | tee build/provider_api_health/provider-report.log
           import json
           from pathlib import Path
-          from scripts.check_footage_sources_live import DEFAULT_QUERY, run_checks
+          from scripts.check_footage_sources_live import DEFAULT_QUERY, annotate, run_checks
           report = run_checks(DEFAULT_QUERY, min_total=1)
           path = Path("build/provider_api_health/provider-report.json")
           path.write_text(json.dumps(report, indent=2), encoding="utf-8")
           print(json.dumps(report, indent=2))
+          annotate(report)
           if report["status"] != "passed":
               raise SystemExit("No eligible candidates returned by any configured provider.")
           PY

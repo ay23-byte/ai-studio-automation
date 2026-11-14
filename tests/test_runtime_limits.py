@@ -164,7 +164,7 @@ class DownloadTests(unittest.TestCase):
     def test_every_asset_provider_downloads_through_the_bounded_helper(self):
         for name in ("footage_sources", "images", "archival_images", "openverse_images"):
             text = (ROOT / "core" / f"{name}.py").read_text(encoding="utf-8")
-            self.assertIn("from core.downloads import fetch", text, name)
+            self.assertRegex(text, r"from core\.downloads import (?:DownloadError, )?fetch\b", name)
             self.assertNotIn("iter_content", text, name)
 
 
