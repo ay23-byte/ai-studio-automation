@@ -226,5 +226,40 @@ class LongformNarrationExpansionTests(unittest.TestCase):
                 )
 
 
+    def test_longform_research_quality_gate_rejects_thin_dossier(self):
+        script = {
+            "sources": [
+                {"source_id": "S1", "title": "One report", "publisher": "One",
+                 "url": "https://one.example/report"}
+            ],
+            "claims": [
+                {"claim_id": "C1", "text": "A factual claim", "source_ids": ["S1"],
+                 "evidence": "Page 2"}
+            ],
+        }
+        with self.assertRaisesRegex(ValueError, "only 1 complete source records"):
+            script_engine.validate_longform_research_quality(script)
+
+    def test_longform_research_quality_gate_accepts_complete_traceable_dossier(self):
+        sources = [
+            {"source_id": f"S{i}", "title": f"Report {i}", "publisher": f"Publisher {i}",
+             "url": f"https://publisher{i}.example/report"}
+            for i in range(1, 9)
+        ]
+        claims = [
+            {"claim_id": f"C{i}", "text": f"Checkable claim {i}", "source_ids": [f"S{(i % 8) + 1}"],
+             "evidence": f"Report section {i}"}
+            for i in range(1, 16)
+        ]
+        script = {"sources": sources, "claims": claims}
+        result = script_engine.validate_longform_research_quality(script)
+        self.assertEqual(result["research_quality"]["source_count"], 8)
+        self.assertEqual(result["research_quality"]["publisher_domain_count"], 8)
+        self.assertEqual(result["research_quality"]["claim_count"], 15)
+        self.assertEqual(result["research_quality"]["claim_coverage"], 1.0)
+        self.assertTrue(result["research_quality"]["human_verification_required"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
