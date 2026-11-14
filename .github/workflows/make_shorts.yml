@@ -9,7 +9,7 @@ on:
       category:
         description: "Category (used only with a custom topic)"
         type: choice
-        options: [physics, engineering, technology, science, finance, markets, money, power, human]
+        options: [physics, engineering, technology, science, finance, markets, money, power, human, geopolitics, history, economics, international_relations, india, world_affairs]
         default: physics
       language:
         description: "Voice language"
