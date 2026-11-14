@@ -286,6 +286,16 @@ jobs:
           python scripts/write_job_summary.py --pipeline longform \
             --artifact "longform-review-${GITHUB_RUN_ID}"
 
+      # The measured facts of the build (runtime, visual sources, footage providers, presenter
+      # motion, subtitles, audio, research) as notices on the run page, readable without
+      # downloading the artifact.
+      - name: Show the measured build evidence on the run page
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          TARGET_MINUTES: ${{ needs.request.outputs.minutes }}
+        run: python scripts/annotate_build_evidence.py --pipeline longform --target-minutes "$TARGET_MINUTES"
+
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions
       # and sampled frames must be downloadable after a blocked upload.
