@@ -9,6 +9,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Any
+from core.ffmpeg_utils import PROBE_TIMEOUT
 
 
 def _duration(stream: dict[str, Any], fallback: float) -> float:
@@ -40,7 +41,7 @@ def inspect_presenter_clip(path: str | Path, expected_duration: float | None = N
     probe = subprocess.check_output([
         ffprobe, "-v", "error", "-show_streams", "-show_format",
         "-of", "json", str(media),
-    ], text=True)
+    ], text=True, timeout=PROBE_TIMEOUT)
     payload = json.loads(probe or "{}")
     streams = payload.get("streams") or []
     video = next((item for item in streams if item.get("codec_type") == "video"), None)

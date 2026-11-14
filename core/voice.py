@@ -144,9 +144,11 @@ async def _synth_edge(text, voice, rate, pitch, path):
     provider = _edge_module()  # a missing package is not retried
     for attempt in range(3):
         try:
-            await provider.Communicate(
-                text, voice, rate=rate, pitch=pitch
-            ).save(str(path))
+            # The service streams over a websocket with no deadline of its own; a
+            # stalled connection would otherwise hold the build until the job is killed.
+            await asyncio.wait_for(
+                provider.Communicate(text, voice, rate=rate, pitch=pitch).save(str(path)),
+                timeout=float(os.getenv("EDGE_TTS_TIMEOUT_SECONDS", "90") or 90))
             if path.exists() and path.stat().st_size > 0:
                 return
             raise RuntimeError("Edge TTS returned an empty audio file.")
@@ -161,12 +163,12 @@ async def _synth_edge(text, voice, rate, pitch, path):
 
 def _to_wav(mp3, wav):
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(mp3),
-                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(wav)], check=True)
+                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(wav)], check=True, timeout=render_timeout())
 
 def _dur(path):
     return float(subprocess.check_output(
         [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
-         "-of", "csv=p=0", str(path)]).strip())
+         "-of", "csv=p=0", str(path)], timeout=PROBE_TIMEOUT).strip())
 
 def _join(wavs, pauses, out, speed=1.0):
     inputs, filters = [], []
@@ -179,7 +181,7 @@ def _join(wavs, pauses, out, speed=1.0):
     filters.append("[cat]highpass=f=70,acompressor=threshold=-18dB:ratio=3:attack=5:release=60:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[vo]",
-                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(out)], check=True)
+                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(out)], check=True, timeout=render_timeout())
 
 def _get_chatterbox():
     global _CHATTERBOX_MODEL
@@ -278,7 +280,7 @@ def _synth_all_espeak(sentences, language, build_dir):
         subprocess.run(
             ["espeak-ng", "-v", voice, "-s", os.getenv("ESPEAK_RATE", "155"), "-a", "175", "-w", str(wav), sentence],
             check=True, capture_output=True, text=True,
-        )
+         timeout=tool_timeout())
         if not wav.exists() or wav.stat().st_size < 128:
             raise RuntimeError(f"espeak-ng produced empty audio for chunk {i + 1}.")
         wavs.append(wav)
@@ -368,5 +370,6 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
 
 
 from core.monitoring import monitored as _monitored
+from core.ffmpeg_utils import PROBE_TIMEOUT, render_timeout, tool_timeout
 _synthesise_raw = synthesise
 synthesise = _monitored("tts", "synthesise", _synthesise_raw)

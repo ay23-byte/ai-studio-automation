@@ -4,20 +4,21 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 
 
 def _probe_duration(video: Path) -> float:
     raw = subprocess.check_output([
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1", str(video)
-    ], text=True)
+    ], text=True, timeout=PROBE_TIMEOUT)
     return float(raw.strip())
 
 
 def _extract_frame(video: Path, timestamp: float, output: Path) -> bool:
     output.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run([
-        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        ffmpeg_bin(), "-y", "-hide_banner", "-loglevel", "error",
         "-ss", f"{timestamp:.3f}", "-i", str(video),
         "-frames:v", "1", "-vf", "scale=160:284:flags=area",
         "-q:v", "3", str(output)

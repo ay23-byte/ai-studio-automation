@@ -387,6 +387,13 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
             result["status"] = "uploaded"
         except (ReleaseBlocked, DuplicateUpload) as exc:
             # The video exists and is kept for review; it is simply not uploaded.
+            # A new video always stops here: it has no human review yet.
             result["status"] = "upload_blocked"
             result["upload_blocked_reason"] = str(exc)
+            try:
+                from core.db import get_video
+                from core.local_review import build_package
+                result["review_package"] = build_package(get_video(job_id)).get("package_dir")
+            except Exception as review_exc:      # the package is a convenience here, never a failure
+                result["review_package_error"] = str(review_exc)[:300]
     return result

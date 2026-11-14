@@ -10,6 +10,7 @@ import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from core.ffmpeg_utils import ffmpeg_bin, tool_timeout
 
 
 def _int_env(name: str, default: int, low: int, high: int) -> int:
@@ -102,14 +103,14 @@ def generate_ltx_video(
             raise RuntimeError(f"Unexpected generated video tensor shape: {video.shape}")
         actual_height, actual_width = video.shape[1:3]
         command = [
-            "ffmpeg", "-y", "-loglevel", "error",
+            ffmpeg_bin(), "-y", "-loglevel", "error",
             "-f", "rawvideo", "-pix_fmt", "rgb24",
             "-s", f"{actual_width}x{actual_height}", "-r", str(fps),
             "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", "fast",
             "-crf", "19", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             str(target),
         ]
-        subprocess.run(command, input=video.tobytes(), check=True, capture_output=True)
+        subprocess.run(command, input=video.tobytes(), check=True, capture_output=True, timeout=tool_timeout())
         if not target.is_file() or target.stat().st_size < 50_000:
             raise RuntimeError("OpenVINO LTX output failed the minimum MP4 size check.")
         metadata = {

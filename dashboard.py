@@ -230,6 +230,39 @@ with review_tab:
                         st.rerun()
                     except Exception as exc:
                         st.error(f"Video approval blocked: {exc}")
+            if not youtube_id and path.is_file():
+                # The upload needs the same per-item human review as the GitHub release
+                # workflows: a review package for this exact file plus exported decisions.
+                from core.local_review import ReviewUnavailable, build_package, record_decisions, review_status
+                with st.expander("Human review (required before upload)"):
+                    if st.button("Build review package", key=f"review_pkg_{job_id}"):
+                        try:
+                            summary = build_package(row, BUILD_DIR / f"job_{job_id}")
+                            if summary["status"] == "REVIEW_REQUIRED":
+                                st.info(f"Open this file in a browser and decide every item: {summary['dashboard']}")
+                            else:
+                                st.error("This video fails automated QA and cannot be approved:")
+                                for line in summary.get("errors", []):
+                                    st.error(line)
+                        except ReviewUnavailable as exc:
+                            st.error(str(exc))
+                    decisions_file = st.file_uploader("review_decisions.json exported from the review dashboard",
+                                                      type=["json"], key=f"review_dec_{job_id}")
+                    if decisions_file is not None and st.button("Record these decisions", key=f"review_rec_{job_id}"):
+                        import tempfile
+                        try:
+                            with tempfile.NamedTemporaryFile("wb", suffix=".json", delete=False) as handle:
+                                handle.write(decisions_file.getvalue())
+                            applied = record_decisions(row, handle.name, BUILD_DIR / f"job_{job_id}")
+                            st.success(f"Decisions recorded (reviewer: {applied.get('reviewer')}).")
+                        except Exception as exc:
+                            st.error(f"Decisions refused; nothing was recorded: {exc}")
+                    # Evaluated after the actions above so the line reflects what was just done.
+                    state = review_status(row, BUILD_DIR / f"job_{job_id}", decode=False)
+                    if state["ok"]:
+                        st.success(f"Reviewed: {state['detail']}.")
+                    else:
+                        st.warning(f"Not ready to upload: {state['detail']}")
             with b:
                 if not youtube_id and path.is_file() and row.get("approved"):
                     if st.button("Upload as Private", key=f"upload_{job_id}"):

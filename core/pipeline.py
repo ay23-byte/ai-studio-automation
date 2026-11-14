@@ -751,8 +751,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             )
             if presenter_clip:
                 actual_duration = float(subprocess.check_output(
-                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
-                ).strip())
+                    [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
+                , timeout=PROBE_TIMEOUT).strip())
                 from core.presenter_quality import write_presenter_metadata
                 write_presenter_metadata(presenter_clip, {
                     "provider": "AI Studio CPU still presenter", "presenter_mode": "still_cpu",
@@ -851,8 +851,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     presenter_clip = None
             if presenter_clip:
                 actual_duration = float(subprocess.check_output(
-                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
-                ).strip())
+                    [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(presenter_clip)]
+                , timeout=PROBE_TIMEOUT).strip())
                 from core.presenter_quality import write_presenter_metadata
                 if not sadtalker_used:
                     write_presenter_metadata(presenter_clip, {
@@ -1236,5 +1236,6 @@ build_longform = _record_failures(build_longform)
 
 # Record one event per complete render operation.
 from core.monitoring import monitored as _monitored
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffprobe_bin
 build_shorts = _monitored("pipeline", "build_shorts", build_shorts)
 build_longform = _monitored("pipeline", "build_longform", build_longform)

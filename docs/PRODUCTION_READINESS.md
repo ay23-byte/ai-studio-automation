@@ -60,8 +60,8 @@ card, and the release gate correctly refused to upload them.
 - **Cross-language duplicates** are not detected by title similarity.
 - **A Short that is built but whose upload fails on a runner** is kept as a
   workflow artifact for 14 days and recorded as built, so the topic is not
-  rebuilt. Upload it locally with `python run.py upload --id N` after
-  downloading the artifact, or remove its ledger entry to rebuild.
+  rebuilt. Release it with the "Release approved Short (Private)" workflow, or
+  remove its ledger entry to rebuild.
 - **Long-form is not scheduled.** `make_longform.yml` remains manual, and its
   ledger entries are not persisted to the state branch.
 - **Hindi text in thumbnails and cards** needs `libraqm`; without it that text

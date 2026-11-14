@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 from core.config import ROOT
+from core.ffmpeg_utils import PROBE_TIMEOUT
 
 
 def clips_dir():
@@ -27,7 +28,7 @@ def probe_duration(path, ffprobe="ffprobe"):
     result = subprocess.check_output([
         ffprobe, "-v", "error", "-show_entries", "format=duration",
         "-of", "csv=p=0", str(path)
-    ], text=True).strip()
+    ], text=True, timeout=PROBE_TIMEOUT).strip()
     try:
         duration = float(result)
     except (TypeError, ValueError) as exc:

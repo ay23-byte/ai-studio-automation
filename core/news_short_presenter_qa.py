@@ -9,20 +9,21 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 
 
 def _probe(path: Path) -> dict:
     raw = subprocess.check_output([
-        "ffprobe", "-v", "error", "-show_streams", "-show_format",
+        ffprobe_bin(), "-v", "error", "-show_streams", "-show_format",
         "-of", "json", str(path)
-    ], text=True)
+    ], text=True, timeout=PROBE_TIMEOUT)
     return json.loads(raw)
 
 
 def _sample_region(video: Path, timestamp: float, target: Path) -> bool:
     # Matches core.news_short_avatar.py: 320x568 PIP at x=W-368, y=H-928.
     result = subprocess.run([
-        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        ffmpeg_bin(), "-y", "-hide_banner", "-loglevel", "error",
         "-ss", f"{timestamp:.3f}", "-i", str(video),
         "-vf", "crop=320:568:712:992,scale=160:284",
         "-frames:v", "1", str(target)

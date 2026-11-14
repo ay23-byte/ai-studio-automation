@@ -4,6 +4,7 @@ import textwrap
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
+from core.ffmpeg_utils import ffmpeg_bin, render_timeout
 
 SIZE = (1280, 720)
 
@@ -19,10 +20,10 @@ def _source_frame(source: Path, work: Path):
     if source.suffix.lower() in {".mp4", ".mov", ".mkv", ".webm"}:
         frame = work / "thumbnail_source.jpg"
         subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-ss", "1",
+            [ffmpeg_bin(), "-y", "-loglevel", "error", "-ss", "1",
              "-i", str(source), "-frames:v", "1", str(frame)],
             check=True,
-        )
+         timeout=render_timeout())
         return frame
     return source
 

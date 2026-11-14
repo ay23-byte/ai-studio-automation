@@ -3,6 +3,7 @@ from pathlib import Path
 
 from core import ffmpeg_utils
 from core.render_join import reduce_segments, video_chain
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 
 W, H = 1080, 1920
 FADE = 0.3
@@ -16,13 +17,13 @@ RANGE = "scale=out_range=tv,format=yuv420p,"
 def _run(cmd): ffmpeg_utils.run(cmd)
 
 def _img_size(p):
-    out = subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0",
+    out = subprocess.check_output([ffprobe_bin(),"-v","error","-select_streams","v:0",
         "-show_entries","stream=width,height","-of","csv=p=0",str(p)],
-        stderr=subprocess.DEVNULL).decode().strip().split(",")
+        stderr=subprocess.DEVNULL, timeout=PROBE_TIMEOUT).decode().strip().split(",")
     return int(out[0]), int(out[1])
 
 def _whoosh(path):
-    _run(["ffmpeg","-y","-loglevel","error","-f","lavfi",
+    _run([ffmpeg_bin(),"-y","-loglevel","error","-f","lavfi",
           "-i","anoisesrc=d=0.7:c=pink:r=44100:a=0.7",
           "-af","highpass=f=250,lowpass=f=3500,afade=t=in:st=0:d=0.3,afade=t=out:st=0.3:d=0.4",
           "-ac","2",str(path)])
@@ -34,7 +35,7 @@ def _img_seg(src, idx, dur, bd, settings=None):
     from core.cinematic_motion import still_motion_parameters
     z, x, y = still_motion_parameters(settings, idx, frames)
     pos = f"x='{x}':y='{y}'"
-    base = ["ffmpeg","-y","-loglevel","error","-loop","1","-framerate","30","-t",f"{dur:.3f}","-i",str(src)]
+    base = [ffmpeg_bin(),"-y","-loglevel","error","-loop","1","-framerate","30","-t",f"{dur:.3f}","-i",str(src)]
     if h/max(w,1) >= 1.5:
         vf = (f"{RANGE}scale=2160:3840:force_original_aspect_ratio=increase:flags=lanczos,crop=2160:3840,"
               f"zoompan=z='{z}':{pos}:d=1:s={W}x{H}:fps=30,"
@@ -58,7 +59,7 @@ def _clip_seg(src, idx, dur, bd, settings=None):
     vf = (f"{RANGE}scale={sw}:{sh}:force_original_aspect_ratio=increase:flags=lanczos,crop={sw}:{sh},fps=30,"
           f"crop={W}:{H}:x='{x}':y='{y}',setsar=1,"
           "eq=brightness=-0.08:saturation=0.85,vignette=PI/6,format=yuv420p")
-    _run(["ffmpeg","-y","-loglevel","error","-stream_loop","-1",
+    _run([ffmpeg_bin(),"-y","-loglevel","error","-stream_loop","-1",
           "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out
 
@@ -130,7 +131,7 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
     afilt.append("".join(mix_in)+f"amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
                  f"normalize=0,alimiter=limit=0.95,{fade}[aout]")
     filt += ";".join(afilt)
-    _run(["ffmpeg","-y","-loglevel","error",*inputs,"-filter_complex",filt,
+    _run([ffmpeg_bin(),"-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
           "-c:a","aac","-b:a","192k","-ar","48000","-ac","2","-movflags","+faststart",str(out)])
     return out

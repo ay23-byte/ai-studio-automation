@@ -12,18 +12,19 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin, tool_timeout
 
 
 def _duration(path: Path) -> float:
     value = subprocess.check_output([
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1", str(path)
-    ], text=True).strip()
+    ], text=True, timeout=PROBE_TIMEOUT).strip()
     return float(value)
 
 
 def _run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> None:
-    subprocess.run(command, cwd=cwd, env=env, check=True)
+    subprocess.run(command, cwd=cwd, env=env, check=True, timeout=tool_timeout())
 
 
 def add_3d_presenter(
@@ -72,16 +73,16 @@ def add_3d_presenter(
         raise FileNotFoundError(f"3D avatar recording runner is missing: {runner}")
     _run(["node", str(runner), str(len(shots))], cwd=root, env=env)
 
-    command = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path)]
+    command = [ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(video_path)]
     clips: list[tuple[Path, float, float]] = []
     for index, shot in enumerate(shots, start=1):
         clip = clips_dir / f"presenter_section_{index:02d}.mp4"
         if not clip.is_file() or clip.stat().st_size < 10000:
             raise RuntimeError(f"3D avatar clip {index} was not generated.")
         streams = subprocess.check_output([
-            "ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
+            ffprobe_bin(), "-v", "error", "-show_entries", "stream=codec_type",
             "-of", "csv=p=0", str(clip)
-        ], text=True).splitlines()
+        ], text=True, timeout=PROBE_TIMEOUT).splitlines()
         if "video" not in streams or "audio" not in streams:
             raise RuntimeError(f"3D avatar clip {index} must contain decodable video and narration audio.")
         start = float(shot["start_seconds"])

@@ -261,6 +261,7 @@ jobs:
           PY
 
       - name: Upload review-only MP4 and audit files
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: news-review-mp4-issue-${{ inputs.issue_number }}

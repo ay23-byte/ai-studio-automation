@@ -1,4 +1,5 @@
-"""One upload gate for every pipeline: technical, content, source and rights QA.
+"""One upload gate for every pipeline: technical, content, source and rights QA,
+and the human review of the exact file (``core/local_review.py``).
 
 Root cause addressed: only documentaries had a release gate. Shorts could be
 uploaded with a FAIL quality status, a missing file, unsafe script claims or
@@ -109,8 +110,20 @@ def evaluate(row: dict, build_dir: Path | None = None) -> dict:
         check("news_source_verification", verification.get("status") == "PASS",
               f"source verification is '{verification.get('status') or 'missing'}'")
 
+    # Human review: the same rules as the GitHub release workflows.  Checked last,
+    # and only when a video exists, so earlier failures are reported on their own.
+    review = None
+    if exists:
+        from core.local_review import review_status
+        review = review_status(row, build_dir)
+        check("human_review", review["ok"], review["detail"])
+
     return {"job_id": job_id, "format": fmt, "status": "BLOCKED" if blocking else "PASS",
-            "blocking": blocking, "checks": checks}
+            "blocking": blocking, "checks": checks,
+            "human_review": {"approved": bool(review and review["ok"]),
+                             "reviewer": review.get("reviewer") if review else None,
+                             "video_sha256": review.get("video_sha256") if review else None,
+                             "package_dir": review.get("package_dir") if review else None}}
 
 
 def assert_uploadable(row: dict, build_dir: Path | None = None) -> dict:

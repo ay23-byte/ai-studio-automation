@@ -15,6 +15,7 @@ from urllib.parse import quote
 
 import requests
 from datetime import date
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 
 TIMEOUT = 35
 # Authorization failures are stable for the lifetime of one production run.
@@ -100,10 +101,10 @@ def _valid_video(path):
         if path.stat().st_size < 50000:
             return False
         raw = subprocess.check_output(
-            ["ffprobe", "-v", "error", "-show_entries",
+            [ffprobe_bin(), "-v", "error", "-show_entries",
              "format=duration:stream=codec_type,width,height",
              "-of", "json", str(path)], stderr=subprocess.DEVNULL
-        )
+        , timeout=PROBE_TIMEOUT)
         info = json.loads(raw)
         duration = float((info.get("format") or {}).get("duration") or 0)
         stream = next((s for s in info.get("streams", [])
@@ -116,9 +117,9 @@ def _valid_video(path):
 def _video_dimensions(path):
     try:
         raw = subprocess.check_output([
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            ffprobe_bin(), "-v", "error", "-select_streams", "v:0",
             "-show_entries", "stream=width,height", "-of", "json", str(path)
-        ], stderr=subprocess.DEVNULL)
+        ], stderr=subprocess.DEVNULL, timeout=PROBE_TIMEOUT)
         stream = (json.loads(raw).get("streams") or [{}])[0]
         return int(stream.get("width") or 0), int(stream.get("height") or 0)
     except Exception:
@@ -131,17 +132,12 @@ def _download(url, path, metadata):
     try:
         if ".m3u8" in str(url).lower():
             subprocess.run([
-                "ffmpeg", "-y", "-loglevel", "error", "-i", str(url),
+                ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(url),
                 "-c", "copy", "-bsf:a", "aac_adtstoasc", str(path)
             ], check=True, timeout=180)
         else:
-            with requests.get(url, stream=True, timeout=90,
-                              headers={"User-Agent": USER_AGENT}) as response:
-                response.raise_for_status()
-                with path.open("wb") as target:
-                    for chunk in response.iter_content(1024 * 1024):
-                        if chunk:
-                            target.write(chunk)
+            from core.downloads import fetch
+            fetch(url, path, kind="video", headers={"User-Agent": USER_AGENT})
         if not _valid_video(path):
             path.unlink(missing_ok=True)
             return False

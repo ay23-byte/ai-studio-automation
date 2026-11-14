@@ -102,6 +102,24 @@ are kept as an artifact for every outcome.
 
 Making a video public is not part of any workflow. Do it in YouTube Studio.
 
+## Local uploads
+
+`python run.py upload`, the local dashboard's "Upload as Private" button, `run_daily.py
+--upload-latest` and the news runner all go through `core/publish.py`, whose release gate
+now includes a `human_review` check (`core/local_review.py`). It calls the same
+`evaluate_release` as the release workflows, so a local upload needs a package for the
+exact MP4 and complete decisions from its dashboard:
+
+```bash
+python run.py review --id 1                                   # build the package, print the dashboard path
+python run.py upload --id 1 --decisions review_decisions.json  # record the decisions, then upload private
+```
+
+In the local dashboard the same two steps are under "Human review (required before upload)".
+The upload is refused, before any YouTube call, when the package is missing, the decisions
+are missing or incomplete, the video was re-rendered after the review, the package was
+rebuilt, or the decisions belong to another job. `--dry-run` reports the same block.
+
 ## Run it locally
 
 ```bash

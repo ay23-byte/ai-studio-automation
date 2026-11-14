@@ -11,12 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from core.visual_semantics import verify_shot_semantics
+from core.ffmpeg_utils import ffmpeg_bin
 
 
 def _sample_midpoint(video: Path, seconds: float, output: Path) -> str | None:
     output.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
-        ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        [ffmpeg_bin(), "-y", "-hide_banner", "-loglevel", "error",
          "-ss", f"{max(0.0, seconds):.3f}", "-i", str(video),
          "-frames:v", "1", "-q:v", "3", str(output)],
         capture_output=True, text=True, check=False, timeout=60,

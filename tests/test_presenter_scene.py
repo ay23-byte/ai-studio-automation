@@ -37,10 +37,10 @@ class PresenterSceneTests(unittest.TestCase):
             p = Path(td) / "portrait.png"
             Image.new("RGB", (1024, 1024)).save(p)
             calls = []
-            def fake_run(cmd, check):
+            def fake_run(cmd, check, timeout=None):
                 calls.append(cmd)
                 Path(cmd[-1]).write_bytes(b"fake mp4")
-            def fake_output(cmd):
+            def fake_output(cmd, timeout=None):
                 return b"4.000"
             with patch.dict(os.environ, {
                 "PRESENTER_ENABLED": "1", "PRESENTER_IMAGE": str(p)

@@ -93,6 +93,12 @@ class _Sandbox(unittest.TestCase):
                                            "ALLOW_PUBLIC_PUBLISH": "", "TELEGRAM_BOT_TOKEN": "",
                                            "DISCORD_WEBHOOK_URL": "", "SLACK_WEBHOOK_URL": "",
                                            "NOTIFY_WEBHOOK_URL": "", "GITHUB_STEP_SUMMARY": ""})]
+        # These tests cover the automated gates and the upload bookkeeping.  The human
+        # review (real packages and decisions) is covered in tests/test_local_review.py;
+        # here it is a switch: ``self.review["ok"] = False`` withholds the approval.
+        self.review = {"ok": True, "detail": "every item approved by Test Reviewer for this exact file",
+                       "reviewer": "Test Reviewer", "video_sha256": "ab" * 32, "package_dir": "pkg", "blocking": []}
+        patches.append(patch("core.local_review.review_status", side_effect=lambda *a, **k: dict(self.review)))
         for item in patches:
             item.start()
             self.addCleanup(item.stop)
@@ -127,6 +133,16 @@ class ReleaseGateTests(_Sandbox):
         report = release_gate.assert_uploadable(row)
         self.assertEqual(report["status"], "PASS")
         self.assertTrue((self.build / f"job_{row['id']}" / "release_gate.json").is_file())
+
+    def test_no_human_review_blocks_upload_even_when_every_automated_gate_passes(self):
+        row = self.db.get_video(self.make_job())
+        self.review.update(ok=False, detail="no review package exists for this video.", reviewer=None)
+        report = release_gate.evaluate(row)
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertEqual([item.split(":")[0] for item in report["blocking"]], ["human_review"])
+        self.assertFalse(report["human_review"]["approved"])
+        with self.assertRaises(release_gate.ReleaseBlocked):
+            release_gate.assert_uploadable(row)
 
     def test_failed_quality_blocks_upload(self):
         row = self.db.get_video(self.make_job(quality="FAIL"))
@@ -235,6 +251,21 @@ class PublishJobTests(_Sandbox):
         mocks["upload"].assert_not_called()
         with patch.dict(os.environ, {"ALLOW_DUPLICATE_UPLOAD": "1"}):
             self.assertEqual(publish.publish_job(second, notify=False)["youtube_id"], "yt_new")
+
+    def test_unreviewed_job_never_reaches_youtube_and_dry_run_says_so(self):
+        self.review.update(ok=False, detail="the review package has no human decisions yet.", reviewer=None)
+        mocks = self._uploader()
+        for kwargs in ({}, {"dry_run": True}):
+            with self.assertRaises(release_gate.ReleaseBlocked) as caught:
+                publish.publish_job(self.make_job(title=f"Unreviewed video {len(kwargs)}"), notify=False, **kwargs)
+            self.assertIn("human_review", str(caught.exception))
+        mocks["upload"].assert_not_called()
+
+    def test_upload_description_names_the_reviewed_file(self):
+        mocks = self._uploader()
+        publish.publish_job(self.make_job(), notify=False)
+        description = mocks["upload"].call_args.args[2]
+        self.assertIn("AI-STUDIO-REVIEWED-SHA256:" + "ab" * 32, description)
 
     def test_blocked_job_never_reaches_youtube(self):
         mocks = self._uploader()

@@ -389,12 +389,8 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
             continue
         metadata["date_accessed"] = metadata.get("date_accessed") or date.today().isoformat()
         try:
-            with requests.get(url, stream=True, timeout=120) as resp:
-                resp.raise_for_status()
-                with path.open("wb") as target:
-                    for chunk in resp.iter_content(1024 * 1024):
-                        if chunk:
-                            target.write(chunk)
+            from core.downloads import fetch
+            fetch(url, path, kind="video", timeout=(20, 120))
             if path.stat().st_size > 50_000 and _video_ok(path):
                 used.add(f"{provider}:{asset_id}")
                 _write_source_metadata(path, metadata)
@@ -414,10 +410,10 @@ def _video_ok(path):
         if path.stat().st_size < 50_000:
             return False
         out = subprocess.check_output(
-            ["ffprobe", "-v", "error", "-show_entries",
+            [ffprobe_bin(), "-v", "error", "-show_entries",
              "format=duration:stream=codec_type,width,height",
              "-of", "json", str(path)], stderr=subprocess.DEVNULL
-        ).decode("utf-8")
+        , timeout=PROBE_TIMEOUT).decode("utf-8")
         import json
         data = json.loads(out)
         duration = float((data.get("format") or {}).get("duration") or 0)
@@ -521,12 +517,8 @@ def _generate_replicate_video(prompt, path, aspect_ratio):
         if not output_url:
             print("  Replicate video completed but returned no downloadable video URL.")
             return False
-        with requests.get(output_url, stream=True, timeout=120) as download:
-            download.raise_for_status()
-            with Path(path).open("wb") as target:
-                for chunk in download.iter_content(1024 * 1024):
-                    if chunk:
-                        target.write(chunk)
+        from core.downloads import fetch
+        fetch(output_url, Path(path), kind="video", timeout=(20, 120))
         if not _video_ok(Path(path)):
             Path(path).unlink(missing_ok=True)
             print("  Replicate output failed FFprobe video validation.")
@@ -578,6 +570,7 @@ def generate_ai_video(prompt, path, aspect_ratio="9:16"):
 
 # Record scene-image provider outcomes without storing prompts or credentials.
 from core.monitoring import monitored as _monitored
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffprobe_bin
 generate_image = _monitored("image", "generate_image", generate_image)
 fetch_clip = _monitored("stock_video", "fetch_clip", fetch_clip)
 generate_ai_video = _monitored("ai_video", "generate_ai_video", generate_ai_video)

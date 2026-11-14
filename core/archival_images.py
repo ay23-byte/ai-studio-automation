@@ -205,15 +205,8 @@ def fetch_archival_image(query: str, path: str | Path,
     for _score, info, metadata in candidates:
         temp = target.with_name(target.name + ".download")
         try:
-            with requests.get(
-                info["url"], stream=True, timeout=90,
-                headers={"User-Agent": USER_AGENT},
-            ) as response:
-                response.raise_for_status()
-                with temp.open("wb") as handle:
-                    for chunk in response.iter_content(1024 * 1024):
-                        if chunk:
-                            handle.write(chunk)
+            from core.downloads import fetch
+            fetch(info["url"], temp, kind="image", headers={"User-Agent": USER_AGENT})
             with Image.open(temp) as image:
                 image.verify()
             with Image.open(temp) as image:
