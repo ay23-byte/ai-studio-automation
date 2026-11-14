@@ -123,8 +123,9 @@ class LongformReviewPackageTests(unittest.TestCase):
             ({"consistency": {"status": "FAIL", "summary": {"fail_count": 1, "review_count": 0},
                               "shots": [{"shot_id": "shot_0001", "status": "fail", "issues": ["below 640x360"]}]}},
              "technical", "Visual consistency report is 'FAIL'"),
-            ({"consistency": {"status": "PASS", "summary": {"fail_count": 0, "review_count": 2}}},
-             "technical", "review 2"),
+            ({"consistency": {"status": "FAIL", "summary": {"fail_count": 1, "review_count": 0},
+                              "shots": [{"shot_id": "shot_0001", "status": "fail", "issues": ["underexposed"]}]}},
+             "technical", "blocking defects"),
             ({"use_status": "blocked_unclear_licence"}, "assets", "licence register status 'blocked_unclear_licence'"),
             ({"research": False}, "semantic", "no research_verification_report.json"),
             ({"audio": "FAIL"}, "audio", "FAIL"),
@@ -139,6 +140,23 @@ class LongformReviewPackageTests(unittest.TestCase):
                 report = self.qa(root, report_name)
                 self.assertEqual(report["status"], "FAIL")
                 self.assertIn(fragment, " ".join(str(item) for item in report["details"]))
+
+    def test_visual_review_metrics_do_not_fail_technical_qa(self):
+        root, _, summary = self.package(consistency={
+            "status": "REVIEW",
+            "summary": {"fail_count": 0, "review_count": 2, "unavailable_count": 1},
+            "shots": [
+                {"shot_id": "shot_0001", "status": "review", "issues": ["soft focus"]},
+                {"shot_id": "shot_0002", "status": "unavailable", "issues": ["No readable sample frames."]},
+            ],
+        })
+        self.assertEqual(summary["status"], "REVIEW_REQUIRED", summary["errors"])
+        self.assertEqual(self.qa(root, "technical")["status"], "PASS")
+        semantic = self.qa(root, "semantic")
+        self.assertEqual(semantic["status"], "REVIEW")
+        self.assertEqual(semantic["visual_review_count"], 2)
+        self.assertEqual(semantic["visual_unavailable_count"], 1)
+        self.assertIn("soft focus", " ".join(semantic["details"]))
 
     def test_unaccepted_licence_keeps_the_package_unreleasable(self):
         root, _, summary = self.package(licence="All rights reserved")
