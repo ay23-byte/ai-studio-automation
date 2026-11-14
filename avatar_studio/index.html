@@ -147,7 +147,8 @@
       }
       // Record only the canvas video. The source audio remains attached to the avatar for lip-sync,
       // but FFmpeg muxes the original WAV separately; Chromium MediaRecorder has produced
-      // malformed/truncated Opus packets when recording canvas + captured audio together.\n      const videoOnlyStream=new MediaStream([...canvasStream.getVideoTracks()]);
+      // malformed/truncated Opus packets when recording canvas + captured audio together.
+      const videoOnlyStream=new MediaStream([...canvasStream.getVideoTracks()]);
       chunks=[];
       const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8")?"video/webm;codecs=vp8":(MediaRecorder.isTypeSupported("video/webm")?"video/webm":"");
       if(!mime)throw new Error("This browser has no supported WebM recording format.");
