@@ -59,7 +59,12 @@ def inspect_presenter_clip(path: str | Path, expected_duration: float | None = N
     frame_rate = _fps((video or {}).get("avg_frame_rate") or (video or {}).get("r_frame_rate"))
     if video and (width < 256 or height < 256):
         issues.append(f"Presenter resolution is too low ({width}×{height}); minimum is 256×256.")
-    if video and frame_rate is not None and frame_rate < 15:
+    if video and frame_rate is not None and frame_rate < 5:
+        issues.append(
+            f"Presenter frame rate is unusably low ({frame_rate:.2f} fps); "
+            "a talking presenter must contain enough real frames for reviewable motion."
+        )
+    elif video and frame_rate is not None and frame_rate < 15:
         warnings.append(f"Presenter frame rate is low ({frame_rate:.2f} fps).")
     if video_duration <= 0:
         issues.append("Presenter video duration is unavailable.")

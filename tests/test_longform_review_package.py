@@ -19,7 +19,7 @@ class LongformReviewPackageTests(unittest.TestCase):
         self.root = Path(self._temp.name)
 
     def _fixture(self, *, consistency=None, licence="CC BY 4.0", use_status="eligible_pending_human_review",
-                 screening="mismatch", research=True, audio="PASS", ai_presenter=False):
+                 screening="mismatch", research=True, audio="PASS", ai_presenter=False, quality=None):
         build = self.root / "build" / "job_42"
         build.mkdir(parents=True)
         media = build / "shot.mp4"
@@ -61,7 +61,7 @@ class LongformReviewPackageTests(unittest.TestCase):
         reports = {
             "visual_consistency_report.json": consistency or {
                 "status": "PASS", "summary": {"fail_count": 0, "review_count": 0, "unavailable_count": 0}},
-            "quality_report.json": {"status": "PASS"},
+            "quality_report.json": quality or {"status": "PASS"},
         }
         if audio:
             reports["audio_quality_report.json"] = {"status": audio}
@@ -147,6 +147,29 @@ class LongformReviewPackageTests(unittest.TestCase):
                 report = self.qa(root, report_name)
                 self.assertEqual(report["status"], "FAIL")
                 self.assertIn(fragment, " ".join(str(item) for item in report["details"]))
+
+    def test_quality_review_is_not_a_technical_failure_but_release_block_stays_blocking(self):
+        root, _, summary = self.package(quality={
+            "status": "REVIEW",
+            "warnings": ["Repeated sampled frames need human inspection."],
+            "upload_blocked": False,
+        })
+        self.assertEqual(self.qa(root, "technical")["status"], "PASS")
+        self.assertEqual(self.qa(root, "assets")["status"], "REVIEW")
+        self.assertEqual(summary["status"], "REVIEW_REQUIRED")
+
+        self.root = Path(self._temp.name) / "fallback_blocked"
+        self.root.mkdir()
+        root, _, summary = self.package(quality={
+            "status": "REVIEW",
+            "warnings": ["Fallback visual share exceeds the allowed maximum."],
+            "upload_blocked": True,
+            "upload_block_reason": "Fallback visuals are 61.1%; maximum allowed is 35%.",
+        })
+        self.assertEqual(self.qa(root, "technical")["status"], "PASS")
+        self.assertEqual(self.qa(root, "assets")["status"], "FAIL")
+        self.assertEqual(summary["status"], "FAIL")
+        self.assertIn("61.1%", " ".join(self.qa(root, "assets")["details"]))
 
     def test_visual_review_metrics_do_not_fail_technical_qa(self):
         root, _, summary = self.package(consistency={
