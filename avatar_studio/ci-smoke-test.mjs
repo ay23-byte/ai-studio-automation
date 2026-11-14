@@ -57,16 +57,16 @@ try {
   await page.locator("#record").click();
   await page.waitForFunction(() => {
     const status = document.querySelector("#status")?.textContent || "";
-    return status.includes("Recording avatar and narration together") ||
+    return status.includes("Recording avatar video while narration drives lip-sync") ||
       status.includes("Could not record") || status.includes("Recording error");
   }, null, { timeout: 20000 });
   await page.waitForFunction(() => {
     const status = document.querySelector("#status")?.textContent || "";
-    return status.includes("Saved talking_presenter.webm") ||
+    return status.includes("Saved video-only talking_presenter.webm") ||
       status.includes("Could not record") || status.includes("Recording error");
   }, null, { timeout: 60000 });
   const recordingStatus = await page.locator("#status").textContent();
-  if (!recordingStatus?.includes("Saved talking_presenter.webm")) {
+  if (!recordingStatus?.includes("Saved video-only talking_presenter.webm")) {
     throw new Error("Avatar recording did not complete: " + recordingStatus);
   }
   const download = await downloadPromise;
@@ -108,19 +108,19 @@ try {
       readyState: video.readyState
     };
     video.pause();
-    if (result.currentTime <= 0 || result.readyState < 2 || result.audioTracks < 1) {
+    if (result.currentTime <= 0 || result.readyState < 2 || result.audioTracks !== 0) {
       throw new Error("Downloaded WebM did not decode and advance during playback: " + JSON.stringify(result));
     }
     return result;
   }, webmBase64);
-  if (decoded.width <= 0 || decoded.height <= 0 || decoded.currentTime <= 0) {
+  if (decoded.width <= 0 || decoded.height <= 0 || decoded.currentTime <= 0 || decoded.audioTracks !== 0) {
     throw new Error("Downloaded WebM failed playback validation: " + JSON.stringify(decoded));
   }
 
   await page.screenshot({ path: path.join(outputDir, "avatar-preview.png"), fullPage: true });
   fs.writeFileSync(path.join(outputDir, "browser-console-errors.json"), JSON.stringify(errors, null, 2));
   if (errors.length) throw new Error("Browser console errors: " + errors.join("\\n"));
-  console.log("PASS: SDK loaded, avatar rendered, captured narration drove lip-sync, and MediaRecorder exported playable WebM containing video and audio.");
+  console.log("PASS: SDK loaded, avatar rendered, narration drove lip-sync, and MediaRecorder exported playable video-only WebM for later FFmpeg narration muxing.");
   console.log("Canvas:", JSON.stringify(canvasSize));
   console.log("Recording:", JSON.stringify({ bytes: recordingBytes, ...decoded }));
 } catch (error) {

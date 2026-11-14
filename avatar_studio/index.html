@@ -47,7 +47,7 @@
   </section>
   <section class="panel">
     <b>How recording works</b>
-    <p class="note">Recording captures the avatar canvas and the selected narration file directly in the browser. No screen-sharing prompt or tab-audio permission is required. The result is a WebM file with video and narration audio; convert it to MP4 with FFmpeg if your editor requires MP4.</p>
+    <p class="note">Recording captures the avatar canvas as a video-only WebM. The narration is attached to the avatar for lip-sync, then muxed from the original WAV by FFmpeg. Keeping audio out of MediaRecorder avoids Chromium Opus/WebM muxing corruption.</p>
     <p class="note">This is a 3D avatar, not a photo-realistic portrait. Only facial mouth shapes, blinks and brows animate; there is no full-body movement. Hindi/Hinglish lip-sync can be less precise than English.</p>
     <p class="note">The SDK and built-in avatars are MIT-licensed. The avatar/model are fetched from jsDelivr on first use. No avatar account or API key is required. See <a href="https://github.com/InterviewFlowAI/talking-avatar" target="_blank" rel="noreferrer">SDK source and license</a>.</p>
   </section>
@@ -145,11 +145,14 @@
         const videoTrack=canvasStream.getVideoTracks()[0];
         startFramePump(videoTrack);
       }
-      const combined=new MediaStream([...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()]);
+      // Record only the canvas video. The source audio remains attached to the avatar for lip-sync,
+      // but FFmpeg muxes the original WAV separately; Chromium MediaRecorder has produced
+      // malformed/truncated Opus packets when recording canvas + captured audio together.
+      const videoOnlyStream=new MediaStream([...canvasStream.getVideoTracks()]);
       chunks=[];
-      const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")?"video/webm;codecs=vp8,opus":(MediaRecorder.isTypeSupported("video/webm")?"video/webm":"");
+      const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8")?"video/webm;codecs=vp8":(MediaRecorder.isTypeSupported("video/webm")?"video/webm":"");
       if(!mime)throw new Error("This browser has no supported WebM recording format.");
-      recorder=new MediaRecorder(combined,{mimeType:mime});
+      recorder=new MediaRecorder(videoOnlyStream,{mimeType:mime});
       recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
       recorder.onerror=e=>{status("Recording error: "+(e.error?.message||"unknown error"));};
       recorder.onstop=()=>{
@@ -170,10 +173,10 @@
         canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
         canvasStream=null;sourceStream=null;sourceAudio=null;avatar?.detachStream();
         enable("record",true);enable("finish",false);enable("play",true);
-        status("Saved talking_presenter.webm with the avatar video and matching narration audio.");
+        status("Saved video-only talking_presenter.webm. The original narration WAV will be muxed during MP4 conversion.");
       };
       recorder.start(1000);enable("finish",true);
-      status("Recording avatar and narration together…");
+      status("Recording avatar video while narration drives lip-sync…");
       // Register the completion handler before playback. Very short clips can
       // otherwise reach "ended" before the listener is attached.
       sourceAudio.addEventListener("ended",()=>{
