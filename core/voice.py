@@ -110,18 +110,17 @@ def _apply_pronunciation_map(text, mapping=None):
 
 
 def _pause_after(chunk):
-    """Natural pause after a phrase, based on its ending punctuation."""
-    ending = (chunk or "").rstrip()[-1:] 
+    """Natural pause after a phrase; chunk tails are trimmed before joining."""
+    ending = (chunk or "").rstrip()[-1:]
     if ending in ("?", "؟"):
-        return 0.48
+        return 0.30
     if ending == "!":
-        return 0.42
+        return 0.28
     if ending in (".", "।", "…"):
-        return 0.40
+        return 0.26
     if ending in (",", ";", ":", "،"):
-        return 0.22
-    return 0.16
-
+        return 0.18
+    return 0.12
 
 def _prosody(i, n, sentence):
     # Keep one voice across the video; make openings and sentence endings clearer.
