@@ -15,6 +15,29 @@ import requests
 from tests.footage_fixture import make_clip, truncated_copy
 
 
+# The rights text the live API returned for https://www.loc.gov/item/mp73013300/ on 2026-11-12,
+# word for word. The Library attaches this same text to every National Screening Room film.
+LOC_COLLECTION_RIGHTS = (
+    "The Library of Congress is not aware of any U.S. copyright or other restrictions in the vast majority of "
+    "motion pictures in these collections. Absent any such restrictions, these materials are free to use and "
+    "reuse.\r\nIn rare cases, copyrighted motion pictures are made available by special permission to the "
+    "Library and may be used only for educational purposes. For example, the Gershwin home movies fall within "
+    "this category. Rights assessment is your responsibility. No registration information exists for some "
+    "titles, and reproduction of some titles may be restricted by privacy rights, publicity rights, licensing "
+    "and trademarks. Additionally, some works may still be protected by copyright in the United States or some "
+    "foreign countries. The written permission of the copyright owners in materials not in the public domain "
+    "is required for distribution, reproduction, or other use of protected items beyond that allowed by fair "
+    "use or other statutory exemptions.\r\nWhenever possible, we provide information that we have about "
+    "copyright owners and related matters in the catalog records, finding aids and other texts that accompany "
+    "collections. You should consult the catalog information that accompanies each item for specific "
+    "information. This catalog data provides the details known to the Library of Congress regarding the "
+    "corresponding item and may assist you in making independent assessments of the legal status of these "
+    "items for their desired uses. You should also consult restrictions associated with donations to the "
+    "Library.\r\nCredit Line: Library of Congress, Motion Picture, Broadcasting, and Recorded Sound Division."
+    "\r\nMore about Copyright and other Restrictions.\r\nFor guidance about compiling full citations consult "
+    "Citing Primary Sources.")
+
+
 class FakeResponse:
     def __init__(self, status=200, *, payload=None, body=b"", headers=None, content_type=None):
         self.status_code = status
@@ -147,10 +170,8 @@ class FakeWeb:
                     "item": {"created_published": [f"United States : Thomas A. Edison, Inc., {year}."]},
                     "resources": [{"files": 1, "video": url, "width": 640, "height": 360, "duration": 4,
                                    "url": f"https://www.loc.gov/resource/ntscrm.{item_id}/"}]},
-            "rights": {"item.rights": [rights or (
-                "The Library of Congress is not aware of any U.S. copyright or other restrictions in the vast "
-                "majority of motion pictures in these collections. Rights assessment is your responsibility. "
-                "Credit Line: Library of Congress, Motion Picture, Broadcasting, and Recorded Sound Division.")]},
+            "rights": {"item.access_advisory": {}, "item.rights": [rights or LOC_COLLECTION_RIGHTS],
+                       "item.rights_advisory": {}, "item.rights_information": {}},
         })
 
     def add_dvids(self, number, title, description, **clip):

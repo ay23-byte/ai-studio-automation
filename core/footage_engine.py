@@ -233,12 +233,12 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
         metadata["licence_reason"] = decision["reason"]
         if decision["state"] not in PUBLISHABLE_STATES:
             rejected[f"licence {decision['state']}"] += 1
-            report.add(provider.name, "licence_rejections")
+            report.reject(provider.name, f"licence {decision['state']}: {decision['reason']}"[:140])
             continue
         gaps = provenance_gaps(metadata, decision)
         if gaps:
             rejected["source record incomplete (" + ", ".join(gaps) + ")"] += 1
-            report.add(provider.name, "licence_rejections")
+            report.reject(provider.name, "source record incomplete: " + ", ".join(gaps))
             continue
         floor = provider.min_relevance if provider.min_relevance is not None else min_relevance
         if candidate["relevance"] < floor:

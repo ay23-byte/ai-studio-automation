@@ -105,6 +105,7 @@ def reset_run_state():
         _HOST_NETWORK_FAILURES.clear()
         _HOST_LAST_REQUEST.clear()
         _JSON_CACHE.clear()
+        _DVIDS_RUN.update(headers=None, legacy_tried=False)
     stock = sys.modules.get("core.images")
     if stock is not None and hasattr(stock, "reset_stock_state"):
         stock.reset_stock_state()
@@ -350,9 +351,15 @@ def _has_video_suffix(url, suffixes=(".mp4", ".mov", ".m4v", ".webm", ".ogv")):
 
 def _plain(value, limit=600):
     """Provider text without markup, collapsed and bounded."""
-    if isinstance(value, (list, tuple)):
-        value = " ".join(str(item) for item in value if item)
-    text = re.sub(r"<[^>]+>", " ", str(value or ""))
+    def flatten(item):
+        # Providers nest lists (and empty objects) inside list fields; join the text, drop the rest.
+        if isinstance(item, (list, tuple)):
+            return " ".join(part for part in (flatten(child) for child in item) if part)
+        if isinstance(item, dict):
+            return " ".join(part for part in (flatten(child) for child in item.values()) if part)
+        return str(item) if item not in (None, "") else ""
+
+    text = re.sub(r"<[^>]+>", " ", flatten(value))
     return " ".join(text.split())[:limit]
 
 
@@ -481,6 +488,13 @@ def _count(field, amount=1):
         report.add(name, field, amount)
 
 
+def _reject(reason, *, licence=True):
+    """Record why a search result is not offered. ``licence=False`` for non-rights reasons."""
+    name, report = active_scope()
+    if report is not None and name:
+        report.reject(name, reason, licence=licence)
+
+
 def _accept(metadata):
     """Classify the licence once, record it on the lead, and say whether it may be used."""
     from core.footage_licence import attribution_line, classify_licence
@@ -494,7 +508,7 @@ def _accept(metadata):
     metadata.setdefault("date_accessed", date.today().isoformat())
     metadata.setdefault("media_type", "video")
     if not decision["publishable"]:
-        _count("licence_rejections")
+        _reject(f"licence {decision['state']}: {decision['reason']}"[:140])
         return False
     if not metadata.get("attribution_text"):
         metadata["attribution_text"] = attribution_line(metadata, decision)
@@ -548,10 +562,10 @@ def _nasa(query):
             third_party = _THIRD_PARTY_MARKERS.search(rights_text)
             explicit_public_domain = bool(re.search(r"public domain", rights_text, re.I))
             if third_party and not explicit_public_domain:
-                _count("licence_rejections")
+                _reject("item text names a third party or copyright holder")
                 continue
             if not (center or explicit_public_domain):
-                _count("licence_rejections")
+                _reject("no NASA centre recorded for the item")
                 continue
             metadata = {
                 "provider": "NASA", "asset_id": nasa_id or None,
@@ -699,7 +713,7 @@ def _internet_archive(query):
                 continue
             item = detail.get("metadata") or {}
             if str(item.get("access-restricted-item") or "").lower() == "true":
-                _count("licence_rejections")
+                _reject("item is access-restricted")
                 continue
             licence_url = str(_first(item.get("licenseurl")) or _first(doc.get("licenseurl")) or "").strip()
             from core.footage_licence import parse_creative_commons
@@ -738,11 +752,36 @@ _LOC_NO_KNOWN = re.compile(
     r"public domain|no (?:u\.?s\.? )?copyright restrictions", re.I)
 
 
+# The Library attaches one general rights text to every film of a collection. Its
+# sentences about "rare cases", "some titles" and "some works" describe the collection,
+# not the item, so they must not be read as a restriction on the item itself.
+_LOC_GENERAL_SENTENCE = re.compile(
+    r"in rare cases|for example|some titles|some works|in the vast majority|"
+    r"rights assessment is your responsibility|materials not in the public domain|"
+    r"whenever possible|you should (?:also )?consult|this catalog data|more about copyright|"
+    r"for guidance about", re.I)
+# Unpublished films (home movies, amateur footage) are not public domain by publication date.
+_LOC_UNPUBLISHED = re.compile(r"home movies?|amateur (?:film|footage|motion picture)|unpublished", re.I)
+
+
+def _loc_item_restriction(rights_text):
+    """The sentence that restricts this item, or "" when only general cautions are present."""
+    for sentence in re.split(r"(?<=[.!?])\s+|[\r\n]+", str(rights_text or "")):
+        if not sentence.strip() or _LOC_GENERAL_SENTENCE.search(sentence):
+            continue
+        if _LOC_RESTRICTIVE.search(sentence):
+            return sentence.strip()[:160]
+    return ""
+
+
 def _loc_rights_basis(hit):
     """Item-level reason, from the catalogue record, that the film is free to reuse in the US."""
     from core.footage_licence import us_public_domain_cutoff_year
     record = hit.get("item") if isinstance(hit.get("item"), dict) else {}
     published = _plain(record.get("created_published") or hit.get("created_published"), 300)
+    described = _plain([hit.get("title"), record.get("genre"), record.get("notes"), record.get("medium")], 4000)
+    if _LOC_UNPUBLISHED.search(described):
+        return ""
     years = [int(year) for year in re.findall(r"\b(1[89]\d\d|20\d\d)\b", f"{hit.get('date') or ''} {published}")]
     if not years:
         return ""
@@ -805,20 +844,24 @@ def _loc(query):
             if not rights_text:
                 detail = _get_json(page_url, {"fo": "json", "at": "item.rights,item.rights_advisory,"
                                                                   "item.rights_information,item.access_advisory"})
+                if detail is None:
+                    # The item record could not be read (rate limit, block or network). That is
+                    # not a licence refusal; say so, and stop asking a host that was switched off.
+                    _reject("item rights record could not be fetched", licence=False)
+                    if _host_of(page_url) in _DISABLED_PROVIDER_HOSTS:
+                        break
+                    continue
                 rights_text = _plain([(detail or {}).get(key) for key in (
                     "item.rights", "item.rights_advisory", "item.rights_information", "item.access_advisory")], 3000)
                 if not rights_text and isinstance((detail or {}).get("item"), dict):
                     rights_text = _plain([detail["item"].get(key) for key in (
                         "rights", "rights_advisory", "rights_information", "access_advisory")], 3000)
             if not rights_text or not _LOC_NO_KNOWN.search(rights_text):
-                _count("licence_rejections")
+                _reject("item record has no 'no known restrictions' statement")
                 continue
-            # A general "rights assessment is your responsibility" caution is on every
-            # record; only a stated restriction on this item is a bar.
-            cautions = re.sub(r"rights assessment is your responsibility[^.]*\.", " ", rights_text, flags=re.I)
-            cautions = re.sub(r"in the vast majority[^.]*\.", " ", cautions, flags=re.I)
-            if _LOC_RESTRICTIVE.search(cautions):
-                _count("licence_rejections")
+            restriction = _loc_item_restriction(rights_text)
+            if restriction:
+                _reject("item record states a restriction")
                 continue
             resource = next((item for item in hit.get("resources") or [] if isinstance(item, dict)), {})
             contributors = hit.get("contributor") or []
@@ -867,10 +910,10 @@ def _nara(query):
         # An unrestricted access flag is NOT a copyright licence. Require an
         # explicit public-domain / US-government-work statement in item metadata.
         if str(restriction).lower() not in {"unrestricted", "unrestricted use"}:
-            _count("licence_rejections")
+            _reject(f"use restriction is {str(restriction or 'not stated')[:40]!r}, not 'Unrestricted'")
             continue
         if not re.search(r"public domain|work of the u\.s\. federal government|\bu\.s\. government work\b", notes, re.I):
-            _count("licence_rejections")
+            _reject("use is Unrestricted but the record has no public-domain or US-government-work statement")
             continue
         naid = record.get("naId") or hit.get("_id")
         page = f"https://catalog.archives.gov/id/{naid}" if naid else ""
@@ -906,10 +949,53 @@ def _dvids_key():
         return os.getenv("DVIDS_API_KEY", "").strip()
 
 
+# The Referer the previous version of this adapter sent with every DVIDS request.
+DVIDS_LEGACY_REFERER = "https://api.dvidshub.net"
+_DVIDS_RUN = {"headers": None, "legacy_tried": False}
+
+
 def _dvids_headers():
     """DVIDS binds some keys to a registered origin; send it only when the operator set one."""
     origin = os.getenv("DVIDS_API_REFERER", "").strip()
-    return {"Referer": origin, "Origin": origin.rstrip("/")} if origin else None
+    if origin:
+        return {"Referer": origin, "Origin": origin.rstrip("/")}
+    return _DVIDS_RUN["headers"]
+
+
+def _dvids_get(url, params):
+    """DVIDS request. A 403 without a Referer is retried once with the earlier fixed Referer.
+
+    DVIDS issues two kinds of key: one that must be sent with no Referer and one bound to a
+    registered origin. Which kind the operator holds is not knowable from the key, so the
+    run finds out once and the report states which form the key accepted.
+    """
+    host = "api.dvidshub.net"
+    headers = _dvids_headers()
+    data = _get_json(url, params, headers)
+    refused = _HOST_DISABLED_REASON.get(host, "").startswith("HTTP 403")
+    if data is not None or headers is not None or _DVIDS_RUN["legacy_tried"] or not refused:
+        return data
+    _DVIDS_RUN["legacy_tried"] = True
+    with _STATE_LOCK:
+        _DISABLED_PROVIDER_HOSTS.discard(host)
+        first_reason = _HOST_DISABLED_REASON.pop(host, "")
+    legacy = {"Referer": DVIDS_LEGACY_REFERER}
+    data = _get_json(url, params, legacy)
+    name, report = active_scope()
+    if data is None:
+        note = (f"{first_reason} The request was refused both without a Referer and with the earlier "
+                f"fixed Referer {DVIDS_LEGACY_REFERER}, so the key itself is not accepted.")
+        _disable_host(host, note)
+        if report is not None:
+            report.fail(name or "DVIDS", note, search_status="auth_rejected")
+        return None
+    _DVIDS_RUN["headers"] = legacy
+    note = (f"DVIDS refused the key without a Referer and accepted it with Referer {DVIDS_LEGACY_REFERER}. "
+            "Set DVIDS_API_REFERER to the origin registered for the key to make this explicit.")
+    print(f"  {note}")
+    if report is not None:
+        report.auth_recovered(name or "DVIDS", note)
+    return data
 
 
 def _dvids_files(asset, limit_bytes):
@@ -942,13 +1028,12 @@ def _dvids(query):
     api_key = _dvids_key()
     if not api_key:
         return []
-    headers = _dvids_headers()
     limit_bytes = clip_size_limit_mb() * 1024 * 1024
     results = []
     for page in range(1, _search_pages() + 1):
-        data = _get_json("https://api.dvidshub.net/search", {
+        data = _dvids_get("https://api.dvidshub.net/search", {
             "api_key": api_key, "q": query, "type": "video", "max_results": 15, "page": page,
-        }, headers)
+        })
         hits = [hit for hit in (data or {}).get("results") or []
                 if str(hit.get("type") or "").lower() == "video" or str(hit.get("id") or "").startswith("video:")]
         _count("results_found", len(hits))
@@ -959,7 +1044,7 @@ def _dvids(query):
             page_url = _secure_url(hit.get("url"))
             if not asset_id or not page_url:
                 continue
-            detail = _get_json("https://api.dvidshub.net/asset", {"id": asset_id, "api_key": api_key}, headers)
+            detail = _dvids_get("https://api.dvidshub.net/asset", {"id": asset_id, "api_key": api_key})
             asset = (detail or {}).get("results") or {}
             if isinstance(asset, list):
                 asset = asset[0] if asset else {}

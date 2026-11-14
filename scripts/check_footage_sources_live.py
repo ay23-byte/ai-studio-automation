@@ -128,6 +128,11 @@ def run_checks(query, min_total=1, providers=None):
             entry_report["reason"] = failure
         if facts.get("http_status_counts"):
             entry_report["http_status_counts"] = dict(facts["http_status_counts"])
+        if facts.get("rejection_reasons"):
+            entry_report["results_found"] = facts.get("results_found", 0)
+            entry_report["rejection_reasons"] = dict(facts["rejection_reasons"])
+        if facts.get("auth_note"):
+            entry_report["auth_note"] = facts["auth_note"]
         report.append(entry_report)
     footage_report.end_run()
     result = {
@@ -160,7 +165,12 @@ def annotate(result):
             detail += f"; {item['reason']}"
         if item.get("errors"):
             detail += f"; {item['errors'][0]}"
-        detail = detail.replace("%", "%25").replace("\r", " ").replace("\n", " ")[:900]
+        reasons = sorted((item.get("rejection_reasons") or {}).items(), key=lambda pair: -pair[1])
+        if reasons:
+            detail += "; not offered: " + "; ".join(f"{count} x {reason}" for reason, count in reasons[:3])
+        if item.get("auth_note"):
+            detail += f"; {item['auth_note']}"
+        detail = detail.replace("%", "%25").replace("\r", " ").replace("\n", " ")[:1400]
         print(f"::{level} title=Footage search {item.get('provider')}::{detail} (search only; nothing downloaded)")
 
 

@@ -81,7 +81,8 @@ def classify(entry: dict) -> tuple[str, str]:
     if entry.get("auth_status") == "missing_key":
         return NOT_CONFIGURED, entry.get("disabled_reason") or "the API key is not set"
     counts = entry.get("http_status_counts") or {}
-    if entry.get("auth_status") == "rejected" or any(code in counts for code in ("401", "403")):
+    refused = any(code in counts for code in ("401", "403")) and "200" not in counts
+    if entry.get("auth_status") == "rejected" or refused:
         return AUTH_FAILED, reason or "the provider refused the credentials"
     search_status = str(entry.get("search_status") or "")
     if search_status == "rate_limited" or "429" in counts:
@@ -248,10 +249,15 @@ def _annotate(verification: dict):
                        f"licence-refused {counters.get('licence_rejections', 0)}, downloads "
                        f"{counters.get('download_successes', 0)}/{counters.get('download_attempts', 0)}, "
                        f"invalid {counters.get('invalid_media', 0)}, HTTP {counters.get('http_status_counts') or {}}")
+            reasons = sorted((counters.get("rejection_reasons") or {}).items(), key=lambda pair: -pair[1])
+            if reasons:
+                detail += " | not offered: " + "; ".join(f"{count} x {reason}" for reason, count in reasons[:3])
+            if counters.get("auth_note"):
+                detail += f" | {counters['auth_note']}"
             if item.get("scene_reason") and not asset:
                 detail += f" | {item['scene_reason']}"
         level = "notice" if item.get("status") in (LIVE_VERIFIED, MANUAL_ONLY, NOT_CONFIGURED) else "warning"
-        print(f"::{level} title=Footage provider {item.get('provider')}::{clean(item.get('status'))}: {clean(detail)[:900]}")
+        print(f"::{level} title=Footage provider {item.get('provider')}::{clean(item.get('status'))}: {clean(detail)[:1400]}")
     selection = verification.get("selection")
     if selection:
         print("::notice title=Footage multi-scene selection::" + clean(

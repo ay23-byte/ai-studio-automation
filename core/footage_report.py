@@ -49,6 +49,7 @@ def _new_provider_entry(name: str) -> dict:
         "download_successes": 0,
         "invalid_media": 0,
         "licence_rejections": 0,
+        "rejection_reasons": {},    # why results were not offered, with counts
         "eligible_assets": 0,
         "selected_scenes": 0,
         "retries": 0,
@@ -83,6 +84,16 @@ class ProviderReport:
             entry = self.provider(name)
             entry[field] = int(entry.get(field) or 0) + amount
 
+    def reject(self, name: str, reason: str, *, licence: bool = True, amount: int = 1):
+        """Count a result that was not offered, under a short reason a person can act on."""
+        with self._lock:
+            entry = self.provider(name)
+            reasons = entry.setdefault("rejection_reasons", {})
+            key = redact(str(reason))[:140]
+            reasons[key] = int(reasons.get(key) or 0) + amount
+            if licence:
+                entry["licence_rejections"] = int(entry.get("licence_rejections") or 0) + amount
+
     def http_status(self, name: str, status: int):
         with self._lock:
             entry = self.provider(name)
@@ -93,6 +104,16 @@ class ProviderReport:
                 entry["auth_status"] = "rejected"
             elif status == 200 and entry["auth_status"] in ("unknown", "configured"):
                 entry["auth_status"] = "configured" if entry["auth_status"] == "configured" else entry["auth_status"]
+
+    def auth_recovered(self, name: str, note: str):
+        """A refused request succeeded in another documented form; keep the note, not the failure."""
+        with self._lock:
+            entry = self.provider(name)
+            entry["auth_status"] = "configured"
+            entry["auth_note"] = redact(note)[:400]
+            entry["failure_reason"] = ""
+            if entry["search_status"] == "auth_rejected":
+                entry["search_status"] = "not_attempted"
 
     def fail(self, name: str, reason: str, *, search_status: str | None = None):
         """Record the most recent failure reason; an earlier success is not erased."""
@@ -199,6 +220,15 @@ def render_markdown(data: dict) -> str:
             entry.get("licence_rejections"), entry.get("eligible_assets"), entry.get("selected_scenes"),
             entry.get("retries"), entry.get("failure_reason") or entry.get("disabled_reason"),
         )) + " |")
+    refusals = [(entry.get("provider"), entry.get("rejection_reasons") or {}) for entry in data.get("providers") or []]
+    if any(reasons for _name, reasons in refusals):
+        lines += ["", "## Why results were not offered", ""]
+        for name, reasons in refusals:
+            for reason, count in sorted(reasons.items(), key=lambda item: -item[1]):
+                lines.append(f"- {_cell(name)}: {count} × {_cell(reason)}")
+    notes = [(entry.get("provider"), entry.get("auth_note")) for entry in data.get("providers") or [] if entry.get("auth_note")]
+    for name, note in notes:
+        lines += ["", f"Note for {_cell(name)}: {_cell(note)}"]
     share = summary.get("selected_by_provider") or {}
     if share:
         lines += ["", "## Footage selected, by provider", ""]

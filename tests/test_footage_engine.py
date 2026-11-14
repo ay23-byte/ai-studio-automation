@@ -22,7 +22,7 @@ from core.asset_licensing import build_licence_register
 from core.footage_engine import Provider, acquire
 from core.footage_licence import classify_licence, parse_creative_commons, provenance_gaps
 from core.footage_validation import validate_media
-from tests.footage_fake_web import FakeResponse, FakeWeb
+from tests.footage_fake_web import LOC_COLLECTION_RIGHTS, FakeResponse, FakeWeb
 from tests.footage_fixture import have_ffmpeg, make_clip, truncated_copy
 
 needs_ffmpeg = unittest.skipUnless(have_ffmpeg(), "FFmpeg/FFprobe are required to build and probe real clips")
@@ -217,6 +217,104 @@ class ProviderHttpTests(_Temp):
     def response(self, status, payload=None, headers=None):
         return FakeResponse(status, payload=payload, headers=headers,
                             body=b"" if payload is not None else b"error", content_type=None if payload is not None else "text/plain")
+
+    def loc_hit(self, **item):
+        record = {"created_published": ["United States : Thomas A. Edison, Inc., 1905."]}
+        record.update(item)
+        return {"id": "http://www.loc.gov/item/mp73013300/", "url": "https://www.loc.gov/item/mp73013300/",
+                "title": item.pop("title", "Empire State Express, the second, taking water on the fly"),
+                "description": ["A steam locomotive takes water on the fly."], "date": "1905",
+                "access_restricted": False, "contributor": ["thomas a. edison, inc"], "item": record,
+                "resources": [{"video": "https://tile.loc.gov/storage-services/service/mbrs/ntscrm/01875851/01875851.mp4",
+                               "width": 1920, "height": 1080, "duration": 98}]}
+
+    def loc_search(self, hit, rights):
+        def answer(url, params=None, headers=None, timeout=None, **_kwargs):
+            if "/item/" in url:
+                return self.response(200, {"item.rights": [rights], "item.rights_advisory": {}})
+            return self.response(200, {"results": [hit], "pagination": {"next": None}})
+        with patch.object(fs.requests, "get", side_effect=answer), patch.object(fs.time, "sleep"), \
+                footage_report.provider_scope("Library of Congress", self.report):
+            return fs._loc("steam locomotive")
+
+    def test_library_of_congress_collection_rights_text_does_not_refuse_a_dated_film(self):
+        # The live text speaks of "copyrighted motion pictures" in "rare cases". That describes
+        # the collection; read as a bar on the item it refused every film the Library offers.
+        results = self.loc_search(self.loc_hit(), LOC_COLLECTION_RIGHTS)
+        self.assertEqual(len(results), 1)
+        url, metadata = results[0]
+        self.assertTrue(url.endswith("01875851.mp4"))
+        self.assertIn("1905", metadata["rights_basis"])
+        self.assertEqual(metadata["declared_height"], 1080)
+        decision = classify_licence(metadata)
+        self.assertTrue(decision["publishable"], decision)
+        self.assertEqual(provenance_gaps(metadata, decision), [])
+        self.assertEqual(self.report.provider("Library of Congress")["licence_rejections"], 0)
+
+    def test_library_of_congress_item_restriction_is_still_refused_and_named(self):
+        text = LOC_COLLECTION_RIGHTS + "\r\nThis film is copyrighted and permission is required for any reuse."
+        self.assertEqual(self.loc_search(self.loc_hit(), text), [])
+        entry = self.report.provider("Library of Congress")
+        self.assertEqual(entry["rejection_reasons"], {"item record states a restriction": 1})
+        self.assertEqual(entry["licence_rejections"], 1)
+
+    def test_library_of_congress_home_movie_is_not_public_domain_by_its_date(self):
+        # Publication date makes a film public domain; an unpublished home movie has none.
+        hit = self.loc_hit(genre=["Home movies"], created_published=["1928."])
+        hit["date"] = "1928"
+        results = self.loc_search(hit, LOC_COLLECTION_RIGHTS)
+        for _url, metadata in results:
+            self.assertEqual(metadata["rights_basis"], "")
+            self.assertIn("rights basis", " ".join(provenance_gaps(metadata, classify_licence(metadata))).lower())
+
+    def test_library_of_congress_unreadable_item_record_is_not_called_a_licence_refusal(self):
+        def answer(url, params=None, headers=None, timeout=None, **_kwargs):
+            if "/item/" in url:
+                return self.response(429, headers={"Retry-After": "1200"})
+            return self.response(200, {"results": [self.loc_hit(), dict(self.loc_hit(), url="https://www.loc.gov/item/other/")],
+                                       "pagination": {"next": None}})
+        with patch.object(fs.requests, "get", side_effect=answer) as get, patch.object(fs.time, "sleep"), \
+                footage_report.provider_scope("Library of Congress", self.report):
+            self.assertEqual(fs._loc("steam locomotive"), [])
+        entry = self.report.provider("Library of Congress")
+        self.assertEqual(entry["licence_rejections"], 0)
+        self.assertEqual(entry["rejection_reasons"], {"item rights record could not be fetched": 1})
+        self.assertEqual(entry["search_status"], "rate_limited")
+        self.assertEqual(get.call_count, 2, "a provider that asked for a long wait is not asked again")
+
+    def dvids_run(self, accept_legacy):
+        seen = []
+
+        def answer(url, params=None, headers=None, timeout=None, **_kwargs):
+            seen.append(dict(headers or {}).get("Referer"))
+            if dict(headers or {}).get("Referer") == fs.DVIDS_LEGACY_REFERER and accept_legacy:
+                return self.response(200, {"results": [], "page_info": {"total_results": 0}})
+            return self.response(403)
+        with patch.dict(os.environ, {"DVIDS_API_KEY": "key-test", "DVIDS_API_REFERER": ""}), \
+                patch.object(fs.requests, "get", side_effect=answer), patch.object(fs.time, "sleep"), \
+                footage_report.provider_scope("DVIDS", self.report):
+            fs._dvids("army engineers bridge")
+            fs._dvids("flood rescue helicopter")
+        return seen, self.report.provider("DVIDS")
+
+    def test_dvids_key_bound_to_the_earlier_referer_keeps_working_and_says_so(self):
+        seen, entry = self.dvids_run(accept_legacy=True)
+        self.assertEqual(seen, [None, fs.DVIDS_LEGACY_REFERER, fs.DVIDS_LEGACY_REFERER])
+        self.assertEqual(entry["auth_status"], "configured")
+        self.assertEqual(entry["failure_reason"], "")
+        self.assertIn("DVIDS_API_REFERER", entry["auth_note"])
+        self.assertNotIn("api.dvidshub.net", fs._DISABLED_PROVIDER_HOSTS)
+        from scripts.verify_footage_providers import AUTH_FAILED, classify
+        self.assertNotEqual(classify(entry)[0], AUTH_FAILED)
+
+    def test_dvids_key_refused_in_both_forms_is_reported_as_a_key_problem(self):
+        seen, entry = self.dvids_run(accept_legacy=False)
+        self.assertEqual(seen, [None, fs.DVIDS_LEGACY_REFERER], "two forms tried once, then the provider is left alone")
+        self.assertEqual(entry["auth_status"], "rejected")
+        self.assertIn("both", entry["failure_reason"])
+        self.assertIn("api.dvidshub.net", fs._DISABLED_PROVIDER_HOSTS)
+        from scripts.verify_footage_providers import AUTH_FAILED, classify
+        self.assertEqual(classify(entry)[0], AUTH_FAILED)
 
     @patch.object(fs.time, "sleep")
     @patch.object(fs.requests, "get")
@@ -739,9 +837,10 @@ class SyntheticDocumentaryTests(_Temp):
         self.assertIn("unreachable", by_name["Pixabay"]["disabled_reason"])
         # An unreachable provider is tried for two searches (three attempts each), then left alone.
         self.assertEqual(len([call for call in web.calls if call[0] == "pixabay.com"]), 6)
-        # Each refused provider was asked once, not once per scene.
-        for host in ("api.dvidshub.net", "www.loc.gov", "api.europeana.eu"):
-            self.assertEqual(len([call for call in web.calls if call[0] == host]), 1, host)
+        # Each refused provider was asked once, not once per scene. DVIDS is asked twice in
+        # total: once with no Referer and once with the earlier fixed Referer.
+        for host, expected in (("api.dvidshub.net", 2), ("www.loc.gov", 1), ("api.europeana.eu", 1)):
+            self.assertEqual(len([call for call in web.calls if call[0] == host]), expected, host)
         chosen = {scene["scene"]: (scene.get("selected") or {}).get("provider") for scene in data["scenes"]}
         self.assertEqual(chosen["launch"], "NASA")
         self.assertEqual(chosen["locomotive"], "Wikimedia Commons")
