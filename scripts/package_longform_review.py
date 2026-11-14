@@ -144,7 +144,7 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
         if (build / name).is_file():
             packaging.copy_into(build / name, root, f"evidence/{name}")
 
-    scenes, preview_count, screening_counts, licence_blocks = [], 0, {}, []
+    scenes, preview_count, screening_counts, licence_blocks, licence_review_notes = [], 0, {}, [], []
     for index, shot in enumerate(shots, 1):
         if not isinstance(shot, dict):
             raise ValueError(f"Visual review shot {index} is not an object.")
@@ -168,8 +168,16 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
             licence_row=row)
         if row:
             rights["register_use_status"] = row.get("use_status")
-            if (row.get("use_status") != "eligible_pending_human_review"
-                    or str(row.get("fallback_required") or "").strip().lower() in {"true", "1", "yes"}):
+            use_status = str(row.get("use_status") or "")
+            fallback_required = str(row.get("fallback_required") or "").strip().lower() in {"true", "1", "yes"}
+            if use_status == "ai_reconstruction_disclosure_and_terms_review" and not fallback_required:
+                # AI presenter clips have no third-party source licence row to mark
+                # eligible. Preserve a human terms/disclosure review instead of
+                # misclassifying a correctly declared AI asset as unknown provenance.
+                licence_review_notes.append(
+                    f"{shot_id}: AI-generated presenter; verify provider/avatar terms and keep the AI disclosure."
+                )
+            elif use_status != "eligible_pending_human_review" or fallback_required:
                 licence_blocks.append(f"{shot_id}: licence register status {row.get('use_status')!r}"
                                       + (", fallback required" if row.get("fallback_required") else ""))
         else:
@@ -242,8 +250,9 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
         licence_blocks.append("credits.txt is missing or empty.")
     packaging.write_qa(
         root, "assets", "FAIL" if licence_blocks else "REVIEW",
-        licence_blocks[:20] + ["The licence register is an eligibility assessment, not approval.",
-                               "A human must open each original source and confirm the exact terms."])
+        licence_blocks[:20] + licence_review_notes[:20] +
+        ["The licence register is an eligibility assessment, not approval.",
+         "A human must open each original source and confirm the exact terms."])
 
     probe = contract.probe_video(root / "video.mp4")
     if preview_count == 0:
