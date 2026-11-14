@@ -65,13 +65,21 @@ def _technical_failures(build: Path) -> list[str]:
         failures.append("The build produced no visual_consistency_report.json.")
     else:
         counts = {key: int(summary.get(key) or 0) for key in ("fail_count", "review_count", "unavailable_count")}
-        if str(consistency.get("status") or "").upper() != "PASS" or any(counts.values()):
+        state = str(consistency.get("status") or "").upper()
+        # Only objective severe defects are technical blockers. The visual audit
+        # explicitly classifies low contrast, soft focus, relative outliers and
+        # unreadable/missing samples as REVIEW/unavailable: those are human
+        # inspection tasks, not proof that the MP4 stream is technically broken.
+        if state not in {"PASS", "REVIEW", "FAIL"}:
+            failures.append(f"Visual consistency report has unknown status {state!r}.")
+        elif state == "FAIL" or counts["fail_count"]:
             shots = [f"{row.get('shot_id')}: {'; '.join(row.get('issues') or [])}"
                      for row in (consistency.get("shots") or []) if row.get("status") == "fail"][:8]
-            failures.append(f"Visual consistency report is {consistency.get('status')!r} "
+            failures.append(f"Visual consistency report has blocking defects "
                             f"(fail {counts['fail_count']}, review {counts['review_count']}, "
                             f"unavailable {counts['unavailable_count']})"
                             + (": " + " | ".join(shots) if shots else "."))
+
     return failures
 
 
@@ -197,13 +205,31 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
 
     research, research_problems = _research(build)
     flagged = sum(count for state, count in screening_counts.items() if state != "match")
+    consistency = packaging.load_json(build / "visual_consistency_report.json")
+    consistency_summary = consistency.get("summary") if isinstance(consistency.get("summary"), dict) else {}
+    visual_review_count = int(consistency_summary.get("review_count") or 0)
+    visual_unavailable_count = int(consistency_summary.get("unavailable_count") or 0)
+    visual_review_notes = []
+    if visual_review_count or visual_unavailable_count:
+        visual_review_notes.append(
+            f"Visual quality inspection required: {visual_review_count} shot(s) flagged for human inspection; "
+            f"{visual_unavailable_count} shot(s) had no measurable sample frame."
+        )
+        for row in (consistency.get("shots") or []):
+            if isinstance(row, dict) and row.get("status") in {"review", "unavailable"}:
+                visual_review_notes.append(
+                    f"{row.get('shot_id', 'unknown')}: {'; '.join(row.get('issues') or [])}"
+                )
     packaging.write_qa(
         root, "semantic", "FAIL" if research_problems else "REVIEW",
-        research_problems + [
+        research_problems + visual_review_notes + [
             f"AI visual-to-narration screening: {json.dumps(screening_counts, sort_keys=True)}.",
             f"{flagged} shot(s) were not rated a match; each needs a written human decision.",
             "Screening is a model opinion, not approval. Source links are leads, not proof of a claim."],
-        screening_counts=screening_counts)
+        screening_counts=screening_counts,
+        visual_consistency_status=consistency.get("status") or "MISSING",
+        visual_review_count=visual_review_count,
+        visual_unavailable_count=visual_unavailable_count)
     narration = packaging.narration_metadata(build)
     audio_state, audio_details = packaging.audio_status(build, narration)
     if not (build / "audio_quality_report.json").is_file():
