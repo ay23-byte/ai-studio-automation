@@ -1,4 +1,4 @@
-name: '2. Create and upload a Documentary — automatic'
+name: '2. Build a Documentary — review required'
 on:
   workflow_dispatch:
     inputs:
