@@ -44,7 +44,7 @@ try {
       await page.locator("#record").click();
       await page.waitForFunction(() => {
         const s=document.querySelector("#status")?.textContent||"";
-        return s.includes("Recording avatar and narration together")||s.includes("Could not record")||s.includes("Recording error");
+        return s.includes("Recording avatar video while narration drives lip-sync")||s.includes("Could not record")||s.includes("Recording error");
       }, null, {timeout:120000});
       await page.waitForFunction(() => {
         const s=document.querySelector("#status")?.textContent||"";
@@ -58,15 +58,16 @@ try {
       if(fs.statSync(webm).size<10000) throw new Error(`Chapter ${i} WebM is too small.`);
       // MediaRecorder WebM commonly omits the container Duration element.
       // ffprobe then prints "N/A" even when Chromium recorded a complete,
-      // playable stream. The capture is intentionally video-only; narration is muxed\n      // from the original WAV below. Validate the video stream and decode a frame here;
+      // playable stream. The capture is intentionally video-only; narration is muxed
+      // from the original WAV below. Validate the video stream and decode a frame here;
       // the converted MP4 duration check below is the authoritative
       // end-to-end guard against a genuinely truncated recording.
       const webmProbe=spawnSync("ffprobe",["-v","error","-show_entries","stream=codec_type,codec_name,width,height","-of","json",webm],{encoding:"utf8"});
       let webmStreams;
       try { webmStreams=JSON.parse(webmProbe.stdout).streams||[]; }
       catch { throw new Error(`Chapter ${i} WebM stream probe returned invalid output: ${webmProbe.stderr||webmProbe.stdout}`); }
-      if(webmProbe.status!==0||!webmStreams.some(stream=>stream.codec_type==="video")||!webmStreams.some(stream=>stream.codec_type==="audio")) {
-        throw new Error(`Chapter ${i} WebM is missing a decodable video or audio stream: ${webmProbe.stderr||webmProbe.stdout}`);
+      if(webmProbe.status!==0||!webmStreams.some(stream=>stream.codec_type==="video")||webmStreams.some(stream=>stream.codec_type==="audio")) {
+        throw new Error(`Chapter ${i} WebM must contain a decodable video stream only; narration is muxed from the source WAV separately: ${webmProbe.stderr||webmProbe.stdout}`);
       }
       const frameProbe=spawnSync("ffmpeg",["-v","error","-i",webm,"-map","0:v:0","-frames:v","1","-f","null","-"],{encoding:"utf8"});
       if(frameProbe.status!==0) throw new Error(`Chapter ${i} WebM video could not be decoded: ${frameProbe.stderr||frameProbe.stdout}`);
