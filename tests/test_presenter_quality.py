@@ -58,6 +58,14 @@ class PresenterQualityTests(unittest.TestCase):
         self.assertEqual(report["status"], "REVIEW")
         self.assertFalse(report["lip_sync_verified"])
 
+    @patch("core.presenter_quality.subprocess.check_output")
+    def test_unusable_sub_five_fps_presenter_fails(self, probe):
+        probe.return_value = self._probe(fps="0.65/1")
+        report = inspect_presenter_clip(self.clip)
+        self.assertEqual(report["status"], "FAIL")
+        self.assertTrue(any("unusably low" in item for item in report["issues"]))
+        self.assertFalse(report["lip_sync_verified"])
+
     def test_presenter_sidecar_preserves_existing_source_metadata(self):
         sidecar = self.clip.with_suffix(".mp4.source.json")
         sidecar.write_text(json.dumps({"provider": "User supplied"}), encoding="utf-8")
