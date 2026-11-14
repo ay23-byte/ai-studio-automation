@@ -245,6 +245,15 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
             rejected["not relevant enough to the scene"] += 1
             continue
         scene_match = float(relevance(scene_prompt, metadata) or 0.0) if scene_prompt else 0.0
+        # Search-keyword overlap alone is not enough: broad queries routinely return
+        # technically valid but visually unrelated clips (e.g. beach footage for a
+        # semiconductor scene). Require a separate match against the full shot brief.
+        # Keep this threshold configurable for specialised provider adapters, but
+        # default to a conservative floor that rejects weak semantic overlap.
+        min_scene_match = min(1.0, max(0.0, _number("FOOTAGE_MIN_SCENE_MATCH", 0.08)))
+        if scene_prompt and scene_match < min_scene_match:
+            rejected[f"scene brief match below {min_scene_match:.2f}"] += 1
+            continue
         candidate["rank"] = rank_score(candidate["relevance"], metadata, usage, total_selected, scene_match)
         ranked.append(candidate)
     ranked.sort(key=lambda item: -item["rank"]["rank_score"])
