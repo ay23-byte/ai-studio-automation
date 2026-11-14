@@ -22,6 +22,15 @@ def test_graphic_renderer_skips_unsupported_visual_types(tmp_path):
     assert render_graphic_scene({"visual_type": "stock"}, 5, tmp_path, "shot") is None
 
 
+def test_map_brief_never_becomes_a_generic_bar_chart(tmp_path):
+    shot = {
+        "visual_type": "map",
+        "title": "Global semiconductor supply chain",
+        "chart_spec": {"title": "Supply chain", "labels": ["A", "B"], "values": [1, 2]},
+    }
+    assert render_graphic_scene(shot, 5, tmp_path, "map_shot") is None
+
+
 class ContextGraphicFallbackTests(unittest.TestCase):
     def test_archival_unavailable_context_graphic_is_disclosed(self):
         import tempfile
