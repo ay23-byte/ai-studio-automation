@@ -115,6 +115,11 @@ def main(argv=None) -> int:
     write_summary(summary_markdown(args.mode, package, summary))
     if code == 2:
         print("::error::The review package fails automated QA and cannot be approved. See the run summary.")
+        # One annotation per blocking problem, so the reason is readable without the log.
+        from core.failure_category import classify_failure
+        for problem in ((summary or {}).get("errors") or [])[:10]:
+            text = str(problem).replace("%", "%25").replace("\r", " ").replace("\n", " ")[:500]
+            print(f"::error title=Review package ({classify_failure(text)['label']})::{text}")
     return code
 
 

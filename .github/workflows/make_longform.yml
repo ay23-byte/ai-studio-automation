@@ -211,7 +211,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25)$ ]] || { echo "::error::minutes must be one of 18, 20, 22 or 25."; exit 1; }
+          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25|28|30)$ ]] || { echo "::error::minutes must be one of 18, 20, 22, 25, 28 or 30."; exit 1; }
           python run.py long "$INPUT_TOPIC" \
             --category "$INPUT_CATEGORY" \
             --minutes "$INPUT_MINUTES" \
