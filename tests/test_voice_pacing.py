@@ -17,8 +17,8 @@ class DocumentaryVoicePacingTests(unittest.TestCase):
         self.assertEqual(pitch, "+0Hz")
 
     def test_pause_lengths_are_tighter_for_a_professional_read(self):
-        self.assertAlmostEqual(_pause_after("A sentence."), 0.40)
-        self.assertAlmostEqual(_pause_after("A clause,"), 0.22)
+        self.assertAlmostEqual(_pause_after("A sentence."), 0.26)
+        self.assertAlmostEqual(_pause_after("A clause,"), 0.18)
         self.assertLess(_pause_after("A sentence."), 0.50)
 
     def test_opening_and_final_lines_receive_clearer_delivery(self):

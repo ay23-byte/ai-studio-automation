@@ -110,18 +110,17 @@ def _apply_pronunciation_map(text, mapping=None):
 
 
 def _pause_after(chunk):
-    """Natural pause after a phrase, based on its ending punctuation."""
-    ending = (chunk or "").rstrip()[-1:] 
+    """Natural pause after a phrase; chunk tails are trimmed before joining."""
+    ending = (chunk or "").rstrip()[-1:]
     if ending in ("?", "؟"):
-        return 0.48
+        return 0.30
     if ending == "!":
-        return 0.42
+        return 0.28
     if ending in (".", "।", "…"):
-        return 0.40
+        return 0.26
     if ending in (",", ";", ":", "،"):
-        return 0.22
-    return 0.16
-
+        return 0.18
+    return 0.12
 
 def _prosody(i, n, sentence):
     # Keep one voice across the video; make openings and sentence endings clearer.
@@ -162,8 +161,16 @@ async def _synth_edge(text, voice, rate, pitch, path):
     ) from last_error
 
 def _to_wav(mp3, wav):
+    # Edge TTS often appends ~1s of digital silence to every sentence. When
+    # 100+ chunks are concatenated this becomes minutes of dead air. Trim only
+    # leading/trailing silence per chunk (not pauses inside the spoken sentence).
+    trim = (
+        "silenceremove=start_periods=1:start_duration=0.08:start_threshold=-48dB:"
+        "stop_periods=1:stop_duration=0.12:stop_threshold=-48dB"
+    )
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(mp3),
-                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(wav)], check=True, timeout=render_timeout())
+                    "-af", trim, "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
+                    str(wav)], check=True, timeout=render_timeout())
 
 def _dur(path):
     return float(subprocess.check_output(

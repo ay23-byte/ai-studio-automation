@@ -76,6 +76,22 @@ def verify_shot_semantics(shot: dict[str, Any], *, api_key: str | None = None,
         return {"status": "uncertain", "reason": "Narration or visual prompt is missing.",
                 "human_review_required": True}
 
+    visual_type = str(shot.get("visual_type") or "unknown").strip().lower()
+    type_guidance = ""
+    if visual_type == "presenter":
+        type_guidance = (
+            "This is an intentional on-camera presenter shot, not B-roll. A visible virtual "
+            "presenter speaking to camera is a valid visual match for the narration even when "
+            "the narrated subject (for example a wafer, factory or map) is not physically shown. "
+            "Do not demand that the B-roll subject appear in a presenter shot; check that the "
+            "frame actually shows the described presenter."
+        )
+    elif visual_type == "chapter_title":
+        type_guidance = (
+            "This is an intentional editorial chapter-title slate, not B-roll. A designed title "
+            "card displaying the stated chapter heading is a valid match. Do not mark it as a "
+            "mismatch merely because it does not depict the chapter's B-roll subject."
+        )
     prompt = (
         "You are a conservative documentary visual QA reviewer. Compare the attached "
         "sample frame(s) with the narration and intended visual description. Judge only "
@@ -88,9 +104,10 @@ def verify_shot_semantics(shot: dict[str, Any], *, api_key: str | None = None,
         "match_score (number 0 to 1), visible_evidence (short string), concerns (array of "
         "strings), and recommendation (short actionable string). A high score means the "
         "visible subject/action clearly aligns with the narration, not that the claim is true.\n\n"
+        f"{type_guidance}\n\n"
         f"NARRATION:\n{narration[:1600]}\n\n"
         f"INTENDED VISUAL:\n{visual_prompt[:1200]}\n\n"
-        f"VISUAL TYPE: {str(shot.get('visual_type') or 'unknown')}"
+        f"VISUAL TYPE: {visual_type}"
     )
     parts: list[dict[str, Any]] = [{"text": prompt}]
     try:

@@ -82,6 +82,43 @@ class AssetLicensingTests(unittest.TestCase):
             self.assertFalse(result["blocked_assets"])
             self.assertIn("Original graphic created", Path(result["credits_path"]).read_text(encoding="utf-8"))
 
+    def test_animated_graphic_renderer_writes_project_provenance(self):
+        from core.graphic_scenes import _write_graphic_provenance
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            graphic = root / "graphic.mp4"
+            graphic.write_bytes(b"placeholder media")
+            _write_graphic_provenance(graphic, "diagram", "Semiconductor supply chain")
+            result = build_licence_register([
+                {"_start": 0, "_media": {"path": str(graphic), "type": "video"}}
+            ], root / "build")
+            with open(result["csv_path"], newline="", encoding="utf-8-sig") as handle:
+                row = next(csv.DictReader(handle))
+            self.assertEqual(row["source"], "LabLens/AI Studio local graphic renderer")
+            self.assertEqual(row["use_status"], "eligible_pending_human_review")
+            self.assertFalse(result["blocked_assets"])
+
+    def test_ai_presenter_is_declared_for_terms_review_not_unknown_source(self):
+        from core.presenter_quality import write_presenter_metadata
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            clip = root / "presenter.mp4"
+            clip.write_bytes(b"placeholder media")
+            write_presenter_metadata(clip, {
+                "provider": "AI Studio Avatar Studio (Talking Avatar SDK)",
+                "asset_type": "ai_generated_video", "ai_generated": True,
+                "model": "AI Studio Avatar Studio 3D renderer",
+                "prompt": "3D virtual presenter generated from chapter narration audio.",
+            })
+            result = build_licence_register([
+                {"_start": 0, "_media": {"path": str(clip), "type": "video"}}
+            ], root / "build")
+            with open(result["csv_path"], newline="", encoding="utf-8-sig") as handle:
+                row = next(csv.DictReader(handle))
+            self.assertEqual(row["use_status"], "ai_reconstruction_disclosure_and_terms_review")
+            self.assertEqual(row["fallback_required"], "False")
+            self.assertEqual(result["blocked_count"], 0)
+
     def test_score_does_not_claim_unobserved_visual_checks(self):
         score = score_asset({"relevance_score": 0.9, "licence": "CC BY 4.0",
                              "licence_url": "https://creativecommons.org/licenses/by/4.0/"}, 1920, 1080)

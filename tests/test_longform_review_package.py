@@ -19,7 +19,7 @@ class LongformReviewPackageTests(unittest.TestCase):
         self.root = Path(self._temp.name)
 
     def _fixture(self, *, consistency=None, licence="CC BY 4.0", use_status="eligible_pending_human_review",
-                 screening="mismatch", research=True, audio="PASS"):
+                 screening="mismatch", research=True, audio="PASS", ai_presenter=False):
         build = self.root / "build" / "job_42"
         build.mkdir(parents=True)
         media = build / "shot.mp4"
@@ -35,8 +35,15 @@ class LongformReviewPackageTests(unittest.TestCase):
                 "shot_id": "shot_0001", "media_path": str(media), "media_type": "video",
                 "narration": "A verified test narration.", "visual_prompt": "A test visual",
                 "start_seconds": 0.0, "duration_seconds": 6.0, "sample_frames": [],
-                "source": {"provider": "Test Archive", "page_url": "https://example.org/item/1",
-                           "title": "Item one", "creator": "A. Maker"},
+                "source": ({
+                    "provider": "AI Studio Avatar Studio (Talking Avatar SDK)",
+                    "asset_type": "ai_generated_video", "ai_generated": True,
+                    "model": "AI Studio Avatar Studio 3D renderer",
+                    "prompt": "3D virtual documentary presenter generated from chapter narration audio."
+                } if ai_presenter else {
+                    "provider": "Test Archive", "page_url": "https://example.org/item/1",
+                    "title": "Item one", "creator": "A. Maker"
+                }),
                 "semantic_screening": {"status": screening, "match_score": 0.12, "reason": "Different subject.",
                                        "recommendation": "Replace with a scene matching the narration."},
             }],
@@ -157,6 +164,18 @@ class LongformReviewPackageTests(unittest.TestCase):
         self.assertEqual(semantic["visual_review_count"], 2)
         self.assertEqual(semantic["visual_unavailable_count"], 1)
         self.assertIn("soft focus", " ".join(semantic["details"]))
+
+    def test_declared_ai_presenter_is_review_required_not_unknown_source_failure(self):
+        root, manifest, summary = self.package(
+            ai_presenter=True, licence="", use_status="ai_reconstruction_disclosure_and_terms_review"
+        )
+        self.assertEqual(summary["status"], "REVIEW_REQUIRED", summary["errors"])
+        asset = manifest["scenes"][0]["assets"][0]
+        self.assertEqual(asset["provenance"]["origin"], "ai_generated")
+        self.assertIn("virtual documentary presenter", asset["provenance"]["prompt"])
+        assets_qa = self.qa(root, "assets")
+        self.assertEqual(assets_qa["status"], "REVIEW")
+        self.assertIn("AI-generated presenter", " ".join(assets_qa["details"]))
 
     def test_unaccepted_licence_keeps_the_package_unreleasable(self):
         root, _, summary = self.package(licence="All rights reserved")

@@ -818,12 +818,22 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     + "; ".join(validation["issues"])
                 )
             write_presenter_metadata(avatar_clip, {
-                "provider": "Talking Avatar SDK", "presenter_mode": "talking_avatar",
+                "provider": "AI Studio Avatar Studio (Talking Avatar SDK)",
+                "asset_type": "ai_generated_video", "ai_generated": True,
+                "model": "AI Studio Avatar Studio 3D renderer",
+                "prompt": "3D virtual documentary presenter generated from the chapter narration audio; an illustrative host, not a real interview or documentary source.",
+                "presenter_mode": "talking_avatar",
                 "validation": validation, "lip_sync_verified": False,
-                "licence_status": "Review SDK and built-in avatar licence terms before redistribution or commercial use.",
-                "notice": "The clip includes its driving audio and passes stream/duration checks; phoneme-level lip-sync still requires human review.",
+                "licence_status": "Review the Avatar Studio/SDK and built-in avatar terms before redistribution or commercial use.",
+                "notice": "AI-generated presenter footage. Stream and duration alignment do not prove phoneme-level lip-sync; human visual/audio and terms review remains required.",
             })
             presenter_shot = dict(sec)
+            presenter_shot["visual_type"] = "presenter"
+            presenter_shot["subject"] = "3D virtual documentary presenter"
+            presenter_shot["visual_prompt"] = (
+                "3D virtual documentary presenter speaking directly to camera for the chapter introduction: "
+                + str(sec.get("title") or "chapter introduction")
+            )
             presenter_shot["_chapter_index"] = i
             presenter_shot["title"] = sec.get("title", "")
             presenter_shot["presenter_mode"] = "talking_avatar"
@@ -919,10 +929,21 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 print(f"WARNING: chapter title slate skipped: {exc}")
                 title_clip = None
             if title_clip:
+                title_text = str(sec.get("title") or f"Chapter {i + 1}")
                 title_shot = dict(sec)
-                title_shot.update({"_chapter_index": i, "visual_type": "chapter_title",
-                                   "_start": shot_cursor, "_dur": title_duration,
-                                   "_media": {"type": "video", "path": str(title_clip)}})
+                title_shot.update({
+                    "_chapter_index": i,
+                    "visual_type": "chapter_title",
+                    "subject": "Animated documentary chapter title slate",
+                    "visual_prompt": (
+                        "A short animated documentary chapter title slate displaying the chapter heading: "
+                        + title_text + ". This is an intentional editorial title card, not B-roll."
+                    ),
+                    "narration": "Chapter title: " + title_text,
+                    "on_screen_text": title_text,
+                    "_start": shot_cursor, "_dur": title_duration,
+                    "_media": {"type": "video", "path": str(title_clip)},
+                })
                 shot_timeline.append(title_shot)
                 shot_cursor += title_duration
                 durations = slate_durations

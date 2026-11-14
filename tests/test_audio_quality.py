@@ -55,6 +55,18 @@ class AudioQualityTests(unittest.TestCase):
         self.assertEqual(report["human_review_status"], "pending")
 
     @patch("core.audio_quality.subprocess.run")
+    def test_silence_crossing_into_credit_slate_is_clipped_to_programme_end(self, run):
+        run.side_effect = [
+            self._completed(self._loud_log()),
+            self._completed("Number of samples out of range: 0"),
+            self._completed("silence_start: 98.000\nsilence_end: 130.000 | silence_duration: 32.000"),
+        ]
+        report = inspect_audio(self.video, body_seconds=100.0)
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["metrics"]["long_silence_count"], 0)
+        self.assertEqual(report["metrics"]["silence_intervals"][0]["duration"], 2.0)
+
+    @patch("core.audio_quality.subprocess.run")
     def test_true_peak_and_clipping_fail_audio(self, run):
         run.side_effect = [
             self._completed(self._loud_log(integrated="-14.0", peak="-0.2")),

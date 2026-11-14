@@ -108,7 +108,21 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
     silence_log = (silence.stderr or "") + (silence.stdout or "")
     intervals = _silence_intervals(silence_log)
     if body_seconds and float(body_seconds) > 0:
-        intervals = [item for item in intervals if item["start"] < float(body_seconds) - 0.5]
+        # A silence interval can begin just before the credits slate and continue
+        # through the entire intentionally silent slate. Clip it to the programme
+        # boundary; otherwise the credits are misreported as a 30s narration gap.
+        boundary = float(body_seconds)
+        clipped_intervals = []
+        for item in intervals:
+            if item["start"] >= boundary:
+                continue
+            end = min(item["end"], boundary)
+            if end > item["start"]:
+                clipped_intervals.append({
+                    "start": item["start"], "end": round(end, 3),
+                    "duration": round(end - item["start"], 3),
+                })
+        intervals = clipped_intervals
 
     integrated = loudness.get("input_i")
     true_peak = loudness.get("input_tp")

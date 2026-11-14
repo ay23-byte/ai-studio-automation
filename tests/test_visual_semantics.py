@@ -58,6 +58,32 @@ class VisualSemanticsTests(unittest.TestCase):
         self.assertTrue(any("inlineData" in part for part in payload["contents"][0]["parts"]))
 
     @patch("core.visual_semantics.requests.post")
+    def test_presenter_shot_is_judged_as_an_on_camera_host_not_broll(self, post):
+        body = {"verdict": "match", "match_score": 0.9}
+        post.return_value = _Response({
+            "candidates": [{"content": {"parts": [{"text": json.dumps(body)}]}}]
+        })
+        shot = dict(self.shot, visual_type="presenter",
+                    visual_prompt="3D virtual documentary presenter speaking to camera.")
+        verify_shot_semantics(shot, api_key="test-key")
+        prompt = post.call_args.kwargs["json"]["contents"][0]["parts"][0]["text"]
+        self.assertIn("intentional on-camera presenter shot", prompt)
+        self.assertIn("not B-roll", prompt)
+
+    @patch("core.visual_semantics.requests.post")
+    def test_chapter_title_is_judged_as_an_editorial_slate_not_broll(self, post):
+        body = {"verdict": "match", "match_score": 0.9}
+        post.return_value = _Response({
+            "candidates": [{"content": {"parts": [{"text": json.dumps(body)}]}}]
+        })
+        shot = dict(self.shot, visual_type="chapter_title",
+                    visual_prompt="Animated chapter title slate: The Silicon Chokepoint.")
+        verify_shot_semantics(shot, api_key="test-key")
+        prompt = post.call_args.kwargs["json"]["contents"][0]["parts"][0]["text"]
+        self.assertIn("editorial chapter-title slate", prompt)
+        self.assertIn("not B-roll", prompt)
+
+    @patch("core.visual_semantics.requests.post")
     def test_low_confidence_match_is_downgraded_to_uncertain(self, post):
         body = {"verdict": "match", "match_score": 0.4}
         post.return_value = _Response({
