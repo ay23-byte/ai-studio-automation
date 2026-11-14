@@ -302,7 +302,7 @@ def main():
     pl.add_argument("--subtitle-language", default=None, choices=["english", "hindi", "hinglish", "source"],
                     help="Burned-in caption language (default: SUBTITLE_LANGUAGE or english)")
     pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
-    pl.add_argument("--minutes", type=int, choices=range(10, 16), default=12, help="Target runtime in minutes (10-15)")
+    pl.add_argument("--minutes", type=int, choices=range(10, 26), default=12, help="Target runtime in minutes (10-25)")
     pl.add_argument("--demo", action="store_true")
     pl.add_argument("--force", action="store_true", help="Build even if this topic was already produced")
     pl.add_argument("--upload", action="store_true", help="After the build, prepare the review package needed for a private upload")
