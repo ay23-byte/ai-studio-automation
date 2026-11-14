@@ -1,11 +1,25 @@
 name: '⚙ Internal — Live footage provider verification (search, download, ffprobe)'
 
-# Run by hand only. For every footage provider this performs one real search,
-# downloads one real file and inspects it with ffprobe. A provider is reported
-# LIVE-VERIFIED only when all three succeeded in this run. Nothing is rendered,
-# uploaded or published, and the downloaded media is deleted; the reports,
-# provenance records and one still frame per provider are kept as the evidence.
+# For every footage provider this performs one real search, downloads one real
+# file and inspects it with ffprobe. A provider is reported LIVE-VERIFIED only
+# when all three succeeded in this run. Nothing is rendered, uploaded or
+# published, and the downloaded media is deleted; the reports, provenance
+# records and one still frame per provider are kept as the evidence.
+#
+# Runs by hand, and on pull requests that change the footage code, in the same
+# way the two footage search-check workflows already run against the live APIs.
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/footage_sources.py"
+      - "core/footage_engine.py"
+      - "core/footage_licence.py"
+      - "core/footage_validation.py"
+      - "core/images.py"
+      - "core/downloads.py"
+      - "scripts/verify_footage_providers.py"
+      - ".github/workflows/footage-live-verification.yml"
   workflow_dispatch:
     inputs:
       providers:
@@ -35,8 +49,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: footage-live-verification
-  cancel-in-progress: false
+  group: footage-live-verification-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -67,6 +81,8 @@ jobs:
           EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          # One clip per provider is enough evidence; keep the downloads small.
+          FOOTAGE_MAX_CLIP_MB: "120"
           INPUT_PROVIDERS: ${{ inputs.providers }}
           INPUT_TOPIC: ${{ inputs.topic }}
           INPUT_MIN_VERIFIED: ${{ inputs.min_verified }}
@@ -78,7 +94,8 @@ jobs:
           if [ -n "$INPUT_PROVIDERS" ]; then args+=(--providers "$INPUT_PROVIDERS"); fi
           if [ -n "$INPUT_TOPIC" ]; then args+=(--topic "$INPUT_TOPIC"); fi
           if [ "$INPUT_STRICT" = "true" ]; then args+=(--strict); fi
-          if [ "$INPUT_SELECTION" = "true" ]; then args+=(--selection); fi
+          # On a pull request the inputs are empty: run the selection unless it was switched off.
+          if [ "$INPUT_SELECTION" != "false" ]; then args+=(--selection); fi
           mkdir -p build/footage_live_verification
           python -m scripts.verify_footage_providers "${args[@]}" 2>&1 | tee build/footage_live_verification/run.log
 

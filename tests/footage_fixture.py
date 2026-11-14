@@ -5,6 +5,16 @@ from pathlib import Path
 from core.ffmpeg_utils import ffmpeg_bin
 
 
+def have_ffmpeg() -> bool:
+    """True when FFmpeg and FFprobe can be run; tests that build real clips skip without them."""
+    import shutil
+    try:
+        from core.ffmpeg_utils import ffmpeg_bin, ffprobe_bin
+        return bool(shutil.which(ffmpeg_bin()) and shutil.which(ffprobe_bin()))
+    except Exception:
+        return False
+
+
 def make_clip(path, *, seconds=4, size="640x360", pattern="testsrc2", rate=24, audio=False, tag="") -> Path:
     """Write a short, valid H.264 clip. ``tag`` is stored in the file, so each tag gives different bytes."""
     path = Path(path)

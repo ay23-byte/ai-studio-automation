@@ -141,6 +141,9 @@ def verify_providers(output_dir, *, topic: str = "", only=None, providers=None, 
         status, explanation = classify(entry)
         record = {"provider": provider.name, "status": status, "explanation": footage_report.redact(explanation),
                   "queries": queries, "counters": dict(entry)}
+        scene = next((item for item in reversed(report.scenes) if item.get("scene") == provider.name), None)
+        if scene and scene.get("reason"):
+            record["scene_reason"] = footage_report.redact(str(scene["reason"]))[:400]
         sidecar = clip.with_suffix(clip.suffix + ".source.json")
         if selected and clip.is_file() and sidecar.is_file():
             metadata = json.loads(sidecar.read_text(encoding="utf-8"))
@@ -227,13 +230,34 @@ def _annotate(verification: dict):
     """One GitHub Actions notice per provider, so the result is visible on the run page."""
     if os.getenv("GITHUB_ACTIONS", "").lower() != "true":
         return
+
+    def clean(text):
+        return str(text).replace("%", "%25").replace("\r", " ").replace("\n", " ")
+
     for item in verification.get("providers") or []:
         asset = item.get("asset") or {}
-        detail = (f"{asset.get('width')}x{asset.get('height')} {asset.get('duration_seconds')}s, "
-                  f"{asset.get('licence')}" if asset else item.get("explanation"))
-        message = f"{item.get('status')}: {detail}".replace("%", "%25").replace("\r", " ").replace("\n", " ")
+        counters = item.get("counters") or {}
+        if asset:
+            detail = (f"\"{str(asset.get('title') or '')[:60]}\" {asset.get('width')}x{asset.get('height')} "
+                      f"{asset.get('duration_seconds')}s {asset.get('video_codec')}, {asset.get('licence')} "
+                      f"({asset.get('licence_state')}), relevance {asset.get('relevance_score')}")
+        else:
+            detail = str(item.get("explanation") or "")
+        if counters:
+            detail += (f" | results {counters.get('results_found', 0)}, usable {counters.get('downloadable_candidates', 0)}, "
+                       f"licence-refused {counters.get('licence_rejections', 0)}, downloads "
+                       f"{counters.get('download_successes', 0)}/{counters.get('download_attempts', 0)}, "
+                       f"invalid {counters.get('invalid_media', 0)}, HTTP {counters.get('http_status_counts') or {}}")
+            if item.get("scene_reason") and not asset:
+                detail += f" | {item['scene_reason']}"
         level = "notice" if item.get("status") in (LIVE_VERIFIED, MANUAL_ONLY, NOT_CONFIGURED) else "warning"
-        print(f"::{level} title=Footage provider {item.get('provider')}::{message[:900]}")
+        print(f"::{level} title=Footage provider {item.get('provider')}::{clean(item.get('status'))}: {clean(detail)[:900]}")
+    selection = verification.get("selection")
+    if selection:
+        print("::notice title=Footage multi-scene selection::" + clean(
+            f"{selection.get('scenes_with_footage')} of {selection.get('scenes_searched')} scenes received validated "
+            f"footage; by provider: {selection.get('selected_by_provider')}; "
+            f"manual review: {selection.get('scenes_needing_manual_review')}"))
 
 
 def main(argv=None) -> int:

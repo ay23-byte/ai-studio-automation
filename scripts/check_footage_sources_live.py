@@ -147,6 +147,23 @@ def run_checks(query, min_total=1, providers=None):
     return result
 
 
+def annotate(result):
+    """One GitHub Actions annotation per provider, so the outcome is visible on the run page."""
+    import os
+    if os.getenv("GITHUB_ACTIONS", "").lower() != "true":
+        return
+    for item in result.get("providers") or []:
+        level = "notice" if item.get("status") in ("ok", "not_configured") else "warning"
+        detail = (f"{item.get('status')}: {item.get('eligible_candidates', 0)} licensed search result(s) over "
+                  f"{len(item.get('queries_checked') or [])} queries; HTTP {item.get('http_status_counts') or {}}")
+        if item.get("reason"):
+            detail += f"; {item['reason']}"
+        if item.get("errors"):
+            detail += f"; {item['errors'][0]}"
+        detail = detail.replace("%", "%25").replace("\r", " ").replace("\n", " ")[:900]
+        print(f"::{level} title=Footage search {item.get('provider')}::{detail} (search only; nothing downloaded)")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("query", nargs="?", default=DEFAULT_QUERY)
@@ -160,6 +177,7 @@ def main():
         result["status"] = "diagnostic_warning"
         result["note"] = "Topic-title discovery is diagnostic only; each rendered scene still needs its own valid, relevant visual."
     print(json.dumps(result, indent=2))
+    annotate(result)
     if result["status"] == "failed":
         raise SystemExit(
             f"Footage discovery produced {result['total_eligible_candidates']} "

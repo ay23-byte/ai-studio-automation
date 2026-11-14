@@ -23,7 +23,9 @@ from core.footage_engine import Provider, acquire
 from core.footage_licence import classify_licence, parse_creative_commons, provenance_gaps
 from core.footage_validation import validate_media
 from tests.footage_fake_web import FakeResponse, FakeWeb
-from tests.footage_fixture import make_clip, truncated_copy
+from tests.footage_fixture import have_ffmpeg, make_clip, truncated_copy
+
+needs_ffmpeg = unittest.skipUnless(have_ffmpeg(), "FFmpeg/FFprobe are required to build and probe real clips")
 
 
 def _lead(provider, asset_id, title, url, **extra):
@@ -48,6 +50,7 @@ class _Temp(unittest.TestCase):
         self.addCleanup(env.stop)
 
 
+@needs_ffmpeg
 class MediaValidationTests(_Temp):
     def test_real_clip_is_valid_and_measured(self):
         result = validate_media(make_clip(self.tmp / "ok.mp4", audio=True))
@@ -336,6 +339,7 @@ class ProviderHttpTests(_Temp):
         self.assertEqual(classify_licence(dict(metadata, ai_generated=False))["state"], "eligible_with_attribution")
 
 
+@needs_ffmpeg
 class EngineTests(_Temp):
     def clip_bytes(self, tag):
         return make_clip(self.tmp / f"src_{tag}.mp4", tag=tag).read_bytes()
@@ -537,6 +541,7 @@ class EngineTests(_Temp):
         self.assertIn("| A |", text)
 
 
+@needs_ffmpeg
 class DownloadTests(_Temp):
     def test_corrupt_first_rendition_falls_back_to_the_next_one(self):
         web = FakeWeb(self.tmp)
@@ -579,6 +584,7 @@ class DownloadTests(_Temp):
         self.assertIn("MB limit", metadata["validation"]["reason"])
 
 
+@needs_ffmpeg
 class SyntheticDocumentaryTests(_Temp):
     """Eight scenes through the production entry point against the offline provider stand-ins."""
 
@@ -762,6 +768,7 @@ class SyntheticDocumentaryTests(_Temp):
         self.assertEqual(fs._subject_relevance("newsreel", harbour), 1.0)      # nothing but the generic word asked for
 
 
+@needs_ffmpeg
 class MixkitImportTests(_Temp):
     def test_manifest_import_validates_each_clip_and_reports_rejections(self):
         make_clip(self.tmp / "in" / "good.mp4", size="1280x720")
@@ -854,6 +861,7 @@ class DiscoveryCheckScriptTests(_Temp):
         self.assertEqual(result["providers_with_results"], ["A"])
         self.assertIn("nothing was downloaded", result["important"])
 
+    @needs_ffmpeg
     def test_default_run_names_why_each_provider_returned_nothing(self):
         from scripts.check_footage_sources_live import run_checks
         web = FakeWeb(self.tmp / "web")
@@ -900,6 +908,7 @@ class LiveVerificationScriptTests(_Temp):
         self.assertNotEqual(verify.classify(dict(base, results_found=20, downloadable_candidates=20,
                                                  search_status="ok"))[0], verify.LIVE_VERIFIED)
 
+    @needs_ffmpeg
     def test_offline_run_writes_the_evidence_files(self):
         from scripts import verify_footage_providers as verify
         web = FakeWeb(self.tmp / "web")

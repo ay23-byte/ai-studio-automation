@@ -302,6 +302,9 @@ class DocumentarySourceAdapterTests(unittest.TestCase):
         self.assertEqual(fs._internet_archive("home movie"), [])
 
     def test_mixkit_manual_import_rejects_restricted_and_records_free(self):
+        from tests.footage_fixture import have_ffmpeg
+        if not have_ffmpeg():
+            self.skipTest("FFmpeg/FFprobe are required: the import now probes the clip")
         from tests.footage_fixture import make_clip
         with tempfile.TemporaryDirectory() as tmp:
             source = make_clip(Path(tmp) / "clip.mp4")
