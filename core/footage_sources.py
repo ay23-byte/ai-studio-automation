@@ -404,6 +404,15 @@ def _download(url, path, metadata):
     from core.downloads import DownloadError, fetch
     from core.footage_validation import validate_media
     last = {"ok": False, "status": "download_failed", "reason": "not attempted"}
+    failures = []  # one line per file tried, so the first failure is not hidden by the last
+
+    def failed(media_url, status, reason):
+        name = _canonical_media_url(media_url).rstrip("/").split("/")[-1][:60]
+        failures.append(f"{name}: {reason}")
+        outcome = {"ok": False, "status": status, "reason": redact(" | ".join(failures))[:500]}
+        metadata["validation"] = outcome
+        return outcome
+
     for index, media_url in enumerate(urls):
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -415,20 +424,30 @@ def _download(url, path, metadata):
             else:
                 fetch(media_url, path, kind="video", headers={"User-Agent": USER_AGENT},
                       timeout=(20, 120), max_mb=clip_size_limit_mb())
+        except subprocess.CalledProcessError as exc:
+            path.unlink(missing_ok=True)
+            last = failed(media_url, "download_failed", f"FFmpeg could not read the stream (exit {exc.returncode})")
+            print(f"  footage download failed ({metadata.get('provider')}): {last['reason']}")
+            continue
+        except subprocess.TimeoutExpired:
+            path.unlink(missing_ok=True)
+            last = failed(media_url, "download_failed", "FFmpeg did not finish reading the stream in 180s")
+            print(f"  footage download failed ({metadata.get('provider')}): {last['reason']}")
+            continue
         except (DownloadError, subprocess.SubprocessError, OSError) as exc:
             path.unlink(missing_ok=True)
-            last = {"ok": False, "status": "download_failed", "reason": redact(str(exc))[:300]}
+            last = failed(media_url, "download_failed", redact(str(exc))[:200])
             print(f"  footage download failed ({metadata.get('provider')}): {last['reason']}")
             continue
         except Exception as exc:
             path.unlink(missing_ok=True)
-            last = {"ok": False, "status": "download_failed", "reason": redact(f"{type(exc).__name__}: {exc}")[:300]}
+            last = failed(media_url, "download_failed", redact(f"{type(exc).__name__}: {exc}")[:200])
             print(f"  footage download failed ({metadata.get('provider')}): {last['reason']}")
             continue
         result = validate_media(path)
         if not result["ok"]:
             path.unlink(missing_ok=True)
-            last = result
+            last = dict(result, reason=failed(media_url, result["status"], result["reason"])["reason"])
             print(f"  footage file rejected ({metadata.get('provider')}): {result['status']}: {result['reason']}")
             continue
         metadata["width"], metadata["height"] = result["width"], result["height"]

@@ -650,6 +650,20 @@ class EngineTests(_Temp):
 
 @needs_ffmpeg
 class DownloadTests(_Temp):
+    def test_every_file_tried_is_named_in_the_failure_reason(self):
+        # The live Library of Congress run hid the direct-file failure behind the stream failure.
+        from core.downloads import DownloadError
+        import subprocess
+        metadata = {"provider": "Library of Congress", "alternate_urls": [
+            "https://tile.loc.gov/streaming-services/iiif/service:x/full/full/0/full/default.m3u8"]}
+        with patch("core.downloads.fetch", side_effect=DownloadError("HTTP 429 from tile.loc.gov")), \
+                patch.object(fs.subprocess, "run", side_effect=subprocess.CalledProcessError(8, ["ffmpeg", "-i", "x"])):
+            self.assertFalse(fs._download("https://tile.loc.gov/storage-services/a/film.mp4", self.tmp / "c.mp4", metadata))
+        reason = metadata["validation"]["reason"]
+        self.assertIn("film.mp4: HTTP 429", reason)
+        self.assertIn("default.m3u8: FFmpeg could not read the stream (exit 8)", reason)
+        self.assertNotIn("'-loglevel'", reason, "the reason is a sentence, not a command line")
+
     def test_corrupt_first_rendition_falls_back_to_the_next_one(self):
         web = FakeWeb(self.tmp)
         web.clip("https://cdn.example/orig.mp4", kind="truncated", size="1280x720", seconds=6)
