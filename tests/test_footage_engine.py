@@ -262,10 +262,19 @@ class ProviderHttpTests(_Temp):
         # Publication date makes a film public domain; an unpublished home movie has none.
         hit = self.loc_hit(genre=["Home movies"], created_published=["1928."])
         hit["date"] = "1928"
-        results = self.loc_search(hit, LOC_COLLECTION_RIGHTS)
-        for _url, metadata in results:
-            self.assertEqual(metadata["rights_basis"], "")
-            self.assertIn("rights basis", " ".join(provenance_gaps(metadata, classify_licence(metadata))).lower())
+        self.assertEqual(self.loc_search(hit, LOC_COLLECTION_RIGHTS), [])
+        self.assertEqual(self.report.provider("Library of Congress")["rejection_reasons"],
+                         {"no publication date before the US public-domain cutoff in the catalogue record": 1})
+
+    def test_library_of_congress_spends_no_item_request_on_a_film_it_could_never_use(self):
+        # A 2012 event recording has no public-domain date; the Library limits requests strictly.
+        hit = self.loc_hit(created_published=["Washington, D.C. : Library of Congress, 2012-02-29."])
+        hit["date"] = "2012"
+        with patch.object(fs.requests, "get", return_value=self.response(
+                200, {"results": [hit], "pagination": {"next": None}})) as get, patch.object(fs.time, "sleep"), \
+                footage_report.provider_scope("Library of Congress", self.report):
+            self.assertEqual(fs._loc("locomotive"), [])
+        self.assertEqual(get.call_count, 1, "only the search; no item record was requested")
 
     def test_library_of_congress_unreadable_item_record_is_not_called_a_licence_refusal(self):
         def answer(url, params=None, headers=None, timeout=None, **_kwargs):

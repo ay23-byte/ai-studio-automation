@@ -833,6 +833,11 @@ def _loc(query):
                 continue
             # Direct files before HLS streams.
             media.sort(key=lambda link: ".m3u8" in link)
+            # A film without a publication date before the public-domain cutoff can never be
+            # selected, so no item request is spent on it (the Library limits requests strictly).
+            if not _loc_rights_basis(hit):
+                _reject("no publication date before the US public-domain cutoff in the catalogue record")
+                continue
             leads.append((_lead_relevance(query, hit.get("title"), hit.get("description"), hit.get("subject")),
                           hit, media))
         leads.sort(key=lambda lead: -lead[0])
