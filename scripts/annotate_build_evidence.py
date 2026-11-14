@@ -25,8 +25,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-MAX_MESSAGE = 900          # GitHub shortens long annotation messages
-MAX_NOTICES = 9            # a step may show at most ten notices
+MAX_MESSAGE = 3000         # keeps every footage source on one notice
+MAX_NOTICES = 10           # a step may show at most ten notices
 
 
 def _load(path) -> dict:
@@ -126,9 +126,49 @@ def footage_sources(build: Path) -> str | None:
             text += f", most refused for '{reason}' x{count}"
         problem = entry.get("disabled_reason") or entry.get("failure_reason")
         if problem:
-            text += f", problem: {str(problem)[:90]}"
+            text += f", problem: {str(problem)[:140]}"
         parts.append(text)
     return "Footage sources: " + " | ".join(parts)
+
+
+def narration(build: Path) -> str | None:
+    runtime = _load(build / "runtime_report.json")
+    voice = _load(build / "narration_synthesis_report.json")
+    if not runtime and not voice:
+        return None
+    parts = []
+    if runtime:
+        parts.append(f"{runtime.get('words')} words spoken in {runtime.get('narration_minutes')} min "
+                     f"({runtime.get('words_per_minute')} words a minute)")
+        if runtime.get("target_minutes"):
+            parts.append(f"{float(runtime.get('fraction_of_target') or 0):.0%} of the requested "
+                         f"{float(runtime['target_minutes']):g} min, floor {float(runtime.get('minimum_fraction') or 0):.0%}: "
+                         f"{runtime.get('status')}")
+    if voice:
+        parts.append(f"{voice.get('chunk_count')} phrases, {voice.get('speech_seconds')} s of speech + "
+                     f"{voice.get('inserted_pause_seconds')} s of pauses")
+        if voice.get("characters_per_second") is not None:
+            parts.append(f"{voice['characters_per_second']} characters a second")
+    return "Narration: " + " | ".join(parts)
+
+
+def scenes_without_footage(build: Path, limit: int = 6) -> str | None:
+    data = _load(build / "provider_report.json")
+    missing = [scene for scene in (data.get("scenes") or []) if scene.get("status") == "needs_manual_review"]
+    if not missing:
+        return None
+    reasons: dict[str, int] = {}
+    for scene in missing:
+        reason = str(scene.get("reason") or "no reason recorded")
+        reasons[reason] = reasons.get(reason, 0) + 1
+    parts = [f"{len(missing)} scenes got no footage",
+             "reasons: " + "; ".join(f"{reason} x{count}" for reason, count in
+                                     sorted(reasons.items(), key=lambda item: -item[1])[:4])]
+    for scene in missing[:limit]:
+        queries = ", ".join(f"'{query}'" for query in (scene.get("queries") or [])[:3])
+        parts.append(f"{scene.get('scene')}: searched {queries} ({scene.get('candidates_found', 0)} found, "
+                     f"{scene.get('candidates_eligible', 0)} eligible)")
+    return "Scenes without footage: " + " | ".join(parts)
 
 
 def presenter(build: Path) -> str | None:
@@ -202,8 +242,9 @@ def research(build: Path) -> str | None:
 
 
 def evidence_lines(report: dict, build: Path, target_minutes: float | None) -> list[str]:
-    lines = [final_video(report, target_minutes), script_and_voice(report), visuals(report, build),
-             footage_sources(build), presenter(build), subtitles(build), audio(build), research(build)]
+    lines = [final_video(report, target_minutes), script_and_voice(report), narration(build),
+             visuals(report, build), footage_sources(build), scenes_without_footage(build),
+             presenter(build), subtitles(build), audio(build), research(build)]
     return [_clean(line) for line in lines if line][:MAX_NOTICES]
 
 

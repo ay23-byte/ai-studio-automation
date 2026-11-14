@@ -99,6 +99,92 @@ def _voice_stage(checkpoint, text, bd, language, gender):
     return Path(path or voice_path), timings
 
 
+def measured_runtime_report(script, narration, narration_seconds):
+    """Compare the synthesised narration with the runtime that was requested.
+
+    ``script["runtime_validation"]["target_minutes"]`` is the request (absent for scripts that
+    were not generated against a runtime, which are measured but never refused). The narration
+    must reach ``LONGFORM_MIN_MEASURED_RUNTIME_FRACTION`` (0.80) of it.
+    """
+    words = len(str(narration or "").split())
+    seconds = float(narration_seconds or 0)
+    target = (script.get("runtime_validation") or {}).get("target_minutes")
+    try:
+        floor = float(os.getenv("LONGFORM_MIN_MEASURED_RUNTIME_FRACTION", "0.80") or 0.80)
+    except ValueError:
+        floor = 0.80
+    floor = min(1.0, max(0.0, floor))
+    report = {
+        "target_minutes": target, "narration_seconds": round(seconds, 3),
+        "narration_minutes": round(seconds / 60.0, 2), "words": words,
+        "words_per_minute": round(words / seconds * 60.0, 1) if seconds > 0 else 0.0,
+        "minimum_fraction": floor, "fraction_of_target": None, "status": "NOT_APPLICABLE", "issue": None,
+    }
+    if target:
+        fraction = seconds / (float(target) * 60.0)
+        report["fraction_of_target"] = round(fraction, 4)
+        report["status"] = "PASS" if fraction >= floor else "FAIL"
+        if fraction < floor:
+            report["issue"] = (
+                f"The narration runs {seconds / 60.0:.1f} minutes, {fraction:.0%} of the requested "
+                f"{float(target):g} minutes (at least {floor:.0%} is required). The script has {words} words, "
+                f"spoken at {report['words_per_minute']:.0f} words a minute. "
+                "Refusing to render an under-length documentary.")
+    return report
+
+
+def max_shot_seconds():
+    """Longest time one B-roll picture may stay on screen: ``LONGFORM_MAX_SHOT_SECONDS`` (12, 0 = no limit)."""
+    try:
+        value = float(os.getenv("LONGFORM_MAX_SHOT_SECONDS", "12") or 12)
+    except ValueError:
+        value = 12.0
+    return 0.0 if value <= 0 else max(4.0, value)
+
+
+def split_long_beat(shot, acquire, limit_seconds, max_parts=4):
+    """Cover one long narration beat with several different pictures instead of one.
+
+    A storyboard beat can last 30-40 seconds in a long documentary; one clip looping for that
+    long reads as a slideshow. The beat keeps its narration, prompt and search terms, and
+    ``acquire(part_number)`` is asked for another asset ({"type", "path"}) for each further
+    part. When no further asset exists the last picture found simply stays for the rest of
+    the beat, so the timeline never has a gap. Returns the shots in order; their durations
+    add up to the beat's original duration.
+    """
+    duration = float(shot.get("_dur") or 0.0)
+    if not limit_seconds or duration <= limit_seconds:
+        return [shot]
+    import math
+    parts = min(int(max_parts), int(math.ceil(duration / float(limit_seconds))))
+    if parts <= 1:
+        return [shot]
+    part_seconds = duration / parts
+    start = float(shot.get("_start") or 0.0)
+    shots = [shot]
+    for number in range(2, parts + 1):
+        try:
+            media = acquire(number)
+        except Exception as exc:
+            print(f"  additional picture {number} for this beat failed: {type(exc).__name__}: {exc}")
+            media = None
+        if not media:
+            break
+        extra = dict(shot)
+        extra["_media"] = media
+        extra["beat_part"] = number
+        if extra.get("title"):
+            extra["title"] = ""            # the chapter heading belongs to the first picture only
+        shots.append(extra)
+    shot["beat_part"] = 1
+    for index, item in enumerate(shots):
+        item["_start"] = start + index * part_seconds
+        item["_dur"] = part_seconds
+        item["beat_parts"] = len(shots)
+    shots[-1]["_dur"] = duration - part_seconds * (len(shots) - 1)
+    return shots
+
+
 def _fallback_card(path, text, *, size, kicker, index, total, category, keywords=None):
     """Last-resort original explainer graphic (see core.explainer_cards)."""
     from core import explainer_cards
@@ -699,6 +785,15 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     update_video(job_id, status="building", error=None)
     voice_path, timings = _voice_stage(checkpoint, full_narration, bd, language, voice_gender)
     total = _media_seconds(voice_path)
+    # The script gate counts words; this one measures the narration that was actually
+    # synthesised, before any visual is fetched or rendered.
+    runtime_report = measured_runtime_report(script, full_narration, total)
+    import json as _json
+    (bd / "runtime_report.json").write_text(_json.dumps(runtime_report, indent=2), encoding="utf-8")
+    print(f"Measured narration: {runtime_report['narration_minutes']:.1f} min, "
+          f"{runtime_report['words']} words, {runtime_report['words_per_minute']:.0f} words a minute.")
+    if runtime_report["status"] == "FAIL":
+        raise RuntimeError(runtime_report["issue"])
 
     # Chapter boundaries follow the measured narration (phrase timings from the
     # voice stage) instead of a word-count estimate, so chapter slates, lower
@@ -709,6 +804,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # rejected and why, and which scenes still need a person.
     from core import footage_report, footage_sources
     footage_sources.reset_run_state()
+    footage_sources.set_run_subject(script.get("title"), script.get("topic"), script.get("category"))
     footage_run = footage_report.begin_run(f"long-form job {job_id}")
     section_spans = align_units([str(sec.get("narration", "")) for sec in sections], timings, total,
                                 min_duration=3.0)
@@ -1144,7 +1240,27 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "type": shot["_media"]["type"], "path": str(shot["_media"]["path"]),
                 "fallback_card": str(shot["_media"]["path"]) in fallback_state["cards"],
             })
-            shot_timeline.append(shot)
+            # A beat longer than the shot limit gets further, different pictures for the same
+            # narration. Explainer cards and context graphics are not multiplied.
+            is_substitute = (str(shot["_media"]["path"]) in fallback_state["cards"]
+                             or shot.get("visual_type") == "context_graphic")
+
+            def more_pictures(number, _i=i, _j=j, _kws=kws, _brief=scene_search_brief, _prompt=prompt):
+                extra_clip = bd / f"lraw{_i}_{_j}_{number}.mp4"
+                if fetch_clip(_kws, extra_clip, used_ids, scene_prompt=_brief):
+                    return {"type": "video", "path": str(extra_clip)}
+                extra_image = bd / f"limg{_i}_{_j}_{number}.jpg"
+                angle = ("a different angle and framing of the same subject",
+                         "a close-up detail of the same subject",
+                         "a wide establishing view of the same setting")[(number - 2) % 3]
+                if generate_image(_prompt + f" Show {angle}.", extra_image, category=script.get("category", "general")):
+                    return {"type": "image", "path": str(extra_image)}
+                return None
+
+            beat_shots = [shot] if is_substitute else split_long_beat(shot, more_pictures, max_shot_seconds())
+            if len(beat_shots) > 1:
+                print(f"  long-form visual {i+1}.{j+1}: {shot_dur:.0f} s beat covered by {len(beat_shots)} pictures")
+            shot_timeline.extend(beat_shots)
 
     # Optional second-pass Wan2.1 handoff: mapped review shots replace the
     # corresponding generated visuals before the EDL, review manifest and render.

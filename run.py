@@ -300,7 +300,8 @@ def main():
     pl.add_argument("--category", default="auto", help="Documentary category; use auto to infer from any topic")
     pl.add_argument("--language", default="english", choices=["english", "hindi", "hinglish"])
     pl.add_argument("--subtitle-language", default=None, choices=["english", "hindi", "hinglish", "source"],
-                    help="Burned-in caption language (default: SUBTITLE_LANGUAGE or english)")
+                    help="Burned-in caption language. Documentaries accept english only; the other "
+                         "choices are refused unless DOCUMENTARY_SUBTITLE_POLICY=any is set")
     pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
     pl.add_argument("--minutes", type=int, choices=range(10, 31), default=12, help="Target runtime in minutes (10-30)")
     pl.add_argument("--demo", action="store_true")

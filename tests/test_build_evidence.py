@@ -108,6 +108,35 @@ class BuildEvidenceTests(unittest.TestCase):
         self.assertIn("2 claims, 1 linked to a source", found)
         self.assertIn("fact check by a person still required", found)
 
+    def test_narration_line_gives_measured_words_minutes_and_rate(self):
+        self._write("runtime_report.json", {"target_minutes": 18, "narration_minutes": 16.4, "words": 2610,
+                                            "words_per_minute": 159.1, "fraction_of_target": 0.9111,
+                                            "minimum_fraction": 0.8, "status": "PASS"})
+        self._write("narration_synthesis_report.json", {"chunk_count": 105, "speech_seconds": 952.0,
+                                                        "inserted_pause_seconds": 27.3, "characters_per_second": 15.2})
+        line = evidence.narration(self.build)
+        self.assertIn("2610 words spoken in 16.4 min (159.1 words a minute)", line)
+        self.assertIn("91% of the requested 18 min, floor 80%: PASS", line)
+        self.assertIn("105 phrases, 952.0 s of speech + 27.3 s of pauses", line)
+        self.assertIn("15.2 characters a second", line)
+
+    def test_scenes_without_footage_show_their_searches_and_reasons(self):
+        self._write("provider_report.json", {"scenes": [
+            {"scene": "chapter 1 beat 2", "status": "needs_manual_review", "candidates_found": 4,
+             "candidates_eligible": 0, "reason": "no candidate met the relevance gate",
+             "queries": ["Webb sunshield deployment", "JWST sunshield", "tennis court sized sunshield", "x"]},
+            {"scene": "chapter 2 beat 1", "status": "needs_manual_review", "candidates_found": 0,
+             "candidates_eligible": 0, "reason": "no provider returned a candidate for these queries",
+             "queries": ["Ariane 5 launch Kourou"]},
+            {"scene": "chapter 2 beat 2", "status": "selected", "queries": ["a"]}]})
+        line = evidence.scenes_without_footage(self.build)
+        self.assertIn("2 scenes got no footage", line)
+        self.assertIn("no candidate met the relevance gate x1", line)
+        self.assertIn("chapter 1 beat 2: searched 'Webb sunshield deployment', 'JWST sunshield', "
+                      "'tennis court sized sunshield' (4 found, 0 eligible)", line)
+        self.assertNotIn("'x'", line)
+        self.assertIn("chapter 2 beat 1: searched 'Ariane 5 launch Kourou' (0 found, 0 eligible)", line)
+
     def test_missing_reports_produce_no_line_and_long_lines_are_cut(self):
         self.assertEqual(evidence.evidence_lines({"output": {"exists": False}}, self.build, None),
                          ["Final video: no finished file was produced."])

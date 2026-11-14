@@ -160,17 +160,100 @@ async def _synth_edge(text, voice, rate, pitch, path):
         f"Edge TTS failed after 3 attempts for voice {voice}: {last_error}"
     ) from last_error
 
+def trim_edge_silence(wav, threshold_db=-48.0, keep_seconds=0.03):
+    """Remove silence from the two ENDS of a 16-bit PCM WAV; pauses inside are never touched.
+
+    Edge TTS appends about a second of digital silence to every phrase; joined over 100+
+    phrases that is minutes of dead air. The previous FFmpeg ``silenceremove`` filter with
+    ``stop_periods=1`` did not trim the end: it stopped at the FIRST pause of 0.12 s, so every
+    phrase lost everything after its first comma or full stop. Trimming is done here on the
+    samples so the result does not depend on the FFmpeg version.
+
+    Returns {"source_seconds", "kept_seconds", "removed_start_seconds", "removed_end_seconds"}.
+    """
+    import wave
+
+    import numpy as np
+
+    with wave.open(str(wav), "rb") as handle:
+        params = handle.getparams()
+        raw = handle.readframes(params.nframes)
+    if params.sampwidth != 2:
+        raise ValueError(f"Narration WAV must be 16-bit PCM, got {params.sampwidth * 8}-bit.")
+    samples = np.frombuffer(raw, dtype="<i2").reshape(-1, params.nchannels)
+    total = len(samples)
+    source_seconds = total / float(params.framerate or 1)
+    if not total:
+        return {"source_seconds": 0.0, "kept_seconds": 0.0, "removed_start_seconds": 0.0, "removed_end_seconds": 0.0}
+    limit = 32768.0 * (10.0 ** (float(threshold_db) / 20.0))
+    loud = np.flatnonzero(np.abs(samples.astype(np.int32)).max(axis=1) > limit)
+    if not len(loud):                     # nothing audible: leave the file for the caller to reject
+        return {"source_seconds": round(source_seconds, 3), "kept_seconds": round(source_seconds, 3),
+                "removed_start_seconds": 0.0, "removed_end_seconds": 0.0}
+    margin = int(float(keep_seconds) * params.framerate)
+    first = max(0, int(loud[0]) - margin)
+    last = min(total, int(loud[-1]) + 1 + margin)
+    if first > 0 or last < total:
+        with wave.open(str(wav), "wb") as handle:
+            handle.setparams(params)
+            handle.writeframes(samples[first:last].tobytes())
+    return {"source_seconds": round(source_seconds, 3),
+            "kept_seconds": round((last - first) / float(params.framerate), 3),
+            "removed_start_seconds": round(first / float(params.framerate), 3),
+            "removed_end_seconds": round((total - last) / float(params.framerate), 3)}
+
+
 def _to_wav(mp3, wav):
-    # Edge TTS often appends ~1s of digital silence to every sentence. When
-    # 100+ chunks are concatenated this becomes minutes of dead air. Trim only
-    # leading/trailing silence per chunk (not pauses inside the spoken sentence).
-    trim = (
-        "silenceremove=start_periods=1:start_duration=0.08:start_threshold=-48dB:"
-        "stop_periods=1:stop_duration=0.12:stop_threshold=-48dB"
-    )
+    """Decode one synthesised phrase to mono 44.1 kHz PCM and trim the silence at its two ends."""
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(mp3),
-                    "-af", trim, "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
+                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
                     str(wav)], check=True, timeout=render_timeout())
+    return trim_edge_silence(wav)
+
+
+class NarrationIncompleteError(RuntimeError):
+    """The synthesised audio is too short to contain the words it was given."""
+
+
+def _spoken_characters(text) -> int:
+    return len(re.sub(r"\s+", "", str(text or "")))
+
+
+def check_narration_complete(sentences, durations):
+    """Refuse narration whose audio cannot contain its text.
+
+    Natural speech runs at roughly 12-20 characters a second (150-200 words a minute).
+    Audio far shorter than that for its text means words were dropped: a truncated provider
+    response, or a trim that cut into the speech. Limits: ``NARRATION_MAX_CHARS_PER_SECOND``
+    (26) over the whole narration, and one and a half times that for any single phrase of
+    60 characters or more.
+
+    Returns {"characters", "words", "speech_seconds", "characters_per_second", "words_per_minute"}.
+    """
+    try:
+        limit = float(os.getenv("NARRATION_MAX_CHARS_PER_SECOND", "26") or 26)
+    except ValueError:
+        limit = 26.0
+    limit = max(10.0, limit)
+    characters = sum(_spoken_characters(sentence) for sentence in sentences)
+    words = sum(len(str(sentence).split()) for sentence in sentences)
+    seconds = float(sum(durations))
+    rate = characters / seconds if seconds > 0 else float("inf")
+    if characters and rate > limit:
+        raise NarrationIncompleteError(
+            f"Narration audio is too short for its text: {characters} characters ({words} words) in "
+            f"{seconds:.1f} s is {rate:.0f} characters a second; speech runs at 12-20. "
+            "Part of the narration was not spoken. Refusing to build a documentary with missing narration.")
+    for index, (sentence, duration) in enumerate(zip(sentences, durations), start=1):
+        size = _spoken_characters(sentence)
+        if size >= 60 and (duration <= 0 or size / duration > limit * 1.5):
+            raise NarrationIncompleteError(
+                f"Narration phrase {index} of {len(sentences)} is too short for its text: {size} characters "
+                f"in {duration:.2f} s. Part of the phrase was not spoken: {str(sentence)[:90]!r}")
+    return {"characters": characters, "words": words, "speech_seconds": round(seconds, 3),
+            "characters_per_second": round(rate, 2) if seconds > 0 else None,
+            "words_per_minute": round(words / seconds * 60.0, 1) if seconds > 0 else None}
+
 
 def _dur(path):
     return float(subprocess.check_output(
@@ -346,6 +429,7 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     playback_speed = float(os.getenv("CHATTERBOX_PLAYBACK_SPEED", "1.04")) if engine == "chatterbox" else 1.0
     playback_speed = max(0.95, min(playback_speed, 1.10))
     durations = [_dur(wav) / playback_speed for wav in wavs]
+    completeness = check_narration_complete(sentences, durations)
     out = build_dir / "voice.wav"
     _join(wavs, pauses, out, speed=playback_speed)
     timings, current = [], 0.0
@@ -362,6 +446,10 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "language": language,
         "gender": gender,
         "chunk_count": len(sentences),
+        "characters": completeness["characters"],
+        "words": completeness["words"],
+        "characters_per_second": completeness["characters_per_second"],
+        "speech_words_per_minute": completeness["words_per_minute"],
         "speech_seconds": round(sum(durations), 3),
         "inserted_pause_seconds": round(sum(pauses), 3),
         "assembled_duration_seconds": round(_dur(out), 3),
