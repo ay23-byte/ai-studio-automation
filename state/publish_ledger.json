@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-14T11:13:02+00:00",
+  "updated_at": "2026-11-14T18:57:56+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -48,6 +48,20 @@
       "status": "built",
       "updated_at": "2026-11-14T11:13:02+00:00",
       "topic": "Why does sound travel faster through steel than air?",
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "b0701395609c10e811d91e8c",
+      "created_at": "2026-11-14T18:57:56+00:00",
+      "title": "Updates on Grand Theft Auto 6 and Franchise History",
+      "status": "built",
+      "updated_at": "2026-11-14T18:57:56+00:00",
+      "topic": "Even Grand Theft Auto's original creators haven't been able to play GTA 6",
+      "source_refs": [
+        "d41643debf4f4857425d",
+        "f42c8666591c38b9d43f"
+      ],
       "job_id": 7
     }
   ]
