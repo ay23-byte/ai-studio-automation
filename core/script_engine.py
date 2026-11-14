@@ -1,6 +1,7 @@
 import json, re, requests, time, random  # noqa: F401  (random stays importable: tests patch script_engine.random)
 from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, CHANNEL_NAME
 from core.news_research import research_topic, format_research_context
+from core.channel_profile import apply_configured_channel_profile
 
 from core import gemini as gemini_policy
 
@@ -550,6 +551,8 @@ def generate_shorts_script(topic: str, category: str = "finance",
                            channel_name: str = "", audience: str = "",
                            brand_voice: str = "", language: str = None) -> dict:
     import os
+    channel_name, audience, brand_voice = apply_configured_channel_profile(
+        channel_name, audience, brand_voice)
     selected_language = str(language or os.getenv("SHORTS_LANGUAGE", "english")).strip().lower()
     language_aliases = {"hinglish": "Hinglish", "hindi": "Hindi", "english": "English"}
     if selected_language not in language_aliases:
@@ -771,6 +774,8 @@ def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
                               brand_voice: str = "") -> dict:
+    channel_name, audience, brand_voice = apply_configured_channel_profile(
+        channel_name, audience, brand_voice)
     requested_category = str(category or "auto").strip()
     auto_category = requested_category.lower() in {"", "auto", "any", "universal"}
     minimum_words = int(duration_max * 150 * 0.90)

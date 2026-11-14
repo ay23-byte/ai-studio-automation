@@ -1,0 +1,149 @@
+{
+  "description": "Human-reviewed topic backlog for the Engineering Physics Beyond Science documentary pilot. Entries are proposals, not approved scripts or verified facts. Select a topic manually in GitHub Actions after checking audience fit and research feasibility.",
+  "topics": [
+    {
+      "id": "BES-001",
+      "topic": "How Semiconductors Became the Most Powerful Weapon in the Global Economy",
+      "category": "technology",
+      "format": "longform",
+      "bridge": "direct engineering/physics audience bridge",
+      "shorts_angles": [
+        "Why the world depends on a few chip factories",
+        "How a chip shortage can affect an entire economy"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-002",
+      "topic": "Why Taiwan Matters So Much to the World's Technology Supply Chain",
+      "category": "geopolitics",
+      "format": "longform",
+      "bridge": "semiconductors and geopolitics",
+      "shorts_angles": [
+        "Why Taiwan is central to advanced chips",
+        "What makes chip manufacturing so difficult"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-003",
+      "topic": "How Singapore Became a Global Economic Powerhouse",
+      "category": "economics",
+      "format": "longform",
+      "bridge": "infrastructure, trade and industrial policy",
+      "shorts_angles": [
+        "How a small port became a global hub",
+        "What Singapore built differently"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-004",
+      "topic": "Why Japan's Economic Miracle Slowed Down",
+      "category": "economics",
+      "format": "longform",
+      "bridge": "technology, industry and demographics",
+      "shorts_angles": [
+        "Japan's economic rise in 45 seconds",
+        "What the lost decades actually mean"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-005",
+      "topic": "How GPS Became a Strategic Global Technology",
+      "category": "technology",
+      "format": "longform",
+      "bridge": "satellites, physics and geopolitics",
+      "shorts_angles": [
+        "How GPS knows your location",
+        "Why satellite navigation is strategic"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-006",
+      "topic": "How Nuclear Energy Changes a Country's Strategic Power",
+      "category": "science",
+      "format": "longform",
+      "bridge": "physics, energy and international relations",
+      "shorts_angles": [
+        "Why nuclear power is different",
+        "How a reactor produces electricity"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-007",
+      "topic": "How South Korea Built a Global Technology Economy",
+      "category": "economics",
+      "format": "longform",
+      "bridge": "engineering, manufacturing and policy",
+      "shorts_angles": [
+        "How South Korea industrialized",
+        "The role of export-led manufacturing"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-008",
+      "topic": "Why the Panama Canal Changed Global Trade",
+      "category": "history",
+      "format": "longform",
+      "bridge": "engineering megaproject and world history",
+      "shorts_angles": [
+        "Why the Panama Canal matters",
+        "How ships cross the canal"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-009",
+      "topic": "How the Space Race Changed Technology on Earth",
+      "category": "history",
+      "format": "longform",
+      "bridge": "physics, engineering and geopolitics",
+      "shorts_angles": [
+        "Three technologies accelerated by the Space Race",
+        "Why the Moon race was also a technology race"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-010",
+      "topic": "Why the World's Energy Routes Matter So Much",
+      "category": "geopolitics",
+      "format": "longform",
+      "bridge": "energy infrastructure and global power",
+      "shorts_angles": [
+        "Why shipping chokepoints matter",
+        "How oil and gas routes shape geopolitics"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-011",
+      "topic": "How Dubai Built a Global Aviation and Logistics Hub",
+      "category": "economics",
+      "format": "longform",
+      "bridge": "engineering, aviation and trade",
+      "shorts_angles": [
+        "How Dubai became a major aviation hub",
+        "Why airport connectivity creates economic power"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "BES-012",
+      "topic": "The Rise and Fall of the Soviet Union: The Technology and Economic Story",
+      "category": "history",
+      "format": "longform",
+      "bridge": "science, industry and geopolitics",
+      "shorts_angles": [
+        "Why the Soviet Union collapsed",
+        "How the Space Race shaped the Cold War"
+      ],
+      "status": "proposed"
+    }
+  ]
+}
