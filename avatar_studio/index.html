@@ -163,7 +163,7 @@
           status("Recording produced no media data ("+JSON.stringify(trackInfo)+"). Check browser MediaRecorder support and try Chrome or Edge.");
           return;
         }
-        if(framePump!==null){clearInterval(framePump);framePump=null;}
+        stopFramePump();
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download="talking_presenter.webm";a.click();
         setTimeout(()=>URL.revokeObjectURL(url),30000);
@@ -187,7 +187,7 @@
       },{once:true});
       await sourceAudio.play();
     }catch(error){
-      if(framePump!==null){clearInterval(framePump);framePump=null;}
+      stopFramePump();
       canvasStream?.getTracks().forEach(t=>t.stop());sourceStream?.getTracks().forEach(t=>t.stop());
       canvasStream=null;sourceStream=null;avatar?.detachStream();
       enable("record",true);enable("finish",false);enable("play",true);
