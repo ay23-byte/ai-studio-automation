@@ -103,11 +103,18 @@ def render_graphic_scene(shot,duration,build_dir,scene_id):
     root=Path(build_dir)/"graphic_frames"/scene_id; root.mkdir(parents=True,exist_ok=True)
     fps=15; count=max(30,min(180,int(max(float(duration),2)*fps)))
     for i in range(count):
-        p=(i+1)/count; frame=_chart(chart,p) if isinstance(chart,dict) else None
-        if frame is None and events: frame=_timeline(events,p,shot.get("title",""))
-        if frame is None and text: frame=_evidence(text,p,shot.get("title",""))
-        if frame is None: return None
-        frame.save(root/f"frame_{i:04d}.png",optimize=True)
+        p = (i + 1) / count
+        # Render only the visual form explicitly requested by the storyboard.
+        # A map with a chart_spec must not silently become a generic bar chart;
+        # unsupported visual forms fall through to another production provider.
+        frame = _chart(chart, p) if kind == "chart" and isinstance(chart, dict) else None
+        if frame is None and kind == "timeline" and events:
+            frame = _timeline(events, p, shot.get("title", ""))
+        if frame is None and kind in {"document", "evidence", "callout", "infographic"} and text:
+            frame = _evidence(text, p, shot.get("title", ""))
+        if frame is None:
+            return None
+        frame.save(root / f"frame_{i:04d}.png", optimize=True)
     out=Path(build_dir)/(scene_id+".mp4")
     cmd=[ffmpeg_bin(),"-y","-loglevel","error","-framerate",str(fps),"-i",str(root/"frame_%04d.png"),
          "-t",f"{float(duration):.3f}","-vf","fps=30,format=yuv420p","-c:v","libx264",
