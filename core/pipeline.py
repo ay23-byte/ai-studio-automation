@@ -167,7 +167,6 @@ def _scene_search_brief(beat: dict, keywords) -> str:
         beat.get("location", ""),
         beat.get("time_period", ""),
         " ".join(str(item) for item in (keywords or []) if str(item).strip()),
-        beat.get("anchor", ""),
     )
     return " ".join(" ".join(str(part or "").split()) for part in parts if str(part or "").strip())[:600]
 
