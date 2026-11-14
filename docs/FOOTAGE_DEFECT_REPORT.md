@@ -1,11 +1,10 @@
 # Footage engine defect report
 
-Audit of the footage code at commit `237db51` and what replaced it. Each defect
-was found by reading the code against the provider's published API
-documentation, or by a test that failed. None was found by a live run, because
-the development sandbox cannot reach the provider hosts. Whether the fixes work
-against the real services is unproven until the live verification workflow is
-run (see `docs/FOOTAGE_ENGINE.md`).
+Audit of the footage code at commit `237db51` and what replaced it. Defects 1
+to 23 were found by reading the code against each provider's published API
+documentation, or by a test that failed. Defects 24 to 29 were found by running
+the code against the real services on GitHub (see `docs/FOOTAGE_ENGINE.md` for
+the results of that run).
 
 ## Why documentaries had little real footage
 
@@ -40,12 +39,30 @@ run (see `docs/FOOTAGE_ENGINE.md`).
 | 22 | A provider that failed was searched again for every query of the scene | Dropped for the scene after two consecutive errors |
 | 23 | The review manifest did not carry the dated public-domain basis of a Library of Congress clip or the operator's Mixkit confirmation, so the release check would have refused clips the engine had correctly selected. Introduced during this rewrite and caught by the full test run before commit. | Both are copied into the manifest when the build recorded them; a test runs every provider's record through the release check |
 
+## Defects found by the live runs and by CI
+
+| # | Defect | Fix |
+|---|---|---|
+| 24 | Library of Congress: the rights text attached to every film of a collection mentions "copyrighted motion pictures" in "rare cases". It was read as a restriction on the item, so every film was refused. The offline test used a shortened rights text and did not catch it. | Only a sentence about the item itself is a bar. The test fixture now holds the Library's text word for word. |
+| 25 | Library of Congress: item records were requested for films that could never be used (no publication date before the public-domain cutoff), spending the few requests the Library allows. An item record that could not be fetched was counted as a licence refusal. | Such films are skipped before any item request; an unreadable record is reported as that. |
+| 26 | Library of Congress: a home movie dated before the cutoff would have been treated as public domain by date, although it was never published. | Home movies and unpublished films get no date basis and are not used. |
+| 27 | Provider text held in nested lists was stored as a Python list literal (`['…\r\n…']`) in the rights statement. | Nested lists are flattened to plain text. |
+| 28 | When a download failed, only the last file tried was reported, as a raw command line. A refusal gave no reason, so "60 refused" for NARA could not be explained. | Every file tried is named with its reason; every refused result is counted under a reason. |
+| 29 | The new tests build real clips with FFmpeg, and the `unit-tests` job has no FFmpeg, so that job failed on the pull request. | Those tests skip without FFmpeg and run in the `ffmpeg-smoke` job, which prints any skip. |
+
+One regression was introduced and fixed during this work: a recognised licence
+name without a licence URL was classed `unknown`, which made the release check
+refuse sources a reviewer is allowed to complete. It is now an incomplete
+record: not selected automatically, and still completable at review.
+
 ## Behaviour changes to be aware of
 
-- **DVIDS `Referer`.** The fixed header is gone. If the key worked only because
-  of it, DVIDS will answer 403 and the report will say so. Setting the
-  repository variable `DVIDS_API_REFERER` to `https://api.dvidshub.net` restores
-  the old request exactly.
+- **DVIDS `Referer`.** The key is first sent with no Referer. After a 403 it is
+  sent once with the earlier fixed `Referer: https://api.dvidshub.net`, so a key
+  that worked before still works, and the report says which form was accepted.
+  In the live run the key was refused in both forms.
+- **Library of Congress.** Fewer requests: item records are fetched only for
+  films old enough to be used.
 - **Stricter acceptance.** Internet Archive items without a licence URL,
   Library of Congress items without a dated public-domain basis, results
   without a source page, and files that fail decoding are no longer used. Some
@@ -69,14 +86,24 @@ run (see `docs/FOOTAGE_ENGINE.md`).
 - `tests/test_archival_video.py`: three tests set the NARA and Europeana keys,
   because providers without a key are no longer called.
 
-No test was removed and no assertion was loosened to make a failure pass.
+- `tests/test_footage_engine.py` is new in this work and was revised as defects
+  were found. Two table cases that expected `unknown` for a named licence
+  without a URL were replaced by a dedicated test of the corrected rule. One
+  assertion now expects two DVIDS requests (one per key form) instead of one.
+  Tests that need FFmpeg skip when it is absent.
+
+No test in an older file was removed, and no assertion was loosened to make a
+failure pass.
 
 ## Not verified
 
-- No request has reached a real provider from this code. NARA's response shape
-  in particular is taken from the previous code, not from documentation; the
-  published description confirms only the endpoint, the header and the
-  parameter names.
-- The offline tests prove that the code handles the documented response shapes
-  and failure modes. They cannot prove that a provider accepts the keys, that
-  the runner is not blocked, or that real files validate.
+- No complete documentary has been rendered with this engine. The live run
+  checks one clip per provider and a six-scene selection.
+- DVIDS: nothing beyond the refusal is known, because the key was not accepted.
+  The adapter's handling of real DVIDS answers is untested.
+- NARA: the search and the reading of use restrictions are confirmed by the
+  live run. No NARA file has been downloaded, because none passed the rights rule.
+- Live results are from one day on GitHub runners. Providers change, and the
+  Library of Congress answered HTTP 429 in three of the four runs.
+- Nobody has looked at the downloaded clips. Relevance is word matching against
+  the provider's text; whether a clip shows what its title says was not checked.

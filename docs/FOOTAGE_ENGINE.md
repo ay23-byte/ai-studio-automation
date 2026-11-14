@@ -5,29 +5,48 @@ work, and what the system will not do.
 
 ## Verification status
 
-| Level | What it means | Current state |
-|---|---|---|
-| Code path tested offline | Adapters, licence policy, validation, ranking and reports run against stand-in provider answers and real FFmpeg files | Done, in `tests/test_footage_engine.py` and `tests/test_documentary_source_adapters.py` |
-| LIVE-VERIFIED | A real search, a real download and ffprobe validation succeeded in one run | **Not done for any provider.** The development sandbox cannot reach the provider hosts. Run the workflow below. |
+Measured by the **Live footage provider verification** workflow on GitHub
+(run 43584838524, commit `2cacdb0`). For each provider it made a real search,
+downloaded one real file and inspected it with ffprobe.
 
-Until that workflow has been run with your keys, no provider should be
-described as working in production.
+| Provider | Result | Evidence from the run |
+|---|---|---|
+| NASA | LIVE-VERIFIED | 1920x1080, 113 s, H.264 |
+| Wikimedia Commons | LIVE-VERIFIED | 1920x1080, 16 s, VP9, CC0 |
+| Internet Archive | LIVE-VERIFIED | 426x240, 38 s, H.264, public domain. Low resolution; see Limits. |
+| Library of Congress | LIVE-VERIFIED | 1920x1080, 40 s, H.264, film published before the public-domain cutoff |
+| Europeana | LIVE-VERIFIED | 720x576, 64 s, H.264, public domain |
+| Pixabay | LIVE-VERIFIED | 1920x1080, 28 s, H.264 |
+| Coverr | LIVE-VERIFIED | 1920x1080, 10 s, H.264; 3 AI-generated results refused |
+| DVIDS | AUTH-FAILED | HTTP 403 with and without a Referer. The key is not accepted. See "DVIDS key". |
+| US National Archives (NARA) | NO-ELIGIBLE-RESULTS | Search works (60 results). All refused by the rights rule. See "NARA". |
+| Mixkit | MANUAL-IMPORT-ONLY | Never fetched automatically |
+
+In the same run a six-scene selection got validated footage for 6 of 6 scenes,
+from Pixabay (2), Wikimedia Commons (2), Coverr (1) and Library of Congress (1).
+
+What this does not show: the result is one run, one clip per provider, from a
+GitHub runner. In the three runs before it the Library of Congress answered
+HTTP 429 and asked for a 20-minute wait, so it can be unavailable to a build.
+No complete documentary has been rendered with this engine yet.
 
 ## Run the live verification
 
 GitHub → Actions → **Live footage provider verification (search, download, ffprobe)** → Run workflow.
 
-It needs no inputs. For each provider it searches, downloads one file, probes
-it, and prints one of these statuses on the run page:
+It needs no inputs. It also runs by itself on pull requests that change the
+footage code. For each provider it searches, downloads one file, probes it, and
+prints one of these statuses on the run page, with the counts and the reasons
+results were refused:
 
 | Status | Meaning | What to do |
 |---|---|---|
 | `LIVE-VERIFIED` | Search, download and ffprobe all succeeded | Nothing |
 | `NOT-CONFIGURED` | The provider needs a key and none is set | Add the secret, or leave the provider off |
-| `AUTH-FAILED` | The provider refused the key (401/403) | Check the key; for DVIDS also the registered origin |
+| `AUTH-FAILED` | The provider refused the key (401/403) | Check the key; for DVIDS see "DVIDS key" |
 | `RATE-LIMITED` | The provider asked the client to slow down | Run again later |
 | `UNREACHABLE` | Network error, timeout, server error or a block page | Run again; if it persists the provider is down or blocking the runner |
-| `NO-ELIGIBLE-RESULTS` | Search worked; nothing passed the licence and relevance rules | Try the `topic` input |
+| `NO-ELIGIBLE-RESULTS` | Search worked; nothing passed the licence and relevance rules | Read the refusal reasons on the run page; try the `topic` input |
 | `DOWNLOAD-FAILED` | Results found, no file could be fetched | Read `provider_report.md` in the artifact |
 | `INVALID-MEDIA` | Files were fetched but none was playable video | Read `provider_report.md` |
 | `MANUAL-IMPORT-ONLY` | Mixkit: never fetched automatically | See "Mixkit" below |
@@ -46,21 +65,43 @@ The same check runs locally: `python -m scripts.verify_footage_providers --selec
 | NASA Image and Video Library | none | NASA media guidelines, credit required | Searched only for space topics. Items naming a third party or a copyright holder are rejected. |
 | Wikimedia Commons | none | CC0, public domain, CC BY, CC BY-SA, read per file | NC, ND and unlicensed files rejected. |
 | Internet Archive | none | Only items carrying a CC BY, CC BY-SA, CC0 or public-domain licence URL | Items with no licence URL (most of the archive) are not used. |
-| Library of Congress | none | "No known restrictions" plus a publication date old enough for the US public domain | Paced to stay under 20 requests a minute; LOC blocks a client for an hour above that. |
+| Library of Congress | none | "No known restrictions" plus a publication date old enough for the US public domain | Paced to one request every 3.2 s. Item records are requested only for films old enough to be used. The Library can still answer 429 and ask for a long wait; the provider is then skipped for the run. Home movies and other unpublished films are not used. |
 | DVIDS | `DVIDS_API_KEY` | DVIDS API terms, credit required | See "DVIDS origin" below. |
 | Europeana | `EUROPEANA_API_KEY` | Open rights statements only (CC0, PDM, CC BY, CC BY-SA, NoC-US) | Key sent in the `X-Api-Key` header. |
-| US National Archives (NARA) | `NARA_API_KEY` | Unrestricted use only | |
+| US National Archives (NARA) | `NARA_API_KEY` | Use restriction "Unrestricted" **and** a public-domain or US-government-work statement in the record | See "NARA" below. |
 | Pixabay | `PIXABAY_API_KEY` | Pixabay Content License | Stock; never used for a scene that asks for archival footage. |
 | Coverr | `COVERR_API_KEY` | Coverr licence, credit "Video by <creator> on Coverr" | Stock; AI-generated items rejected; each use is reported to Coverr as its API terms require. |
 | Mixkit | none | Mixkit Free License, confirmed by a person | Manual import only. |
 
-### DVIDS origin
+### DVIDS key
 
-DVIDS answers 403 when a key is used from an origin other than the one
-registered for it. Earlier versions always sent `Referer: https://api.dvidshub.net`.
-That header is no longer invented. If DVIDS reports `AUTH-FAILED`, set the
-repository **variable** `DVIDS_API_REFERER` to the origin registered with your
-key. Setting it to `https://api.dvidshub.net` restores the old behaviour exactly.
+DVIDS issues two kinds of key: one that must be sent with no Referer, and one
+bound to a registered origin. The engine first sends the key with no Referer.
+If DVIDS answers 403, it tries once more with `Referer: https://api.dvidshub.net`,
+the value earlier versions always sent, and the report states which form worked.
+
+In the live run DVIDS refused the key in both forms. To fix it:
+
+1. In your DVIDS account, check that the API key is active and whether an
+   origin is registered for it.
+2. If an origin is registered, set the repository **variable**
+   `DVIDS_API_REFERER` to exactly that origin.
+3. Otherwise request a new key and store it as the `DVIDS_API_KEY` secret.
+4. Run the live verification again.
+
+Until then DVIDS supplies nothing and every build says so in its provider report.
+
+### NARA
+
+The NARA search works and its records are read correctly. In the live run, of
+60 results: 25 had use restriction "Restricted - Possibly", 20 "Undetermined",
+and 15 "Unrestricted". The 15 were also refused, because this project accepts a
+NARA film only when the record additionally states public domain or US
+government work. That rule existed before this change and was kept.
+
+The effect is that NARA will rarely supply a clip. Accepting NARA's own
+"Unrestricted" use status as sufficient would change that. It is a rights
+decision for the channel owner, not a bug fix, so it was not made here.
 
 ### Mixkit
 
@@ -93,7 +134,7 @@ any scene whose words match their title and tags.
 5. Each result must share a subject word with the scene. Words such as
    "newsreel" or "historical film" do not count as a match.
 6. Remaining results are ranked: 55% text relevance to the query, 15% match to
-   the scene description, 18% declared resolution and duration, 5% licence
+   the scene description, 18% declared resolution, 5% licence
    clarity, minus a penalty that grows with the share of scenes the same
    provider already supplied.
 7. The best result is downloaded and probed. If the file is not valid video,
@@ -131,8 +172,8 @@ record: it is not selected automatically.
   codec, SHA-256, download time, relevance score, ranking details.
 - `provider_report.json` / `provider_report.md`: per provider, whether it was
   enabled, authentication and search status, HTTP status counts, results found,
-  downloads attempted and succeeded, invalid files, licence rejections, scenes
-  supplied and the reason for any failure; per scene, what was selected or why
+  downloads attempted and succeeded, invalid files, licence rejections with the
+  reason for each and a count, scenes supplied and the reason for any failure; per scene, what was selected or why
   nothing was. API keys are removed from everything written.
 - `licenses.csv` and `credits.txt`: one row per used asset, including whether
   commercial use and modification are allowed, whether credit is required, the
@@ -154,12 +195,18 @@ All optional.
 | `FOOTAGE_MIN_DURATION_SECONDS` | 2 | Shortest accepted clip |
 | `FOOTAGE_PROVIDER_SEARCH_SECONDS` | 60 | Time one provider gets per scene |
 | `FOOTAGE_MAX_RETRY_AFTER_SECONDS` | 30 | Longest wait a provider may ask for before it is skipped for the run |
-| `FOOTAGE_SEARCH_PAGES` | 1 | Result pages read per query |
+| `FOOTAGE_SEARCH_PAGES` | 1 (at most 3) | Result pages read per query |
+| `FOOTAGE_DETAIL_LOOKUPS` | 3 (at most 8) | Search hits per query whose item record is fetched (Library of Congress, DVIDS, Internet Archive) |
 | `DVIDS_API_REFERER` | unset | Origin registered with the DVIDS key |
 
 ## Limits
 
-- No provider is live-verified yet (see the top of this page).
+- DVIDS and NARA supply nothing at present (see the top of this page).
+- Live verification is one clip per provider in one run. It is not a rendered documentary.
+- The Library of Congress limits requests strictly and may be skipped for a whole run.
+- Internet Archive files that carry a usable licence are often small. The clip
+  verified live was 426x240. The minimum accepted size is 320x240; raise
+  `FOOTAGE_MIN_WIDTH` and `FOOTAGE_MIN_HEIGHT` to refuse such files.
 - Relevance is text matching, not image understanding.
 - The engine cannot guarantee a real clip for every scene; scenes without one
   are listed in the provider report.

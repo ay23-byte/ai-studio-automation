@@ -220,7 +220,7 @@ Each used clip gets a `.source.json` provenance record. Each build writes `provi
 
 Mixkit has no public API, so its clips are downloaded by a person and imported with `scripts/register_mixkit_asset.py`. The project never scrapes a website and never downloads broadcast or news-agency footage.
 
-Whether each provider works with your keys is checked by the manually run **Live footage provider verification** workflow. See [docs/FOOTAGE_ENGINE.md](docs/FOOTAGE_ENGINE.md).
+Whether each provider works with your keys is checked by the **Live footage provider verification** workflow (Actions tab; it also runs on pull requests that change the footage code). At the last run seven providers delivered a validated clip; DVIDS refused the key and NARA returned nothing the rights rule accepts. See [docs/FOOTAGE_ENGINE.md](docs/FOOTAGE_ENGINE.md).
 
 ### Long-form visual fallback order
 
