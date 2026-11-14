@@ -18,7 +18,7 @@ try {
   await sleep(1200);
   browser = await chromium.launch({
     headless: true,
-    args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-webgl", "--autoplay-policy=no-user-gesture-required", "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"]
+    args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-webgl", "--autoplay-policy=no-user-gesture-required", "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows","--disable-frame-rate-limit","--disable-gpu-vsync"]
   });
   const context = await browser.newContext({ acceptDownloads: true });
   // Use a fresh page for every chapter so MediaRecorder, audio streams and SDK
