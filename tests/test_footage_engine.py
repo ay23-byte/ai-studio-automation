@@ -546,6 +546,24 @@ class EngineTests(_Temp):
         self.assertIn("not relevant enough", scene["reason"])
         self.assertEqual(self.report.provider("P")["licence_rejections"], 3)
 
+    def test_weak_full_scene_match_is_rejected_even_when_search_terms_match(self):
+        # Broad keyword matches must not allow a beach clip into a wafer/cleanroom shot.
+        download = Mock(return_value=True)
+        provider = Provider("P", lambda q: [
+            _lead("P", "beach", "Semiconductor beach holiday footage", "https://a/beach.mp4")
+        ])
+        def relevance(query, metadata):
+            return 0.7 if query == "semiconductor" else 0.05
+        ok = acquire(["semiconductor"], self.tmp / "scene.mp4", set(),
+                     scene_prompt="silicon wafer inside a semiconductor cleanroom",
+                     providers=[provider], download=download, relevance=relevance,
+                     report=self.report)
+        self.assertFalse(ok)
+        download.assert_not_called()
+        scene = self.report.to_dict()["scenes"][0]
+        self.assertEqual(scene["status"], "needs_manual_review")
+        self.assertIn("scene brief match below", scene["reason"])
+
     def test_invalid_file_is_skipped_and_the_next_candidate_is_used(self):
         files = {"https://a/page.mp4": b"<!DOCTYPE html>" + b"denied " * 20000,
                  "https://b/good.mp4": self.clip_bytes("good")}
