@@ -253,6 +253,28 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # Keep compact QA evidence independently downloadable even when the full
+      # review bundle is multi-gigabyte or the package step exits non-zero.
+      - name: Upload compact documentary QA diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: longform-qa-diagnostics-${{ github.run_id }}
+          path: |
+            build/job_*/quality_report.json
+            build/job_*/visual_consistency_report.json
+            build/job_*/visual_review_report.json
+            build/job_*/research_verification_report.json
+            build/job_*/audio_quality_report.json
+            build/job_*/licenses.csv
+            build/job_*/credits.txt
+            build/job_*/provider_report.json
+            build/job_*/narration_synthesis_report.json
+            build/job_*/shared_review_package/qa/*.json
+            build/job_*/shared_review_package/package_summary.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # Build state remains an Actions artifact/local runtime concern; never
       # commit a live SQLite database or grant this render workflow write access.
 
