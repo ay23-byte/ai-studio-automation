@@ -929,10 +929,21 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 print(f"WARNING: chapter title slate skipped: {exc}")
                 title_clip = None
             if title_clip:
+                title_text = str(sec.get("title") or f"Chapter {i + 1}")
                 title_shot = dict(sec)
-                title_shot.update({"_chapter_index": i, "visual_type": "chapter_title",
-                                   "_start": shot_cursor, "_dur": title_duration,
-                                   "_media": {"type": "video", "path": str(title_clip)}})
+                title_shot.update({
+                    "_chapter_index": i,
+                    "visual_type": "chapter_title",
+                    "subject": "Animated documentary chapter title slate",
+                    "visual_prompt": (
+                        "A short animated documentary chapter title slate displaying the chapter heading: "
+                        + title_text + ". This is an intentional editorial title card, not B-roll."
+                    ),
+                    "narration": "Chapter title: " + title_text,
+                    "on_screen_text": title_text,
+                    "_start": shot_cursor, "_dur": title_duration,
+                    "_media": {"type": "video", "path": str(title_clip)},
+                })
                 shot_timeline.append(title_shot)
                 shot_cursor += title_duration
                 durations = slate_durations
