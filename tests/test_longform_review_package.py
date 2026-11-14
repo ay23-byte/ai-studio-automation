@@ -122,7 +122,7 @@ class LongformReviewPackageTests(unittest.TestCase):
         cases = (
             ({"consistency": {"status": "FAIL", "summary": {"fail_count": 1, "review_count": 0},
                               "shots": [{"shot_id": "shot_0001", "status": "fail", "issues": ["below 640x360"]}]}},
-             "technical", "Visual consistency report is 'FAIL'"),
+             "technical", "blocking defects"),
             ({"consistency": {"status": "FAIL", "summary": {"fail_count": 1, "review_count": 0},
                               "shots": [{"shot_id": "shot_0001", "status": "fail", "issues": ["underexposed"]}]}},
              "technical", "blocking defects"),
