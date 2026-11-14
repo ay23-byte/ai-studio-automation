@@ -42,8 +42,14 @@ def research_topic(topic, max_records=8, timeout=25):
                     delay = max(0.0, float(raw_retry)) if raw_retry else min(8.0, 1.5 * (2 ** attempt))
                 except (TypeError, ValueError):
                     delay = min(8.0, 1.5 * (2 ** attempt))
-                if attempt == 2 or delay > 8.0:
-                    response.raise_for_status()
+                if delay > 8.0:
+                    print(f"GDELT requested a {delay:.1f}s cooldown; skipping live-news discovery "
+                          "for this run rather than retrying early.")
+                    return []
+                if attempt == 2:
+                    print(f"GDELT remained unavailable after {attempt + 1} attempts "
+                          f"(HTTP {response.status_code}); continuing without live-news leads.")
+                    return []
                 print(f"GDELT returned HTTP {response.status_code}; retrying in {delay:.1f}s "
                       f"({attempt + 1}/3).")
                 time.sleep(delay)
