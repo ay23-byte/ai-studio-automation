@@ -97,7 +97,7 @@ class PresenterMotionTests(unittest.TestCase):
         report = self._analyse(pictures)
         self.assertEqual(report["status"], "FAIL")
         self.assertEqual(report["nominal_frame_rate"], 30.0)
-        self.assertLess(report["distinct_frame_rate"], 11)
+        self.assertLess(report["distinct_frame_rate"], 13)
         self.assertTrue(any("different frames" in issue for issue in report["issues"]), report["issues"])
 
     def test_frozen_second_fails(self):
@@ -106,6 +106,22 @@ class PresenterMotionTests(unittest.TestCase):
         self.assertEqual(report["status"], "FAIL")
         self.assertGreater(report["longest_frozen_seconds"], 0.9)
         self.assertTrue(any("frozen" in issue for issue in report["issues"]), report["issues"])
+
+    def test_a_slow_pause_between_sentences_is_not_a_freeze(self):
+        # Production run 43652866814 rejected a clip for a "0.53 s freeze" that was the presenter
+        # pausing between two sentences: the head still moved, a fraction of a pixel per frame.
+        def drifting(frame):
+            ys, xs = np.mgrid[0:HEIGHT, 0:WIDTH]
+            shift = 0.1 * frame                                      # slow, continuous head movement
+            image = 110 + 60 * np.sin((xs + shift) * 0.11) * np.cos((ys + shift * 0.6) * 0.09)
+            return np.clip(image, 0, 255).astype(np.uint8)
+
+        pictures = [_picture(i, self.track[i]) for i in range(40)] + [drifting(i) for i in range(40)] \
+            + [_picture(i, self.track[i]) for i in range(80, self.frames)]
+        report = self._analyse(pictures)
+        self.assertLess(report["longest_frozen_seconds"], 0.5, report)
+        self.assertFalse(any("frozen" in issue for issue in report["issues"]), report["issues"])
+        self.assertGreaterEqual(report["distinct_frame_rate"], 15)
 
     def test_head_that_moves_with_a_still_mouth_fails(self):
         report = self._analyse([_picture(i, 0.0) for i in range(self.frames)])

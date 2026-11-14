@@ -181,7 +181,18 @@ def analyse_presenter_motion(path: str | Path, mouth_box: dict[str, float] | Non
     frames = np.frombuffer(picture.stdout[:count * width * height], dtype=np.uint8).reshape(count, height, width).astype(np.int16)
     change = np.abs(frames[1:] - frames[:-1])
     delta = change.reshape(count - 1, -1).mean(axis=1)
-    frozen = (change >= REPEAT_LEVEL).reshape(count - 1, -1).sum(axis=1) < REPEAT_PIXELS
+    # A frame is "new" when it differs from the last new picture, not merely from the frame
+    # before it. A presenter who pauses between sentences moves slowly: neighbouring frames
+    # are then almost equal, but the difference from the picture a few frames back keeps
+    # growing, so the pause is not mistaken for a stalled recording. A picture that really is
+    # repeated never differs from its reference, however long it lasts.
+    frozen = np.zeros(count - 1, dtype=bool)
+    reference = frames[0]
+    for index in range(1, count):
+        if int((np.abs(frames[index] - reference) >= REPEAT_LEVEL).sum()) < REPEAT_PIXELS:
+            frozen[index - 1] = True
+        else:
+            reference = frames[index]
     seconds = count / nominal_fps
     distinct = int(count - frozen.sum())
     distinct_fps = distinct / seconds
