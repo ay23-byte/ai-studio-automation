@@ -54,14 +54,30 @@ jobs:
           from core.review_dashboard import build_dashboard
 
           root = Path("source-artifacts")
-          packages = review_contract.find_packages(root)
+          # Older documentary artifacts may name the rendered file
+          # longform_7.mp4 rather than video.mp4. Resolve the path recorded
+          # in the manifest instead of relying on the newer canonical name.
+          packages = []
+          for manifest_path in sorted(root.rglob("production_manifest.json")):
+              try:
+                  manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+              except (OSError, ValueError):
+                  continue
+              if not isinstance(manifest_data, dict):
+                  continue
+              if manifest_data.get("schema_version") != 2 or manifest_data.get("mode") != "longform":
+                  continue
+              video_meta = manifest_data.get("video") or {}
+              video_name = video_meta.get("file") or manifest_data.get("video_file") or "video.mp4"
+              if (manifest_path.parent / video_name).is_file():
+                  packages.append(manifest_path.parent)
           if len(packages) != 1:
               raise SystemExit(
-                  f"Expected exactly one schema-v2 review package in run "
+                  f"Expected exactly one schema-v2 documentary review package in run "
                   f"{os.environ['SOURCE_RUN_ID']}; found {len(packages)}. "
                   "This run cannot be exported safely."
               )
-          package = Path(packages[0])
+          package = packages[0]
           dashboard = build_dashboard(package)
           out = Path("compact-review-export")
           out.mkdir(parents=True, exist_ok=True)
