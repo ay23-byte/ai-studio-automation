@@ -11,6 +11,17 @@ from pathlib import Path
 from typing import Any
 
 
+# A source below this is a technical defect in a 1080p documentary. The footage engine uses
+# the same floor for long-form builds, so a small clip is refused while another candidate
+# can still be chosen instead of failing the finished film.
+MIN_SOURCE_WIDTH = 640
+MIN_SOURCE_HEIGHT = 360
+# A picture whose mean level is below DARK_MEAN is a black or unusable frame unless it also
+# holds real highlights: a night sky, a deep-field image or a spacecraft against space.
+DARK_MEAN = 12.0
+DARK_SCENE_HIGHLIGHT = 60.0
+
+
 def _frame_metrics(path: str | Path) -> dict[str, Any]:
     from PIL import Image, ImageChops, ImageFilter, ImageStat
 
@@ -24,6 +35,8 @@ def _frame_metrics(path: str | Path) -> dict[str, Any]:
         count = max(len(pixels), 1)
         luminance = [0.2126 * r + 0.7152 * g + 0.0722 * b for r, g, b in pixels]
         brightness = sum(luminance) / count
+        # Level reached by the brightest 1% of the picture: tells a night sky from a black frame.
+        highlight = sorted(luminance)[min(count - 1, int(count * 0.99))] if luminance else 0.0
         contrast = statistics.pstdev(luminance) if count > 1 else 0.0
         saturation = sum(max(rgb) - min(rgb) for rgb in pixels) / count
         clipped = sum(1 for value in luminance if value <= 5 or value >= 250) / count
@@ -33,6 +46,7 @@ def _frame_metrics(path: str | Path) -> dict[str, Any]:
     return {
         "width": width, "height": height,
         "brightness": round(brightness, 2),
+        "highlight_level": round(highlight, 2),
         "contrast": round(contrast, 2),
         "saturation": round(saturation, 2),
         "clipped_pixel_ratio": round(clipped, 4),
@@ -57,16 +71,21 @@ def audit_visual_consistency(visual_report: dict[str, Any],
             rows.append({"shot_id": shot_id, "status": "unavailable",
                          "frame_count": 0, "issues": frame_errors or ["No readable sample frames."]})
             continue
-        keys = ("brightness", "contrast", "saturation", "clipped_pixel_ratio", "sharpness_proxy")
+        keys = ("brightness", "highlight_level", "contrast", "saturation", "clipped_pixel_ratio", "sharpness_proxy")
         average = {key: round(statistics.mean(item[key] for item in metrics), 2) for key in keys}
         min_width = min(item["width"] for item in metrics)
         min_height = min(item["height"] for item in metrics)
         average.update({"min_width": min_width, "min_height": min_height})
         failure_issues, review_issues = [], []
-        if min_width < 640 or min_height < 360:
-            failure_issues.append("Sampled visual is below the recommended 640×360 source resolution.")
-        if average["brightness"] < 12:
-            failure_issues.append("Visual is severely underexposed.")
+        if min_width < MIN_SOURCE_WIDTH or min_height < MIN_SOURCE_HEIGHT:
+            failure_issues.append(f"Sampled visual is {min_width}×{min_height}, below the "
+                                  f"{MIN_SOURCE_WIDTH}×{MIN_SOURCE_HEIGHT} source resolution floor.")
+        if average["brightness"] < DARK_MEAN:
+            if average["highlight_level"] >= DARK_SCENE_HIGHLIGHT:
+                review_issues.append("Dark scene with bright detail (for example a night sky); "
+                                     "check that it reads on a small screen.")
+            else:
+                failure_issues.append("Visual is severely underexposed.")
         elif average["brightness"] > 242:
             failure_issues.append("Visual is severely overexposed.")
         # A simple clipped-pixel percentage over-penalizes legitimate night footage,

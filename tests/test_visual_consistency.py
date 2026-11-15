@@ -46,6 +46,51 @@ class VisualConsistencyTests(unittest.TestCase):
         self.assertEqual(report["shots"][0]["status"], "fail")
         self.assertTrue(any("underexposed" in item for item in report["shots"][0]["issues"]))
 
+    def test_a_night_sky_is_a_dark_scene_to_review_not_a_black_frame(self):
+        # Production build 43655186698 (a space documentary) failed technical QA after an
+        # 80-minute build. A deep-field picture is almost black on average and is not a defect.
+        path = self.root / "stars.png"
+        image = Image.new("RGB", (1280, 720), (2, 2, 4))
+        for index in range(900):
+            x, y = (index * 197) % 1270, (index * 113) % 710
+            for dx in range(6):
+                for dy in range(6):
+                    image.putpixel((x + dx, y + dy), (235, 235, 225))
+        image.save(path)
+        report = audit_visual_consistency(
+            {"shots": [{"shot_id": "shot_sky", "sample_frames": [str(path)]}]}, self.root
+        )
+        shot = report["shots"][0]
+        self.assertLess(shot["metrics"]["brightness"], 12)
+        self.assertGreaterEqual(shot["metrics"]["highlight_level"], 60)
+        self.assertEqual(shot["status"], "review")
+        self.assertTrue(any("Dark scene" in item for item in shot["issues"]))
+        self.assertEqual(report["summary"]["fail_count"], 0)
+
+    def test_a_dim_frame_without_highlights_still_fails(self):
+        frame = self._frame("dim.jpg", (9, 9, 9))
+        report = audit_visual_consistency(
+            {"shots": [{"shot_id": "shot_dim", "sample_frames": [frame]}]}, self.root
+        )
+        self.assertEqual(report["shots"][0]["status"], "fail")
+
+    def test_a_small_source_fails_and_the_message_gives_its_size(self):
+        frame = self._frame("small.jpg", (105, 110, 115), size=(480, 360), texture=True)
+        report = audit_visual_consistency(
+            {"shots": [{"shot_id": "shot_small", "sample_frames": [frame]}]}, self.root
+        )
+        self.assertEqual(report["shots"][0]["status"], "fail")
+        self.assertIn("480×360", " ".join(report["shots"][0]["issues"]))
+
+    def test_the_footage_floor_for_a_documentary_matches_this_audit(self):
+        import re
+        from core import visual_consistency
+        source = (Path(__file__).resolve().parents[1] / "core" / "pipeline.py").read_text(encoding="utf-8")
+        self.assertRegex(source, r'setdefault\("FOOTAGE_MIN_WIDTH", str\(visual_consistency\.MIN_SOURCE_WIDTH\)\)')
+        self.assertRegex(source, r'setdefault\("FOOTAGE_MIN_HEIGHT", str\(visual_consistency\.MIN_SOURCE_HEIGHT\)\)')
+        self.assertEqual((visual_consistency.MIN_SOURCE_WIDTH, visual_consistency.MIN_SOURCE_HEIGHT), (640, 360))
+        self.assertTrue(re.search(r"FOOTAGE_MIN_WIDTH", source))
+
     def test_missing_frames_are_reported_as_unavailable(self):
         report = audit_visual_consistency(
             {"shots": [{"shot_id": "shot_empty", "sample_frames": []}]}, self.root

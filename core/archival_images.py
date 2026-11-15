@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 
 import requests
+from core.visual_consistency import MIN_SOURCE_WIDTH
 
 API = "https://commons.wikimedia.org/w/api.php"
 USER_AGENT = "AIStudioDocumentary/1.1 (archival image research)"
@@ -211,7 +212,8 @@ def fetch_archival_image(query: str, path: str | Path,
                 image.verify()
             with Image.open(temp) as image:
                 width, height = image.size
-                if width < 600 or height < 400:
+                # Not below the visual audit's floor: a narrower still would fail the finished film.
+                if width < MIN_SOURCE_WIDTH or height < 400:
                     raise ValueError("archival image resolution is below 600x400")
                 metadata["width"], metadata["height"] = width, height
             temp.replace(target)

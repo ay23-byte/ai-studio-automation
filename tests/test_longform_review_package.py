@@ -147,6 +147,10 @@ class LongformReviewPackageTests(unittest.TestCase):
                 report = self.qa(root, report_name)
                 self.assertEqual(report["status"], "FAIL")
                 self.assertIn(fragment, " ".join(str(item) for item in report["details"]))
+                if report_name == "technical":
+                    # The failing checks are stored on their own, without the passing probe line.
+                    self.assertIn(fragment, " ".join(report["failures"]))
+                    self.assertFalse([item for item in report["failures"] if "audio channel" in item])
 
     def test_quality_review_is_not_a_technical_failure_but_release_block_stays_blocking(self):
         root, _, summary = self.package(quality={

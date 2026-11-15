@@ -13,6 +13,7 @@ from datetime import date
 from pathlib import Path
 
 import requests
+from core.visual_consistency import MIN_SOURCE_WIDTH
 
 API = "https://api.openverse.org/v1/images/"
 USER_AGENT = "AIStudioDocumentary/1.0 (openly licensed documentary image research)"
@@ -131,7 +132,8 @@ def fetch_openverse_image(query: str, path: str | Path,
                 image.verify()
             with Image.open(temp) as image:
                 width, height = image.size
-                if width < 600 or height < 400:
+                # Not below the visual audit's floor: a narrower still would fail the finished film.
+                if width < MIN_SOURCE_WIDTH or height < 400:
                     raise ValueError("Openverse image resolution is below 600x400")
             temp.replace(target)
             licence_name, licence_url = licence

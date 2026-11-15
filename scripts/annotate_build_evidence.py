@@ -241,9 +241,62 @@ def research(build: Path) -> str | None:
             f"{linked} linked to a source | fact check by a person still required")
 
 
+def storyboard(build: Path) -> str | None:
+    """How many pictures each chapter was planned with, and where missing ones came from."""
+    script = _load(build / "script.json")
+    sections = [item for item in (script.get("sections") or []) if isinstance(item, dict)]
+    if not sections:
+        return None
+    counts = [len(item.get("visuals") or []) for item in sections]
+    kinds: dict[str, int] = {}
+    for item in sections:
+        for beat in item.get("visuals") or []:
+            if isinstance(beat, dict):
+                kind = str(beat.get("visual_type") or "unknown")
+                kinds[kind] = kinds.get(kind, 0) + 1
+    text = (f"storyboard {sum(counts)} beats in {len(sections)} chapters ({', '.join(map(str, counts))}); "
+            + ", ".join(f"{kind} x{number}" for kind, number in sorted(kinds.items(), key=lambda pair: -pair[1])))
+    done = [item for item in (script.get("storyboard_completion") or []) if isinstance(item, dict)]
+    if done:
+        by_source: dict[str, int] = {}
+        for item in done:
+            by_source[str(item.get("source"))] = by_source.get(str(item.get("source")), 0) + 1
+        removed = sum(int(item.get("placeholders_removed") or 0) for item in done)
+        text += ("; completion: " + ", ".join(f"{name} x{number}" for name, number in sorted(by_source.items()))
+                 + f", {removed} placeholder beats removed")
+    return text
+
+
+def visual_checks(build: Path, limit: int = 6) -> str | None:
+    """Result of the picture audit that decides technical QA, with the shots that fail it."""
+    data = _load(build / "visual_consistency_report.json")
+    summary = data.get("summary") or {}
+    if not data or not summary:
+        return None
+    text = (f"picture audit {data.get('status')}: {summary.get('pass_count', 0)} pass, "
+            f"{summary.get('review_count', 0)} review, {summary.get('fail_count', 0)} fail, "
+            f"{summary.get('unavailable_count', 0)} not measured")
+    failed = [row for row in (data.get("shots") or []) if isinstance(row, dict) and row.get("status") == "fail"]
+    if failed:
+        text += "; failing: " + "; ".join(
+            f"{row.get('shot_id')} {' / '.join(str(item) for item in (row.get('issues') or [])[:2])}"
+            for row in failed[:limit])
+        if len(failed) > limit:
+            text += f" (+{len(failed) - limit} more)"
+    return text
+
+
 def evidence_lines(report: dict, build: Path, target_minutes: float | None) -> list[str]:
-    lines = [final_video(report, target_minutes), script_and_voice(report), narration(build),
-             visuals(report, build), footage_sources(build), scenes_without_footage(build),
+    # A step shows at most ten notices, so the storyboard and the picture audit ride on the
+    # script and visuals lines instead of taking a notice each.
+    script_line, plan = script_and_voice(report), storyboard(build)
+    if plan:
+        script_line = f"{script_line} | {plan}" if script_line else f"Script and narration: {plan}"
+    visuals_line, audit = visuals(report, build), visual_checks(build)
+    if audit:
+        visuals_line = f"{visuals_line} | {audit}" if visuals_line else f"Visuals: {audit}"
+    lines = [final_video(report, target_minutes), script_line, narration(build),
+             visuals_line, footage_sources(build), scenes_without_footage(build),
              presenter(build), subtitles(build), audio(build), research(build)]
     return [_clean(line) for line in lines if line][:MAX_NOTICES]
 

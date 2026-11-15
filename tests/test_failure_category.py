@@ -38,6 +38,8 @@ EXAMPLES = {
     "audio": ["Narration loudness is -31.0 LUFS; the target is -16.", "Edge TTS returned no audio for sentence 41"],
     "rendering": ["ffmpeg exited with code 1 while concatenating segments", "Final video is 1280x720; 1920x1080 is required (resolution)."],
     "editorial_rejection": ["The reviewer rejected shot 9: misleading map.", "Release gate: human approval is missing."],
+    "technical_qa": ["Review package: automated QA: qa/technical.json is FAIL; technical QA must be PASS and "
+                     "cannot be overridden by a reviewer. Failing checks: shot_0007: Visual is severely underexposed."],
 }
 
 

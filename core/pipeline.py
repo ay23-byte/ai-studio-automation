@@ -805,6 +805,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     from core import footage_report, footage_sources
     footage_sources.reset_run_state()
     footage_sources.set_run_subject(script.get("title"), script.get("topic"), script.get("category"))
+    # The finished film is refused when a source is smaller than the visual audit's floor, so
+    # refuse such a clip here, while the next candidate can still take its place.
+    from core import visual_consistency
+    os.environ.setdefault("FOOTAGE_MIN_WIDTH", str(visual_consistency.MIN_SOURCE_WIDTH))
+    os.environ.setdefault("FOOTAGE_MIN_HEIGHT", str(visual_consistency.MIN_SOURCE_HEIGHT))
     footage_run = footage_report.begin_run(f"long-form job {job_id}")
     section_spans = align_units([str(sec.get("narration", "")) for sec in sections], timings, total,
                                 min_duration=3.0)

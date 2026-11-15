@@ -602,6 +602,197 @@ def count_longform_narration_words(script: dict) -> int:
     return len(narration.split())
 
 
+# ---------------------------------------------------------------------------
+# Storyboard completion
+# ---------------------------------------------------------------------------
+_FILLER_SUBJECT = "Documentary presenter and on-screen narration emphasis"
+_STORYBOARD_TYPES = ("stock", "archival", "ai_reconstruction", "diagram", "map", "location", "person")
+_SUBJECT_STOP = frozenset({
+    "how", "why", "what", "when", "where", "who", "the", "and", "for", "with", "from", "that", "this", "into",
+    "sees", "see", "first", "story", "inside", "explained", "mystery", "truth", "secret", "secrets", "real",
+    "untold", "history", "rise", "fall", "about", "behind", "its", "our", "your", "can", "could", "will", "did",
+    "does", "are", "was", "were", "has", "have",
+})
+
+
+def storyboard_beats_needed(narration: str) -> int:
+    """Visual beats a chapter needs: one per ``LONGFORM_WORDS_PER_VISUAL_BEAT`` words (60), 3 to 10."""
+    import os
+    try:
+        per_beat = float(os.getenv("LONGFORM_WORDS_PER_VISUAL_BEAT", "60") or 60)
+    except ValueError:
+        per_beat = 60.0
+    words = len(str(narration or "").split())
+    return max(3, min(10, int(round(words / max(20.0, per_beat)))))
+
+
+def _is_filler_beat(beat) -> bool:
+    """A beat that shows no subject: the neutral presenter placeholder, or an invented interview."""
+    if not isinstance(beat, dict):
+        return True
+    kind = str(beat.get("visual_type") or "").strip().lower()
+    return kind in {"presenter", "interview"} or str(beat.get("subject") or "").strip() == _FILLER_SUBJECT
+
+
+def _subject_phrase(topic: str, limit: int = 4) -> str:
+    """The searchable subject of a topic: "How the James Webb Space Telescope Sees…" -> "James Webb Space Telescope"."""
+    words = [word for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", str(topic or ""))
+             if word.lower() not in _SUBJECT_STOP and len(word) > 1]
+    return " ".join(words[:limit])
+
+
+def _narration_beats(narration: str, topic: str, count: int) -> list[dict]:
+    """Beats made from the narration itself, for a chapter the model left without a storyboard.
+
+    Each beat covers an equal share of the chapter, is anchored to the words spoken there, and
+    asks for footage of the documentary's subject together with the names mentioned in that
+    passage. No person, place, document or event is invented.
+    """
+    words = list(re.finditer(r"\S+", narration))
+    count = max(1, min(count, len(words) // 3 or 1))
+    subject = _subject_phrase(topic) or "documentary subject"
+    beats = []
+    for index in range(count):
+        lo, hi = (index * len(words)) // count, ((index + 1) * len(words)) // count
+        hi = max(lo + 1, hi)
+        anchor = narration[words[lo].start():words[min(hi, lo + 8) - 1].end()]
+        passage = narration[words[lo].start():words[hi - 1].end()]
+        # Names inside the passage (capitalised words that do not open a sentence) sharpen the search.
+        names = []
+        for match in re.finditer(r"(?<![.!?।]\s)(?<!^)\b[A-Z][A-Za-z0-9-]{2,}(?:\s+[A-Z0-9][A-Za-z0-9-]*)*", passage):
+            name = match.group(0).strip()
+            if name.lower() not in subject.lower() and name not in names:
+                names.append(name)
+        queries = [f"{subject} {name}" for name in names[:2]] + [subject]
+        beats.append({
+            "narration_anchor": anchor,
+            "visual_prompt": (f"Documentary footage of {subject} that illustrates this narration: "
+                              f"{' '.join(passage.split())[:260]}"),
+            "visual_type": "stock", "subject": subject, "location": "", "time_period": "",
+            "shot_size": ("wide establishing shot", "medium shot", "close-up detail")[index % 3],
+            "camera_movement": "slow controlled movement",
+            "keywords": queries[:3], "search_queries": queries[:3], "source_refs": [],
+            "chart_spec": None, "timeline_events": [], "on_screen_text": "", "sound_design": "",
+            "visual_guardrail": "Show the documentary's actual subject; no unrelated filler and no invented people.",
+            "storyboard_origin": "narration",
+        })
+    return beats
+
+
+def _model_beats(section: dict, topic: str, category: str, count: int) -> list[dict]:
+    """Ask the model for one chapter's storyboard. Returns only beats that pass the basic checks."""
+    narration = str(section.get("narration") or "").strip()
+    prompt = (
+        "You are the visual researcher of a factual documentary. Return ONLY valid JSON in this exact shape: "
+        '{"visuals":[{"narration_anchor":"...","visual_prompt":"...","visual_type":"stock","subject":"...",'
+        '"location":"...","time_period":"...","shot_size":"...","camera_movement":"...",'
+        '"keywords":["..."],"search_queries":["..."]}]}. '
+        f"Documentary topic: {topic}. Category: {category}. Chapter title: {section.get('title') or ''}. "
+        f"Write exactly {count} visual beats for the chapter narration below, in the order it is spoken, "
+        "spread evenly from its first sentence to its last. Rules: "
+        "narration_anchor is 4-8 consecutive words copied exactly from the narration, each from a later place "
+        "than the one before. visual_prompt describes, in English, one concrete filmable picture of what is "
+        "being said at that moment. visual_type is one of: " + ", ".join(_STORYBOARD_TYPES) + ". "
+        "Use archival only for real historical film or photographs that an archive would hold. "
+        "search_queries are 2-4 short English searches (2-5 words each) that a footage archive such as NASA, "
+        "Wikimedia Commons or a stock library would answer: name the real object, mission, place or process, "
+        "never abstract ideas. keywords are 2-4 English words. Never use a presenter, host, interview or "
+        "talking head. Never invent a person, document, quotation or statistic. Do not repeat a picture.\n\n"
+        "CHAPTER NARRATION:\n" + narration
+    )
+    generated = _parse(_ask_gemini(prompt))
+    beats = []
+    for raw in generated.get("visuals") or []:
+        if not isinstance(raw, dict):
+            continue
+        anchor = " ".join(str(raw.get("narration_anchor") or "").split())
+        picture = " ".join(str(raw.get("visual_prompt") or "").split())
+        queries = [" ".join(str(item).split()) for item in (raw.get("search_queries") or []) if str(item).strip()]
+        keywords = [" ".join(str(item).split()) for item in (raw.get("keywords") or []) if str(item).strip()] or queries
+        kind = str(raw.get("visual_type") or "stock").strip().lower()
+        if not anchor or not picture or not keywords or kind not in _STORYBOARD_TYPES:
+            continue
+        beats.append({
+            "narration_anchor": anchor, "visual_prompt": picture, "visual_type": kind,
+            "subject": str(raw.get("subject") or "").strip(), "location": str(raw.get("location") or "").strip(),
+            "time_period": str(raw.get("time_period") or "").strip(),
+            "shot_size": str(raw.get("shot_size") or "").strip(),
+            "camera_movement": str(raw.get("camera_movement") or "").strip(),
+            "keywords": keywords[:4], "search_queries": (queries or keywords)[:4], "source_refs": [],
+            "chart_spec": None, "timeline_events": [], "on_screen_text": "", "sound_design": "",
+            "storyboard_origin": "completion",
+        })
+    return beats[:count]
+
+
+def complete_longform_storyboard(script: dict, topic: str, category: str = "general") -> dict:
+    """Give every chapter enough subject-specific visual beats for its length.
+
+    A long script often comes back with two or three beats per chapter, or none; the anchor
+    repair then pads the chapter with placeholder "presenter" beats, which the build would
+    fill with stock or generated pictures of an unrelated person. Here each chapter that has
+    fewer real beats than ``storyboard_beats_needed`` gets a storyboard of its own from the
+    model; if that call fails, beats are made from the narration itself. Beats that carry
+    data (a chart, a timeline, a sourced document) are kept. Records what was done in
+    ``script["storyboard_completion"]``.
+    """
+    summary = []
+    for index, section in enumerate(script.get("sections") or []):
+        narration = str(section.get("narration") or "").strip()
+        if not narration:
+            continue
+        needed = storyboard_beats_needed(narration)
+        existing = [beat for beat in (section.get("visuals") or []) if isinstance(beat, dict)]
+        real = [beat for beat in existing if not _is_filler_beat(beat)]
+        entry = {"chapter": index + 1, "needed": needed, "had": len(real),
+                 "placeholders_removed": len(existing) - len(real), "source": "unchanged"}
+        if len(real) >= needed and len(real) == len(existing):
+            summary.append(entry)
+            continue
+        kept = [beat for beat in real if beat.get("chart_spec") or beat.get("timeline_events")
+                or str(beat.get("visual_type") or "").lower() in {"chart", "timeline", "document", "map", "diagram"}]
+        beats = []
+        if len(real) < needed:
+            try:
+                beats = _model_beats(section, topic, category, needed)
+                entry["source"] = "model"
+            except Exception as exc:
+                print(f"Storyboard completion for chapter {index + 1} failed ({type(exc).__name__}: {exc}); "
+                      "building beats from the narration.")
+            if len(beats) < max(3, int(needed * 0.6)):
+                beats = _narration_beats(narration, topic, needed)
+                entry["source"] = "narration"
+            for beat in kept:
+                if all(beat.get("narration_anchor") != other.get("narration_anchor") for other in beats):
+                    beats.append(beat)
+        else:
+            beats = real                                   # enough real beats: only the placeholders go
+            entry["source"] = "placeholders_removed"
+        lowered = narration.casefold()
+
+        def position(beat, _lowered=lowered):
+            found = _lowered.find(str(beat.get("narration_anchor") or "").casefold())
+            return found if found >= 0 else len(_lowered)
+
+        section["visuals"] = sorted(beats, key=position)[:10]
+        entry["now"] = len(section["visuals"])
+        summary.append(entry)
+    script["storyboard_completion"] = summary
+    script = _repair_longform_visual_anchors(script)
+    return validate_longform_storyboard(script)
+
+
+def _complete_storyboard_safely(script: dict, topic: str, category: str) -> dict:
+    """Storyboard completion must never cost a script that already passed research and runtime."""
+    import copy
+    try:
+        return complete_longform_storyboard(copy.deepcopy(script), topic, category)
+    except Exception as exc:
+        print(f"WARNING: storyboard completion was skipped ({type(exc).__name__}: {exc}).")
+        script["storyboard_completion"] = [{"source": "skipped", "error": f"{type(exc).__name__}: {exc}"[:300]}]
+        return script
+
+
 def validate_longform_runtime(script: dict, target_minutes: float,
                               minimum_fraction: float = 0.90,
                               words_per_minute: int = 150) -> dict:
@@ -929,7 +1120,9 @@ def generate_longform_script(topic: str, category: str = "finance",
                 f"Narration runtime gate passed: {script['narration_word_count']} words, "
                 f"approximately {script['estimated_narration_minutes']:.1f} minutes."
             )
-            return _stamp_generation(script)
+            # Stamp first: the provenance is that of the script, not of the storyboard calls below.
+            script = _stamp_generation(script)
+            return _complete_storyboard_safely(script, topic, category)
         except ValueError as exc:
             last_runtime_error = exc
             if attempt == 2:
@@ -946,7 +1139,8 @@ def generate_longform_script(topic: str, category: str = "finance",
                     f"Expanded narration runtime gate passed: {script['narration_word_count']} words, "
                     f"approximately {script['estimated_narration_minutes']:.1f} minutes."
                 )
-                return _stamp_generation(script)
+                script = _stamp_generation(script)
+                return _complete_storyboard_safely(script, topic, category)
             actual_words = count_longform_narration_words(script)
             missing_words = max(0, minimum_words - actual_words)
             repair_target = max(target_words, minimum_words + max(250, int(minimum_words * 0.15)))

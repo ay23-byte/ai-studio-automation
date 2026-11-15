@@ -137,6 +137,32 @@ class BuildEvidenceTests(unittest.TestCase):
         self.assertNotIn("'x'", line)
         self.assertIn("chapter 2 beat 1: searched 'Ariane 5 launch Kourou' (0 found, 0 eligible)", line)
 
+    def test_storyboard_and_picture_audit_ride_on_existing_lines(self):
+        self._write("script.json", {
+            "sections": [{"visuals": [{"visual_type": "stock"}] * 5 + [{"visual_type": "diagram"}] * 2},
+                         {"visuals": [{"visual_type": "archival"}] * 6}],
+            "storyboard_completion": [{"chapter": 1, "source": "model", "placeholders_removed": 3},
+                                      {"chapter": 2, "source": "unchanged", "placeholders_removed": 0}]})
+        self._write("visual_consistency_report.json", {
+            "status": "FAIL", "summary": {"pass_count": 30, "review_count": 4, "fail_count": 1, "unavailable_count": 0},
+            "shots": [{"shot_id": "shot_0012", "status": "fail",
+                       "issues": ["Sampled visual is 480×360, below the 640×360 source resolution floor."]}]})
+        plan = evidence.storyboard(self.build)
+        self.assertIn("storyboard 13 beats in 2 chapters (7, 6)", plan)
+        self.assertIn("stock x5", plan)
+        self.assertIn("model x1", plan)
+        self.assertIn("3 placeholder beats removed", plan)
+        audit = evidence.visual_checks(self.build)
+        self.assertIn("picture audit FAIL: 30 pass, 4 review, 1 fail", audit)
+        self.assertIn("shot_0012 Sampled visual is 480×360", audit)
+        report = {"output": {"exists": True, "file": "longform_7.mp4", "duration_seconds": 1188.0},
+                  "text_model": {"provider": "gemini", "model": "m"}}
+        lines = evidence.evidence_lines(report, self.build, 18)
+        self.assertLessEqual(len(lines), evidence.MAX_NOTICES)
+        self.assertTrue(any(line.startswith("Script and narration:") and "storyboard 13 beats" in line
+                            for line in lines))
+        self.assertTrue(any(line.startswith("Visuals:") and "picture audit FAIL" in line for line in lines))
+
     def test_missing_reports_produce_no_line_and_long_lines_are_cut(self):
         self.assertEqual(evidence.evidence_lines({"output": {"exists": False}}, self.build, None),
                          ["Final video: no finished file was produced."])

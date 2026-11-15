@@ -26,12 +26,15 @@ CATEGORIES: dict[str, tuple[str, str]] = {
     "licensing": ("Licensing", "A visual has no usable licence evidence. Replace it or record the licence."),
     "editorial_rejection": ("Editorial rejection", "A reviewer or the release gate rejected the video. See the review decisions."),
     "rendering": ("Rendering", "FFmpeg or the editor failed. See the failing stage in the run report."),
+    "technical_qa": ("Technical QA", "The finished video failed an automated technical check that a reviewer cannot "
+                                     "override. The failing checks are listed in the message; fix them and rebuild."),
     "unknown": ("Unclassified", "Read the failure text and the failing step in the run log."),
 }
 
 # (category, pattern). Order matters: a rate-limited provider also mentions HTTP, a missing
 # key also mentions the provider, so the narrower rule comes first.
 _RULES: list[tuple[str, str]] = [
+    ("technical_qa", r"technical QA must be PASS|qa/technical\.json is"),
     ("editorial_rejection", r"editorial|reviewer|review decision|rejected by (the )?review|release gate|not approved|approval"),
     ("presenter", r"presenter|talking avatar|3d avatar|avatar clip|sadtalker|lip-?sync|mouth moves"),
     ("subtitles", r"subtitle|caption|\bsrt\b|devanagari"),

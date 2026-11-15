@@ -115,12 +115,22 @@ def write_qa(root, name: str, status: str, details, **extra) -> None:
 
 def technical_report(root, mode: str, video_path, extra_failures=()) -> tuple[str, list]:
     """Probe, profile-check and fully decode the packaged MP4."""
+    status, details, _failures = technical_findings(root, mode, video_path, extra_failures)
+    return status, details
+
+
+def technical_findings(root, mode: str, video_path, extra_failures=()) -> tuple[str, list, list]:
+    """As ``technical_report``, and also the failing checks on their own.
+
+    The third value is stored in ``qa/technical.json`` as ``failures`` so that a blocked package
+    names what failed instead of only saying that the report is FAIL.
+    """
     failures = [str(item) for item in extra_failures if item]
     details = []
     try:
         probe = contract.probe_video(video_path)
     except contract.ContractError as exc:
-        return "FAIL", [str(exc)] + failures
+        return "FAIL", [str(exc)] + failures, [str(exc)] + failures
     details.append(f"{probe['width']}x{probe['height']}, {probe['duration_seconds']} s, {probe['fps']} fps, "
                    f"{probe['video_codec']}/{probe['audio_codec']}, {probe['audio_channels']} audio channel(s).")
     failures.extend(contract.profile_problems(mode, probe))
@@ -129,7 +139,7 @@ def technical_report(root, mode: str, video_path, extra_failures=()) -> tuple[st
         details.append(decoded["detail"])
     else:
         failures.append(decoded["detail"])
-    return ("FAIL" if failures else "PASS"), details + failures
+    return ("FAIL" if failures else "PASS"), details + failures, failures
 
 
 def narration_metadata(build_dir) -> dict:
