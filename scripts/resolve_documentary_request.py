@@ -89,7 +89,7 @@ def resolve(event: str, inputs: dict, request_path: Path, head_message: str, sam
         raise RequestError(f"{REQUEST_FILE} is not valid JSON: {exc}") from exc
     if not isinstance(raw, dict):
         raise RequestError(f"{REQUEST_FILE} must hold one JSON object.")
-    return {"run": "true", "reason": f"Production test requested by {REQUEST_FILE}; this build cannot be released.",
+    return {"run": "true", "reason": f"Production test requested by {REQUEST_FILE}; this build uploads nothing.",
             **normalise(raw)}
 
 

@@ -244,7 +244,7 @@ jobs:
           # Narration may be Hindi or Hinglish; subtitles are English only.
           SUBTITLE_LANGUAGE: "english"
           VISUAL_SEMANTIC_CHECK: ${{ needs.request.outputs.semantic_review == 'true' && '1' || '0' }}
-          VISUAL_SEMANTIC_MAX_SHOTS: "40"
+          VISUAL_SEMANTIC_MAX_SHOTS: "100"
           # Inputs are passed through the environment, never interpolated into
           # the shell script, so a topic containing quotes or $(...) cannot run code.
           INPUT_TOPIC: ${{ needs.request.outputs.topic }}

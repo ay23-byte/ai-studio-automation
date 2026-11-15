@@ -1,12 +1,12 @@
 {
-  "_note": "Production test request. The documentary workflow builds this only when the newest commit message of the pull request contains [documentary-run]. The build uploads nothing; release is a separate, reviewed workflow.",
+  "_note": "Automated production test: English narration/subtitles, male presenter, video-first visuals, and semantic screening enabled. This is a build-only test; no YouTube upload is performed by the build workflow.",
   "topic": "How the James Webb Space Telescope Sees the First Galaxies",
   "category": "science",
+  "semantic_review": true,
   "minutes": 18,
-  "language": "hinglish",
+  "language": "english",
   "channel_profile": "beyond_science",
   "voice_gender": "male",
   "presenter_mode": "talking_avatar_auto",
-  "visual_mode": "video_first",
-  "semantic_review": false
+  "visual_mode": "video_first"
 }

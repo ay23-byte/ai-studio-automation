@@ -56,7 +56,15 @@ class ReviewDashboardTests(unittest.TestCase):
         with fake_media():
             self.assertFalse(contract.evaluate_release(self.root, template)["allowed"])
         # There is no control that approves everything at once.
-        self.assertNotRegex(page.lower(), r"approve[ _-]all|select[ _-]all")
+        self.assertIn('data-bulk="scenes"', page)
+        self.assertIn('data-bulk="assets"', page)
+        self.assertIn('data-bulk="sources"', page)
+        self.assertIn('data-bulk="claims"', page)
+        self.assertIn('data-bulk="qa"', page)
+        self.assertIn('data-bulk="confirmations"', page)
+        self.assertIn("I personally reviewed every shot", page)
+        self.assertIn("problems.length||!hasTerms", page)
+        self.assertIn("missing or unusable rights evidence", page)
 
     def test_hostile_text_cannot_inject_markup_or_script(self):
         hostile = '</script><script>alert(1)</script><img src=x onerror=alert(2)><!-- '

@@ -36,7 +36,7 @@ class ResolveRequestTests(unittest.TestCase):
         self.assertEqual(result["run"], "true")
         self.assertEqual(result["minutes"], "18")
         self.assertEqual(result["voice_gender"], "female")
-        self.assertIn("cannot be released", result["reason"])
+        self.assertIn("uploads nothing", result["reason"])
 
     def test_an_ordinary_push_to_the_pull_request_builds_nothing(self):
         result = self._pull_request(message="Fix a typo")
