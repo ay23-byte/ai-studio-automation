@@ -237,18 +237,6 @@ jobs:
           python scripts/write_job_summary.py --pipeline longform \
             --artifact "longform-review-${GITHUB_RUN_ID}"
 
-      # Offer a small, direct-download MP4 artifact separately from the full
-      # multi-gigabyte review bundle. This contains only the final rendered video;
-      # QA evidence and source assets remain in the review artifact below.
-      - name: Upload MP4-only documentary output
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: longform-mp4-${{ github.run_id }}
-          path: output/longform_*.mp4
-          if-no-files-found: warn
-          retention-days: 14
-
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions
       # and sampled frames must be downloadable after a blocked upload.
@@ -284,6 +272,18 @@ jobs:
             build/job_*/narration_synthesis_report.json
             build/job_*/shared_review_package/qa/*.json
             build/job_*/shared_review_package/package_summary.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      # Offer a small, direct-download MP4 artifact separately from the full
+      # multi-gigabyte review bundle. This contains only the final rendered video;
+      # QA evidence and source assets remain in the review artifact below.
+      - name: Upload MP4-only documentary output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: longform-mp4-${{ github.run_id }}
+          path: output/longform_*.mp4
           if-no-files-found: warn
           retention-days: 14
 
