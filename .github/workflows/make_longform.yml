@@ -187,7 +187,7 @@ jobs:
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
       - name: Test narration provider fallback and long-form package adapter
-        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_longform_review_package tests.test_upload_documentary_artifact -v
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ needs.request.outputs.presenter_mode == 'talking_avatar_auto' }}
@@ -334,17 +334,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # The finished film on its own. The review bundle above also holds every source clip
-      # and is many gigabytes; watching the film should not need it. The release workflow
-      # still reads the review bundle (this artifact carries no manifest).
-      - name: Upload the finished film on its own
+      # Offer a small, direct-download MP4 artifact separately from the full
+      # multi-gigabyte review bundle. This contains only the final rendered video;
+      # QA evidence and source assets remain in the review artifact below.
+      - name: Upload MP4-only documentary output
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: longform-video-${{ github.run_id }}
-          path: |
-            output/*.mp4
-            output/run_report.json
+          name: longform-mp4-${{ github.run_id }}
+          path: output/longform_*.mp4
           if-no-files-found: warn
           retention-days: 14
 

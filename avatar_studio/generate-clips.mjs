@@ -44,29 +44,39 @@ try {
       await page.locator("#record").click();
       await page.waitForFunction(() => {
         const s=document.querySelector("#status")?.textContent||"";
-        return s.includes("Recording avatar and narration together")||s.includes("Could not record")||s.includes("Recording error");
+        return s.includes("Recording avatar video while narration drives lip-sync")||s.includes("Could not record")||s.includes("Recording error");
       }, null, {timeout:120000});
-      await page.waitForFunction(() => {
-        const s=document.querySelector("#status")?.textContent||"";
-        return s.includes("Saved talking_presenter.webm")||s.includes("Could not record")||s.includes("Recording error");
-      }, null, {timeout:20*60*1000});
+      // Keep the browser runner's completion contract identical to index.html.
+      // The UI deliberately says "Saved video-only talking_presenter.webm" because
+      // narration is muxed from the original WAV by FFmpeg below.
+      const captureTimeout = Math.max(60_000, Math.ceil((audioDuration + 30) * 1000));
+      try {
+        await page.waitForFunction(() => {
+          const s=document.querySelector("#status")?.textContent||"";
+          return s.includes("Saved video-only talking_presenter.webm")||s.includes("Could not record")||s.includes("Recording error");
+        }, null, {timeout:captureTimeout});
+      } catch (error) {
+        const lastStatus = await page.locator("#status").textContent().catch(() => "<status unavailable>");
+        throw new Error(`Chapter ${i} presenter capture did not complete within ${Math.round(captureTimeout/1000)}s. Last browser status: ${lastStatus}. Browser errors: ${errors.join("; ")||"none"}. Original error: ${error.message}`);
+      }
       const status=await page.locator("#status").textContent();
-      if (!status?.includes("Saved talking_presenter.webm")) throw new Error(`Chapter ${i} recording failed: ${status}`);
+      if (!status?.includes("Saved video-only talking_presenter.webm")) throw new Error(`Chapter ${i} recording failed: ${status}`);
       const download=await downloadPromise;
       const webm=path.join(outputDir,`presenter_section_${String(i).padStart(2,"0")}.webm`);
       await download.saveAs(webm);
       if(fs.statSync(webm).size<10000) throw new Error(`Chapter ${i} WebM is too small.`);
       // MediaRecorder WebM commonly omits the container Duration element.
       // ffprobe then prints "N/A" even when Chromium recorded a complete,
-      // playable stream. Validate the actual streams and decode a frame here;
+      // playable stream. The capture is intentionally video-only; narration is muxed
+      // from the original WAV below. Validate the video stream and decode a frame here;
       // the converted MP4 duration check below is the authoritative
       // end-to-end guard against a genuinely truncated recording.
       const webmProbe=spawnSync("ffprobe",["-v","error","-show_entries","stream=codec_type,codec_name,width,height","-of","json",webm],{encoding:"utf8"});
       let webmStreams;
       try { webmStreams=JSON.parse(webmProbe.stdout).streams||[]; }
       catch { throw new Error(`Chapter ${i} WebM stream probe returned invalid output: ${webmProbe.stderr||webmProbe.stdout}`); }
-      if(webmProbe.status!==0||!webmStreams.some(stream=>stream.codec_type==="video")||!webmStreams.some(stream=>stream.codec_type==="audio")) {
-        throw new Error(`Chapter ${i} WebM is missing a decodable video or audio stream: ${webmProbe.stderr||webmProbe.stdout}`);
+      if(webmProbe.status!==0||!webmStreams.some(stream=>stream.codec_type==="video")||webmStreams.some(stream=>stream.codec_type==="audio")) {
+        throw new Error(`Chapter ${i} WebM must contain a decodable video stream only; narration is muxed from the source WAV separately: ${webmProbe.stderr||webmProbe.stdout}`);
       }
       const frameProbe=spawnSync("ffmpeg",["-v","error","-i",webm,"-map","0:v:0","-frames:v","1","-f","null","-"],{encoding:"utf8"});
       if(frameProbe.status!==0) throw new Error(`Chapter ${i} WebM video could not be decoded: ${frameProbe.stderr||frameProbe.stdout}`);
@@ -76,7 +86,7 @@ try {
       if(exitCode!==0||!fs.existsSync(mp4)||fs.statSync(mp4).size<10000) throw new Error(`Chapter ${i} WebM-to-MP4 conversion failed.`);
       const finalProbe=spawnSync("ffprobe",["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",mp4],{encoding:"utf8"});
       const finalDuration=Number(finalProbe.stdout.trim());
-      if(finalProbe.status!==0||!Number.isFinite(finalDuration)||Math.abs(finalDuration-audioDuration)>0.25) throw new Error(`Chapter ${i} duration mismatch: video ${finalProbe.stdout.trim()}s vs audio ${audioDuration.toFixed(3)}s.`);
+      if(finalProbe.status!==0||!Number.isFinite(finalDuration)||Math.abs(finalDuration-audioDuration)>0.25) throw new Error(`Chapter ${i} muxed MP4 duration mismatch: output ${finalProbe.stdout.trim()}s vs source narration ${audioDuration.toFixed(3)}s.`);
       // A duration-correct but nearly-static canvas recording is not a usable presenter.
       const motionProbe=spawnSync("ffprobe",["-v","error","-count_frames","-select_streams","v:0","-show_entries","stream=avg_frame_rate,nb_read_frames","-of","json",mp4],{encoding:"utf8"});
       let motionStream;

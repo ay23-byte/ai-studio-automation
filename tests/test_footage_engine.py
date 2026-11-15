@@ -448,16 +448,23 @@ class ProviderHttpTests(_Temp):
 
 @needs_ffmpeg
 class EngineTests(_Temp):
-    def dark_clip_bytes(self):
-        """A real, decodable clip whose picture is almost black (luma scaled to a twentieth)."""
+    def _tinted_clip_bytes(self, name, luma):
         import subprocess
         from core.ffmpeg_utils import ffmpeg_bin
-        target = self.tmp / "src_dark.mp4"
+        target = self.tmp / f"src_{name}.mp4"
         subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
-                        "testsrc2=size=640x360:rate=24", "-t", "4", "-vf", "lutyuv=y=val/20+16:u=128:v=128",
+                        "testsrc2=size=640x360:rate=24", "-t", "4", "-vf", f"lutyuv=y={luma}:u=128:v=128",
                         "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "1500k", "-minrate", "1500k",
                         "-pix_fmt", "yuv420p", str(target)], check=True, timeout=120)
         return target.read_bytes()
+
+    def dark_clip_bytes(self):
+        """A real, decodable clip whose picture is almost black (luma scaled to a twentieth)."""
+        return self._tinted_clip_bytes("dark", "val/20+16")
+
+    def white_clip_bytes(self):
+        """A real, decodable clip whose picture is burnt out to white."""
+        return self._tinted_clip_bytes("white", "val/40+229")
 
     def clip_bytes(self, tag):
         return make_clip(self.tmp / f"src_{tag}.mp4", tag=tag).read_bytes()
@@ -590,32 +597,42 @@ class EngineTests(_Temp):
         self.assertEqual(scene["selected"]["provider"], "B")
         self.assertEqual(scene["rejected_before_selection"][0]["outcome"], "not_media")
 
-    def test_a_black_clip_is_refused_and_the_next_candidate_is_used(self):
-        # Production build 43681187522: eight chosen clips were almost black and the finished
-        # 19 minute film was refused. The clip must be refused when it is chosen instead.
-        black = self.dark_clip_bytes()
-        files = {"https://a/black.mp4": black, "https://b/good.mp4": self.clip_bytes("good")}
+    def _refused_then_next(self, data):
+        files = {"https://a/bad.mp4": data, "https://b/good.mp4": self.clip_bytes("good")}
         used = set()
         ok, used = self.run_scene(
-            [Provider("A", lambda q: [_lead("A", "1", "Steam train engine", "https://a/black.mp4",
+            [Provider("A", lambda q: [_lead("A", "1", "Steam train engine", "https://a/bad.mp4",
                                             declared_height=1080, declared_width=1920)]),
              Provider("B", lambda q: [_lead("B", "2", "Steam train", "https://b/good.mp4")])], files, used=used)
         self.assertTrue(ok)
         scene = self.report.to_dict()["scenes"][0]
         self.assertEqual(scene["selected"]["provider"], "B")
-        refused = scene["rejected_before_selection"][0]
-        self.assertEqual(refused["outcome"], "unusable_picture")
-        self.assertIn("underexposed", refused["reason"])
         self.assertEqual(self.report.provider("A")["invalid_media"], 1)
         self.assertEqual(self.report.provider("A")["eligible_assets"], 0)
         # The refused clip is remembered, so a later scene does not download it again.
         self.assertTrue(any("1" in str(item) for item in used if not str(item).startswith("sha256:")))
+        return scene["rejected_before_selection"][0]
+
+    def test_a_black_clip_is_refused_and_the_next_candidate_is_used(self):
+        # Production build 43681187522: eight chosen clips were almost black and the finished
+        # 19 minute film was refused. The clip must be refused when it is chosen instead.
+        # The exposure floor of the media validation catches it first.
+        refused = self._refused_then_next(self.dark_clip_bytes())
+        self.assertEqual(refused["outcome"], "underexposed")
+        self.assertIn("too dark", refused["reason"])
+
+    def test_a_burnt_out_clip_is_refused_and_the_next_candidate_is_used(self):
+        # The exposure floor only knows "too dark"; the picture rule of the visual audit also
+        # refuses the other pictures the audit would fail.
+        refused = self._refused_then_next(self.white_clip_bytes())
+        self.assertEqual(refused["outcome"], "unusable_picture")
+        self.assertIn("overexposed", refused["reason"])
 
     def test_the_picture_check_can_be_switched_off(self):
-        black = self.dark_clip_bytes()
+        white = self.white_clip_bytes()
         with patch.dict("os.environ", {"FOOTAGE_PICTURE_CHECK": "0"}):
-            ok, _ = self.run_scene([Provider("A", lambda q: [_lead("A", "1", "Steam train", "https://a/black.mp4")])],
-                                   {"https://a/black.mp4": black})
+            ok, _ = self.run_scene([Provider("A", lambda q: [_lead("A", "1", "Steam train", "https://a/white.mp4")])],
+                                   {"https://a/white.mp4": white})
         self.assertTrue(ok)
 
     def test_same_file_from_two_providers_is_one_candidate(self):

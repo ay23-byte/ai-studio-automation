@@ -175,6 +175,44 @@ def decode_check(path, duration: float = 0.0, seconds: float = 2.0) -> str:
     return ""
 
 
+
+def _exposure_summary(brightness_values: list[float], threshold: float = 12.0) -> dict:
+    """Summarise representative-frame exposure; very dark clips are not usable B-roll."""
+    values = [float(value) for value in brightness_values]
+    if not values:
+        return {"status": "unavailable", "sample_brightness": [], "mean_brightness": None}
+    mean = sum(values) / len(values)
+    return {
+        "status": "underexposed" if mean < threshold else "usable",
+        "sample_brightness": [round(value, 2) for value in values],
+        "mean_brightness": round(mean, 2),
+        "threshold": threshold,
+    }
+
+
+def inspect_visual_exposure(path, duration: float) -> dict:
+    """Sample three points across a clip and reject footage with near-black exposure."""
+    import io
+    from PIL import Image, ImageStat
+
+    values = []
+    for fraction in (0.25, 0.5, 0.75):
+        timestamp = max(0.0, min(float(duration) * fraction, max(float(duration) - 0.1, 0.0)))
+        try:
+            result = subprocess.run(
+                [ffmpeg_bin(), "-v", "error", "-ss", f"{timestamp:.3f}", "-i", str(path),
+                 "-frames:v", "1", "-vf", "scale=160:90:force_original_aspect_ratio=decrease,setsar=1",
+                 "-f", "image2pipe", "-vcodec", "png", "pipe:1"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=PROBE_TIMEOUT,
+            )
+            if result.returncode != 0 or not result.stdout:
+                return {"status": "unavailable", "reason": "could not decode exposure sample"}
+            with Image.open(io.BytesIO(result.stdout)) as frame:
+                values.append(float(ImageStat.Stat(frame.convert("L")).mean[0]))
+        except Exception as exc:
+            return {"status": "unavailable", "reason": f"{type(exc).__name__}: {exc}"}
+    return _exposure_summary(values)
+
 def validate_media(path, *, min_width: int | None = None, min_height: int | None = None,
                    min_duration: float | None = None, decode: bool = True, with_hash: bool = True) -> dict:
     """Validate a downloaded file. Result: ``{"ok", "status", "reason", ...measured facts}``.
@@ -220,8 +258,14 @@ def validate_media(path, *, min_width: int | None = None, min_height: int | None
         problem = decode_check(path, facts["duration_seconds"])
         if problem:
             return fail("undecodable", problem, **facts)
-    result = {"ok": True, "status": "valid", "reason": "ffprobe read a video stream and the opening frames decode",
-              **facts}
+    exposure = inspect_visual_exposure(path, facts["duration_seconds"])
+    if exposure.get("status") == "underexposed":
+        return fail("underexposed",
+                    "representative frames are too dark for readable documentary B-roll "
+                    f"(mean luminance {exposure['mean_brightness']:.1f}/255; minimum 12.0)",
+                    visual_exposure=exposure, **facts)
+    result = {"ok": True, "status": "valid", "reason": "ffprobe decoded the clip and representative frames pass the exposure floor",
+              "visual_exposure": exposure, **facts}
     if with_hash:
         result["sha256"] = sha256_of(path)
     return result

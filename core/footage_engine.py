@@ -265,7 +265,7 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
         # semiconductor scene). Require a separate match against the full shot brief.
         # Keep this threshold configurable for specialised provider adapters, but
         # default to a conservative floor that rejects weak semantic overlap.
-        min_scene_match = min(1.0, max(0.0, _number("FOOTAGE_MIN_SCENE_MATCH", 0.12)))
+        min_scene_match = min(1.0, max(0.0, _number("FOOTAGE_MIN_SCENE_MATCH", 0.20)))
         if scene_prompt and scene_match < min_scene_match:
             rejected[f"scene brief match below {min_scene_match:.2f}"] += 1
             continue
@@ -301,6 +301,9 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
             tried.append({"provider": provider.name, "asset_id": metadata.get("asset_id"),
                           "outcome": status, "reason": reason})
             rejected[f"file rejected ({status})"] += 1
+            if status == "underexposed":
+                # The file itself is too dark; a later scene must not download it again.
+                used_ids.add(candidate["identity"])
             continue
         report.add(provider.name, "download_successes")
         # The finished film is refused for a black, blank or undersized picture, so refuse such
