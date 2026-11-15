@@ -6,8 +6,9 @@ The workflow starts in two ways:
 * **Run workflow** (workflow_dispatch): the form's inputs are used.
 * **A pull request that changes `.github/documentary-production-request.json`**, when the
   newest commit message contains `[documentary-run]`. This is a production *test*: it runs
-  the same steps with the repository's real providers, but a build started this way can
-  never be released (`scripts/verify_source_run.py` accepts manual and scheduled runs only).
+  the same steps with the repository's real providers. It uploads nothing. Whether such a
+  build may later be released is decided by `scripts/verify_source_run.py` (only a pull
+  request from this repository that targets the release branch) and by the review gates.
   Without the marker nothing is built, so ordinary pushes to the pull request cost nothing.
 
 Every value is checked against the same choices the form offers, and written to

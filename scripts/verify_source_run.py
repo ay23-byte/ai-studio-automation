@@ -4,7 +4,8 @@
 
 A release may only use the artifact of a run that (1) belongs to this
 repository, (2) is one of the review-only build workflows for that mode,
-(3) completed successfully, and (4) ran on the same branch as the release.
+(3) completed successfully, and (4) ran on the release branch or on a same-repository
+pull request whose base is the release branch.
 Reads the run through the GitHub API with ``GITHUB_TOKEN`` (``actions: read``).
 Exit codes: 0 accepted, 2 refused, 1 the API could not be read.
 """
@@ -26,7 +27,7 @@ BUILD_WORKFLOWS = {
                    ".github/workflows/daily-news-short-render.yml",
                    ".github/workflows/daily-news-short-artifact-render.yml"},
 }
-ALLOWED_EVENTS = {"workflow_dispatch", "schedule", "issues", "issue_comment"}
+ALLOWED_EVENTS = {"workflow_dispatch", "schedule", "issues", "issue_comment", "pull_request"}
 
 
 def fetch_run(repository: str, run_id: str, token: str, api_url: str = "https://api.github.com") -> dict:
@@ -61,9 +62,24 @@ def problems_with(run: dict, *, repository: str, mode: str, ref: str | None, run
     elif run.get("conclusion") != "success":
         problems.append(f"The build run did not succeed (conclusion {run.get('conclusion')!r}). A failed build "
                         "produces a package that cannot be approved.")
-    if run.get("event") not in ALLOWED_EVENTS:
-        problems.append(f"The build run was triggered by {run.get('event')!r}, which is not an accepted trigger.")
-    if ref and str(run.get("head_branch") or "") != ref:
+    event = run.get("event")
+    if event not in ALLOWED_EVENTS:
+        problems.append(f"The build run was triggered by {event!r}, which is not an accepted trigger.")
+    if event == "pull_request":
+        # PR builds are eligible only when the PR originates in this repository
+        # and targets the exact release branch. Never accept fork artifacts.
+        pull_requests = run.get("pull_requests") or []
+        if not pull_requests:
+            problems.append("The pull_request run has no associated pull-request metadata; refusing it.")
+        elif not ref:
+            problems.append("A release ref is required to validate the pull-request base branch.")
+        elif not any(str((pr.get("base") or {}).get("ref") or "") == ref
+                     and str(((pr.get("head") or {}).get("repo") or {}).get("full_name") or "").lower()
+                     == repository.lower()
+                     for pr in pull_requests):
+            problems.append(f"The pull_request build does not come from this repository targeting release "
+                            f"branch {ref!r}; refusing the artifact.")
+    elif ref and str(run.get("head_branch") or "") != ref:
         problems.append(f"The build ran on branch {run.get('head_branch')!r} but this release runs on {ref!r}. "
                         "Build and release must use the same branch.")
     return problems

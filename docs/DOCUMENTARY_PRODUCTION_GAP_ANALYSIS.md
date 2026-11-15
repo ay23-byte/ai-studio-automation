@@ -11,7 +11,7 @@ workflow run, a test, or a file. Where something was not verified, it says so.
 | Annotations of 12 earlier `make_longform.yml` runs (11–14 Nov) | Why each run failed |
 | Six production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253 |
 | `offline-presenter-render` job on GitHub-hosted runners (female and male) | Presenter figures at 1920x1080 |
-| Test suite | 932 tests before this work; 1080 after (merged with `main` at `b87a0c3`), all passing |
+| Test suite | 932 tests before this work; 1080 after (merged with `main` at `8c07fa9`), all passing |
 
 Limits of the audit: workflow artifacts and raw logs could not be downloaded from the audit
 environment, so nobody has watched the produced videos as part of this work. Measured figures
@@ -214,11 +214,14 @@ or was cancelled:
 
 - **Fix.** `make_longform.yml` also runs for a pull request that changes
   `.github/documentary-production-request.json`, and only when the newest commit message contains
-  `[documentary-run]`. Values are checked against the form's choices. A build started this way
-  can never be released (`scripts/verify_source_run.py` accepts manual and scheduled runs only).
+  `[documentary-run]`. Values are checked against the form's choices. The build uploads nothing.
+- **Release of such a build.** This work first made these builds unreleasable. The owner
+  changed that on `main` (#221): `scripts/verify_source_run.py` accepts a pull-request build
+  when the pull request comes from this repository and targets the release branch. The review
+  and release gates still apply.
 - **Files.** `scripts/resolve_documentary_request.py`. **Tests.** `tests/test_documentary_request.py`.
 
-### 3.14 Merged with `main` (pull requests #219 and #220)
+### 3.14 Merged with `main` (pull requests #219 to #222)
 
 - `main` gained its own exposure floor in `core/footage_validation.py` (a clip whose three
   sample frames average under 12 of 255 is refused), a higher scene-match floor (0.20, was
@@ -226,7 +229,10 @@ or was cancelled:
 - Both exposure rules now run: the validation floor first, then the picture rule of the visual
   audit (burnt-out, blank and undersized pictures). A clip refused as too dark is remembered,
   so a later scene does not download it again.
-- **Files.** `core/footage_engine.py`. **Tests.** `tests/test_footage_engine.py`.
+- #221 (release of same-repository pull-request builds) and #222 (compact review export) are
+  merged in unchanged.
+- **Files.** `core/footage_engine.py`. **Tests.** `tests/test_footage_engine.py`,
+  `tests/test_documentary_request.py`.
 
 ### 3.15 A robot voice, and two hours spent on a film that could only be refused
 

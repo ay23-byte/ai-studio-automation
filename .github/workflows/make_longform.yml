@@ -47,7 +47,7 @@ on:
         default: video_first
   # Production test from a pull request: only when the request file is part of the pull
   # request AND the newest commit message contains [documentary-run] (checked by the
-  # "request" job). A build started this way can never be released.
+  # "request" job). The build uploads nothing; release stays a separate, reviewed workflow.
   pull_request:
     branches: [main]
     paths: [".github/documentary-production-request.json"]

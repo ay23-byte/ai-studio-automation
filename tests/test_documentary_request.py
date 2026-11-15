@@ -113,8 +113,29 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn(f'paths: ["{request.REQUEST_FILE}"]', trigger)
         self.assertIn("branches: [main]", trigger)
 
-    def test_a_pull_request_build_can_never_be_released(self):
-        self.assertNotIn("pull_request", ALLOWED_EVENTS)
+    def test_a_pull_request_build_is_released_only_from_this_repository_to_the_release_branch(self):
+        # The owner's rule since #221: a pull-request build may be released when the pull
+        # request comes from this repository and targets the release branch. The review and
+        # release gates still apply; a fork or another base branch is refused.
+        from scripts.verify_source_run import problems_with
+        self.assertIn("pull_request", ALLOWED_EVENTS)
+
+        def run(head_repo="owner/repo", base="main", pull_requests=None):
+            if pull_requests is None:
+                pull_requests = [{"base": {"ref": base}, "head": {"repo": {"full_name": head_repo}}}]
+            return {"id": 7, "repository": {"full_name": "owner/repo"},
+                    "head_repository": {"full_name": head_repo},
+                    "path": ".github/workflows/make_longform.yml", "status": "completed",
+                    "conclusion": "success", "event": "pull_request", "head_branch": "feature",
+                    "pull_requests": pull_requests}
+
+        def problems(**kwargs):
+            return problems_with(run(**kwargs), repository="owner/repo", mode="longform", ref="main", run_id="7")
+
+        self.assertEqual(problems(), [])
+        self.assertTrue(problems(head_repo="someone/fork"))
+        self.assertTrue(problems(base="develop"))
+        self.assertTrue(problems(pull_requests=[]))
 
     def test_the_workflow_still_does_not_upload(self):
         self.assertNotIn("YT_REFRESH_TOKEN", WORKFLOW)

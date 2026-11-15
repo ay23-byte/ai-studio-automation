@@ -1,5 +1,5 @@
 {
-  "_note": "Production test request. The documentary workflow builds this only when the newest commit message of the pull request contains [documentary-run]. A build started this way can never be released.",
+  "_note": "Production test request. The documentary workflow builds this only when the newest commit message of the pull request contains [documentary-run]. The build uploads nothing; release is a separate, reviewed workflow.",
   "topic": "How the James Webb Space Telescope Sees the First Galaxies",
   "category": "science",
   "minutes": 18,
