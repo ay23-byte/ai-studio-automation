@@ -1,4 +1,5 @@
 {
+  "_note": "Automated production test: English narration/subtitles, male presenter, video-first visuals, and semantic screening enabled. This is a build-only test; no YouTube upload is performed by the build workflow.",
   "topic": "How the James Webb Space Telescope Sees the First Galaxies",
   "category": "science",
   "semantic_review": true,
