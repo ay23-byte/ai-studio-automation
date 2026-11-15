@@ -293,6 +293,11 @@ def evidence_lines(report: dict, build: Path, target_minutes: float | None) -> l
     if plan:
         script_line = f"{script_line} | {plan}" if script_line else f"Script and narration: {plan}"
     visuals_line, audit = visuals(report, build), visual_checks(build)
+    repairs = _load(build / "picture_repair_report.json")
+    if repairs.get("shots"):
+        audit = ((audit + " | ") if audit else "") + (
+            f"{repairs.get('replaced', 0)} unusable pictures replaced before the edit, "
+            f"{repairs.get('unresolved', 0)} not replaceable")
     if audit:
         visuals_line = f"{visuals_line} | {audit}" if visuals_line else f"Visuals: {audit}"
     lines = [final_video(report, target_minutes), script_line, narration(build),

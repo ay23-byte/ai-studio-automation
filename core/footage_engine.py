@@ -58,6 +58,21 @@ class Provider:
     min_relevance: float | None = None
 
 
+def _picture_problem(path) -> str | None:
+    """Why a downloaded file would fail the picture audit (black, blank, clipped), or None.
+
+    ``FOOTAGE_PICTURE_CHECK=0`` switches the check off. It never raises: a file that cannot be
+    measured is left to the media validator.
+    """
+    if os.getenv("FOOTAGE_PICTURE_CHECK", "1").strip().lower() in {"0", "false", "no", "off"}:
+        return None
+    try:
+        from core.visual_consistency import media_picture_problem
+        return media_picture_problem(path, window_seconds=_number("LONGFORM_MAX_SHOT_SECONDS", 12) or None)
+    except Exception:
+        return None
+
+
 def identity_of(metadata: dict, url: str = "") -> str:
     return f"{metadata.get('provider')}:{metadata.get('asset_id') or url}"
 
@@ -288,6 +303,19 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
             rejected[f"file rejected ({status})"] += 1
             continue
         report.add(provider.name, "download_successes")
+        # The finished film is refused for a black, blank or undersized picture, so refuse such
+        # a file here, while the next candidate can still be tried.
+        picture_problem = _picture_problem(path)
+        if picture_problem:
+            path.unlink(missing_ok=True)
+            path.with_suffix(path.suffix + ".source.json").unlink(missing_ok=True)
+            used_ids.add(candidate["identity"])        # do not download it again for a later scene
+            report.add(provider.name, "invalid_media")
+            report.fail(provider.name, f"unusable_picture: {picture_problem}")
+            tried.append({"provider": provider.name, "asset_id": metadata.get("asset_id"),
+                          "outcome": "unusable_picture", "reason": picture_problem})
+            rejected["picture unusable (too dark or blank)"] += 1
+            continue
         digest = str(metadata.get("media_sha256") or "")
         if digest and HASH_PREFIX + digest in used_ids:
             # Same picture under another catalogue entry or another provider.

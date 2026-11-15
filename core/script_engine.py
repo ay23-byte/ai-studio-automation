@@ -606,7 +606,9 @@ def count_longform_narration_words(script: dict) -> int:
 # Storyboard completion
 # ---------------------------------------------------------------------------
 _FILLER_SUBJECT = "Documentary presenter and on-screen narration emphasis"
-_STORYBOARD_TYPES = ("stock", "archival", "ai_reconstruction", "diagram", "map", "location", "person")
+# No "ai_reconstruction": these beats are filled with real footage, and a real clip must not be
+# described to the reviewer as a reconstruction.
+_STORYBOARD_TYPES = ("stock", "archival", "diagram", "map", "location", "person")
 _SUBJECT_STOP = frozenset({
     "how", "why", "what", "when", "where", "who", "the", "and", "for", "with", "from", "that", "this", "into",
     "sees", "see", "first", "story", "inside", "explained", "mystery", "truth", "secret", "secrets", "real",
@@ -710,8 +712,10 @@ def _model_beats(section: dict, topic: str, category: str, count: int) -> list[d
         queries = [" ".join(str(item).split()) for item in (raw.get("search_queries") or []) if str(item).strip()]
         keywords = [" ".join(str(item).split()) for item in (raw.get("keywords") or []) if str(item).strip()] or queries
         kind = str(raw.get("visual_type") or "stock").strip().lower()
-        if not anchor or not picture or not keywords or kind not in _STORYBOARD_TYPES:
+        if not anchor or not picture or not keywords:
             continue
+        if kind not in _STORYBOARD_TYPES:
+            kind = "stock"
         beats.append({
             "narration_anchor": anchor, "visual_prompt": picture, "visual_type": kind,
             "subject": str(raw.get("subject") or "").strip(), "location": str(raw.get("location") or "").strip(),

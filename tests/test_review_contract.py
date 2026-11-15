@@ -354,6 +354,13 @@ class QaTests(_Package):
                         encoding="utf-8")
         self.assertBlocked(self.evaluate(), "Failing checks: Decode errors: moov atom not found")
 
+    def test_a_failed_rights_or_audio_report_also_names_what_failed(self):
+        self.build(qa={"assets": "FAIL"})
+        path = self.root / contract.QA_FILES["assets"]
+        path.write_text(json.dumps({"status": "FAIL", "details": ["shot_0012: licence register status 'blocked'"]}),
+                        encoding="utf-8")
+        self.assertBlocked(self.evaluate(), "Failing checks: shot_0012: licence register status 'blocked'")
+
     def test_missing_or_corrupt_qa_report_blocks(self):
         self.build()
         decisions = approve(self.root)

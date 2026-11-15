@@ -185,6 +185,53 @@ def split_long_beat(shot, acquire, limit_seconds, max_parts=4):
     return shots
 
 
+def repair_unusable_pictures(shot_timeline, replace, check=None, max_attempts=3):
+    """Replace, before the edit, every B-roll picture that the picture audit would refuse.
+
+    The audit of the finished film cannot be overridden, and it runs after everything else, so
+    one black clip used to cost the whole build. Here each shot that carries ``_picture_repair``
+    (B-roll found or generated for a storyboard beat) is measured with the audit's own rule on
+    the seconds it shows. ``replace(shot, problem, attempt)`` returns another asset
+    ({"type", "path"}, optionally ``"project_graphic": True`` for a card drawn by this project,
+    which is not measured again) or None when nothing else exists.
+
+    Returns one record per shot that had a problem; ``"resolved"`` says whether it was replaced.
+    """
+    if check is None:
+        from core.visual_consistency import media_picture_problem
+
+        def check(path, seconds):
+            return media_picture_problem(path, window_seconds=seconds, dark_margin=0.0, check_size=True)
+
+    records = []
+    for index, shot in enumerate(shot_timeline):
+        media = shot.get("_media") or {}
+        if not shot.get("_picture_repair") or not media.get("path") or media.get("project_graphic"):
+            continue
+        problem = check(media["path"], shot.get("_dur"))
+        if not problem:
+            continue
+        record = {"shot": index + 1, "problem": problem, "original": str(media["path"]),
+                  "attempts": 0, "resolved": False, "replacement": None}
+        while problem and record["attempts"] < max_attempts:
+            record["attempts"] += 1
+            try:
+                new_media = replace(shot, problem, record["attempts"])
+            except Exception as exc:
+                print(f"  replacement {record['attempts']} for shot {index + 1} failed: {type(exc).__name__}: {exc}")
+                new_media = None
+            if not new_media:
+                continue
+            shot["_media"] = new_media
+            record["replacement"] = str(new_media.get("path"))
+            problem = None if new_media.get("project_graphic") else check(new_media["path"], shot.get("_dur"))
+        record["resolved"] = not problem
+        if problem:
+            record["remaining_problem"] = problem
+        records.append(record)
+    return records
+
+
 def _fallback_card(path, text, *, size, kicker, index, total, category, keywords=None):
     """Last-resort original explainer graphic (see core.explainer_cards)."""
     from core import explainer_cards
@@ -1149,6 +1196,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
             # Search with concise semantic anchors, not cinematic camera/lens prose.
             scene_search_brief = _scene_search_brief(beat, kws)
+            shot["_picture_repair"] = {"keywords": list(kws), "brief": scene_search_brief, "chapter": i, "beat": j,
+                                       "kicker": str(sec.get("title") or f"Chapter {i+1}")[:40],
+                                       "card_keywords": beat.get("keywords") or None,
+                                       "card_allowed": str(beat.get("visual_type") or "").lower() != "archival"}
             # Resume: a visual acquired for this exact prompt by an interrupted
             # attempt is reused instead of being searched/generated again.
             prompt_signature = stable_hash(prompt, beat.get("visual_type"), kws)
@@ -1277,6 +1328,44 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             f"Wan2.1 timeline adapter: {wan_result['applied_count']} clips applied; "
             "all mapped clips remain pending human review and rights clearance."
         )
+
+    # Measure every chosen B-roll picture with the final audit's rule and replace the ones it
+    # would refuse, while replacing is still possible.
+    def replace_picture(shot, problem, attempt):
+        plan = shot["_picture_repair"]
+        stem = f"{plan['chapter']}_{plan['beat']}_{int(shot.get('beat_part') or 1)}_{attempt}"
+        if attempt < 3:
+            clip = bd / f"lfix{stem}.mp4"
+            if fetch_clip(plan["keywords"], clip, used_ids, scene_prompt=plan["brief"]):
+                return {"type": "video", "path": str(clip)}
+            return None
+        card = bd / f"lcardfix{stem}.jpg"
+        if plan["card_allowed"] and _fallback_card(
+                card, shot.get("narration") or "", size=(W_L, H_L), kicker=plan["kicker"], index=plan["chapter"],
+                total=len(sections), category=script.get("category", "general"), keywords=plan["card_keywords"]):
+            shot["visual_type"] = "context_graphic"
+            shot["visual_disclosure"] = "Original explainer graphic; the footage found for this moment was unusable."
+            fallback_state["cards"].append(str(card))
+            return {"type": "image", "path": str(card), "project_graphic": True}
+        return None
+
+    picture_repairs = repair_unusable_pictures(shot_timeline, replace_picture)
+    (bd / "picture_repair_report.json").write_text(json.dumps({
+        "checked_rule": "core.visual_consistency.picture_defects on the seconds each shot shows",
+        "replaced": sum(1 for item in picture_repairs if item["resolved"]),
+        "unresolved": sum(1 for item in picture_repairs if not item["resolved"]),
+        "shots": picture_repairs,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    for item in picture_repairs:
+        print(f"  picture check: shot {item['shot']} ({item['problem']}) "
+              + ("replaced" if item["resolved"] else "could NOT be replaced"))
+    unresolved_pictures = [item for item in picture_repairs if not item["resolved"]]
+    if unresolved_pictures:
+        raise RuntimeError(
+            f"No usable footage for {len(unresolved_pictures)} shot(s): the picture found is unusable and no "
+            "replacement exists (" + "; ".join(
+                f"shot {item['shot']}: {item.get('remaining_problem') or item['problem']}"
+                for item in unresolved_pictures[:6]) + "). Refusing to render a film that the picture audit would reject.")
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")

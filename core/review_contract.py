@@ -852,7 +852,7 @@ def evaluate_release(package_dir, decisions: Any = None, *, expected_sha256: str
     for name in HUMAN_RESOLVABLE_QA:
         if statuses.get(name) not in {"PASS", "REVIEW"}:
             technical.append(f"qa/{name}.json is {statuses.get(name)}; a FAIL or missing report cannot be "
-                             "resolved by a reviewer.")
+                             "resolved by a reviewer." + _qa_failures(root, name))
     try:
         captions = inside(root, (manifest.get("captions") or {}).get("file") or manifest.get("captions_file"))
         if not captions.is_file() or captions.stat().st_size == 0:

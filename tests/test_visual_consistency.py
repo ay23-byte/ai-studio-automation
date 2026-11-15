@@ -91,6 +91,41 @@ class VisualConsistencyTests(unittest.TestCase):
         self.assertEqual((visual_consistency.MIN_SOURCE_WIDTH, visual_consistency.MIN_SOURCE_HEIGHT), (640, 360))
         self.assertTrue(re.search(r"FOOTAGE_MIN_WIDTH", source))
 
+    def test_a_clip_is_judged_on_the_seconds_its_shot_shows(self):
+        from core.visual_consistency import sample_times
+        self.assertEqual(sample_times(600.0, 8.0), [2.0, 4.0, 6.0])       # a ten-minute source, an 8 s shot
+        self.assertEqual(sample_times(4.0, 12.0), [1.0, 2.0, 3.0])        # the clip is shorter than the shot
+        self.assertEqual(sample_times(8.0), [2.0, 4.0, 6.0])              # no shot length known
+
+    def test_the_review_sampler_passes_the_shot_length(self):
+        source = (Path(__file__).resolve().parents[1] / "core" / "visual_production.py").read_text(encoding="utf-8")
+        self.assertIn('_sample_frames(path, frame_dir, shot_id, window_seconds=shot.get("_dur"))', source)
+
+    def test_a_downloaded_file_is_measured_with_the_audit_rule(self):
+        from core.visual_consistency import media_picture_problem
+        black = self.root / "black.png"
+        Image.new("RGB", (1280, 720), (3, 3, 3)).save(black)
+        self.assertIn("underexposed", media_picture_problem(black))
+        normal = Path(self._frame("fine.jpg", (105, 110, 115), texture=True))
+        self.assertIsNone(media_picture_problem(normal))
+        # Size is the validator's business (a vertical Short is narrower than a documentary).
+        narrow = Path(self._frame("narrow.jpg", (105, 110, 115), size=(540, 960), texture=True))
+        self.assertIsNone(media_picture_problem(narrow))
+        broken = self.root / "broken.mp4"
+        broken.write_bytes(b"not a video")
+        self.assertIsNone(media_picture_problem(broken))
+        self.assertIsNone(media_picture_problem(self.root / "absent.mp4"))
+
+    def test_a_borderline_dark_picture_is_refused_at_download_but_only_once(self):
+        # Mean level 13 passes the audit (limit 12) and is refused when choosing footage (limit 15),
+        # so a file accepted there cannot be the one that fails the finished film.
+        from core.visual_consistency import media_picture_problem
+        path = self.root / "dim.png"
+        Image.new("RGB", (1280, 720), (13, 13, 13)).save(path)
+        self.assertIn("underexposed", media_picture_problem(path))
+        report = audit_visual_consistency({"shots": [{"shot_id": "s", "sample_frames": [str(path)]}]}, self.root)
+        self.assertNotEqual(report["shots"][0]["status"], "fail")
+
     def test_missing_frames_are_reported_as_unavailable(self):
         report = audit_visual_consistency(
             {"shots": [{"shot_id": "shot_empty", "sample_frames": []}]}, self.root

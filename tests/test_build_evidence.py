@@ -162,6 +162,10 @@ class BuildEvidenceTests(unittest.TestCase):
         self.assertTrue(any(line.startswith("Script and narration:") and "storyboard 13 beats" in line
                             for line in lines))
         self.assertTrue(any(line.startswith("Visuals:") and "picture audit FAIL" in line for line in lines))
+        self._write("picture_repair_report.json", {"replaced": 8, "unresolved": 0, "shots": [{"shot": 36}]})
+        lines = evidence.evidence_lines(report, self.build, 18)
+        self.assertTrue(any("8 unusable pictures replaced before the edit, 0 not replaceable" in line
+                            for line in lines))
 
     def test_missing_reports_produce_no_line_and_long_lines_are_cut(self):
         self.assertEqual(evidence.evidence_lines({"output": {"exists": False}}, self.build, None),
