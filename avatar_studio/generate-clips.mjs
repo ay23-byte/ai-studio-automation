@@ -46,12 +46,21 @@ try {
         const s=document.querySelector("#status")?.textContent||"";
         return s.includes("Recording avatar video while narration drives lip-sync")||s.includes("Could not record")||s.includes("Recording error");
       }, null, {timeout:120000});
-      await page.waitForFunction(() => {
-        const s=document.querySelector("#status")?.textContent||"";
-        return s.includes("Saved talking_presenter.webm")||s.includes("Could not record")||s.includes("Recording error");
-      }, null, {timeout:20*60*1000});
+      // Keep the browser runner's completion contract identical to index.html.
+      // The UI deliberately says "Saved video-only talking_presenter.webm" because
+      // narration is muxed from the original WAV by FFmpeg below.
+      const captureTimeout = Math.max(60_000, Math.ceil((audioDuration + 30) * 1000));
+      try {
+        await page.waitForFunction(() => {
+          const s=document.querySelector("#status")?.textContent||"";
+          return s.includes("Saved video-only talking_presenter.webm")||s.includes("Could not record")||s.includes("Recording error");
+        }, null, {timeout:captureTimeout});
+      } catch (error) {
+        const lastStatus = await page.locator("#status").textContent().catch(() => "<status unavailable>");
+        throw new Error(`Chapter ${i} presenter capture did not complete within ${Math.round(captureTimeout/1000)}s. Last browser status: ${lastStatus}. Browser errors: ${errors.join("; ")||"none"}. Original error: ${error.message}`);
+      }
       const status=await page.locator("#status").textContent();
-      if (!status?.includes("Saved talking_presenter.webm")) throw new Error(`Chapter ${i} recording failed: ${status}`);
+      if (!status?.includes("Saved video-only talking_presenter.webm")) throw new Error(`Chapter ${i} recording failed: ${status}`);
       const download=await downloadPromise;
       const webm=path.join(outputDir,`presenter_section_${String(i).padStart(2,"0")}.webm`);
       await download.saveAs(webm);
