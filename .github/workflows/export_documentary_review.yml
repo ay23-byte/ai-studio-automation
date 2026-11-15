@@ -1,0 +1,125 @@
+name: "Export compact documentary review dashboard"
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful documentary build run ID (the run that produced the reviewed video)"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: review-export-${{ inputs.source_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate source run ID
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::Enter the numeric source build run ID."; exit 1; }
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Download artifacts from the selected build run on the runner
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ inputs.source_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: source-artifacts
+
+      - name: Build a small review-only dashboard package
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, shutil, sys
+          from pathlib import Path
+          from core import review_contract
+          from core.review_dashboard import build_dashboard
+
+          root = Path("source-artifacts")
+          packages = review_contract.find_packages(root)
+          if len(packages) != 1:
+              raise SystemExit(
+                  f"Expected exactly one schema-v2 review package in run "
+                  f"{os.environ['SOURCE_RUN_ID']}; found {len(packages)}. "
+                  "This run cannot be exported safely."
+              )
+          package = Path(packages[0])
+          dashboard = build_dashboard(package)
+          out = Path("compact-review-export")
+          out.mkdir(parents=True, exist_ok=True)
+
+          # The dashboard embeds the exact manifest, review template, QA status,
+          # scene/source/rights metadata. Keep the actual large MP4 and source
+          # media out of this download; the reviewer has already watched the
+          # MP4 from the original build run.
+          for name in ("review_dashboard.html", "review_decisions_template.json",
+                       "production_manifest.json"):
+              src = package / name
+              if not src.is_file():
+                  raise SystemExit(f"Required review file missing: {name}")
+              shutil.copy2(src, out / name)
+
+          qa_src = package / "qa"
+          if qa_src.is_dir():
+              shutil.copytree(qa_src, out / "qa", dirs_exist_ok=True)
+
+          page = (out / "review_dashboard.html").read_text(encoding="utf-8")
+          page = page.replace(
+              "</style>",
+              "section[aria-labelledby='h-video']{display:none!important}"
+              ".shot img,.shot video{display:none!important}"
+              ".shot>div:first-child{display:none!important}"
+              "</style>",
+              1
+          )
+          page = page.replace(
+              '<main>',
+              '<main><section class="panel"><b>Compact review export</b><p>'
+              'The full MP4 was reviewed separately in the original build run. '
+              'This package intentionally omits the 12+ GB build artifact and '
+              'media previews. It retains the exact job/video binding, every '
+              'scene, source, rights record, research claim and QA decision field. '
+              'Do not approve any item you did not personally verify.</p></section>',
+              1
+          )
+          (out / "review_dashboard.html").write_text(page, encoding="utf-8")
+
+          summary = {
+              "source_run_id": os.environ["SOURCE_RUN_ID"],
+              "job_id": review_contract.read_manifest(package).get("job_id"),
+              "video_sha256": review_contract.read_manifest(package).get("video", {}).get("sha256"),
+              "manifest_fingerprint": review_contract.read_manifest(package).get("fingerprint"),
+              "included": ["review_dashboard.html", "review_decisions_template.json",
+                           "production_manifest.json", "qa/"],
+              "omitted": ["video.mp4", "large source media previews"],
+              "note": "Decision export is still required; this workflow does not approve or upload anything."
+          }
+          (out / "EXPORT_INFO.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Upload compact review export
+        uses: actions/upload-artifact@v7
+        with:
+          name: compact-review-export-${{ inputs.source_run_id }}
+          path: compact-review-export/
+          if-no-files-found: error
+          retention-days: 30
