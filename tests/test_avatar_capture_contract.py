@@ -20,6 +20,10 @@ def test_runner_requires_video_only_webm_and_muxes_original_narration():
     assert 'webmStreams.some(stream=>stream.codec_type==="audio")' in runner
     assert '||webmStreams.some(stream=>stream.codec_type==="audio")' in runner
     assert 'Recording avatar video while narration drives lip-sync' in runner
+    # Production runner must wait for the exact completion status emitted by index.html.
+    assert 'Saved video-only talking_presenter.webm' in runner
+    assert 'Saved talking_presenter.webm' not in runner
+    assert 'const captureTimeout = Math.max(60_000, Math.ceil((audioDuration + 30) * 1000))' in runner
     assert '"-map","0:v:0","-map","1:a:0"' in runner
     assert 'const audioDuration = Number(durationProbe.stdout.trim())' in runner
     assert "muxed MP4 duration mismatch" in runner
