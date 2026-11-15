@@ -64,7 +64,7 @@ class ReviewDashboardTests(unittest.TestCase):
         self.assertIn('data-bulk="confirmations"', page)
         self.assertIn("I personally checked every shot", page)
         self.assertIn("problems.length||!hasTerms", page)
-        self.assertIn("incomplete or unusable rights evidence", page)
+        self.assertIn("missing or unusable rights evidence", page)
 
     def test_hostile_text_cannot_inject_markup_or_script(self):
         hostile = '</script><script>alert(1)</script><img src=x onerror=alert(2)><!-- '
