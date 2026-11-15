@@ -143,6 +143,15 @@ table{border-collapse:collapse;width:100%;font-size:.92rem}td,th{border-bottom:1
 <p class="note">Automated results are evidence, not approval. A FAIL or a missing report cannot be resolved here; a REVIEW needs your written acceptance.</p>
 <div id="qa"></div></section>
 
+<section class="panel" id="bulk-review" aria-labelledby="h-bulk"><h2 id="h-bulk">Quick review — grouped actions</h2>
+<p class="note">These actions record your own review in batches. Use them only after personally checking every item in that group. They do not create evidence. Assets with missing or unusable rights evidence are skipped and remain blocked.</p>
+<div class="panel"><h3>Shots / visual match</h3><p class="note">Only after checking every shot against its narration.</p><label><input type="checkbox" data-bulk-confirm="scenes"> I personally checked every shot in this documentary.</label><textarea data-bulk-notes="scenes" placeholder="What did you check across the shots? (minimum 20 characters)"></textarea><button type="button" data-bulk="scenes">Record review for all shots</button></div>
+<div class="panel"><h3>Asset sources and rights</h3><p class="note">Only assets with complete, usable evidence already recorded in the manifest can be included.</p><label><input type="checkbox" data-bulk-confirm="assets"> I personally checked the recorded provenance and usage basis for every eligible asset.</label><textarea data-bulk-notes="assets" placeholder="What did you verify about provenance and rights? (minimum 20 characters)"></textarea><button type="button" data-bulk="assets">Record review for eligible assets</button></div>
+<div class="panel"><h3>Research sources</h3><label><input type="checkbox" data-bulk-confirm="sources"> I opened and read every listed research source.</label><textarea data-bulk-notes="sources" placeholder="What did you verify in the sources? (minimum 20 characters)"></textarea><button type="button" data-bulk="sources">Record review for all sources</button></div>
+<div class="panel"><h3>Research claims</h3><label><input type="checkbox" data-bulk-confirm="claims"> I checked every listed factual claim against its cited evidence.</label><textarea data-bulk-notes="claims" placeholder="What did you verify about the claims? (minimum 20 characters)"></textarea><button type="button" data-bulk="claims">Record review for all claims</button></div>
+<div class="panel"><h3>QA reports marked REVIEW</h3><label><input type="checkbox" data-bulk-confirm="qa"> I read each REVIEW report and accept its documented limitations.</label><textarea data-bulk-notes="qa" placeholder="Which QA findings did you inspect and why are they acceptable? (minimum 20 characters)"></textarea><button type="button" data-bulk="qa">Record acceptance for REVIEW reports</button></div>
+<div class="panel"><h3>Whole-video confirmations</h3><label><input type="checkbox" data-bulk-confirm="confirmations"> I personally completed all six checks: editorial, factual, visual, audio, rights and AI disclosure.</label><textarea data-bulk-notes="confirmations" placeholder="Summarise the checks you personally completed. (minimum 20 characters)"></textarea><button type="button" data-bulk="confirmations">Record all six confirmations</button></div>
+<p id="bulk-status" role="status" aria-live="polite"></p></section>
 <section aria-labelledby="h-shots"><h2 id="h-shots" style="margin-top:1.5rem">3. Shots, sources and rights</h2><div id="shots"></div></section>
 
 <section class="panel" id="research-panel" aria-labelledby="h-research" hidden><h2 id="h-research">4. Research claims and sources</h2><div id="research"></div></section>
@@ -304,6 +313,24 @@ document.getElementById("load-file").addEventListener("change",function(ev){var 
  else{state=fresh();state.history=kept.concat([entry("loaded for reference only: made for a different video or package; all approvals reset",d,"Not applied: job, manifest or MP4 hash differs.")]);alert("This decision file was made for a different video or package. Nothing was approved from it; its history was kept.");}
  save();renderAll();});});
 document.getElementById("reset").addEventListener("click",function(){if(!confirm("Reset every decision on this page to pending? History is kept."))return;var h=(state.history||[]).concat([entry("reset to pending")]);state=fresh();state.history=h;save();renderAll();});
+document.addEventListener("click",function(ev){
+ var button=ev.target.closest&&ev.target.closest("[data-bulk]");if(!button)return;
+ var group=button.getAttribute("data-bulk"),ack=document.querySelector('[data-bulk-confirm="'+group+'"]'),note=document.querySelector('[data-bulk-notes="'+group+'"]'),text=String(note&&note.value||"").trim();
+ if(!ack||!ack.checked){alert("Tick the confirmation only after personally checking every item in this group.");return;}
+ if(text.length<MIN){alert("Please enter notes of at least "+MIN+" characters.");return;}
+ if(!confirm("Record your stated review for this group? Missing evidence and failed QA remain blocking."))return;
+ var changed=0,skipped=0;
+ if(group==="scenes"){state.scene_reviews.forEach(function(x){x.decision="approved";x.notes=text;changed++;});}
+ if(group==="assets"){var byId={};state.asset_reviews.forEach(function(x){byId[x.asset_id]=x;});
+  (M.scenes||[]).forEach(function(sc){(sc.assets||[]).forEach(function(a){var p=a.provenance||{},r=a.rights||{},problems=DATA.rights_evidence_problems[a.asset_id]||[],hasTerms=p.origin!=="source"||(!!(r.license_url||r.licence_url)&&String(r.attribution||"").trim().length>=3),x=byId[a.asset_id];
+   if(!x||problems.length||!hasTerms){skipped++;return;}x.source_verified=true;x.rights_decision="approved";x.notes=text;changed++;});});}
+ if(group==="sources"){state.source_reviews.forEach(function(x){x.decision="reviewed";x.notes=text;changed++;});}
+ if(group==="claims"){state.claim_reviews.forEach(function(x){x.decision="verified";x.notes=text;changed++;});}
+ if(group==="qa"){RULES.human_resolvable_qa.forEach(function(k){if((DATA.qa[k]||{}).status==="REVIEW"){state.qa_reviews[k].decision="accepted";state.qa_reviews[k].notes=text;changed++;}});}
+ if(group==="confirmations"){RULES.confirmations.forEach(function(k){state.confirmations[k]="approved";changed++;});}
+ save();renderAll();document.getElementById("bulk-status").textContent="Recorded "+changed+" "+group+" decision(s)."+(skipped?" Skipped "+skipped+" assets with incomplete evidence; they remain blocked.":"");
+});
+
 document.addEventListener("input",function(ev){var el=ev.target,p=el.getAttribute&&el.getAttribute("data-path");if(!p)return;set(p,el.type==="checkbox"?el.checked:el.value);save();refresh();});
 document.addEventListener("click",function(ev){var b=ev.target.closest&&ev.target.closest("[data-seek]");if(!b)return;var v=document.getElementById("main-video");v.currentTime=Number(b.getAttribute("data-seek"))||0;v.play();v.scrollIntoView({behavior:"smooth",block:"center"});});
 document.getElementById("hash-file").addEventListener("change",function(ev){var f=ev.target.files[0],out=document.getElementById("hash-result");if(!f)return;if(!(window.crypto&&crypto.subtle)){out.textContent="This browser cannot hash files here; use sha256sum instead.";return;}out.textContent="Hashing…";f.arrayBuffer().then(function(b){return crypto.subtle.digest("SHA-256",b);}).then(function(h){var hex=Array.prototype.map.call(new Uint8Array(h),function(x){return ("0"+x.toString(16)).slice(-2);}).join("");out.innerHTML=hex===M.video.sha256?'<span class="tag ok">MATCH</span> this is the reviewed file':'<span class="tag bad">DIFFERENT FILE</span> <code>'+esc(hex)+'</code>';},function(){out.textContent="Could not read the file.";});});
