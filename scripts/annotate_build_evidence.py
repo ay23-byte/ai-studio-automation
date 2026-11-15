@@ -153,6 +153,10 @@ def narration(build: Path) -> str | None:
             text = f"voice {voice['voice']} ({voice.get('gender') or 'gender not recorded'} requested)"
             if voice.get("configured_voice") and voice["voice"] != voice["configured_voice"]:
                 text += f", NOT the configured voice {voice['configured_voice']}"
+            # Why the configured voice did not speak (build 43717461589 said only that it did not).
+            failures = [str(item) for item in (voice.get("voice_failures") or []) if item]
+            if failures:
+                text += " [" + "; ".join(failures[:3])[:420] + "]"
             parts.append(text)
     return "Narration: " + " | ".join(parts)
 

@@ -132,6 +132,17 @@ class BuildEvidenceTests(unittest.TestCase):
             "voice": "hi-IN-MadhurNeural", "configured_voice": "hi-IN-MadhurNeural"})
         self.assertNotIn("NOT the configured", evidence.narration(self.build))
 
+    def test_narration_line_says_why_the_configured_voice_did_not_speak(self):
+        # Build 43717461589: en-IN-PrabhatNeural spoke for hi-IN-MadhurNeural and the notice gave no cause.
+        self._write("narration_synthesis_report.json", {
+            "chunk_count": 93, "speech_seconds": 1095.5, "inserted_pause_seconds": 24.2, "gender": "male",
+            "voice": "en-IN-PrabhatNeural", "configured_voice": "hi-IN-MadhurNeural",
+            "voice_failures": ['hi-IN-MadhurNeural stopped at phrase 12/93 "Lekin yahan ek twist hai" '
+                               '(NoAudioReceived: No audio was received.)']})
+        line = evidence.narration(self.build)
+        self.assertIn('NOT the configured voice hi-IN-MadhurNeural [hi-IN-MadhurNeural stopped at phrase 12/93', line)
+        self.assertIn("NoAudioReceived", line)
+
     def test_scenes_without_footage_show_their_searches_and_reasons(self):
         self._write("provider_report.json", {"scenes": [
             {"scene": "chapter 1 beat 2", "status": "needs_manual_review", "candidates_found": 4,

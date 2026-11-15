@@ -9,9 +9,9 @@ workflow run, a test, or a file. Where something was not verified, it says so.
 | Source | What it shows |
 | --- | --- |
 | Annotations of 12 earlier `make_longform.yml` runs (11–14 Nov) | Why each run failed |
-| Seven production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253, 43716476390 |
+| Eight production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253, 43716476390, 43717461589 |
 | `offline-presenter-render` job on GitHub-hosted runners (female and male) | Presenter figures at 1920x1080 |
-| Test suite | 932 tests before this work; 1083 after (merged with `main` at `8c07fa9`), all passing |
+| Test suite | 932 tests before this work; 1084 after (merged with `main` at `8c07fa9`), all passing |
 
 Limits of the audit: workflow artifacts and raw logs could not be downloaded from the audit
 environment, so nobody has watched the produced videos as part of this work. Measured figures
@@ -206,6 +206,8 @@ or was cancelled:
   another voice is used. If no voice of that gender works, the narration moves to the next
   provider or fails; it does not change the speaker. The "Narration" notice names the voice
   and says when it is not the configured one.
+- **Checked.** Build 43717461589 asked for a male voice; `hi-IN-MadhurNeural` failed and
+  `en-IN-PrabhatNeural` (male) spoke.
 - **Files.** `core/voice.py`, `scripts/annotate_build_evidence.py`.
   **Tests.** `tests/test_voice_gender_consistency.py`, `tests/test_build_evidence.py`.
 
@@ -261,6 +263,9 @@ or was cancelled:
   - One voice is tried four times (waits 20, 40, 80 s). The last try sends the phrase without
     symbols, in case the service refuses a character.
   - Text with no letter or digit ("...", a stray dash) is never sent to the voice.
+- **Checked.** Build 43717461589: the configured voice failed again, the second male voice
+  spoke the whole narration, and the notice says so. The early stop itself did not occur in
+  a production build; it is covered by tests only.
 - **Still open.** If Edge TTS keeps failing, the documentary needs a paid or self-hosted
   voice. This needs an owner decision (see section 5).
 - **Files.** `core/voice.py`, `core/pipeline.py`, `core/review_packaging.py`, `core/run_report.py`.
@@ -269,7 +274,7 @@ or was cancelled:
 ## 4. Production test builds
 
 Topic: "How the James Webb Space Telescope Sees the First Galaxies", 18 minutes, Hinglish
-narration (Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-flash-lite`.
+narration (configured voice Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-flash-lite`.
 
 | Build | Result | Measured |
 | --- | --- | --- |
@@ -280,6 +285,7 @@ narration (Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-
 | 43691314957 | Green: film and review package | 19 min 25 s video (108% of request), 1920x1080, 585 MB; narration 2461 words in 16.76 min, **spoken by a female voice although male was requested (3.11)**; storyboard 44 beats in 7 chapters, 8 placeholder beats removed; 100 shots, no fallback cards; 85 of 85 searched scenes got footage (Wikimedia Commons 44, Pixabay 16, NASA 15, DVIDS 7, Internet Archive 3); picture audit: 58 pass, 42 for review, 0 fail; 7 of 7 presenter clips passed (lowest 29.1 different frames a second); English subtitles PASS on 92 lines; audio PASS, −16.0 LUFS, true peak −4.3 dBTP. Build step 116 min, review artifact 13.1 GB |
 | 43702915253 | Film rendered, review package refused (robot voice) | Merged with `main`. Both male Edge voices failed, narration by espeak-ng: audio QA FAIL. 21 min 13 s video (118% of request), 605 MB; narration 2909 words in 18.64 min; storyboard 53 beats, 14 placeholder beats removed; 121 shots, 1 fallback card, 6 still images; 100 of 109 searched scenes got footage (Wikimedia Commons 48, Pixabay 15, DVIDS 14, NASA 12, Internet Archive 11); 9 scenes without footage, mostly "not relevant enough" and the 0.20 scene-match floor from `main`; picture audit 66 pass, 55 review, 0 fail; 7 of 7 presenter clips passed; English subtitles PASS on 111 lines; build step 130 min |
 | 43716476390 | Failed in 3 min, before a job existed | The script could not be written; the cause was not recorded (3.3a) |
+| 43717461589 | Green: film and review package | Final state of this work, merged with `main` at `8c07fa9`. 20 min 57 s video (116% of request), 1920x1080, 696 MB; narration 2732 words in 18.65 min by `en-IN-PrabhatNeural`, a male voice, because `hi-IN-MadhurNeural` did not answer; storyboard 47 beats in 7 chapters, 15 placeholder beats removed; 104 shots, no fallback cards, 1 still image; 89 of 91 searched scenes got footage (Wikimedia Commons 39, Pixabay 18, NASA 14, DVIDS 12, Internet Archive 6); picture audit 53 pass, 51 review, 0 fail; 7 of 7 presenter clips passed (lowest 28.8 different frames a second); audio −16.0 LUFS, true peak −4.3 dBTP, range 1.8 LU (REVIEW); English subtitles PASS on 100 lines; research 8 sources, 15 claims, all linked; build step 103 min; artifacts: review 12.5 GB, film 694 MB, diagnostics 188 KB |
 
 ## 5. Open items
 
@@ -292,15 +298,15 @@ narration (Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-
 | NARA | Every result is marked "Restricted - Possibly" and refused by the rights rule (261 in build 5); needs an owner decision |
 | Internet Archive | 817 results and 3 clips used in build 5 |
 | Europeana | 351 searches, 2 results, none used in build 5; cause not investigated |
-| Narration provider | Edge TTS failed in builds 43691314957 (one phrase) and 43702915253 (every voice). The build now stops early and names the cause, but the service is free and unofficial. A paid or self-hosted voice needs an owner decision |
-| Runtime above the request | Build 43702915253 was 21 min 13 s for an 18 minute request (118%). There is a lower limit (80%) and no upper limit |
+| Narration provider | The configured voice `hi-IN-MadhurNeural` did not complete the narration in builds 43691314957, 43702915253 and 43717461589. The last one was spoken by `en-IN-PrabhatNeural`, an Indian English male voice reading Hinglish; a person has to judge how that sounds. The cause is in `narration_synthesis_report.json` (`voice_failures`) of the `longform-qa-diagnostics-43717461589` artifact and, from the next build on, in the "Narration" notice. Edge TTS is free and unofficial; a paid or self-hosted voice needs an owner decision |
+| Runtime above the request | Builds 43702915253 and 43717461589 were 21 min 13 s and 20 min 57 s for an 18 minute request (118% and 116%). There is a lower limit (80%) and no upper limit |
 | Audio loudness range | 1.7 LU in build 1 (REVIEW); 2.6 LU in build 3 (PASS) |
 | Script model | The repository variable selects `gemini-3.1-flash-lite`; a stronger model may write better scripts. Not tested |
 | News Shorts presenter | Still uses the old real-time recorder (`core/news_short_avatar.py`); outside this scope |
 | AI video | Disabled in the workflow by policy |
-| Review artifact size | 13 to 14 GB for an 18 minute film: every source clip is stored in full and again inside the review package. Not reduced, because the release workflow depends on its layout |
+| Review artifact size | 12.5 to 14 GB for an 18 minute film: every source clip is stored in full and again inside the review package. Not reduced, because the release workflow depends on its layout |
 | Build time | About two hours for 18 minutes (80 minutes before the storyboard had more beats). Each provider is searched about 350 times; where the time goes was not measured |
-| Picture audit "review" shots | 42 of 100 shots in build 43691314957 are marked soft, low in contrast or unlike the rest. A person has to look at them |
+| Picture audit "review" shots | 51 of 104 shots in build 43717461589 (42 of 100 in 43691314957) are marked soft, low in contrast or unlike the rest. A person has to look at them |
 | Coverr | Builds 1 and 3: its 4 results were AI-generated library content and were refused. Since build 43681187522 the key is refused with HTTP 403; needs the owner's key |
 
 ## 6. How to run a production test
