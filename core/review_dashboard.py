@@ -215,7 +215,7 @@ function merge(d){var t=fresh();
  t.history=Array.isArray(d.history)?d.history.slice(-50):[];
  return t;}
 function radio(path,options,label){var cur=get(path),name="r-"+path.replace(/[^a-z0-9]/gi,"-");
- return '<div class="choice" role="radiogroup" aria-label="'+esc(label)+'">'+options.map(function(o){return '<label><input type="radio" name="'+name+'" data-path="'+esc(path)+'" value="'+esc(o[0])+'"'+(cur===o[0]?" reviewed":"")+'> '+esc(o[1])+'</label>';}).join("")+'</div>';}
+ return '<div class="choice" role="radiogroup" aria-label="'+esc(label)+'">'+options.map(function(o){return '<label><input type="radio" name="'+name+'" data-path="'+esc(path)+'" value="'+esc(o[0])+'"'+(cur===o[0]?" checked":"")+'> '+esc(o[1])+'</label>';}).join("")+'</div>';}
 function notes(path,label){var id="n-"+path.replace(/[^a-z0-9]/gi,"-");return '<label for="'+id+'">'+esc(label)+'</label><textarea id="'+id+'" data-path="'+esc(path)+'">'+esc(get(path))+'</textarea><span class="count" data-count-for="'+esc(path)+'"></span>';}
 function text(path,label,type){var id="t-"+path.replace(/[^a-z0-9]/gi,"-");return '<label for="'+id+'">'+esc(label)+'</label><input type="'+(type||"text")+'" id="'+id+'" data-path="'+esc(path)+'" value="'+esc(get(path))+'">';}
 function tag(status){var s=String(status||"").toUpperCase();var cls=(s==="PASS"||s==="MATCH")?"ok":(s==="REVIEW"||s==="UNCERTAIN")?"warn":"bad";return '<span class="tag '+cls+'">'+esc(s)+'</span>';}
@@ -260,7 +260,7 @@ function renderShots(){var html="",ai=0;
    html+='<div class="shot"><div>'+media+'<p class="note"><code>'+esc(a.path)+'</code></p></div><div>';
    html+='<dl class="meta"><dt>Origin</dt><dd>'+esc(p.origin)+(p.origin==="ai_generated"?' <span class="tag warn">AI-generated</span>':"")+'</dd><dt>Provider</dt><dd>'+esc(p.provider||"not recorded")+'</dd><dt>Original title</dt><dd>'+esc(p.title||"not recorded")+'</dd><dt>Creator</dt><dd>'+esc(p.creator||"not recorded")+'</dd><dt>Source page</dt><dd>'+(p.origin==="source"?link(p.source_url,"Open the original source page"):esc(p.source_url||"n/a"))+'</dd><dt>Licence recorded</dt><dd>'+esc(r.license||"none")+'</dd><dt>Licence URL</dt><dd>'+(r.license_url?link(r.license_url):"not recorded")+'</dd><dt>Attribution</dt><dd>'+esc(r.attribution||"not recorded")+'</dd>'+(p.prompt?'<dt>Prompt</dt><dd>'+esc(p.prompt)+'</dd>':"")+'</dl>';
    if(probs.length){html+='<div class="blocked"><b>Blocked by missing rights evidence.</b> Approval here cannot fix it; the asset must be replaced in a new build.<br>'+probs.map(esc).join("<br>")+'</div>';}
-   if(k>=0){html+='<div class="choice"><label><input type="checkbox" data-path="asset_reviews.'+k+'.source_verified"'+(state.asset_reviews[k].source_verified?" reviewed":"")+'> I opened the original source and it is this item</label></div>';
+   if(k>=0){html+='<div class="choice"><label><input type="checkbox" data-path="asset_reviews.'+k+'.source_verified"'+(state.asset_reviews[k].source_verified?" checked":"")+'> I opened the original source and it is this item</label></div>';
     html+=radio("asset_reviews."+k+".rights_decision",[["pending","Pending"],["approved","Rights approved"],["rejected","Rights rejected"]],"Rights decision for "+a.asset_id);
     if(p.origin==="source"){html+=text("asset_reviews."+k+".license_url","Licence / terms URL"+(r.license_url?" (recorded; override only to correct)":""),"url")+text("asset_reviews."+k+".attribution","Attribution text"+(r.attribution?" (recorded; leave empty to keep)":""));}
     html+=notes("asset_reviews."+k+".notes","Source and rights notes for "+a.asset_id);}
@@ -316,7 +316,7 @@ document.getElementById("reset").addEventListener("click",function(){if(!confirm
 document.addEventListener("click",function(ev){
  var button=ev.target.closest&&ev.target.closest("[data-bulk]");if(!button)return;
  var group=button.getAttribute("data-bulk"),ack=document.querySelector('[data-bulk-confirm="'+group+'"]'),note=document.querySelector('[data-bulk-notes="'+group+'"]'),text=String(note&&note.value||"").trim();
- if(!ack||!ack.reviewed){alert("Tick the confirmation only after personally checking every item in this group.");return;}
+ if(!ack||!ack.checked){alert("Tick the confirmation only after personally checking every item in this group.");return;}
  if(text.length<MIN){alert("Please enter notes of at least "+MIN+" characters.");return;}
  if(!confirm("Record your stated review for this group? Missing evidence and failed QA remain blocking."))return;
  var changed=0,skipped=0;
@@ -331,7 +331,7 @@ document.addEventListener("click",function(ev){
  save();renderAll();document.getElementById("bulk-status").textContent="Recorded "+changed+" "+group+" decision(s)."+(skipped?" Skipped "+skipped+" assets with incomplete evidence; they remain blocked.":"");
 });
 
-document.addEventListener("input",function(ev){var el=ev.target,p=el.getAttribute&&el.getAttribute("data-path");if(!p)return;set(p,el.type==="checkbox"?el.reviewed:el.value);save();refresh();});
+document.addEventListener("input",function(ev){var el=ev.target,p=el.getAttribute&&el.getAttribute("data-path");if(!p)return;set(p,el.type==="checkbox"?el.checked:el.value);save();refresh();});
 document.addEventListener("click",function(ev){var b=ev.target.closest&&ev.target.closest("[data-seek]");if(!b)return;var v=document.getElementById("main-video");v.currentTime=Number(b.getAttribute("data-seek"))||0;v.play();v.scrollIntoView({behavior:"smooth",block:"center"});});
 document.getElementById("hash-file").addEventListener("change",function(ev){var f=ev.target.files[0],out=document.getElementById("hash-result");if(!f)return;if(!(window.crypto&&crypto.subtle)){out.textContent="This browser cannot hash files here; use sha256sum instead.";return;}out.textContent="Hashing…";f.arrayBuffer().then(function(b){return crypto.subtle.digest("SHA-256",b);}).then(function(h){var hex=Array.prototype.map.call(new Uint8Array(h),function(x){return ("0"+x.toString(16)).slice(-2);}).join("");out.innerHTML=hex===M.video.sha256?'<span class="tag ok">MATCH</span> this is the reviewed file':'<span class="tag bad">DIFFERENT FILE</span> <code>'+esc(hex)+'</code>';},function(){out.textContent="Could not read the file.";});});
 function renderAll(){renderStatic();renderQa();renderShots();renderResearch();renderConfirm();refresh();}
