@@ -62,7 +62,7 @@ class ReviewDashboardTests(unittest.TestCase):
         self.assertIn('data-bulk="claims"', page)
         self.assertIn('data-bulk="qa"', page)
         self.assertIn('data-bulk="confirmations"', page)
-        self.assertIn("I personally checked every shot", page)
+        self.assertIn("I personally reviewed every shot", page)
         self.assertIn("problems.length||!hasTerms", page)
         self.assertIn("missing or unusable rights evidence", page)
 
