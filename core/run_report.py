@@ -172,7 +172,7 @@ def _voice_section(build_dir: Path) -> dict:
         "provider": actual,
         "voice": report.get("voice"),
         "language": report.get("language"),
-        "fallback_reason": _redact(report.get("fallback_reason"))[:400] if report.get("fallback_reason") else None,
+        "fallback_reason": _redact(report.get("fallback_reason"))[:700] if report.get("fallback_reason") else None,
         "speech_seconds": report.get("speech_seconds"),
     }
 
@@ -476,7 +476,7 @@ def collect(pipeline: str, job_id: int | None = None, *, job_status: str | None 
 
     reasons = []
     if row.get("error"):
-        reasons.append(_redact(row["error"])[:400])
+        reasons.append(_redact(row["error"])[:700])
     reasons += [f"stage '{item['stage']}' did not finish" + (f": {item['error']}" if item.get("error") else "")
                 for item in failed_stages]
     if outcome in {FAILED, UPLOAD_BLOCKED}:

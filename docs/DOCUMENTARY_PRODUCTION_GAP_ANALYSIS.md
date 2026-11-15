@@ -9,9 +9,9 @@ workflow run, a test, or a file. Where something was not verified, it says so.
 | Source | What it shows |
 | --- | --- |
 | Annotations of 12 earlier `make_longform.yml` runs (11–14 Nov) | Why each run failed |
-| Five production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957 |
+| Six production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253 |
 | `offline-presenter-render` job on GitHub-hosted runners (female and male) | Presenter figures at 1920x1080 |
-| Test suite | 932 tests before this work; 1069 after (merged with `main` at `b87a0c3`), all passing |
+| Test suite | 932 tests before this work; 1080 after (merged with `main` at `b87a0c3`), all passing |
 
 Limits of the audit: workflow artifacts and raw logs could not be downloaded from the audit
 environment, so nobody has watched the produced videos as part of this work. Measured figures
@@ -25,6 +25,7 @@ or was cancelled:
 | Runs | Failure |
 | --- | --- |
 | 43641966044, 43430301113, 43425560985 | Presenter recorder `generate-clips.mjs` exited 1; its error text was never captured |
+| 43682732606, 43692192233 (15 Nov, `main` at `f0875f2` and `b87a0c3`, after #219) | The same recorder still exits with code 1; no film |
 | 43634417423 | Presenter clip recorded at 0.57 frames per second |
 | 43627727865 | 11 of 18 visuals were fallback cards (limit 35%) |
 | 43605766249, 43588472344, 43572252858, 43484926451, 43404962363 | Review-package step failed; the report said only "No failure detail was recorded" |
@@ -192,7 +193,7 @@ or was cancelled:
 - **Root cause.** When one phrase failed three times, the whole narration was started again
   with the next voice in a list, and the list for a male narrator held a female voice.
 - **Fix.** Fallback voices have the requested gender only. A failed phrase is tried again with
-  the same voice after a wait (20 s, then 40 s), keeping the phrases already spoken, before
+  the same voice after a wait (20, 40 and 80 s), keeping the phrases already spoken, before
   another voice is used. If no voice of that gender works, the narration moves to the next
   provider or fails; it does not change the speaker. The "Narration" notice names the voice
   and says when it is not the configured one.
@@ -227,6 +228,29 @@ or was cancelled:
   so a later scene does not download it again.
 - **Files.** `core/footage_engine.py`. **Tests.** `tests/test_footage_engine.py`.
 
+### 3.15 A robot voice, and two hours spent on a film that could only be refused
+
+- **Problem.** In build 43702915253 neither male Edge voice answered ("No audio was
+  received"). The narration fell back to the offline robotic voice (espeak-ng). The build then
+  searched footage and rendered for 2 h 10 min, and audio QA refused the film for that voice,
+  as it always does. The message named the last voice only, so it does not show which phrase
+  stopped the first voice or whether the service was down.
+- **Root cause.** Not established. Edge TTS is a free, unofficial service; it failed in two of
+  the last three builds (one phrase in build 43691314957, every voice in 43702915253).
+- **Fix.**
+  - A documentary stops at the narration when only the robotic voice is left. The failure
+    takes minutes, not hours. Short formats keep the fallback.
+    `LONGFORM_ALLOW_ROBOTIC_NARRATION=1` restores the old behaviour.
+  - The message names every voice, the phrase that stopped it (number and first words) and
+    the cause.
+  - One voice is tried four times (waits 20, 40, 80 s). The last try sends the phrase without
+    symbols, in case the service refuses a character.
+  - Text with no letter or digit ("...", a stray dash) is never sent to the voice.
+- **Still open.** If Edge TTS keeps failing, the documentary needs a paid or self-hosted
+  voice. This needs an owner decision (see section 5).
+- **Files.** `core/voice.py`, `core/pipeline.py`, `core/review_packaging.py`, `core/run_report.py`.
+  **Tests.** `tests/test_robotic_narration_gate.py`, `tests/test_voice_gender_consistency.py`.
+
 ## 4. Production test builds
 
 Topic: "How the James Webb Space Telescope Sees the First Galaxies", 18 minutes, Hinglish
@@ -239,6 +263,7 @@ narration (Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-
 | 43655186698 | Film rendered, review package refused | 20 min 30 s video (114% of request), 1920x1080, 228 MB; narration 2913 words in 19.92 min; 7 of 7 presenter clips passed (lowest 28.2 different frames a second, longest freeze 0.03 s); 45 shots, 6 fallback cards (19%); 18 of 38 scenes got footage (Wikimedia Commons 7, Pixabay 5, DVIDS 4, NASA 2); audio PASS, −15.9 LUFS, range 2.6 LU; technical QA FAIL with no reason shown (3.10) |
 | 43681187522 | Film rendered, review package refused | 19 min 26 s video (108% of request), 522 MB; narration 2456 words in 17.04 min; storyboard 44 beats in 7 chapters, 15 placeholder beats removed; 103 shots, no fallback cards; 89 of 89 searched scenes got footage (Wikimedia Commons 48, Pixabay 15, DVIDS 10, NASA 9, Internet Archive 7); 7 of 7 presenter clips passed; audio PASS, −16.0 LUFS; picture audit: 56 pass, 39 review, 8 fail (almost black clips), so technical QA FAIL, this time with the reason (3.10). Build step 112 min |
 | 43691314957 | Green: film and review package | 19 min 25 s video (108% of request), 1920x1080, 585 MB; narration 2461 words in 16.76 min, **spoken by a female voice although male was requested (3.11)**; storyboard 44 beats in 7 chapters, 8 placeholder beats removed; 100 shots, no fallback cards; 85 of 85 searched scenes got footage (Wikimedia Commons 44, Pixabay 16, NASA 15, DVIDS 7, Internet Archive 3); picture audit: 58 pass, 42 for review, 0 fail; 7 of 7 presenter clips passed (lowest 29.1 different frames a second); English subtitles PASS on 92 lines; audio PASS, −16.0 LUFS, true peak −4.3 dBTP. Build step 116 min, review artifact 13.1 GB |
+| 43702915253 | Film rendered, review package refused (robot voice) | Merged with `main`. Both male Edge voices failed, narration by espeak-ng: audio QA FAIL. 21 min 13 s video (118% of request), 605 MB; narration 2909 words in 18.64 min; storyboard 53 beats, 14 placeholder beats removed; 121 shots, 1 fallback card, 6 still images; 100 of 109 searched scenes got footage (Wikimedia Commons 48, Pixabay 15, DVIDS 14, NASA 12, Internet Archive 11); 9 scenes without footage, mostly "not relevant enough" and the 0.20 scene-match floor from `main`; picture audit 66 pass, 55 review, 0 fail; 7 of 7 presenter clips passed; English subtitles PASS on 111 lines; build step 130 min |
 
 ## 5. Open items
 
@@ -251,6 +276,8 @@ narration (Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-
 | NARA | Every result is marked "Restricted - Possibly" and refused by the rights rule (261 in build 5); needs an owner decision |
 | Internet Archive | 817 results and 3 clips used in build 5 |
 | Europeana | 351 searches, 2 results, none used in build 5; cause not investigated |
+| Narration provider | Edge TTS failed in builds 43691314957 (one phrase) and 43702915253 (every voice). The build now stops early and names the cause, but the service is free and unofficial. A paid or self-hosted voice needs an owner decision |
+| Runtime above the request | Build 43702915253 was 21 min 13 s for an 18 minute request (118%). There is a lower limit (80%) and no upper limit |
 | Audio loudness range | 1.7 LU in build 1 (REVIEW); 2.6 LU in build 3 (PASS) |
 | Script model | The repository variable selects `gemini-3.1-flash-lite`; a stronger model may write better scripts. Not tested |
 | News Shorts presenter | Still uses the old real-time recorder (`core/news_short_avatar.py`); outside this scope |

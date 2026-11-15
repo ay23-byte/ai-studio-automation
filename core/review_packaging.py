@@ -153,7 +153,7 @@ def narration_metadata(build_dir) -> dict:
         "provider": actual, "requested_provider": requested, "voice": report.get("voice"),
         "language": report.get("language"), "speech_seconds": report.get("speech_seconds"),
         "fallback_used": bool(reason or (requested and actual and requested != actual)),
-        "fallback_reason": str(reason)[:400] if reason else None,
+        "fallback_reason": str(reason)[:700] if reason else None,
     }
 
 

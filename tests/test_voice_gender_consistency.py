@@ -80,7 +80,7 @@ class SameVoiceRetryTests(unittest.TestCase):
         self.assertEqual(len(wavs), 4)
         self.assertEqual(voice._LAST_EDGE_VOICE, "en-IN-PrabhatNeural")
         self.assertNotIn(voice._LAST_EDGE_VOICE, FEMALE)
-        self.assertEqual(sleep.call_count, 2)                                    # three passes, two waits
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [20.0, 40.0, 80.0])   # four tries
         # The narration is one voice from start to finish: every phrase is spoken again.
         self.assertEqual([index for name, index in self.calls if name == "en-IN-PrabhatNeural"], [0, 1, 2, 3])
 
@@ -90,6 +90,50 @@ class SameVoiceRetryTests(unittest.TestCase):
             self.run_edge(failures)
         self.assertIn("All Edge TTS voices failed", str(caught.exception))
         self.assertFalse({name for name, _ in self.calls} & FEMALE)
+
+    def test_the_failure_names_every_voice_the_phrase_that_stopped_it_and_the_cause(self):
+        # Production build 43702915253: the message named the last voice only, so a refused
+        # phrase could not be told apart from an outage.
+        failures = {("hi-IN-MadhurNeural", 2): 99, ("en-IN-PrabhatNeural", 0): 99}
+        with self.assertRaises(RuntimeError) as caught:
+            self.run_edge(failures, sentences=("one.", "two.", "Teesra vakya yahan hai.", "four."))
+        message = str(caught.exception)
+        self.assertIn('hi-IN-MadhurNeural stopped at phrase 3/4 "Teesra vakya yahan hai."', message)
+        self.assertIn('en-IN-PrabhatNeural stopped at phrase 1/4 "one."', message)
+        self.assertIn("RuntimeError: NoAudioReceived", message)
+        self.assertEqual(len(voice._LAST_EDGE_FAILURES), 2)
+        self.assertLess(len(message), 400)
+
+    def test_the_last_try_with_a_voice_sends_the_phrase_without_symbols(self):
+        sent = []
+
+        async def fake_synth(text, voice_name, rate, pitch, path):
+            sent.append(text)
+            if "\u2192" in text:
+                raise RuntimeError("NoAudioReceived")
+            Path(path).write_bytes(b"mp3")
+
+        def fake_wav(mp3, wav):
+            Path(wav).write_bytes(b"RIFF" + b"\x00" * 64)
+
+        with patch.dict("os.environ", {"TTS_VOICE": ""}), \
+             patch.object(voice, "_edge_module", return_value=object()), \
+             patch.object(voice, "_synth_edge", fake_synth), patch.object(voice, "_to_wav", fake_wav), \
+             patch("time.sleep"):
+            wavs = voice._synth_all_edge(["Pehla.", "Redshift \u2192 z = 13, yaani 13.4 arab saal!"],
+                                         "hinglish", "male", self.build)
+        self.assertEqual(len(wavs), 2)
+        self.assertEqual(voice._LAST_EDGE_VOICE, "hi-IN-MadhurNeural")
+        self.assertEqual(sent[-1], "Redshift z 13, yaani 13.4 arab saal!")
+        self.assertEqual(sent.count("Pehla."), 1)
+
+    def test_plain_text_keeps_devanagari_words_whole(self):
+        self.assertEqual(voice._plain_speech_text("\u0906\u0915\u093e\u0936\u0917\u0902\u0917\u093e \u2014 13% \u0926\u0942\u0930\u0964"),
+                         "\u0906\u0915\u093e\u0936\u0917\u0902\u0917\u093e 13% \u0926\u0942\u0930\u0964")
+
+    def test_a_piece_with_nothing_to_say_is_never_sent_to_the_voice(self):
+        chunks = voice._speech_chunks("Pehli baat. ... \u2014 ! Doosri baat?", max_chars=12)
+        self.assertEqual(chunks, ["Pehli baat.", "Doosri baat?"])
 
 
 if __name__ == "__main__":

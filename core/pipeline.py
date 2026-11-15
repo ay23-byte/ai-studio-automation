@@ -75,7 +75,28 @@ def _caption_fonts(header: str, *samples) -> str:
     return header if family == "Noto Sans" else header.replace(",Noto Sans,", f",{family},")
 
 
-def _voice_stage(checkpoint, text, bd, language, gender):
+def robotic_narration_problem(build_dir):
+    """Why this narration can never be published, or ``None``.
+
+    When the voice provider does not answer, the narration falls back to the offline robotic
+    voice so that short formats still get a file. Audio QA always refuses a documentary with
+    that voice, so building the rest of it (two hours in production build 43702915253) only
+    delays the same refusal. ``LONGFORM_ALLOW_ROBOTIC_NARRATION=1`` keeps the old behaviour.
+    """
+    if os.getenv("LONGFORM_ALLOW_ROBOTIC_NARRATION", "").strip().lower() in ("1", "true", "yes"):
+        return None
+    from core.review_packaging import ROBOTIC_ENGINES, narration_metadata
+    narration = narration_metadata(build_dir)
+    engine = str(narration.get("provider") or "").lower()
+    if not (narration.get("fallback_used") and engine in ROBOTIC_ENGINES):
+        return None
+    return (f"Narration failed, no natural voice was available: {narration.get('fallback_reason') or 'no reason recorded'} "
+            f"Only the robotic offline voice ({engine}) was left. Audio QA never accepts it, so the build "
+            "stops here instead of rendering a film that would be refused. Start a new run; if the same "
+            "phrase stops every voice again, the wording of that phrase is the cause.")
+
+
+def _voice_stage(checkpoint, text, bd, language, gender, refuse_robotic=False):
     """Narration with checkpoint reuse: identical text/voice is never re-synthesised."""
     import json
     timings_path = Path(bd) / "voice_timings.json"
@@ -85,6 +106,11 @@ def _voice_stage(checkpoint, text, bd, language, gender):
 
     def run():
         path, timings = synthesise(text, bd, language=language, gender=gender)
+        if refuse_robotic:
+            # Raised inside the checkpointed step, so a later run speaks the narration again.
+            problem = robotic_narration_problem(bd)
+            if problem:
+                raise RuntimeError(problem)
         timings_path.write_text(json.dumps([[float(a), float(b), str(c)] for a, b, c in timings],
                                            ensure_ascii=False), encoding="utf-8")
         return str(path)
@@ -830,7 +856,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     full_narration = " ".join(sec.get("narration","") for sec in sections)
     checkpoint = Checkpoint(job_id, bd)
     update_video(job_id, status="building", error=None)
-    voice_path, timings = _voice_stage(checkpoint, full_narration, bd, language, voice_gender)
+    voice_path, timings = _voice_stage(checkpoint, full_narration, bd, language, voice_gender,
+                                       refuse_robotic=True)
     total = _media_seconds(voice_path)
     # The script gate counts words; this one measures the narration that was actually
     # synthesised, before any visual is fetched or rendered.

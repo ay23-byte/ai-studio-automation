@@ -54,6 +54,7 @@ def provider_status() -> dict:
 # Voice that actually produced the last Edge narration (a fallback voice may differ
 # from the configured one); written to narration_synthesis_report.json.
 _LAST_EDGE_VOICE = None
+_LAST_EDGE_FAILURES = []     # one line per Edge voice that gave up, for the synthesis report
 
 _CHATTERBOX_MODEL = None
 
@@ -71,7 +72,40 @@ def pick_voice(language="hindi", gender="male"):
 def _sentences(text):
     """Split narration at sentence boundaries, including Hindi danda punctuation."""
     clean = re.sub(r"\s+", " ", str(text or "")).strip()
-    return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if s.strip()]
+    # A piece with no letter or digit ("...", a stray dash or quote) has nothing to say. Edge TTS
+    # answers such text with "No audio was received", which no retry can cure.
+    return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if _speakable(s)]
+
+
+def _speakable(text):
+    """True when the text holds at least one letter or digit."""
+    import unicodedata
+    return any(unicodedata.category(char)[0] in "LN" for char in str(text or ""))
+
+
+_PLAIN_PUNCTUATION = set(".,?!;:'-%\u0964")
+
+
+def _plain_speech_text(text):
+    """The same words with every symbol a speech service may refuse removed.
+
+    Letters, marks and digits of any script are kept, with spaces and basic punctuation.
+    """
+    import unicodedata
+    kept = []
+    for char in str(text or ""):
+        kind = unicodedata.category(char)[0]
+        if kind in "LMN" or char in _PLAIN_PUNCTUATION:
+            kept.append(char)
+        elif kind in "ZPS" or char.isspace():
+            kept.append(" ")
+    return re.sub(r"\s+", " ", "".join(kept)).strip()
+
+
+def _short_error(exc, limit=50):
+    """The root cause of a provider error as ``Type: message``, short enough for a notice."""
+    cause = exc.__cause__ or exc
+    return f"{type(cause).__name__}: {' '.join(str(cause).split())[:limit]}"
 
 
 def _speech_chunks(text, max_chars=220):
@@ -328,11 +362,14 @@ def _edge_voice_candidates(language, gender):
 
 
 def _same_voice_passes():
-    """How often one voice is tried before another is used: ``EDGE_TTS_VOICE_PASSES`` (3)."""
+    """How often one voice is tried before another is used: ``EDGE_TTS_VOICE_PASSES`` (4).
+
+    With the default waits (20, 40 and 80 s) one voice rides out an outage of over two minutes.
+    """
     try:
-        return max(1, int(float(os.getenv("EDGE_TTS_VOICE_PASSES", "3") or 3)))
+        return max(1, int(float(os.getenv("EDGE_TTS_VOICE_PASSES", "4") or 4)))
     except ValueError:
-        return 3
+        return 4
 
 
 def _voice_retry_wait(attempt):
@@ -352,21 +389,31 @@ def _synth_all_edge(sentences, language, gender, build_dir):
     change the speaker.
     """
     import time
-    global _LAST_EDGE_VOICE
+    global _LAST_EDGE_VOICE, _LAST_EDGE_FAILURES
     _LAST_EDGE_VOICE = None
+    _LAST_EDGE_FAILURES = []
     _edge_module()  # fail once, immediately, instead of once per voice and retry
     last_error = None
+    passes = _same_voice_passes()
     for voice in _edge_voice_candidates(language, gender):
         wavs = []
-        for attempt in range(1, _same_voice_passes() + 1):
+        failed_index = None
+        for attempt in range(1, passes + 1):
             try:
                 for i in range(len(wavs), len(sentences)):
                     sentence = sentences[i]
+                    if i == failed_index and attempt == passes and passes > 1:
+                        # Last try with this voice: the same words without symbols, in case the
+                        # service refuses a character rather than being unavailable.
+                        plain = _plain_speech_text(sentence)
+                        if plain and plain != sentence:
+                            print(f"Edge voice {voice}: phrase {i + 1} is sent again as plain text.")
+                            sentence = plain
                     mp3 = build_dir / f"s{i}.mp3"
                     wav = build_dir / f"s{i}.wav"
                     mp3.unlink(missing_ok=True)
                     wav.unlink(missing_ok=True)
-                    rate, pitch = _prosody(i, len(sentences), sentence)
+                    rate, pitch = _prosody(i, len(sentences), sentences[i])
                     asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
                     _to_wav(mp3, wav)
                     if not wav.exists() or wav.stat().st_size == 0:
@@ -379,17 +426,25 @@ def _synth_all_edge(sentences, language, gender, build_dir):
                 raise
             except Exception as exc:
                 last_error = exc
-                if attempt < _same_voice_passes():
+                failed_index = len(wavs)
+                if attempt < passes:
                     wait = _voice_retry_wait(attempt)
                     print(f"WARNING: Edge voice {voice} failed at phrase {len(wavs) + 1} of {len(sentences)} "
                           f"({exc}); trying the same voice again in {wait:.0f} s.")
                     time.sleep(wait)
-        print(f"WARNING: Edge voice {voice} failed {_same_voice_passes()} times; trying another voice "
+        # Which phrase stopped which voice, and why: without this a failed build cannot be
+        # told apart from an outage (production build 43702915253 named the last voice only).
+        stopped = min(len(wavs), len(sentences) - 1)
+        excerpt = " ".join(str(sentences[stopped]).split())[:32]
+        _LAST_EDGE_FAILURES.append(
+            f"{voice} stopped at phrase {stopped + 1}/{len(sentences)} \"{excerpt}\" "
+            f"({_short_error(last_error)})")
+        print(f"WARNING: Edge voice {voice} failed {passes} times; trying another voice "
               f"of the same gender: {last_error}")
         for i in range(len(sentences)):
             (build_dir / f"s{i}.mp3").unlink(missing_ok=True)
             (build_dir / f"s{i}.wav").unlink(missing_ok=True)
-    raise RuntimeError(f"All Edge TTS voices failed: {last_error}") from last_error
+    raise RuntimeError("All Edge TTS voices failed: " + "; ".join(_LAST_EDGE_FAILURES)) from last_error
 
 
 def _synth_all_espeak(sentences, language, build_dir):
@@ -424,6 +479,8 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     # Pause after the phrase that was just spoken (not the next phrase).
     pauses = [_pause_after(chunk) for chunk in sentences[:-1]] + [0.0]
 
+    global _LAST_EDGE_FAILURES
+    _LAST_EDGE_FAILURES = []
     requested_engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
     engine = requested_engine
     fallback_reason = None
@@ -457,7 +514,11 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             wavs = _synth_all_edge(sentences, language, gender, build_dir)
             engine = "edge"
         except Exception as edge_exc:
-            fallback_reason = f"All Edge TTS voices failed ({type(edge_exc).__name__}: {edge_exc}); using offline espeak-ng."
+            if str(edge_exc).startswith("All Edge TTS voices failed"):
+                fallback_reason = f"{edge_exc}; using offline espeak-ng."
+            else:
+                fallback_reason = (f"All Edge TTS voices failed ({type(edge_exc).__name__}: {edge_exc}); "
+                                   "using offline espeak-ng.")
             print("WARNING: " + fallback_reason)
             wavs = _synth_all_espeak(sentences, language, build_dir)
             engine = "espeak-ng"
@@ -480,6 +541,7 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "fallback_reason": fallback_reason,
         "voice": (_LAST_EDGE_VOICE or pick_voice(language, gender)) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
         "configured_voice": pick_voice(language, gender),
+        "voice_failures": list(_LAST_EDGE_FAILURES),
         "voice_changed": bool(engine == "edge" and _LAST_EDGE_VOICE
                               and _LAST_EDGE_VOICE != pick_voice(language, gender)),
         "providers_available": provider_status(),
