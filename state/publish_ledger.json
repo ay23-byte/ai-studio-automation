@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-14T18:57:56+00:00",
+  "updated_at": "2026-11-15T11:41:53+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -62,6 +62,16 @@
         "d41643debf4f4857425d",
         "f42c8666591c38b9d43f"
       ],
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "6d7ba23c9c3768efb1181550",
+      "created_at": "2026-11-15T11:41:53+00:00",
+      "title": "Copper Tube Mein Magnet Slow Kyu Girta Hai? | Lenz's Law",
+      "status": "built",
+      "updated_at": "2026-11-15T11:41:53+00:00",
+      "topic": "Why Does a Magnet Fall Extremely Slowly Through a Copper Tube?",
       "job_id": 7
     }
   ]
