@@ -149,6 +149,11 @@ def narration(build: Path) -> str | None:
                      f"{voice.get('inserted_pause_seconds')} s of pauses")
         if voice.get("characters_per_second") is not None:
             parts.append(f"{voice['characters_per_second']} characters a second")
+        if voice.get("voice"):
+            text = f"voice {voice['voice']} ({voice.get('gender') or 'gender not recorded'} requested)"
+            if voice.get("configured_voice") and voice["voice"] != voice["configured_voice"]:
+                text += f", NOT the configured voice {voice['configured_voice']}"
+            parts.append(text)
     return "Narration: " + " | ".join(parts)
 
 

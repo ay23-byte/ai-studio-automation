@@ -606,9 +606,10 @@ def count_longform_narration_words(script: dict) -> int:
 # Storyboard completion
 # ---------------------------------------------------------------------------
 _FILLER_SUBJECT = "Documentary presenter and on-screen narration emphasis"
-# No "ai_reconstruction": these beats are filled with real footage, and a real clip must not be
-# described to the reviewer as a reconstruction.
-_STORYBOARD_TYPES = ("stock", "archival", "diagram", "map", "location", "person")
+# Only kinds that footage can fill. These beats carry no chart, map or timeline data, so they
+# are filled with real clips; a real clip must not reach the reviewer described as a diagram
+# (29 shots in production build 43691314957) or as an AI reconstruction.
+_STORYBOARD_TYPES = ("stock", "archival", "location", "person")
 _SUBJECT_STOP = frozenset({
     "how", "why", "what", "when", "where", "who", "the", "and", "for", "with", "from", "that", "this", "into",
     "sees", "see", "first", "story", "inside", "explained", "mystery", "truth", "secret", "secrets", "real",
@@ -695,7 +696,8 @@ def _model_beats(section: dict, topic: str, category: str, count: int) -> list[d
         "narration_anchor is 4-8 consecutive words copied exactly from the narration, each from a later place "
         "than the one before. visual_prompt describes, in English, one concrete filmable picture of what is "
         "being said at that moment. visual_type is one of: " + ", ".join(_STORYBOARD_TYPES) + ". "
-        "Use archival only for real historical film or photographs that an archive would hold. "
+        "Use archival only for real historical film or photographs that an archive would hold; "
+        "use stock for everything else that is filmed, including hardware, laboratories and animations. "
         "search_queries are 2-4 short English searches (2-5 words each) that a footage archive such as NASA, "
         "Wikimedia Commons or a stock library would answer: name the real object, mission, place or process, "
         "never abstract ideas. keywords are 2-4 English words. Never use a presenter, host, interview or "

@@ -334,6 +334,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # The finished film on its own. The review bundle above also holds every source clip
+      # and is many gigabytes; watching the film should not need it. The release workflow
+      # still reads the review bundle (this artifact carries no manifest).
+      - name: Upload the finished film on its own
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: longform-video-${{ github.run_id }}
+          path: |
+            output/*.mp4
+            output/run_report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # Build state remains an Actions artifact/local runtime concern; never
       # commit a live SQLite database or grant this render workflow write access.
 

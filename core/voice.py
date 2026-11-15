@@ -308,49 +308,87 @@ def _synth_all_chatterbox(sentences, language, build_dir):
         wavs.append(wav)
     return wavs
 
+# Alternatives when the configured Edge voice is unavailable. Every list holds one gender only:
+# a male presenter must never be given a female voice (production build 43691314957 was), and
+# the reverse. A build that cannot keep the requested gender falls through to the next
+# narration provider or fails; it does not change the speaker silently.
+_EDGE_FALLBACK_VOICES = {
+    ("english", "male"): ["en-IN-PrabhatNeural", "en-US-GuyNeural", "en-GB-RyanNeural"],
+    ("english", "female"): ["en-IN-NeerjaNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"],
+    ("other", "male"): ["hi-IN-MadhurNeural", "en-IN-PrabhatNeural"],
+    ("other", "female"): ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"],
+}
+
+
 def _edge_voice_candidates(language, gender):
-    """Try the configured voice first, then independent Edge voices."""
+    """The configured voice first, then other Edge voices of the same gender."""
     preferred = pick_voice(language, gender)
-    if language == "english":
-        fallbacks = ["en-IN-PrabhatNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"]
-    elif gender == "female":
-        fallbacks = ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"]
-    else:
-        fallbacks = ["hi-IN-MadhurNeural", "hi-IN-SwaraNeural", "en-IN-PrabhatNeural"]
-    return list(dict.fromkeys([preferred, *fallbacks]))
+    key = ("english" if language == "english" else "other", "female" if gender == "female" else "male")
+    return list(dict.fromkeys([preferred, *_EDGE_FALLBACK_VOICES[key]]))
+
+
+def _same_voice_passes():
+    """How often one voice is tried before another is used: ``EDGE_TTS_VOICE_PASSES`` (3)."""
+    try:
+        return max(1, int(float(os.getenv("EDGE_TTS_VOICE_PASSES", "3") or 3)))
+    except ValueError:
+        return 3
+
+
+def _voice_retry_wait(attempt):
+    """Seconds to wait before trying the same voice again: ``EDGE_TTS_VOICE_RETRY_SECONDS`` (20), doubling."""
+    try:
+        base = max(0.0, float(os.getenv("EDGE_TTS_VOICE_RETRY_SECONDS", "20") or 20))
+    except ValueError:
+        base = 20.0
+    return base * (2 ** max(0, attempt - 1))
 
 
 def _synth_all_edge(sentences, language, gender, build_dir):
-    """Synthesize the complete narration with one voice; never mix voices mid-video."""
+    """Synthesize the complete narration with one voice; never mix voices mid-video.
+
+    A phrase that fails is tried again with the same voice after a wait, keeping the phrases
+    already spoken, before any other voice is considered: a short service outage must not
+    change the speaker.
+    """
+    import time
     global _LAST_EDGE_VOICE
     _LAST_EDGE_VOICE = None
     _edge_module()  # fail once, immediately, instead of once per voice and retry
     last_error = None
     for voice in _edge_voice_candidates(language, gender):
         wavs = []
-        try:
-            for i, sentence in enumerate(sentences):
-                mp3 = build_dir / f"s{i}.mp3"
-                wav = build_dir / f"s{i}.wav"
-                mp3.unlink(missing_ok=True)
-                wav.unlink(missing_ok=True)
-                rate, pitch = _prosody(i, len(sentences), sentence)
-                asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
-                _to_wav(mp3, wav)
-                if not wav.exists() or wav.stat().st_size == 0:
-                    raise RuntimeError(f"Edge TTS produced an empty WAV for chunk {i + 1}.")
-                wavs.append(wav)
-            print(f"Edge TTS narration completed with voice {voice}.")
-            _LAST_EDGE_VOICE = voice
-            return wavs
-        except VoiceProviderUnavailable:
-            raise
-        except Exception as exc:
-            last_error = exc
-            print(f"WARNING: Edge voice {voice} failed; trying another voice: {exc}")
-            for i in range(len(sentences)):
-                (build_dir / f"s{i}.mp3").unlink(missing_ok=True)
-                (build_dir / f"s{i}.wav").unlink(missing_ok=True)
+        for attempt in range(1, _same_voice_passes() + 1):
+            try:
+                for i in range(len(wavs), len(sentences)):
+                    sentence = sentences[i]
+                    mp3 = build_dir / f"s{i}.mp3"
+                    wav = build_dir / f"s{i}.wav"
+                    mp3.unlink(missing_ok=True)
+                    wav.unlink(missing_ok=True)
+                    rate, pitch = _prosody(i, len(sentences), sentence)
+                    asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
+                    _to_wav(mp3, wav)
+                    if not wav.exists() or wav.stat().st_size == 0:
+                        raise RuntimeError(f"Edge TTS produced an empty WAV for chunk {i + 1}.")
+                    wavs.append(wav)
+                print(f"Edge TTS narration completed with voice {voice}.")
+                _LAST_EDGE_VOICE = voice
+                return wavs
+            except VoiceProviderUnavailable:
+                raise
+            except Exception as exc:
+                last_error = exc
+                if attempt < _same_voice_passes():
+                    wait = _voice_retry_wait(attempt)
+                    print(f"WARNING: Edge voice {voice} failed at phrase {len(wavs) + 1} of {len(sentences)} "
+                          f"({exc}); trying the same voice again in {wait:.0f} s.")
+                    time.sleep(wait)
+        print(f"WARNING: Edge voice {voice} failed {_same_voice_passes()} times; trying another voice "
+              f"of the same gender: {last_error}")
+        for i in range(len(sentences)):
+            (build_dir / f"s{i}.mp3").unlink(missing_ok=True)
+            (build_dir / f"s{i}.wav").unlink(missing_ok=True)
     raise RuntimeError(f"All Edge TTS voices failed: {last_error}") from last_error
 
 
@@ -442,6 +480,8 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "fallback_reason": fallback_reason,
         "voice": (_LAST_EDGE_VOICE or pick_voice(language, gender)) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
         "configured_voice": pick_voice(language, gender),
+        "voice_changed": bool(engine == "edge" and _LAST_EDGE_VOICE
+                              and _LAST_EDGE_VOICE != pick_voice(language, gender)),
         "providers_available": provider_status(),
         "language": language,
         "gender": gender,

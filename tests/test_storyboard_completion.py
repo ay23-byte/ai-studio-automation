@@ -93,6 +93,18 @@ class CompletionTests(unittest.TestCase):
         self.assertIn("exactly 7 visual beats", prompt)
         self.assertIn("Never use a presenter", prompt)
 
+    def test_a_beat_the_model_calls_a_diagram_is_typed_as_the_footage_it_will_be(self):
+        import json as _json
+        narration = _narration()
+        answer = _json.loads(_model_answer(narration, 7))
+        answer["visuals"][0]["visual_type"] = "diagram"
+        answer["visuals"][1]["visual_type"] = "ai_reconstruction"
+        with mock.patch.object(script_engine, "_ask_gemini", return_value=_json.dumps(answer)):
+            done = script_engine.complete_longform_storyboard(self._script([]), TOPIC, "science")
+        kinds = {beat["visual_type"] for beat in done["sections"][0]["visuals"]}
+        self.assertEqual(kinds, {"stock"})
+        self.assertEqual(len(done["sections"][0]["visuals"]), 7)
+
     def test_a_failed_model_call_falls_back_to_beats_made_from_the_narration(self):
         script = self._script([])
         with mock.patch.object(script_engine, "_ask_gemini", side_effect=RuntimeError("quota")):

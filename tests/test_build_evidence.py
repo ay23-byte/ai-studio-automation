@@ -120,6 +120,18 @@ class BuildEvidenceTests(unittest.TestCase):
         self.assertIn("105 phrases, 952.0 s of speech + 27.3 s of pauses", line)
         self.assertIn("15.2 characters a second", line)
 
+    def test_narration_line_names_the_voice_and_says_when_it_is_not_the_configured_one(self):
+        # Build 43691314957: a male voice was requested and hi-IN-SwaraNeural spoke.
+        self._write("narration_synthesis_report.json", {
+            "chunk_count": 85, "speech_seconds": 984.5, "inserted_pause_seconds": 22.0, "gender": "male",
+            "voice": "en-IN-PrabhatNeural", "configured_voice": "hi-IN-MadhurNeural"})
+        line = evidence.narration(self.build)
+        self.assertIn("voice en-IN-PrabhatNeural (male requested), NOT the configured voice hi-IN-MadhurNeural", line)
+        self._write("narration_synthesis_report.json", {
+            "chunk_count": 85, "speech_seconds": 984.5, "inserted_pause_seconds": 22.0, "gender": "male",
+            "voice": "hi-IN-MadhurNeural", "configured_voice": "hi-IN-MadhurNeural"})
+        self.assertNotIn("NOT the configured", evidence.narration(self.build))
+
     def test_scenes_without_footage_show_their_searches_and_reasons(self):
         self._write("provider_report.json", {"scenes": [
             {"scene": "chapter 1 beat 2", "status": "needs_manual_review", "candidates_found": 4,
