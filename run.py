@@ -91,6 +91,19 @@ def _check_duplicate(kind, title, topic, force):
     return duplicate
 
 
+def _script_or_alert(label, make):
+    """Write the script; when that fails, say why before the run ends.
+
+    No job exists yet at this point, so nothing else records the cause: production build
+    43716476390 ended after three minutes with "The run stopped before a job was created".
+    """
+    try:
+        return make()
+    except Exception as exc:
+        send(f"❌ {label} script failed, nothing was built: {type(exc).__name__}: {str(exc)[:600]}")
+        raise
+
+
 def _record_built(kind, script, topic, job_id):
     from core import dedupe
     try:
@@ -109,7 +122,8 @@ def cmd_shorts(args):
     else:
         _check_duplicate("shorts", topic, topic, force)
         print(f"Generating Shorts script for: {args.topic}")
-        script = generate_shorts_script(args.topic, args.category, language=args.language)
+        script = _script_or_alert("Shorts", lambda: generate_shorts_script(
+            args.topic, args.category, language=args.language))
         _check_duplicate("shorts", script.get("title", ""), topic, force)
     print(f"Script: {script.get('title')}")
     vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script,
@@ -137,8 +151,8 @@ def cmd_long(args):
     else:
         _check_duplicate("longform", topic, topic, force)
         print(f"Generating long-form script for: {args.topic}")
-        script = generate_longform_script(args.topic, args.category,
-                                           args.minutes - 2, args.minutes, args.language)
+        script = _script_or_alert("Long-form", lambda: generate_longform_script(
+            args.topic, args.category, args.minutes - 2, args.minutes, args.language))
     print(f"Script: {script.get('title')} ({len(script.get('sections',[]))} sections)")
     vid_id = save_video(script.get("title",""), "longform", args.language, args.category, script,
                         pipeline="longform", topic_key=dedupe.topic_key(topic or script.get("title", "")))

@@ -364,7 +364,7 @@ def _recent_alerts(limit: int = 3, include_info: bool = False) -> list[str]:
             continue  # the run-level alert quotes this report; never quote it back
         important = message.startswith(("❌", "⚠️")) or entry.get("level") in {"error", "warning"}
         if important or (include_info and message.startswith("ℹ️")):
-            alerts.append(_redact(message)[:400])
+            alerts.append(_redact(message)[:700])
     return alerts[-limit:]
 
 

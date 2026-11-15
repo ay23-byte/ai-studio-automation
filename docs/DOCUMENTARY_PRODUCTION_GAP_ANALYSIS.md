@@ -9,9 +9,9 @@ workflow run, a test, or a file. Where something was not verified, it says so.
 | Source | What it shows |
 | --- | --- |
 | Annotations of 12 earlier `make_longform.yml` runs (11–14 Nov) | Why each run failed |
-| Six production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253 |
+| Seven production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253, 43716476390 |
 | `offline-presenter-render` job on GitHub-hosted runners (female and male) | Presenter figures at 1920x1080 |
-| Test suite | 932 tests before this work; 1080 after (merged with `main` at `8c07fa9`), all passing |
+| Test suite | 932 tests before this work; 1083 after (merged with `main` at `8c07fa9`), all passing |
 
 Limits of the audit: workflow artifacts and raw logs could not be downloaded from the audit
 environment, so nobody has watched the produced videos as part of this work. Measured figures
@@ -82,6 +82,15 @@ or was cancelled:
   presenter, subtitles, audio, licensing, editorial rejection, rendering) and the next action.
 - **Tests.** `tests/test_failure_category.py`. **Acceptance.** Build 43652866814 reported
   `[Presenter] PresenterRenderError: 3D presenter clip for chapter 7 was rejected: …`.
+
+### 3.3a A script that could not be written left no reason
+
+- **Problem.** Build 43716476390 ended after three minutes with "The run stopped before a job
+  was created; see the failing step." The script is written before a job exists, so the
+  failure report had nothing to quote.
+- **Fix.** `run.py` sends the cause as an error notice before the run ends; the run report
+  and the run page quote it. Applies to documentaries and Shorts.
+- **Files.** `run.py`, `core/run_report.py`. **Tests.** `tests/test_script_failure_alert.py`.
 
 ### 3.4 Evidence could only be read by downloading the artifact
 
@@ -270,6 +279,7 @@ narration (Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-
 | 43681187522 | Film rendered, review package refused | 19 min 26 s video (108% of request), 522 MB; narration 2456 words in 17.04 min; storyboard 44 beats in 7 chapters, 15 placeholder beats removed; 103 shots, no fallback cards; 89 of 89 searched scenes got footage (Wikimedia Commons 48, Pixabay 15, DVIDS 10, NASA 9, Internet Archive 7); 7 of 7 presenter clips passed; audio PASS, −16.0 LUFS; picture audit: 56 pass, 39 review, 8 fail (almost black clips), so technical QA FAIL, this time with the reason (3.10). Build step 112 min |
 | 43691314957 | Green: film and review package | 19 min 25 s video (108% of request), 1920x1080, 585 MB; narration 2461 words in 16.76 min, **spoken by a female voice although male was requested (3.11)**; storyboard 44 beats in 7 chapters, 8 placeholder beats removed; 100 shots, no fallback cards; 85 of 85 searched scenes got footage (Wikimedia Commons 44, Pixabay 16, NASA 15, DVIDS 7, Internet Archive 3); picture audit: 58 pass, 42 for review, 0 fail; 7 of 7 presenter clips passed (lowest 29.1 different frames a second); English subtitles PASS on 92 lines; audio PASS, −16.0 LUFS, true peak −4.3 dBTP. Build step 116 min, review artifact 13.1 GB |
 | 43702915253 | Film rendered, review package refused (robot voice) | Merged with `main`. Both male Edge voices failed, narration by espeak-ng: audio QA FAIL. 21 min 13 s video (118% of request), 605 MB; narration 2909 words in 18.64 min; storyboard 53 beats, 14 placeholder beats removed; 121 shots, 1 fallback card, 6 still images; 100 of 109 searched scenes got footage (Wikimedia Commons 48, Pixabay 15, DVIDS 14, NASA 12, Internet Archive 11); 9 scenes without footage, mostly "not relevant enough" and the 0.20 scene-match floor from `main`; picture audit 66 pass, 55 review, 0 fail; 7 of 7 presenter clips passed; English subtitles PASS on 111 lines; build step 130 min |
+| 43716476390 | Failed in 3 min, before a job existed | The script could not be written; the cause was not recorded (3.3a) |
 
 ## 5. Open items
 
