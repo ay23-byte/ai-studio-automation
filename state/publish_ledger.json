@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-15T11:41:53+00:00",
+  "updated_at": "2026-11-16T10:25:01+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -72,6 +72,20 @@
       "status": "built",
       "updated_at": "2026-11-15T11:41:53+00:00",
       "topic": "Why Does a Magnet Fall Extremely Slowly Through a Copper Tube?",
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "1eb0f5d49c48ea9c3b6ae689",
+      "created_at": "2026-11-16T10:25:01+00:00",
+      "title": "Wholesale Inflation Reaches 12.29 Percent in October",
+      "status": "built",
+      "updated_at": "2026-11-16T10:25:01+00:00",
+      "topic": "Wholesale inflation surges to 12.29% in October, fuel and power prices lead rise",
+      "source_refs": [
+        "8bb6702cc93b7e5ba8c6",
+        "15af1a0e845dce9dc3fd"
+      ],
       "job_id": 7
     }
   ]
