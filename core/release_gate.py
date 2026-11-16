@@ -35,7 +35,7 @@ def _load(path) -> dict:
         return {}
 
 
-def evaluate(row: dict, build_dir: Path | None = None) -> dict:
+def evaluate(row: dict, build_dir: Path | None = None, *, require_human_review: bool = True) -> dict:
     """Run every gate and return a JSON-safe report (never raises for a failed gate)."""
     from core.db import normalize_format
     job_id = row.get("id")
@@ -82,6 +82,9 @@ def evaluate(row: dict, build_dir: Path | None = None) -> dict:
         from core.content_qa import validate_shorts_script
         content = validate_shorts_script(script, row.get("language") or "english")
         check("content_qa", content["status"] != "FAIL", "; ".join(content["issues"]) or "ok")
+        if not require_human_review:
+            check("automated_content_qa", content["status"] == "PASS",
+                  "; ".join(content["issues"]) or f"content QA status is {content['status']!r}")
 
     # Rights QA (asset provenance)
     manifest = _load(build_dir / "asset_manifest.json")
@@ -94,6 +97,21 @@ def evaluate(row: dict, build_dir: Path | None = None) -> dict:
         else:
             check("asset_provenance", False, "asset_manifest.json is missing",
                   required=_flag("REQUIRE_ASSET_PROVENANCE"))
+        if not require_human_review:
+            check("automated_asset_provenance", bool(manifest) and not (manifest.get("without_provenance") or []),
+                  "every used visual must have recorded provenance")
+            fallback = _load(build_dir / "visual_fallback_report.json")
+            fallback_count = int(fallback.get("fallback_card_count", fallback.get("count", 0)) or 0)
+            check("no_fallback_cards", bool(fallback) and fallback_count == 0,
+                  f"fallback-card count is {fallback_count}; report must exist and be zero")
+            audio = _load(build_dir / "audio_quality_report.json")
+            check("audio_quality", str(audio.get("status") or "").upper() == "PASS",
+                  f"audio QA status is {audio.get('status') or 'missing'}")
+            captions = build_dir / "subs.ass"
+            check("captions", captions.is_file() and captions.stat().st_size > 0,
+                  "non-empty generated captions are required")
+            check("strict_technical_qa", status == "PASS" and not quality.get("upload_blocked"),
+                  f"quality status is {status or 'missing'}; automated release requires PASS with no upload block")
 
     # Documentary certification (existing fail-closed evidence gate)
     if fmt == "longform":
@@ -113,21 +131,22 @@ def evaluate(row: dict, build_dir: Path | None = None) -> dict:
     # Human review: the same rules as the GitHub release workflows.  Checked last,
     # and only when a video exists, so earlier failures are reported on their own.
     review = None
-    if exists:
+    if exists and require_human_review:
         from core.local_review import review_status
         review = review_status(row, build_dir)
         check("human_review", review["ok"], review["detail"])
 
     return {"job_id": job_id, "format": fmt, "status": "BLOCKED" if blocking else "PASS",
             "blocking": blocking, "checks": checks,
+            "review_mode": "human" if require_human_review else "automated",
             "human_review": {"approved": bool(review and review["ok"]),
                              "reviewer": review.get("reviewer") if review else None,
                              "video_sha256": review.get("video_sha256") if review else None,
                              "package_dir": review.get("package_dir") if review else None}}
 
 
-def assert_uploadable(row: dict, build_dir: Path | None = None) -> dict:
-    report = evaluate(row, build_dir)
+def assert_uploadable(row: dict, build_dir: Path | None = None, *, require_human_review: bool = True) -> dict:
+    report = evaluate(row, build_dir, require_human_review=require_human_review)
     try:
         target = (Path(build_dir) if build_dir else cfg.BUILD_DIR / f"job_{row.get('id')}")
         target.mkdir(parents=True, exist_ok=True)
