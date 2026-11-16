@@ -44,6 +44,8 @@ class GeminiFailoverTests(unittest.TestCase):
             language="Hindi",
             minimum_words=812,
             target_words=1050,
+            target_wpm=150,
+            maximum_words=1071,
         )
         self.assertIn('"title"', prompt)
         self.assertIn('"sections"', prompt)
