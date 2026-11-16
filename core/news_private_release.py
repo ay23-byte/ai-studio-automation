@@ -18,8 +18,9 @@ class NewsAutoReleaseBlocked(RuntimeError):
 
 
 def _probe(video: Path) -> dict:
+    from core.ffmpeg_utils import ffprobe_bin
     result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries",
+        [ffprobe_bin(), "-v", "error", "-show_entries",
          "format=duration:stream=codec_type,width,height",
          "-of", "json", str(video)],
         capture_output=True, text=True, timeout=30, check=True,
