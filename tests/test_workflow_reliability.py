@@ -75,12 +75,15 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn('UPLOAD_REQUESTED: "false"', text)
         self.assertIn("shorts-review-${{ github.run_id }}", text)
 
-    def test_daily_news_workflow_never_uploads_during_build(self):
+    def test_daily_news_workflow_uses_guarded_private_autorelease(self):
         text = _text("daily-news-auto-short.yml")
-        self.assertNotIn("run_daily_news_short.py --upload", text)
+        self.assertIn("run_daily_news_short.py --upload", text)
         self.assertNotIn("--upload-after-recovery", text)
-        self.assertNotIn("YT_REFRESH_TOKEN", text)
-        self.assertIn('UPLOAD_REQUESTED: "false"', text)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", text)
+        self.assertIn('PRIVACY: "private"', text)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', text)
+        self.assertIn('YT_CHANNEL_VERIFY: "1"', text)
+        self.assertIn('UPLOAD_REQUESTED: "true"', text)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
 
 
@@ -178,15 +181,16 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                 self.assertLess(steps.index(package), steps.index(artifact))
                 self.assertIn("build/job_*/", artifact)                # the package lives inside the build dir
                 self.assertIn("if: always()", artifact)
-                for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
-                    self.assertNotIn(secret, text)
+                if name != "daily-news-auto-short.yml":
+                    for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
+                        self.assertNotIn(secret, text)
                 self.assertNotIn("release_review_package.py", text)
                 self.assertNotIn("run.py upload", text)
 
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted(RELEASE_WORKFLOWS))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
@@ -269,8 +273,11 @@ class WorkflowStructureTests(unittest.TestCase):
             text = _text(name)
             self.assertIn("scripts/build_with_recovery.py", text, name)
             self.assertIn("BUILD_RECOVERY_ATTEMPTS", text, name)
-        # All production build workflows are review-only; release is a separate approved action.
-        self.assertNotIn("--upload-after-recovery", _text("daily-news-auto-short.yml"))
+        # Daily news has its own fail-closed automated PRIVATE release path; no public publish path.
+        news = _text("daily-news-auto-short.yml")
+        self.assertIn("core.news_private_release", (ROOT / "core" / "news_auto.py").read_text(encoding="utf-8"))
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', news)
+        self.assertNotIn("--upload-after-recovery", news)
 
     def test_state_is_saved_even_when_the_build_fails(self):
         for name in ("make_shorts.yml", "daily-news-auto-short.yml"):
