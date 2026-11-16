@@ -1,4 +1,4 @@
-import json, re, requests, time, random  # noqa: F401  (random stays importable: tests patch script_engine.random)
+import json, os, re, requests, time, random  # noqa: F401  (random stays importable: tests patch script_engine.random)
 from urllib.parse import urlparse
 from core.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, CHANNEL_NAME
 from core.news_research import research_topic, format_research_context
