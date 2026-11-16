@@ -1,4 +1,4 @@
-name: 'Daily news Short — build review package'
+name: 'Daily news Short — automatic PRIVATE release'
 # Automatic path: discover → source-tier/safety gates → script → render → strict
 # technical QA → PRIVATE upload → YouTube privacy read-back. Ineligible stories
 # are skipped; failed automated release checks block upload and preserve evidence.
@@ -10,10 +10,6 @@ on:
         type: choice
         options: [english, hinglish, hindi]
         default: english
-      upload:
-        description: "Deprecated: daily news builds are review-only; use guarded release after human approval"
-        type: boolean
-        default: false
   schedule:
     - cron: '45 2 * * *'    # 08:15 IST
     - cron: '45 13 * * *'   # 19:15 IST
@@ -66,7 +62,7 @@ jobs:
       - name: Restore duplicate ledger and seen-story cache
         run: python scripts/persist_state.py restore
 
-      - name: Select, write and render one news Short for review
+      - name: Select, write, render and attempt guarded PRIVATE release
         id: news
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -94,7 +90,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Discovery/render only. Never upload from a scheduled or build workflow.
+          # Daily-news auto-release is PRIVATE-only; all automated editorial and technical gates must PASS.
           python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload
 
       # Also assembles a diagnostic package (manifest, sources, QA, dashboard).
