@@ -1,5 +1,9 @@
 name: '2. Build a Documentary — review required'
 on:
+  push:
+    paths:
+      - ".github/documentary-production-request.json"
+      - ".github/workflows/make_longform.yml"
   workflow_dispatch:
     inputs:
       topic:
@@ -110,13 +114,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Set up Python for SadTalker CPU inference
-        if: ${{ inputs.presenter_mode == 'sadtalker' }}
+        if: ${{ (inputs.presenter_mode || 'talking_avatar_auto') == 'sadtalker' }}
         uses: actions/setup-python@v7
         with:
           python-version: "3.8"
 
       - name: Install SadTalker and pretrained models (CPU)
-        if: ${{ inputs.presenter_mode == 'sadtalker' }}
+        if: ${{ (inputs.presenter_mode || 'talking_avatar_auto') == 'sadtalker' }}
         env:
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_VENV: ${{ runner.temp }}/sadtalker-venv
@@ -146,13 +150,13 @@ jobs:
         run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
-        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        if: ${{ (inputs.presenter_mode || 'talking_avatar_auto') == 'talking_avatar_auto' }}
         uses: actions/setup-node@v7
         with:
           node-version: "20"
 
       - name: Install browser automation dependencies
-        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        if: ${{ (inputs.presenter_mode || 'talking_avatar_auto') == 'talking_avatar_auto' }}
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
@@ -184,25 +188,25 @@ jobs:
           TTS_ENGINE: "edge"
           ALLOW_CHATTERBOX_ON_CI: "false"
           CHATTERBOX_TORCH_THREADS: "2"
-          PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
-          PRESENTER_MODE: ${{ inputs.presenter_mode }}
-          LONGFORM_VISUAL_MODE: ${{ inputs.visual_mode }}
+          PRESENTER_ENABLED: ${{ (inputs.presenter_mode || 'talking_avatar_auto') == 'off' && '0' || '1' }}
+          PRESENTER_MODE: ${{ inputs.presenter_mode || 'talking_avatar_auto' }}
+          LONGFORM_VISUAL_MODE: ${{ inputs.visual_mode || 'video_first' }}
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_PYTHON: ${{ runner.temp }}/sadtalker-venv/bin/python
           SADTALKER_DEVICE: cpu
-          PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
+          PRESENTER_IMAGE: ${{ (inputs.voice_gender || 'male') == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
           CHANNEL_PROFILE: ${{ inputs.channel_profile || 'beyond_science' }}
-          LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
-          VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
+          LONGFORM_LANGUAGE: ${{ inputs.language || 'english' }}
+          VISUAL_SEMANTIC_CHECK: ${{ (inputs.semantic_review == true || inputs.semantic_review == 'true' || github.event_name == 'push') && '1' || '0' }}
           VISUAL_SEMANTIC_MAX_SHOTS: "100"
           # Inputs are passed through the environment, never interpolated into
           # the shell script, so a topic containing quotes or $(...) cannot run code.
-          INPUT_TOPIC: ${{ inputs.topic }}
-          INPUT_CATEGORY: ${{ inputs.category }}
-          INPUT_MINUTES: ${{ inputs.minutes }}
+          INPUT_TOPIC: ${{ inputs.topic || 'How the James Webb Space Telescope Sees the First Galaxies' }}
+          INPUT_CATEGORY: ${{ inputs.category || 'science' }}
+          INPUT_MINUTES: ${{ inputs.minutes || '18' }}
           INPUT_LANGUAGE: ${{ inputs.language || 'hinglish' }}
-          INPUT_VOICE_GENDER: ${{ inputs.voice_gender }}
+          INPUT_VOICE_GENDER: ${{ inputs.voice_gender || 'male' }}
         shell: bash
         run: |
           set -euo pipefail
