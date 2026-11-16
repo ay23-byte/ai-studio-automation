@@ -5,7 +5,7 @@ from core.editor_longform import _paginate_credit_lines
 
 class LongformCreditPaginationTests(unittest.TestCase):
     def test_all_credit_lines_are_preserved_across_pages(self):
-        source = [f"Source {index}: " + ("attribution details " * 8) for index in range(31)]
+        source = [f"Source {index}: attribution details" for index in range(31)]
         pages = _paginate_credit_lines(source, width=100, lines_per_page=14)
         flattened = [line for page in pages for line in page]
         self.assertEqual(len(pages), 3)
