@@ -865,7 +865,7 @@ def _expand_longform_narration(script: dict, topic: str, category: str,
     # A small tolerance above the requested runtime prevents model over-expansion
     # from turning a 12-minute documentary into a 20-minute TTS job.
     if max_words is None:
-        max_words = max(minimum_words, target_words + max(100, int(target_words * 0.08)))
+        max_words = max(minimum_words, target_words + max(50, int(target_words * 0.02)))
     for pass_index in range(max_passes):
         current_words = count_longform_narration_words(expanded)
         if current_words >= target_words:
@@ -1046,8 +1046,13 @@ def generate_longform_script(topic: str, category: str = "finance",
         channel_name, audience, brand_voice)
     requested_category = str(category or "auto").strip()
     auto_category = requested_category.lower() in {"", "auto", "any", "universal"}
-    minimum_words = int(duration_max * 150 * 0.90)
-    target_words = int(duration_max * 150)
+    try:
+        target_wpm = int(os.getenv("LONGFORM_TARGET_WPM", "140") or 140)
+    except ValueError:
+        target_wpm = 140
+    target_wpm = min(180, max(110, target_wpm))
+    minimum_words = int(duration_max * target_wpm * 0.95)
+    target_words = int(duration_max * target_wpm)
     prompt = LONGFORM_PROMPT.format(
         topic=topic, category=("auto" if auto_category else requested_category),
         duration_min=duration_min, duration_max=duration_max, language=language,
@@ -1121,7 +1126,7 @@ def generate_longform_script(topic: str, category: str = "finance",
             print(f"Research dossier failed quality gate; requesting evidence-led rewrite {attempt + 1}/2.")
             continue
         try:
-            script = validate_longform_runtime(script, duration_max)
+            script = validate_longform_runtime(script, duration_max, minimum_fraction=0.95, words_per_minute=target_wpm)
             print(
                 f"Narration runtime gate passed: {script['narration_word_count']} words, "
                 f"approximately {script['estimated_narration_minutes']:.1f} minutes."
@@ -1149,7 +1154,7 @@ def generate_longform_script(topic: str, category: str = "finance",
                 return _complete_storyboard_safely(script, topic, category)
             actual_words = count_longform_narration_words(script)
             missing_words = max(0, minimum_words - actual_words)
-            repair_target = max(target_words, minimum_words + max(250, int(minimum_words * 0.15)))
+            repair_target = target_words + max(50, int(target_words * 0.02))
             prompt += (
                 "\n\nRUNTIME REPAIR REQUIRED: The previous complete documentary was structurally "
                 "valid but too short. Its narration contained "
