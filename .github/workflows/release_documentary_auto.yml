@@ -1,0 +1,104 @@
+name: "Release documentary automatically (Private)"
+on:
+  workflow_run:
+    workflows: ["2. Build a Documentary — review required"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+# The build workflow never receives YouTube credentials. This isolated release
+# workflow runs only after a successful manually requested documentary build.
+concurrency:
+  group: auto-documentary-private-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements-ci.txt
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-ci.txt
+
+      - name: Download the exact successful documentary build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: longform-review-${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .
+
+      - name: Verify exact documentary files are present
+        run: |
+          set -euo pipefail
+          compgen -G "build/job_*/release_metadata.json" >/dev/null
+          compgen -G "output/longform_*.mp4" >/dev/null
+          echo "Exact documentary artifact is present."
+
+      - name: Run strict machine-only QA and upload PRIVATE to Engineering Physics
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
+          YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
+          YT_CHANNEL_VERIFY: "1"
+          CHANNEL_NAME: "Engineering Physics"
+          PRIVACY: "private"
+          PUBLISH_AT_IST: ""
+          ALLOW_PUBLIC_PUBLISH: "0"
+        run: |
+          set -euo pipefail
+          python scripts/upload_documentary_artifact.py \
+            --artifact-dir . \
+            --source-run-id "${{ github.event.workflow_run.id }}" \
+            --machine-only
+
+      - name: Preserve documentary release evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentary-private-release-${{ github.run_id }}
+          path: |
+            youtube-upload-result.json
+            youtube-upload-failure.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Write release summary
+        if: always()
+        run: |
+          echo "## Documentary private release" >> "$GITHUB_STEP_SUMMARY"
+          if [ -s youtube-upload-result.json ]; then
+            cat youtube-upload-result.json >> "$GITHUB_STEP_SUMMARY"
+          elif [ -s youtube-upload-failure.json ]; then
+            cat youtube-upload-failure.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No verified upload result was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python scripts/alert_on_failure.py --name "documentary private release"
