@@ -2,6 +2,7 @@
 """Autonomous daily news Short (see core/news_auto.py). Exit code 0 when no story qualifies."""
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,8 +25,25 @@ def main(argv=None) -> int:
     try:
         result = news_auto.run(language=args.language, upload=args.upload, candidates=candidates)
     except news_auto.NoPublishableStory as exc:
-        send(f"ℹ️ Daily news Short skipped: {exc}")
-        print(json.dumps({"status": "no_story", "reason": str(exc)}, indent=2))
+        message = f"Daily news Short skipped: {exc}"
+        send(f"ℹ️ {message}")
+        print(json.dumps({"status": "no_story", "reason": str(exc),
+                          "video_created": False, "upload_attempted": False}, indent=2))
+        # A skip is not a successful video build. Keep exit code 0 so the
+        # workflow can still package the diagnostic/review artifact.
+        print(f"::notice title=News Short not produced::{message}")
+        summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+        if summary_path:
+            with open(summary_path, "a", encoding="utf-8") as summary:
+                summary.write(
+                    "## Daily news Short: no video produced\n\n"
+                    "**Status: SKIPPED — not a video-build success.**\n\n"
+                    f"- Reason: {str(exc)}\n"
+                    "- Script: not generated\n"
+                    "- MP4: not created\n"
+                    "- YouTube upload: not attempted\n"
+                    "- No source-verification or editorial safety checks were bypassed.\n"
+                )
         return 0
     except Exception as exc:
         send(f"❌ Daily news Short failed: {str(exc)[:400]}")
