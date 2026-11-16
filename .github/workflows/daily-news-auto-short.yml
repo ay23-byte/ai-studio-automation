@@ -99,8 +99,8 @@ jobs:
 
       # Also assembles a diagnostic package (manifest, sources, QA, dashboard).
       # "No story qualified today" is a normal outcome and is not a failure.
-      - name: Assemble the review package (no upload)
-        if: success()
+      - name: Assemble the diagnostic and review package
+        if: always()
         run: python scripts/package_build_for_review.py --mode daily_news --allow-no-build
 
       - name: Persist duplicate ledger and seen-story cache
