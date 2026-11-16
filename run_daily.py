@@ -43,12 +43,12 @@ def mark_done(topics, t, youtube_id=None):
     topic_queue.update_topic(t.get("title") or t.get("topic"), **changes)
 
 
-def upload_latest(video_format=None):
-    """Upload the newest finished, unuploaded job PRIVATELY through the shared gate."""
+def upload_latest(video_format=None, *, automated=False):
+    """Upload the newest finished job privately; optional machine-only gate for standard Shorts."""
     from core.publish import publish_latest, DuplicateUpload
     from core.release_gate import ReleaseBlocked
     try:
-        result = publish_latest(_kind(video_format) if video_format else None, wait=True)
+        result = publish_latest(_kind(video_format) if video_format else None, wait=True, automated=automated)
     except (ReleaseBlocked, DuplicateUpload) as exc:
         # A blocked upload is a deliberate, safe outcome: keep the artifacts,
         # tell the operator, and fail the step so it is visible.
@@ -120,14 +120,6 @@ def _has_script_model():
     return bool(os.getenv("GEMINI_API_KEY", "").strip()) or bool(llm.configured_providers())
 
 
-def _automated_private_release(job_id):
-    from core.publish import publish_job
-    result = publish_job(job_id, wait=True, automated=True)
-    _mark_uploaded_topic(result)
-    print(json.dumps({"automated_private_release": result}, ensure_ascii=False, indent=2))
-    return result
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--format", choices=["shorts", "long"], default="shorts")
@@ -135,13 +127,13 @@ def main():
     p.add_argument("--upload", action="store_true",
                    help="After the build, prepare the review package needed for a private upload")
     p.add_argument("--auto-private-release", action="store_true",
-                   help="Run strict machine QA and upload a standard Short privately; never applies to documentaries or news.")
+                   help="Use the strict machine-only gate when uploading the latest standard Short privately.")
     args = p.parse_args()
-    if args.auto_private_release and args.format != "shorts":
-        p.error("--auto-private-release is supported only for standard Shorts.")
+    if args.auto_private_release and (args.format != "shorts" or not args.upload_latest):
+        p.error("--auto-private-release requires --upload-latest and --format shorts.")
 
     if args.upload_latest:
-        upload_latest(args.format)
+        upload_latest(args.format, automated=args.auto_private_release)
         return
 
     kind = _kind(args.format)
@@ -174,9 +166,7 @@ def main():
                 return
             vid_id, out = _build(script, args.format, language, category, topic_title)
             print(f"Built auto-generated video: {out}")
-            if args.auto_private_release:
-                _automated_private_release(vid_id)
-            elif args.upload:
+            if args.upload:
                 prepare_review(vid_id)
             return
         except Exception as e:
@@ -202,16 +192,13 @@ def main():
             return
 
         vid_id, out = _build(script, args.format, language, category, t.get("topic") or title)
-        if not args.auto_private_release:
-            mark_done(topics, t)
+        mark_done(topics, t)
         print(f"Built: {out}")
         remaining = topic_queue.remaining()
         if remaining <= 3:
             send(f"⚠️ Only {remaining} topics left in topics.json. "
                  "New topics will be selected automatically; add your own to steer the channel.")
-        if args.auto_private_release:
-            _automated_private_release(vid_id)
-        elif args.upload:
+        if args.upload:
             prepare_review(vid_id)
     except Exception as e:
         attempts = int(t.get("attempts", 0) or 0) + 1
