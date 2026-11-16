@@ -71,16 +71,27 @@ def collect_feed(url, timeout=20):
     return rows
 
 def collect_candidates(feeds=None, limit_per_feed=35):
-    found, errors = [], []
-    for url in list(feeds or FEEDS):
-        try: found.extend(collect_feed(url)[:limit_per_feed])
-        except Exception as exc: errors.append({'feed': url, 'error': str(exc)[:300]})
+    found, errors, feed_health = [], [], []
+    configured_feeds = list(FEEDS if feeds is None else feeds)
+    for url in configured_feeds:
+        try:
+            rows = collect_feed(url)[:limit_per_feed]
+            found.extend(rows)
+            feed_health.append({'feed': url, 'status': 'ok', 'candidate_count': len(rows)})
+        except Exception as exc:
+            error = {'feed': url, 'error': str(exc)[:300]}
+            errors.append(error)
+            feed_health.append({'feed': url, 'status': 'error', 'candidate_count': 0,
+                                'error': error['error']})
     unique, seen = [], set()
     for item in found:
         if item['id'] not in seen:
             seen.add(item['id']); unique.append(item)
     unique.sort(key=lambda x: x.get('published', ''), reverse=True)
     return {'collected_at': datetime.now(timezone.utc).isoformat(),
+            'feed_count': len(configured_feeds),
+            'healthy_feed_count': sum(1 for item in feed_health if item['status'] == 'ok'),
+            'failed_feed_count': len(errors), 'feed_health': feed_health,
             'candidate_count': len(unique), 'candidates': unique, 'feed_errors': errors,
             'notice': 'Discovery metadata only. No story has been independently verified.'}
 
