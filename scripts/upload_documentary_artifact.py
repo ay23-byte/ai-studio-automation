@@ -74,13 +74,15 @@ def _find_video(root: Path, build_dir: Path) -> tuple[Path, dict]:
     return video_path, probe
 
 
-def _validate_release_evidence(build_dir: Path) -> dict:
+def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -> dict:
     """Require the generated documentary QA dossier before any upload attempt."""
     required = [
         "visual_review_report.json", "visual_consistency_report.json",
         "audio_quality_report.json", "research_verification_report.json",
-        "research_review_decisions.json", "quality_report.json", "licenses.csv",
     ]
+    if not machine_only:
+        required.append("research_review_decisions.json")
+    required.extend(["quality_report.json", "licenses.csv"])
     reports = {}
     missing = [name for name in required if not (build_dir / name).is_file()]
     if missing:
@@ -90,15 +92,29 @@ def _validate_release_evidence(build_dir: Path) -> dict:
     visual = reports["visual_review_report.json"]
     if not isinstance(visual.get("shots"), list) or not visual["shots"]:
         raise ValueError("Visual review report contains no shot manifest.")
-    # Validate the persistent human decision store as the publication authority.
-    # The raw manifest also contains AI semantic-screening triage flags; those
-    # are not silently promoted to a hard media failure when a reviewer has
-    # inspected the shot and explicitly approved it with substantive notes.
-    from core.editorial_review import assert_visual_review_ready
-    try:
-        editorial_gate = assert_visual_review_ready(build_dir)
-    except Exception as exc:
-        raise ValueError(f"Visual/editorial review is not approved for release: {exc}") from exc
+    # Normal/manual release requires the recorded human decision store. The
+    # autonomous mode replaces that attestation with stricter machine checks;
+    # it never fabricates a reviewer or marks a human decision as approved.
+    if not machine_only:
+        from core.editorial_review import assert_visual_review_ready
+        try:
+            editorial_gate = assert_visual_review_ready(build_dir)
+        except Exception as exc:
+            raise ValueError(f"Visual/editorial review is not approved for release: {exc}") from exc
+    else:
+        if not visual.get("semantic_screening_enabled"):
+            raise ValueError("Autonomous documentary release requires Gemini shot-to-narration screening to be enabled.")
+        unresolved = []
+        for shot in visual["shots"]:
+            screening = shot.get("semantic_screening") or {}
+            try:
+                score = float(screening.get("match_score") or 0)
+            except (TypeError, ValueError):
+                score = 0.0
+            if screening.get("status") != "match" or score < 0.72:
+                unresolved.append(str(shot.get("shot_id") or "unknown"))
+        if unresolved:
+            raise ValueError("AI visual-to-narration screening did not confirm every shot: " + ", ".join(unresolved[:20]))
     unresolved_media = [
         item for item in visual.get("issues", [])
         if item.get("level") == "error"
@@ -156,7 +172,8 @@ def _validate_release_evidence(build_dir: Path) -> dict:
     row_ids = [str(row.get("shot_id") or "") for row in rows]
     if len(rows) != len(visual["shots"]) or set(row_ids) != shot_ids or len(set(row_ids)) != len(row_ids):
         raise ValueError("Asset licence register must cover every shot exactly once.")
-    blocked = [row.get("shot_id", "unknown") for row in rows if row.get("use_status") != "eligible_pending_human_review" or str(row.get("fallback_required") or "").lower() in {"true", "1", "yes"}]
+    allowed_use_states = {"eligible_pending_human_review"} if machine_only else {"eligible_pending_human_review"}
+    blocked = [row.get("shot_id", "unknown") for row in rows if row.get("use_status") not in allowed_use_states or str(row.get("fallback_required") or "").lower() in {"true", "1", "yes"}]
     if blocked:
         raise ValueError("Asset licence/terms checks did not clear these assets: " + ", ".join(blocked[:12]))
     for row in rows:
@@ -167,11 +184,13 @@ def _validate_release_evidence(build_dir: Path) -> dict:
         raise ValueError("Documentary credits.txt is missing or empty.")
     return {"shot_count": len(visual["shots"]), "licence_rows": len(rows),
             "research_claim_count": len(claims), "research_source_count": len(sources),
+            "release_mode": "machine_only" if machine_only else "human_reviewed",
             "automated_fact_check_scope": "source traceability and evidence completeness only; not independent truth verification",
+            "automated_visual_check_scope": "sampled-frame semantic alignment only; not proof of factual truth or historical authenticity",
             "automated_rights_check_scope": "recognized licence metadata, per-shot attribution and credits completeness; not legal advice"}
 
 
-def upload_automated_artifact(artifact_dir: Path, source_run_id: str) -> dict:
+def upload_automated_artifact(artifact_dir: Path, source_run_id: str, *, machine_only: bool = False) -> dict:
     if not source_run_id.isdigit():
         raise ValueError("Source workflow run ID must be numeric.")
     root = artifact_dir.resolve()
@@ -180,9 +199,14 @@ def upload_automated_artifact(artifact_dir: Path, source_run_id: str) -> dict:
 
     metadata_path, metadata = _find_release_metadata(root)
     video_path, probe = _find_video(root, metadata_path.parent)
-    evidence = _validate_release_evidence(metadata_path.parent)
+    evidence = _validate_release_evidence(metadata_path.parent, machine_only=machine_only)
     digest = hashlib.sha256(video_path.read_bytes()).hexdigest()
 
+    # Verify the destination before the upload. Search errors fail closed.
+    from core.uploader import verify_channel, get_video_status
+    channel = verify_channel(force=True)
+    if not channel.get("verified"):
+        raise ValueError("Authenticated YouTube channel does not match the configured Engineering Physics channel.")
     # A stable source-run marker makes retries idempotent. Search errors fail closed.
     marker = f"AI_STUDIO_SOURCE_RUN_ID:{source_run_id}"
     existing_video_id = find_private_video_by_marker(marker)
@@ -201,11 +225,29 @@ def upload_automated_artifact(artifact_dir: Path, source_run_id: str) -> dict:
             disable_scheduling=True,
         )
     processing = wait_processed(video_id, max_wait=600)
+    stored = get_video_status(video_id)
+    problems = []
+    if not stored.get("found"):
+        problems.append("YouTube did not return the uploaded documentary.")
+    else:
+        if stored.get("privacy_status") != "private":
+            problems.append(f"YouTube stored privacy {stored.get('privacy_status')!r}, not 'private'.")
+        if stored.get("publish_at"):
+            problems.append("YouTube returned a scheduled publish time; this release must never schedule.")
+        if stored.get("channel_id") != channel.get("id"):
+            problems.append("YouTube video channel ID does not match the verified Engineering Physics channel.")
+    if processing != "ok":
+        problems.append(f"YouTube processing status is {processing!r}, not 'ok'.")
     result = {
         "source_run_id": source_run_id,
         "video_id": video_id,
         "url": f"https://www.youtube.com/watch?v={video_id}",
-        "privacy_status": "private",
+        "privacy_status": stored.get("privacy_status"),
+        "channel_id": stored.get("channel_id"),
+        "channel_title": channel.get("title"),
+        "publish_at": stored.get("publish_at"),
+        "privacy_verified": not problems,
+        "verification_problems": problems,
         "processing_status": processing,
         "title": metadata["title"],
         "file": str(video_path.relative_to(root)),
@@ -217,8 +259,8 @@ def upload_automated_artifact(artifact_dir: Path, source_run_id: str) -> dict:
     output = root / "youtube-upload-result.json"
     output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, ensure_ascii=False))
-    if processing != "ok":
-        raise RuntimeError(f"YouTube processing did not complete successfully: {processing}")
+    if problems:
+        raise RuntimeError("Private upload could not be verified: " + "; ".join(problems))
     return result
 
 
@@ -226,10 +268,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artifact-dir", type=Path, required=True)
     parser.add_argument("--source-run-id", required=True)
+    parser.add_argument("--machine-only", action="store_true",
+                        help="Replace human attestations with strict automated semantic, technical, research and rights-evidence gates.")
     args = parser.parse_args()
     failure_path = args.artifact_dir / "youtube-upload-failure.json"
     try:
-        upload_automated_artifact(args.artifact_dir, args.source_run_id)
+        upload_automated_artifact(args.artifact_dir, args.source_run_id, machine_only=args.machine_only)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         # Leave a machine-readable reason for the job summary and the failure alert.
