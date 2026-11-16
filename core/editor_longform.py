@@ -98,6 +98,21 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
     return out
 
 
+def _paginate_credit_lines(raw_lines, width=100, lines_per_page=14):
+    """Wrap and paginate the complete attribution register for readable end credits."""
+    import textwrap
+
+    if width < 20 or lines_per_page < 1:
+        raise ValueError("Credit pagination requires width >= 20 and at least one line per page.")
+    display_lines = []
+    for line in raw_lines:
+        clean = str(line or "").strip()
+        if clean:
+            display_lines.extend(textwrap.wrap(clean, width=width) or [""])
+    return [display_lines[index:index + lines_per_page]
+            for index in range(0, len(display_lines), lines_per_page)]
+
+
 def _append_credits_card(video_path, credits_path):
     """Append paginated, readable source credits without holding one static slate."""
     import textwrap
@@ -116,12 +131,7 @@ def _append_credits_card(video_path, credits_path):
     # The former implementation placed the entire 27 KB credits register on one
     # static screen. Its duration grew by 0.48 s for every wrapped line (162 s in
     # production), while most lines were outside the visible frame. Paginate it.
-    display_lines = []
-    for line in raw_lines:
-        display_lines.extend(textwrap.wrap(line, width=100) or [""])
-    lines_per_page = 14
-    pages = [display_lines[i:i + lines_per_page]
-             for i in range(0, len(display_lines), lines_per_page)]
+    pages = _paginate_credit_lines(raw_lines, width=100, lines_per_page=14)
     page_seconds = 3.75
     duration = max(6.0, len(pages) * page_seconds)
 
