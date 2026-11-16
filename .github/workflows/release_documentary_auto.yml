@@ -36,21 +36,30 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r requirements-ci.txt
 
-      - name: Download the exact successful documentary build artifact
+      - name: Download compact QA evidence from the exact successful build
         uses: actions/download-artifact@v8
         with:
-          name: longform-review-${{ github.event.workflow_run.id }}
+          name: longform-qa-diagnostics-${{ github.event.workflow_run.id }}
           run-id: ${{ github.event.workflow_run.id }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: .
+          path: release-artifact
+
+      - name: Download the matching final MP4 only
+        uses: actions/download-artifact@v8
+        with:
+          name: longform-mp4-${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-artifact/output
 
       - name: Verify exact documentary files are present
         run: |
           set -euo pipefail
-          compgen -G "build/job_*/release_metadata.json" >/dev/null
-          compgen -G "output/longform_*.mp4" >/dev/null
-          echo "Exact documentary artifact is present."
+          compgen -G "release-artifact/build/job_*/release_metadata.json" >/dev/null
+          compgen -G "release-artifact/output/longform_*.mp4" >/dev/null
+          echo "Compact QA evidence and matching MP4 are present."
 
       - name: Run strict machine-only QA and upload PRIVATE to Engineering Physics
         env:
@@ -67,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/upload_documentary_artifact.py \
-            --artifact-dir . \
+            --artifact-dir release-artifact \
             --source-run-id "${{ github.event.workflow_run.id }}" \
             --machine-only
 
