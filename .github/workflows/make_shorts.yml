@@ -17,10 +17,10 @@ on:
         options: [beyond_science, standard]
         default: beyond_science
       language:
-        description: "Voice language"
+        description: "Voice and subtitle language"
         type: choice
-        options: [hinglish, hindi, english]
-        default: hinglish
+        options: [english, hinglish, hindi]
+        default: english
       upload:
         description: "Deprecated: builds are review-only; use the separate approved private-release workflow"
         type: boolean
@@ -112,7 +112,7 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           TTS_ENGINE: "edge"
           ALLOW_CHATTERBOX_ON_CI: "false"
-          SHORTS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
           CHANNEL_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.channel_profile || 'standard' }}
           # Inputs travel through the environment and are never interpolated
           # into the script, so a topic cannot inject shell commands.
