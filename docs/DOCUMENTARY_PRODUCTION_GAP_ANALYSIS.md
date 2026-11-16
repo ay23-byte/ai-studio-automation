@@ -326,3 +326,15 @@ presenter, script by `gemini-3.1-flash-lite`. Hinglish narration (configured voi
    to watch the film, or `longform-review-<run>` for the full review package.
 
 To build for release, use **Run workflow** on "2. Build a Documentary — review required".
+
+
+## 7. Follow-up audit of build 43728529766 and fixes on this branch
+
+The compact diagnostics artifact was inspected on 16 Nov 2026 (rather than relying only on the PR description):
+
+- The 18-minute request produced 20.24 minutes of narration (112.4% of target) and a 22:57 final file. The measured-runtime gate previously enforced only a lower bound. It now also refuses narration above 110% of the requested duration before footage search/rendering. Script generation now targets 140 WPM, requires 95% of that word target, gives the model an explicit 102% word ceiling, and limits narration-only expansion to the same 2% margin. This is a fail-fast guard and a more realistic target; a new production build is still needed to verify the resulting spoken runtime.
+- The 27 KB credits register expanded to 323 display lines. The old renderer put all lines on one static screen and held it for 162.56 seconds, so most credits were outside the frame. Credits are now paginated in groups of 14 lines, with a 3.75-second page hold. For this artifact that is 24 pages / 90 seconds, and every wrapped line is shown. A unit test checks that pages preserve the full attribution list.
+- The report also measured 65.23 seconds of black intervals in the programme body, 62 of 112 shots needing visual inspection, and an audio loudness range of 1.4 LU. These remain review items; this code does not claim to repair or approve those pictures/audio.
+- The complete review artifact is still 15.8 GB. The separate MP4-only artifact is about 800 MB. The full review bundle has not yet been reduced.
+
+New tests: `tests/test_longform_credits.py` and `tests/test_longform_runtime_bounds.py`. CI on the updated PR head must pass before these changes are considered validated. No documentary upload is triggered by these changes.
