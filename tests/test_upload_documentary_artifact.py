@@ -62,6 +62,17 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             self.assertEqual(report["release_mode"], "machine_only")
             self.assertEqual(report["shot_count"], 1)
 
+    def test_machine_only_release_honours_explicit_upload_block(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._build(root)
+            quality_path = root / "quality_report.json"
+            quality = json.loads(quality_path.read_text(encoding="utf-8"))
+            quality["upload_blocked"] = True
+            quality_path.write_text(json.dumps(quality), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "explicitly blocks upload"):
+                _validate_release_evidence(root, machine_only=True)
+
     def test_machine_only_release_blocks_unmatched_visuals(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
