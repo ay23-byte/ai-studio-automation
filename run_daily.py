@@ -120,13 +120,25 @@ def _has_script_model():
     return bool(os.getenv("GEMINI_API_KEY", "").strip()) or bool(llm.configured_providers())
 
 
+def _automated_private_release(job_id):
+    from core.publish import publish_job
+    result = publish_job(job_id, wait=True, automated=True)
+    _mark_uploaded_topic(result)
+    print(json.dumps({"automated_private_release": result}, ensure_ascii=False, indent=2))
+    return result
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--format", choices=["shorts", "long"], default="shorts")
     p.add_argument("--upload-latest", action="store_true")
     p.add_argument("--upload", action="store_true",
                    help="After the build, prepare the review package needed for a private upload")
+    p.add_argument("--auto-private-release", action="store_true",
+                   help="Run strict machine QA and upload a standard Short privately; never applies to documentaries or news.")
     args = p.parse_args()
+    if args.auto_private_release and args.format != "shorts":
+        p.error("--auto-private-release is supported only for standard Shorts.")
 
     if args.upload_latest:
         upload_latest(args.format)
@@ -162,7 +174,9 @@ def main():
                 return
             vid_id, out = _build(script, args.format, language, category, topic_title)
             print(f"Built auto-generated video: {out}")
-            if args.upload:
+            if args.auto_private_release:
+                _automated_private_release(vid_id)
+            elif args.upload:
                 prepare_review(vid_id)
             return
         except Exception as e:
@@ -194,7 +208,9 @@ def main():
         if remaining <= 3:
             send(f"⚠️ Only {remaining} topics left in topics.json. "
                  "New topics will be selected automatically; add your own to steer the channel.")
-        if args.upload:
+        if args.auto_private_release:
+            _automated_private_release(vid_id)
+        elif args.upload:
             prepare_review(vid_id)
     except Exception as e:
         attempts = int(t.get("attempts", 0) or 0) + 1
