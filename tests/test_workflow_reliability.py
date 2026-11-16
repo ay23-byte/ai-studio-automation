@@ -81,7 +81,7 @@ class ActionVersionTests(unittest.TestCase):
         self.assertNotIn("--upload-after-recovery", text)
         self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", text)
         self.assertIn('PRIVACY: "private"', text)
-        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', text)
+        self.assertNotIn('ALLOW_PUBLIC_PUBLISH', text)
         self.assertIn('YT_CHANNEL_VERIFY: "1"', text)
         self.assertIn('UPLOAD_REQUESTED: "true"', text)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
@@ -277,7 +277,7 @@ class WorkflowStructureTests(unittest.TestCase):
         # Daily news has its own fail-closed automated PRIVATE release path; no public publish path.
         news = _text("daily-news-auto-short.yml")
         self.assertIn("core.news_private_release", (ROOT / "core" / "news_auto.py").read_text(encoding="utf-8"))
-        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', news)
+        self.assertNotIn('ALLOW_PUBLIC_PUBLISH', news)
         self.assertNotIn("--upload-after-recovery", news)
 
     def test_state_is_saved_even_when_the_build_fails(self):
