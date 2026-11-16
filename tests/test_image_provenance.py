@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core.images import _cloudflare, _pollinations
+import requests
+from core.images import _cloudflare, _pollinations, _POLLINATIONS_STATE
 
 
 class _Response:
@@ -15,6 +16,8 @@ class _Response:
         self.status_code = 200
 
     def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}", response=self)
         return None
 
 
@@ -39,6 +42,22 @@ class ImageProvenanceTests(unittest.TestCase):
             self.assertEqual(sidecar["provider"], "Pollinations")
             self.assertEqual(sidecar["model"], "flux")
             self.assertIn("prompt_sha256", sidecar)
+
+
+    def test_pollinations_payment_required_disables_provider_for_rest_of_run(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "generated.jpg"
+            _POLLINATIONS_STATE["failures"] = 0
+            response = _Response(content=b"", content_type="application/json")
+            response.status_code = 402
+            with patch("core.images.POLLINATIONS_GAP", 0), patch(
+                "core.images.requests.get", return_value=response
+            ) as get:
+                self.assertFalse(_pollinations("first scene", path))
+                self.assertFalse(_pollinations("second scene", path))
+            self.assertEqual(get.call_count, 1)
+            self.assertFalse(path.exists())
+            _POLLINATIONS_STATE["failures"] = 0
 
 
 if __name__ == "__main__":

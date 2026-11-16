@@ -143,6 +143,20 @@ def _pollinations(prompt, path):
             "prompt_sha256": __import__("hashlib").sha256(prompt.encode("utf-8")).hexdigest(),
         })
         return True
+    except requests.HTTPError as e:
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        if status in {401, 402, 403, 404}:
+            # Authentication, billing and retired-endpoint responses will not
+            # recover by retrying every scene. Disable this provider for the
+            # remainder of the run so other licensed visual sources can work.
+            _POLLINATIONS_STATE["failures"] = limit
+            print(f"Pollinations disabled for this run: HTTP {status} (provider unavailable or access/payment required).")
+        elif status == 429:
+            _POLLINATIONS_STATE["failures"] += 1
+            print(f"Pollinations rate limited ({_POLLINATIONS_STATE['failures']}/{limit}); skipping this image.")
+        else:
+            print(f"Pollinations HTTP error: {type(e).__name__}: {str(e)[:200]}")
+        return False
     except (requests.ConnectionError, requests.Timeout) as e:
         _POLLINATIONS_STATE["failures"] += 1
         reason = str(e).split("(Caused by")[-1].strip(" )")[:160]
