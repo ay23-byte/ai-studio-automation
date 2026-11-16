@@ -1,7 +1,7 @@
 name: 'Daily news Short — build review package'
-# Fully automatic path: discover → corroborate with the source-tier gate → script →
-# render → PRIVATE upload. Stories that are single-source, stale, sensitive or
-# cannot be grounded are skipped; a skipped run is a success, not a failure.
+# Automatic path: discover → source-tier/safety gates → script → render → strict
+# technical QA → PRIVATE upload → YouTube privacy read-back. Ineligible stories
+# are skipped; failed automated release checks block upload and preserve evidence.
 on:
   workflow_dispatch:
     inputs:
@@ -74,10 +74,20 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
+          YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
+          YT_CHANNEL_VERIFY: "1"
+          PRIVACY: "private"
+          PUBLISH_AT_IST: ""
+          ALLOW_PUBLIC_PUBLISH: "0"
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
-          WANT_UPLOAD: "false"
+          WANT_UPLOAD: "true"
+          # The release path is PRIVATE-only and cannot schedule/publicly publish.
           # One bounded recovery attempt: a job that fails part-way is resumed from
           # its checkpoint (finished narration and visuals are reused). 0 turns it off.
           BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
@@ -85,9 +95,9 @@ jobs:
         run: |
           set -euo pipefail
           # Discovery/render only. Never upload from a scheduled or build workflow.
-          python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py
+          python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload
 
-      # Review-only: assembles the shared package (manifest, sources, QA, dashboard).
+      # Also assembles a diagnostic package (manifest, sources, QA, dashboard).
       # "No story qualified today" is a normal outcome and is not a failure.
       - name: Assemble the review package (no upload)
         if: success()
@@ -105,7 +115,7 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          UPLOAD_REQUESTED: "false"
+          UPLOAD_REQUESTED: "true"
         run: python scripts/write_job_summary.py --pipeline news_short --artifact "news-short-auto-${GITHUB_RUN_ID}"
 
       - uses: actions/upload-artifact@v7
