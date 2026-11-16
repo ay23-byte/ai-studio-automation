@@ -109,6 +109,9 @@ class ShortsEndToEndTests(unittest.TestCase):
             fallback = json.loads((job_dir / "visual_fallback_report.json").read_text(encoding="utf-8"))
             self.assertEqual((fallback["fallback_card_count"], fallback["visual_count"]), (1, 3))
             self.assertFalse(quality.get("upload_blocked"))
+            audio = json.loads((job_dir / "audio_quality_report.json").read_text(encoding="utf-8"))
+            self.assertIn(audio["status"], {"PASS", "REVIEW", "FAIL"})
+            self.assertEqual(audio.get("human_review_status"), "pending")
             for name in ("captions.en.srt", "captions.en.vtt", "asset_manifest.json", "licenses.csv",
                          "credits.txt", "scene_timing.json", "checkpoint.json", "subs.ass"):
                 self.assertTrue((job_dir / name).is_file(), name)
