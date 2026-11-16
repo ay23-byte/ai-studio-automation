@@ -115,7 +115,6 @@ def _paginate_credit_lines(raw_lines, width=100, lines_per_page=14):
 
 def _append_credits_card(video_path, credits_path):
     """Append paginated, readable source credits without holding one static slate."""
-    import textwrap
 
     credits_file = Path(credits_path)
     if not credits_file.is_file():
