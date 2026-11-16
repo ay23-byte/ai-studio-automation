@@ -246,7 +246,13 @@ def validate_media(path, *, min_width: int | None = None, min_height: int | None
         return fail("corrupt", facts["error"], size_bytes=size)
     families = {name.strip() for name in facts["container"].split(",") if name.strip()}
     if not families & SUPPORTED_CONTAINERS:
-        return fail("unsupported_format", f"container {facts['container'] or 'unknown'} is not supported", **facts)
+        detected = facts["container"] or "unknown"
+        # If a file is named as a supported video container but ffprobe detects
+        # unrelated/random bytes (or an audio-only container), the transfer is
+        # corrupt or mislabeled, not a legitimate unsupported video format.
+        if path.suffix.lower() in SUPPORTED_SUFFIXES:
+            return fail("corrupt", f"file extension {path.suffix} does not match detected container {detected}", **facts)
+        return fail("unsupported_format", f"container {detected} is not supported", **facts)
     if not facts["has_video"]:
         return fail("no_video_stream", "the file has no video stream", **facts)
     if facts["duration_seconds"] < min_duration:
