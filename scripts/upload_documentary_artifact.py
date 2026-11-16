@@ -79,10 +79,10 @@ def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -
     required = [
         "visual_review_report.json", "visual_consistency_report.json",
         "audio_quality_report.json", "research_verification_report.json",
-        "quality_report.json", "licenses.csv",
     ]
     if not machine_only:
         required.append("research_review_decisions.json")
+    required.extend(["quality_report.json", "licenses.csv"])
     reports = {}
     missing = [name for name in required if not (build_dir / name).is_file()]
     if missing:
