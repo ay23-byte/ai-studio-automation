@@ -134,6 +134,29 @@ class ReleaseGateTests(_Sandbox):
         self.assertEqual(report["status"], "PASS")
         self.assertTrue((self.build / f"job_{row['id']}" / "release_gate.json").is_file())
 
+    def test_machine_only_short_release_uses_strict_evidence_without_faking_human_review(self):
+        job_id = self.make_job()
+        row = self.db.get_video(job_id)
+        job_dir = self.build / f"job_{job_id}"
+        (job_dir / "visual_fallback_report.json").write_text(json.dumps({
+            "status": "PASS", "visual_count": 4, "fallback_card_count": 0,
+            "fallback_card_share": 0.0}), encoding="utf-8")
+        (job_dir / "audio_quality_report.json").write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
+        (job_dir / "subs.ass").write_text("[Script Info]\\n", encoding="utf-8")
+        self.review.update(ok=False, detail="No human review exists.", reviewer=None)
+        report = release_gate.evaluate(row, require_human_review=False)
+        self.assertEqual(report["status"], "PASS", report["blocking"])
+        self.assertEqual(report["review_mode"], "automated")
+        self.assertFalse(report["human_review"]["approved"])
+
+    def test_machine_only_short_release_blocks_missing_or_failed_automated_evidence(self):
+        job_id = self.make_job()
+        row = self.db.get_video(job_id)
+        report = release_gate.evaluate(row, require_human_review=False)
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertTrue(any("audio_quality" in item for item in report["blocking"]))
+        self.assertTrue(any("no_fallback_cards" in item for item in report["blocking"]))
+
     def test_no_human_review_blocks_upload_even_when_every_automated_gate_passes(self):
         row = self.db.get_video(self.make_job())
         self.review.update(ok=False, detail="no review package exists for this video.", reviewer=None)
