@@ -9,9 +9,9 @@ workflow run, a test, or a file. Where something was not verified, it says so.
 | Source | What it shows |
 | --- | --- |
 | Annotations of 12 earlier `make_longform.yml` runs (11–14 Nov) | Why each run failed |
-| Eight production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253, 43716476390, 43717461589 |
+| Nine production test builds from pull request #218 (real providers, real runner) | Runs 43647143241, 43652866814, 43655186698, 43681187522, 43691314957, 43702915253, 43716476390, 43717461589, 43728529766 |
 | `offline-presenter-render` job on GitHub-hosted runners (female and male) | Presenter figures at 1920x1080 |
-| Test suite | 932 tests before this work; 1084 after (merged with `main` at `9c75775`), all passing |
+| Test suite | 932 tests before this work; 1087 after (merged with `main` at `9c75775`), all passing |
 
 Limits of the audit: workflow artifacts and raw logs could not be downloaded from the audit
 environment, so nobody has watched the produced videos as part of this work. Measured figures
@@ -97,7 +97,10 @@ or was cancelled:
 - **Fix.** `scripts/annotate_build_evidence.py` prints the measured facts on the run page: final
   file and runtime against the request, script model and voice, narration words and rate, shot
   kinds and sources, every footage source's answers, scenes left without footage and what was
-  searched, presenter figures, subtitle check, audio levels, research counts.
+  searched, presenter figures, subtitle check, audio levels, research counts. When the
+  picture-to-narration screening is switched on, the "Visuals" notice also says how many shots
+  match, do not match, or were not screened and why (added after build 43728529766, where the
+  screening ran but its result could only be read inside the review package).
 - **Tests.** `tests/test_build_evidence.py`.
 
 ### 3.5 Subtitles
@@ -276,8 +279,9 @@ or was cancelled:
 
 ## 4. Production test builds
 
-Topic: "How the James Webb Space Telescope Sees the First Galaxies", 18 minutes, Hinglish
-narration (configured voice Edge `hi-IN-MadhurNeural`), male 3D presenter, script by `gemini-3.1-flash-lite`.
+Topic: "How the James Webb Space Telescope Sees the First Galaxies", 18 minutes, male 3D
+presenter, script by `gemini-3.1-flash-lite`. Hinglish narration (configured voice Edge
+`hi-IN-MadhurNeural`) in every build except the last, which is English.
 
 | Build | Result | Measured |
 | --- | --- | --- |
@@ -288,7 +292,8 @@ narration (configured voice Edge `hi-IN-MadhurNeural`), male 3D presenter, scrip
 | 43691314957 | Green: film and review package | 19 min 25 s video (108% of request), 1920x1080, 585 MB; narration 2461 words in 16.76 min, **spoken by a female voice although male was requested (3.11)**; storyboard 44 beats in 7 chapters, 8 placeholder beats removed; 100 shots, no fallback cards; 85 of 85 searched scenes got footage (Wikimedia Commons 44, Pixabay 16, NASA 15, DVIDS 7, Internet Archive 3); picture audit: 58 pass, 42 for review, 0 fail; 7 of 7 presenter clips passed (lowest 29.1 different frames a second); English subtitles PASS on 92 lines; audio PASS, −16.0 LUFS, true peak −4.3 dBTP. Build step 116 min, review artifact 13.1 GB |
 | 43702915253 | Film rendered, review package refused (robot voice) | Merged with `main`. Both male Edge voices failed, narration by espeak-ng: audio QA FAIL. 21 min 13 s video (118% of request), 605 MB; narration 2909 words in 18.64 min; storyboard 53 beats, 14 placeholder beats removed; 121 shots, 1 fallback card, 6 still images; 100 of 109 searched scenes got footage (Wikimedia Commons 48, Pixabay 15, DVIDS 14, NASA 12, Internet Archive 11); 9 scenes without footage, mostly "not relevant enough" and the 0.20 scene-match floor from `main`; picture audit 66 pass, 55 review, 0 fail; 7 of 7 presenter clips passed; English subtitles PASS on 111 lines; build step 130 min |
 | 43716476390 | Failed in 3 min, before a job existed | The script could not be written; the cause was not recorded (3.3a) |
-| 43717461589 | Green: film and review package | Final state of this work, merged with `main` at `8c07fa9`. 20 min 57 s video (116% of request), 1920x1080, 696 MB; narration 2732 words in 18.65 min by `en-IN-PrabhatNeural`, a male voice, because `hi-IN-MadhurNeural` did not answer; storyboard 47 beats in 7 chapters, 15 placeholder beats removed; 104 shots, no fallback cards, 1 still image; 89 of 91 searched scenes got footage (Wikimedia Commons 39, Pixabay 18, NASA 14, DVIDS 12, Internet Archive 6); picture audit 53 pass, 51 review, 0 fail; 7 of 7 presenter clips passed (lowest 28.8 different frames a second); audio −16.0 LUFS, true peak −4.3 dBTP, range 1.8 LU (REVIEW); English subtitles PASS on 100 lines; research 8 sources, 15 claims, all linked; build step 103 min; artifacts: review 12.5 GB, film 694 MB, diagnostics 188 KB |
+| 43717461589 | Green: film and review package | Merged with `main` at `8c07fa9`. 20 min 57 s video (116% of request), 1920x1080, 696 MB; narration 2732 words in 18.65 min by `en-IN-PrabhatNeural`, a male voice, because `hi-IN-MadhurNeural` did not answer; storyboard 47 beats in 7 chapters, 15 placeholder beats removed; 104 shots, no fallback cards, 1 still image; 89 of 91 searched scenes got footage (Wikimedia Commons 39, Pixabay 18, NASA 14, DVIDS 12, Internet Archive 6); picture audit 53 pass, 51 review, 0 fail; 7 of 7 presenter clips passed (lowest 28.8 different frames a second); audio −16.0 LUFS, true peak −4.3 dBTP, range 1.8 LU (REVIEW); English subtitles PASS on 100 lines; research 8 sources, 15 claims, all linked; build step 103 min; artifacts: review 12.5 GB, film 694 MB, diagnostics 188 KB |
+| 43728529766 | Green: film and review package | Final state of this work, merged with `main` at `9c75775`; the request from `main`: **English** narration, picture-to-narration screening on. 22 min 57 s video (**127% of request**), 1920x1080, 765 MB; narration 2916 words in 20.24 min (144 words a minute) by `en-IN-PrabhatNeural`, the configured male English voice; storyboard 48 beats in 7 chapters, 16 placeholder beats removed; 112 shots, no fallback cards, 2 still images; 96 of 99 searched scenes got footage (Wikimedia Commons 55, NASA 14, DVIDS 12, Internet Archive 8, Pixabay 7); 3 scenes without footage (not relevant enough, 0.20 scene-match floor); picture audit 50 pass, 62 review, 0 fail; 7 of 7 presenter clips passed (lowest 28.4 different frames a second, longest freeze 0.07 s); audio −16.0 LUFS, true peak −4.2 dBTP, range 1.4 LU (REVIEW); English subtitles PASS on 118 lines; research 8 sources, 15 claims, all linked. Screening result not shown on the run page (3.4); at most 100 of the 112 shots can have been screened. Build step 160 min; artifacts: review 15.8 GB, film 800 MB, diagnostics 227 KB |
 
 ## 5. Open items
 
@@ -302,14 +307,15 @@ narration (configured voice Edge `hi-IN-MadhurNeural`), male 3D presenter, scrip
 | Internet Archive | 817 results and 3 clips used in build 5 |
 | Europeana | 351 searches, 2 results, none used in build 5; cause not investigated |
 | Narration provider | The configured voice `hi-IN-MadhurNeural` did not complete the narration in builds 43691314957, 43702915253 and 43717461589. The last one was spoken by `en-IN-PrabhatNeural`, an Indian English male voice reading Hinglish; a person has to judge how that sounds. The cause is in `narration_synthesis_report.json` (`voice_failures`) of the `longform-qa-diagnostics-43717461589` artifact and, from the next build on, in the "Narration" notice. Edge TTS is free and unofficial; a paid or self-hosted voice needs an owner decision |
-| Runtime above the request | Builds 43702915253 and 43717461589 were 21 min 13 s and 20 min 57 s for an 18 minute request (118% and 116%). There is a lower limit (80%) and no upper limit |
+| Runtime above the request | The last three films were 21 min 13 s, 20 min 57 s and 22 min 57 s for an 18 minute request (118%, 116%, 127%). In the last one the narration alone is 112% of the request and the film is 2 min 42 s longer than the narration; where that extra time comes from was not broken down. There is a lower limit (80%) and no upper limit |
 | Audio loudness range | 1.7 LU in build 1 (REVIEW); 2.6 LU in build 3 (PASS) |
 | Script model | The repository variable selects `gemini-3.1-flash-lite`; a stronger model may write better scripts. Not tested |
 | News Shorts presenter | Still uses the old real-time recorder (`core/news_short_avatar.py`); outside this scope |
 | AI video | Disabled in the workflow by policy |
-| Review artifact size | 12.5 to 14 GB for an 18 minute film: every source clip is stored in full and again inside the review package. Not reduced, because the release workflow depends on its layout |
-| Build time | About two hours for 18 minutes (80 minutes before the storyboard had more beats). Each provider is searched about 350 times; where the time goes was not measured |
-| Picture audit "review" shots | 51 of 104 shots in build 43717461589 (42 of 100 in 43691314957) are marked soft, low in contrast or unlike the rest. A person has to look at them |
+| Review artifact size | 12.5 to 15.8 GB for an 18 minute film: every source clip is stored in full and again inside the review package. Not reduced, because the release workflow depends on its layout |
+| Build time | About two hours for 18 minutes (80 minutes before the storyboard had more beats); 2 h 40 min with the picture-to-narration screening on. Each provider is searched about 350 times; where the time goes was not measured |
+| Picture audit "review" shots | 62 of 112 shots in build 43728529766 (51 of 104 in 43717461589, 42 of 100 in 43691314957) are marked soft, low in contrast or unlike the rest. A person has to look at them |
+| Picture-to-narration screening | On in build 43728529766 only. Its verdicts are in `visual_review_report.json` of that review package and were not read. The workflow screens at most 100 shots (`VISUAL_SEMANTIC_MAX_SHOTS`, from #224); films now have 104 to 121 shots, so the last ones are not screened |
 | Coverr | Builds 1 and 3: its 4 results were AI-generated library content and were refused. Since build 43681187522 the key is refused with HTTP 403; needs the owner's key |
 
 ## 6. How to run a production test

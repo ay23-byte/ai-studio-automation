@@ -190,6 +190,33 @@ class BuildEvidenceTests(unittest.TestCase):
         self.assertTrue(any("8 unusable pictures replaced before the edit, 0 not replaceable" in line
                             for line in lines))
 
+    def test_picture_screening_result_is_shown_when_it_was_switched_on(self):
+        def shot(shot_id, status, reason=""):
+            return {"shot_id": shot_id, "visual_type": "stock", "media_type": "video",
+                    "semantic_screening": {"status": status, "reason": reason}}
+        self._write("visual_review_report.json", {"semantic_screening_enabled": True, "shots": [
+            shot("s1", "match"), shot("s2", "match"), shot("s3", "mismatch"), shot("s4", "uncertain"),
+            shot("s5", "skipped")]})
+        line = evidence.picture_screening(self.build)
+        self.assertIn("screening of 5 shots: 2 match the narration, 1 do not match, 1 uncertain", line)
+        self.assertIn("1 not screened (over the per-build limit)", line)
+        self.assertIn("not matching: s3", line)
+        visuals_line = next(line for line in evidence.evidence_lines({}, self.build, 18)
+                            if line.startswith("Visuals:"))
+        self.assertIn("picture-to-narration screening", visuals_line)
+
+    def test_picture_screening_that_judged_nothing_says_so_with_the_reason(self):
+        self._write("visual_review_report.json", {"semantic_screening_enabled": True, "shots": [
+            {"shot_id": "s1", "semantic_screening": {"status": "unavailable",
+                                                     "reason": "GEMINI_API_KEY is not configured."}}]})
+        line = evidence.picture_screening(self.build)
+        self.assertIn("NO shot was judged (GEMINI_API_KEY is not configured.)", line)
+
+    def test_picture_screening_is_silent_when_it_was_not_requested(self):
+        self._write("visual_review_report.json", {"semantic_screening_enabled": False, "shots": [
+            {"shot_id": "s1", "semantic_screening": {"status": "not_run"}}]})
+        self.assertIsNone(evidence.picture_screening(self.build))
+
     def test_missing_reports_produce_no_line_and_long_lines_are_cut(self):
         self.assertEqual(evidence.evidence_lines({"output": {"exists": False}}, self.build, None),
                          ["Final video: no finished file was produced."])

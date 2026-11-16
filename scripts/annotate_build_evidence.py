@@ -295,6 +295,37 @@ def visual_checks(build: Path, limit: int = 6) -> str | None:
     return text
 
 
+def picture_screening(build: Path, limit: int = 4) -> str | None:
+    """How the picture-to-narration screening judged the shots, when it was switched on."""
+    review = _load(build / "visual_review_report.json")
+    if not review.get("semantic_screening_enabled"):
+        return None
+    rows = [shot for shot in (review.get("shots") or []) if isinstance(shot, dict)]
+    counts: dict[str, int] = {}
+    for shot in rows:
+        status = str((shot.get("semantic_screening") or {}).get("status") or "not_run")
+        counts[status] = counts.get(status, 0) + 1
+    order = ("match", "mismatch", "uncertain", "unavailable", "error", "skipped", "not_run")
+    names = {"match": "match the narration", "mismatch": "do not match", "uncertain": "uncertain",
+             "unavailable": "not screened (model unavailable)", "error": "not screened (error)",
+             "skipped": "not screened (over the per-build limit)", "not_run": "not screened"}
+    text = "picture-to-narration screening of " + str(len(rows)) + " shots: " + ", ".join(
+        f"{counts[status]} {names[status]}" for status in order if counts.get(status))
+    judged = counts.get("match", 0) + counts.get("mismatch", 0) + counts.get("uncertain", 0)
+    if rows and not judged:
+        text += "; NO shot was judged"
+        reasons = [str((shot.get("semantic_screening") or {}).get("reason") or "") for shot in rows]
+        reason = next((item for item in reasons if item), "")
+        if reason:
+            text += f" ({reason[:200]})"
+    wrong = [shot for shot in rows if (shot.get("semantic_screening") or {}).get("status") == "mismatch"]
+    if wrong:
+        text += "; not matching: " + ", ".join(str(shot.get("shot_id")) for shot in wrong[:limit])
+        if len(wrong) > limit:
+            text += f" (+{len(wrong) - limit} more)"
+    return text
+
+
 def evidence_lines(report: dict, build: Path, target_minutes: float | None) -> list[str]:
     # A step shows at most ten notices, so the storyboard and the picture audit ride on the
     # script and visuals lines instead of taking a notice each.
@@ -307,8 +338,9 @@ def evidence_lines(report: dict, build: Path, target_minutes: float | None) -> l
         audit = ((audit + " | ") if audit else "") + (
             f"{repairs.get('replaced', 0)} unusable pictures replaced before the edit, "
             f"{repairs.get('unresolved', 0)} not replaceable")
-    if audit:
-        visuals_line = f"{visuals_line} | {audit}" if visuals_line else f"Visuals: {audit}"
+    for extra in (audit, picture_screening(build)):
+        if extra:
+            visuals_line = f"{visuals_line} | {extra}" if visuals_line else f"Visuals: {extra}"
     lines = [final_video(report, target_minutes), script_line, narration(build),
              visuals_line, footage_sources(build), scenes_without_footage(build),
              presenter(build), subtitles(build), audio(build), research(build)]
