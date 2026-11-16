@@ -22,7 +22,10 @@ def cluster_candidates(items, threshold=0.28):
         else: clusters.append([item])
     result=[]
     for index, group in enumerate(clusters,1):
-        publishers={urlparse(x.get('url','')).netloc.lower().removeprefix('www.') for x in group if x.get('url')}
+        # Google News article links all share news.google.com; use the
+        # publisher URL carried in RSS <source url="..."> metadata instead.
+        publishers={urlparse(x.get('publisher_url') or x.get('url','')).netloc.lower().removeprefix('www.')
+                    for x in group if x.get('publisher_url') or x.get('url')}
         result.append({'cluster_id':f'N{index:03d}','cluster_title':max(group,key=lambda x:len(tokens(x.get('title','')))).get('title',''),
                        'candidate_ids':[x['id'] for x in group], 'headline_count':len(group),
                        'publisher_domain_count':len(publishers), 'publishers':sorted(publishers)})
