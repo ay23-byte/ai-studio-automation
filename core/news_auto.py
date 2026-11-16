@@ -159,8 +159,17 @@ def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
         if duplicate:
             result["eligible"] = False
             result["reason"] = f"already covered: {duplicate.get('match')}"
-        audit.append({k: result[k] for k in ("cluster_id", "headline", "eligible", "reason")}
-                     | {"publishers": sorted({s["publisher"] for s in result["all_sources"]})})
+        audit.append({
+            **{k: result[k] for k in ("cluster_id", "headline", "eligible", "reason", "sensitive_term")},
+            "publishers": sorted({s["publisher"] for s in result["all_sources"]}),
+            "sources": [{
+                "publisher": source["publisher"], "title": source["title"],
+                "url": source["link"] or source["url"],
+                "published": source["published"], "tier": source["tier"],
+                "summary": source["text_snippet"],
+            } for source in result["all_sources"]],
+            "source_gate": result["gate"],
+        })
         if result["eligible"] and chosen is None:
             result["source_refs"] = refs
             chosen = result
@@ -351,11 +360,32 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     fresh = [item for item in candidates if item.get("id") not in seen]
     ledger = dedupe.Ledger()
     story, audit = select_story(fresh, ledger)
-    selection = {"generated_at": _now().isoformat(), "candidate_count": len(fresh),
-                 "feed_errors": feed_errors, "clusters_considered": audit[:60],
-                 "selected": story and {"headline": story["headline"], "reason": story["reason"],
-                                        "sources": story["sources"]}}
+    reason_counts = {}
+    for item in audit:
+        reason = str(item.get("reason") or "not eligible")
+        reason_counts[reason] = reason_counts.get(reason, 0) + 1
+    selection = {
+        "generated_at": _now().isoformat(), "candidate_count": len(fresh),
+        "clusters_considered_count": len(audit), "feed_errors": feed_errors,
+        "eligible_cluster_count": sum(1 for item in audit if item.get("eligible")),
+        "rejection_reason_counts": reason_counts,
+        "clusters_considered": audit,
+        "manual_review_queue": [item for item in audit if not item.get("eligible")],
+        "selected": story and {"headline": story["headline"], "reason": story["reason"],
+                               "sources": story["sources"]},
+        "video_created": False if not story else None,
+        "upload_attempted": False,
+    }
     save_json(output_dir / "auto_selection.json", selection)
+    if not story:
+        save_json(output_dir / "manual_review_queue.json", {
+            "status": "awaiting_human_source_review",
+            "generated_at": selection["generated_at"],
+            "candidate_count": len(fresh),
+            "clusters": selection["manual_review_queue"],
+            "note": ("This queue is for editorial investigation only. Rejected items are not "
+                     "verified facts and must not be scripted or published without source review."),
+        })
     if not story:
         return {"status": "no_story", "candidate_count": len(fresh),
                 "reason": "No story was corroborated by eligible independent sources and safe to automate."}
