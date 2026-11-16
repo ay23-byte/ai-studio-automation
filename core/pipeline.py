@@ -621,6 +621,18 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         shorts_render(media, lens, cuts, voice_path, ass, total, out, music, work_dir=bd / "render_work")
         checkpoint.mark("render", "done", files=[str(out)])
         _quality_check(job_id, out, ass, bd)
+        # Machine-measured audio evidence is required by the autonomous private-release gate.
+        # This does not claim a human listening review; it measures loudness, true peak,
+        # clipping and long silences independently of the video-level QA report.
+        try:
+            from core.audio_quality import inspect_audio
+            audio_report = inspect_audio(out)
+        except Exception as exc:
+            audio_report = {"status": "FAIL", "issues": [
+                f"Automated audio metering could not complete: {type(exc).__name__}: {str(exc)[:300]}"],
+                "warnings": [], "human_review_status": "pending"}
+        (bd / "audio_quality_report.json").write_text(
+            json.dumps(audio_report, ensure_ascii=False, indent=2), encoding="utf-8")
         gated = _apply_fallback_gate(bd / "quality_report.json", fallback_report)
         if gated:
             update_video(job_id, quality_score=gated["score"], quality_status=gated["status"])

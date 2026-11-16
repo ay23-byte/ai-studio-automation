@@ -142,7 +142,7 @@ def _existing_upload(row: dict, ledger: dedupe.Ledger, kind: str) -> dict | None
     return None
 
 
-def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run: bool = False) -> dict:
+def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run: bool = False, automated: bool = False) -> dict:
     """Upload one finished job privately. Returns a result dict; raises on a block."""
     from core.db import get_video, update_video, normalize_format, record_stage
     from core.notify import send
@@ -157,7 +157,9 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
         return {"job_id": job_id, "youtube_id": row["youtube_id"], "status": "already_uploaded",
                 "url": _url(fmt, row["youtube_id"])}
 
-    gate = assert_uploadable(row, build_dir)
+    if automated and fmt != "shorts":
+        raise ValueError("Machine-only release is enabled only for standard Shorts; documentaries and news use their dedicated release gates.")
+    gate = assert_uploadable(row, build_dir, require_human_review=not automated)
     ledger = dedupe.Ledger()
     duplicate = _existing_upload(row, ledger, fmt)
     if duplicate and not _flag("ALLOW_DUPLICATE_UPLOAD"):
@@ -251,6 +253,17 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
             if notify:
                 send(f"❌ YouTube processing did not complete ({processing}) for: {metadata['title']}")
             raise RuntimeError(f"YouTube processing did not complete: {processing}")
+    if automated:
+        channel = uploader.verify_channel(force=True)
+        final_status = uploader.get_video_status(video_id)
+        if not channel.get("verified") or not final_status.get("found"):
+            raise RuntimeError("Automated release could not verify the uploaded video and authenticated channel.")
+        if final_status.get("privacy_status") != "private" or final_status.get("publish_at"):
+            raise RuntimeError("Automated release read-back is not private-only (privacy must be private and publishAt empty).")
+        if final_status.get("channel_id") != channel.get("id"):
+            raise RuntimeError("Automated release read-back channel ID does not match the verified Engineering Physics channel.")
+        if wait and processing != "ok":
+            raise RuntimeError(f"Automated release processing status is {processing!r}, not 'ok'.")
     url = _url(fmt, video_id)
     result = {"job_id": job_id, "youtube_id": video_id, "url": url, "privacy": privacy,
               "privacy_verified": privacy_verified,

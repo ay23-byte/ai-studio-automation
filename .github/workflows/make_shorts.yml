@@ -1,4 +1,4 @@
-name: '1. Build a Short — review required'
+name: '1. Daily general Shorts — build and package'
 on:
   workflow_dispatch:
     inputs:
@@ -133,9 +133,8 @@ jobs:
             python scripts/build_with_recovery.py -- python run_daily.py --format shorts
           fi
 
-      # Review-only: assembles the shared package (manifest, QA, dashboard). No upload.
-      # Fails the run when the Short cannot be approved (failed QA, robotic fallback
-      # voice, card slideshow), so a green run always means "ready for a human".
+      # Build-only: this workflow has no YouTube credentials. A separate workflow
+      # consumes only successful scheduled-run artifacts and performs private release.
       - name: Assemble the review package (no upload)
         if: success()
         run: python scripts/package_build_for_review.py --mode shortform

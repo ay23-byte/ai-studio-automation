@@ -43,12 +43,12 @@ def mark_done(topics, t, youtube_id=None):
     topic_queue.update_topic(t.get("title") or t.get("topic"), **changes)
 
 
-def upload_latest(video_format=None):
-    """Upload the newest finished, unuploaded job PRIVATELY through the shared gate."""
+def upload_latest(video_format=None, *, automated=False):
+    """Upload the newest finished job privately; optional machine-only gate for standard Shorts."""
     from core.publish import publish_latest, DuplicateUpload
     from core.release_gate import ReleaseBlocked
     try:
-        result = publish_latest(_kind(video_format) if video_format else None, wait=True)
+        result = publish_latest(_kind(video_format) if video_format else None, wait=True, automated=automated)
     except (ReleaseBlocked, DuplicateUpload) as exc:
         # A blocked upload is a deliberate, safe outcome: keep the artifacts,
         # tell the operator, and fail the step so it is visible.
@@ -126,10 +126,17 @@ def main():
     p.add_argument("--upload-latest", action="store_true")
     p.add_argument("--upload", action="store_true",
                    help="After the build, prepare the review package needed for a private upload")
+    p.add_argument("--auto-private-release", action="store_true",
+                   help="Use the strict machine-only gate when uploading the latest standard Short privately.")
     args = p.parse_args()
+    if args.auto_private_release and (args.format != "shorts" or not args.upload_latest):
+        p.error("--auto-private-release requires --upload-latest and --format shorts.")
 
     if args.upload_latest:
-        upload_latest(args.format)
+        if args.auto_private_release:
+            upload_latest(args.format, automated=True)
+        else:
+            upload_latest(args.format)
         return
 
     kind = _kind(args.format)
