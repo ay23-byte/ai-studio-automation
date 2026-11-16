@@ -133,7 +133,10 @@ def main():
         p.error("--auto-private-release requires --upload-latest and --format shorts.")
 
     if args.upload_latest:
-        upload_latest(args.format, automated=args.auto_private_release)
+        if args.auto_private_release:
+            upload_latest(args.format, automated=True)
+        else:
+            upload_latest(args.format)
         return
 
     kind = _kind(args.format)
