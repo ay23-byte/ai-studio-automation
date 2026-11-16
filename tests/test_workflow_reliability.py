@@ -176,7 +176,8 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
             with self.subTest(workflow=name):
                 self.assertIsNotNone(package, "the build produces no shared review package")
                 self.assertIn(mode, package)
-                self.assertIn("if: success()", package)
+                expected_condition = "if: always()" if name == "daily-news-auto-short.yml" else "if: success()"
+                self.assertIn(expected_condition, package)
                 self.assertNotIn("continue-on-error", package)
                 self.assertLess(steps.index(package), steps.index(artifact))
                 self.assertIn("build/job_*/", artifact)                # the package lives inside the build dir
