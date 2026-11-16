@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-16T12:20:13+00:00",
+  "updated_at": "2026-11-16T23:13:47+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -96,6 +96,20 @@
       "status": "built",
       "updated_at": "2026-11-16T12:20:13+00:00",
       "topic": "How Do Airplane Wings Generate Lift?",
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "f1736d46f0a3ee535827be49",
+      "created_at": "2026-11-16T23:13:47+00:00",
+      "title": "Updates on Tata Sons Listing Statements",
+      "status": "built",
+      "updated_at": "2026-11-16T23:13:47+00:00",
+      "topic": "Jimmy Tata backs Tata Sons listing, accuses Noel of ‘back-door takeover’",
+      "source_refs": [
+        "43eba2effba4d22aa9c1",
+        "7834a8f9fd34671eb7ad"
+      ],
       "job_id": 7
     }
   ]
