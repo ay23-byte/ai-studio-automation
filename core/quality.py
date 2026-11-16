@@ -143,7 +143,7 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
     if video_stream and duration:
         command = [
             _ffmpeg(), "-hide_banner", "-nostats", "-i", str(video_path),
-            "-vf", "blackdetect=d=0.5:pix_th=0.10", "-an", "-f", "null", "-"
+            "-vf", "blackdetect=d=0.5:pix_th=0.05", "-an", "-f", "null", "-"
         ]
         result = subprocess.run(command, capture_output=True, text=True, timeout=600)
         log = (result.stderr or "") + (result.stdout or "")
