@@ -192,7 +192,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
         self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml",
-                                          "release_documentary_auto.yml")))
+                                          "release_shorts_auto.yml", "release_documentary_auto.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
