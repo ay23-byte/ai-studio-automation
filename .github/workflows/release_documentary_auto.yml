@@ -1,7 +1,7 @@
 name: "Release documentary automatically (Private)"
 on:
   workflow_run:
-    workflows: ["2. Build a Documentary — review required"]
+    workflows: ["2. Build a Documentary — automatic PRIVATE release"]
     types: [completed]
 
 permissions:
