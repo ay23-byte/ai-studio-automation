@@ -144,7 +144,7 @@ def _append_credits_card(video_path, credits_path):
     events = []
     for index, page in enumerate(pages):
         page_start = index * page_seconds
-        page_end = min(duration, (index + 1) * page_seconds)
+        page_end = duration if index == len(pages) - 1 else (index + 1) * page_seconds
         heading = f"SOURCE CREDITS  /  {index + 1:02d} OF {len(pages):02d}"
         body = r"\N".join(
             line.replace("{", "(").replace("}", ")").replace("\\", "/")
