@@ -6,14 +6,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 import requests
-from core.images import _cloudflare, _pollinations, _POLLINATIONS_STATE
+from core.images import _cloudflare, _pollinations, _pixabay_image, _POLLINATIONS_STATE
 
 
 class _Response:
-    def __init__(self, content=b"fake-image", content_type="image/png"):
+    def __init__(self, content=b"fake-image", content_type="image/png", payload=None):
         self.content = content
         self.headers = {"content-type": content_type}
         self.status_code = 200
+        self.payload = payload
+
+    def json(self):
+        return self.payload or {}
 
     def raise_for_status(self):
         if self.status_code >= 400:
@@ -30,6 +34,39 @@ class ImageProvenanceTests(unittest.TestCase):
             self.assertFalse(_cloudflare("documentary visual prompt", path))
             self.assertFalse(path.exists())
         post.assert_not_called()
+
+    def test_pixabay_still_fallback_requires_relevance_and_records_provenance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "scene.jpg"
+            api = _Response(content=b"", content_type="application/json", payload={"hits": [{
+                "tags": "rocket launch coastal launchpad space",
+                "largeImageURL": "https://pixabay.example/rocket.jpg",
+                "pageURL": "https://pixabay.com/photos/rocket-launch-123/",
+                "user": "creator",
+            }]})
+            image = _Response(content=b"jpeg-image", content_type="image/jpeg")
+            with patch("core.images.PIXABAY_API_KEY", "test-key"), \
+                 patch("core.images.requests.get", side_effect=[api, image]) as get, \
+                 patch("core.images._ok", return_value=True):
+                self.assertTrue(_pixabay_image("A rocket launch from a coastal launchpad", path))
+            self.assertEqual(get.call_count, 2)
+            sidecar = json.loads(path.with_suffix(".jpg.source.json").read_text(encoding="utf-8"))
+            self.assertEqual(sidecar["provider"], "Pixabay")
+            self.assertEqual(sidecar["page_url"], "https://pixabay.com/photos/rocket-launch-123/")
+            self.assertGreaterEqual(sidecar["relevance_score"], 0.12)
+
+    def test_pixabay_rejects_unrelated_images_instead_of_using_generic_filler(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "scene.jpg"
+            api = _Response(content=b"", content_type="application/json", payload={"hits": [{
+                "tags": "cats kittens pet",
+                "largeImageURL": "https://pixabay.example/cats.jpg",
+            }]})
+            with patch("core.images.PIXABAY_API_KEY", "test-key"), \
+                 patch("core.images.requests.get", return_value=api) as get:
+                self.assertFalse(_pixabay_image("A rocket launch from a coastal launchpad", path))
+            get.assert_called_once()
+            self.assertFalse(path.exists())
 
     def test_pollinations_generated_image_gets_provenance_sidecar(self):
         with tempfile.TemporaryDirectory() as folder:
