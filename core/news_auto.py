@@ -415,7 +415,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         try:
             from core.news_private_release import publish_news_job\n            result["upload"] = publish_news_job(job_id, wait=True)
             result["status"] = "uploaded"
-        except (ReleaseBlocked, DuplicateUpload) as exc:
+        except (ReleaseBlocked, DuplicateUpload, NewsAutoReleaseBlocked) as exc:
             # The video exists and is kept for review; it is simply not uploaded.
             # A failed automated gate leaves the MP4 available for investigation; it is never force-uploaded.
             result["status"] = "upload_blocked"
