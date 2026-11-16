@@ -167,6 +167,64 @@ def _pollinations(prompt, path):
     except Exception as e:
         print(f"Pollinations: {type(e).__name__}: {str(e)[:200]}"); return False
 
+def _pixabay_image(scene_prompt, path):
+    """Fetch a relevant, provider-licensed still when free AI image generation is unavailable."""
+    if not PIXABAY_API_KEY:
+        return False
+    width, height = _image_dimensions(scene_prompt)
+    query = _compact_search_query(scene_prompt, limit=100)
+    try:
+        response = requests.get(
+            "https://pixabay.com/api/",
+            params={"key": PIXABAY_API_KEY, "q": query, "image_type": "photo",
+                    "orientation": "vertical" if height > width else "horizontal",
+                    "safesearch": "true", "per_page": 20, "min_width": 640},
+            timeout=(10, 30),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        hits = payload.get("hits", []) if isinstance(payload, dict) else []
+        ranked = sorted(
+            (( _relevance(scene_prompt, str(hit.get("tags") or ""), str(hit.get("tags") or "")), hit)
+             for hit in hits if isinstance(hit, dict)),
+            key=lambda item: item[0], reverse=True)
+        selected = next(((score, hit) for score, hit in ranked
+                         if score >= float(os.getenv("PIXABAY_IMAGE_MIN_RELEVANCE", "0.12"))), None)
+        if not selected:
+            print("  Pixabay image search returned no sufficiently relevant still; refusing unrelated imagery.")
+            return False
+        score, hit = selected
+        image_url = str(hit.get("largeImageURL") or hit.get("webformatURL") or "").strip()
+        if not image_url:
+            return False
+        image_response = requests.get(image_url, timeout=(10, 45))
+        image_response.raise_for_status()
+        if not str(image_response.headers.get("content-type", "")).lower().startswith("image/"):
+            return False
+        path.write_bytes(image_response.content)
+        if not _ok(path):
+            path.unlink(missing_ok=True)
+            return False
+        _write_source_metadata(path, {
+            "provider": "Pixabay",
+            "asset_type": "stock_image",
+            "page_url": str(hit.get("pageURL") or "https://pixabay.com/"),
+            "licence_url": PIXABAY_LICENCE_URL,
+            "terms_reviewed": False,
+            "licence_status": "Pixabay Content License (provider-reported); check source-specific restrictions before reuse.",
+            "title": str(hit.get("tags") or "")[:300],
+            "creator": str(hit.get("user") or "")[:160],
+            "relevance_score": round(score, 3),
+            "ai_disclosure": False,
+            "prompt_sha256": hashlib.sha256(str(scene_prompt).encode("utf-8")).hexdigest(),
+        })
+        print(f"  image ok (Pixabay still, relevance {score:.2f})")
+        return True
+    except Exception as exc:
+        print(f"  Pixabay still-image fallback unavailable: {type(exc).__name__}: {str(exc)[:180]}")
+        return False
+
+
 def generate_image(scene_prompt, path, category="general"):
     # A scene explicitly requesting real archival material must never silently
     # fall through to a synthetic image generator.
@@ -185,6 +243,7 @@ def generate_image(scene_prompt, path, category="general"):
 
     full = _image_style(category) + scene_prompt
     if _cloudflare(full, path): print(f"  image ok (cloudflare)"); return True
+    if _pixabay_image(scene_prompt, path): return True
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
 
