@@ -13,7 +13,10 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
         media = root / "shot_0001.mp4"
         media.write_bytes(b"test media fixture")
         payloads = {
-            "visual_review_report.json": {"shots": [{"shot_id": "shot_0001", "media_path": str(media)}], "issues": []},
+            "visual_review_report.json": {"semantic_screening_enabled": True,
+                "shots": [{"shot_id": "shot_0001", "media_path": str(media),
+                           "semantic_screening": {"status": "match", "match_score": 0.91}}],
+                "issues": []},
             "visual_consistency_report.json": {"status": "PASS", "summary": {"fail_count": 0}},
             "audio_quality_report.json": {"status": "PASS"},
             "research_verification_report.json": {"claim_count": 1, "source_count": 1, "sources": [{"source_id": "S1", "url": "https://example.org/source", "url_valid": True, "metadata_complete": True}], "claims": [{"claim_id": "C1", "traceability_status": "source_linked_pending_human_review", "valid_source_ids": ["S1"], "evidence": "Evidence note."}]},
@@ -47,6 +50,39 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
                 report = _validate_release_evidence(root)
             self.assertEqual(report["shot_count"], 1)
             self.assertEqual(report["licence_rows"], 1)
+
+    def test_machine_only_release_uses_semantic_screening_without_human_attestations(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._build(root)
+            from core.editorial_review import review_store_path
+            review_store_path(root / "visual_review_report.json").unlink(missing_ok=True)
+            (root / "research_review_decisions.json").unlink(missing_ok=True)
+            report = _validate_release_evidence(root, machine_only=True)
+            self.assertEqual(report["release_mode"], "machine_only")
+            self.assertEqual(report["shot_count"], 1)
+
+    def test_machine_only_release_honours_explicit_upload_block(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._build(root)
+            quality_path = root / "quality_report.json"
+            quality = json.loads(quality_path.read_text(encoding="utf-8"))
+            quality["upload_blocked"] = True
+            quality_path.write_text(json.dumps(quality), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "explicitly blocks upload"):
+                _validate_release_evidence(root, machine_only=True)
+
+    def test_machine_only_release_blocks_unmatched_visuals(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._build(root)
+            visual_path = root / "visual_review_report.json"
+            visual = json.loads(visual_path.read_text(encoding="utf-8"))
+            visual["shots"][0]["semantic_screening"] = {"status": "uncertain", "match_score": 0.4}
+            visual_path.write_text(json.dumps(visual), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "did not confirm every shot"):
+                _validate_release_evidence(root, machine_only=True)
 
     def test_missing_release_report_blocks_upload(self):
         with tempfile.TemporaryDirectory() as temp:
