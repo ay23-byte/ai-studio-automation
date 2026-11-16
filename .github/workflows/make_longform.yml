@@ -261,6 +261,7 @@ jobs:
         with:
           name: longform-qa-diagnostics-${{ github.run_id }}
           path: |
+            output/run_report.json
             build/job_*/quality_report.json
             build/job_*/release_metadata.json
             build/job_*/script.json
