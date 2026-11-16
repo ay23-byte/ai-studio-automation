@@ -102,8 +102,10 @@ def _paginate_credit_lines(raw_lines, width=100, lines_per_page=14):
     """Wrap and paginate the complete attribution register for readable end credits."""
     import textwrap
 
-    if width < 20 or lines_per_page < 1:
-        raise ValueError("Credit pagination requires width >= 20 and at least one line per page.")
+    if width < 20:
+        raise ValueError("Credit line width must be at least 20 characters.")
+    if lines_per_page < 1:
+        raise ValueError("Credit lines per page must be at least one.")
     display_lines = []
     for line in raw_lines:
         clean = str(line or "").strip()
