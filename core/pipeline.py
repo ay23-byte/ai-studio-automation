@@ -145,7 +145,7 @@ def measured_runtime_report(script, narration, narration_seconds):
     except ValueError:
         ceiling = 1.10
     floor = min(1.0, max(0.0, floor))
-    ceiling = max(1.0, ceiling)
+    ceiling = max(0.0, ceiling)
     if ceiling < floor:
         raise ValueError("LONGFORM_MAX_MEASURED_RUNTIME_FRACTION must be >= the minimum runtime fraction.")
     report = {
