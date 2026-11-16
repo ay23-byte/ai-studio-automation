@@ -8,12 +8,23 @@ import requests
 import xml.etree.ElementTree as ET
 from core.news_editorial import build_review_packets
 
+# Broad discovery is intentionally separate from the source-verification gate.
+# Prefer direct publisher feeds so candidate metadata retains publisher provenance.
 FEEDS = [
  'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en',
  'https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-IN&gl=IN&ceid=IN:en',
  'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-IN&gl=IN&ceid=IN:en',
  'https://feeds.bbci.co.uk/news/world/asia/india/rss.xml',
  'https://feeds.bbci.co.uk/news/technology/rss.xml',
+ 'https://feeds.bbci.co.uk/news/business/rss.xml',
+ 'https://feeds.bbci.co.uk/news/world/rss.xml',
+ 'https://www.thehindu.com/news/national/feeder/default.rss',
+ 'https://www.thehindu.com/business/feeder/default.rss',
+ 'https://indianexpress.com/feed/',
+ 'https://indianexpress.com/section/business/feed/',
+ 'https://indianexpress.com/section/technology/feed/',
+ 'https://www.theguardian.com/world/rss',
+ 'https://feeds.npr.org/1001/rss.xml',
 ]
 USER_AGENT = 'AIStudioDailyNews/1.0 (+RSS metadata discovery)'
 
