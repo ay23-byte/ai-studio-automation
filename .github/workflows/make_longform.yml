@@ -1,4 +1,4 @@
-name: '2. Build a Documentary — review required'
+name: '2. Build a Documentary — automatic PRIVATE release'
 on:
   workflow_dispatch:
     inputs:
@@ -14,7 +14,7 @@ on:
         description: "Use Gemini vision to screen sampled shots against narration (extra model usage)"
         type: boolean
         required: true
-        default: false
+        default: true
       minutes:
         description: "Target length in minutes"
         type: choice
@@ -214,19 +214,18 @@ jobs:
             --voice-gender "$INPUT_VOICE_GENDER" \
             --force
 
-      # Review-only: assembles the shared package (manifest, research ledger, QA,
-      # dashboard). Fails the run when the documentary cannot be approved, so a
-      # green run always means "ready for a human". The artifact is uploaded either way.
-      - name: Assemble the review package (no upload)
+      # The build workflow never uploads. It packages machine-readable evidence
+      # consumed by the separate automatic PRIVATE release workflow after success.
+      - name: Assemble the documentary QA package (no upload)
         if: success()
         run: python scripts/package_build_for_review.py --mode longform
 
-      - name: Mark build as review-only (upload is a separate approved workflow)
+      - name: Mark build as ready for the separate private-release gate
         if: always()
         run: |
-          echo "This workflow only builds and packages a review artifact."
-          echo "No YouTube upload is attempted here."
-          echo "Use the separate 'Release approved documentary (Private)' workflow after human review."
+          echo "This workflow only builds and packages the documentary QA artifact."
+          echo "A separate workflow downloads this exact run and performs strict machine-only QA."
+          echo "Only a verified PRIVATE upload to Engineering Physics is permitted; failed gates block release."
 
       - name: Write job summary and run report
         if: always()
@@ -261,7 +260,10 @@ jobs:
         with:
           name: longform-qa-diagnostics-${{ github.run_id }}
           path: |
+            output/run_report.json
             build/job_*/quality_report.json
+            build/job_*/release_metadata.json
+            build/job_*/script.json
             build/job_*/visual_consistency_report.json
             build/job_*/visual_review_report.json
             build/job_*/research_verification_report.json
