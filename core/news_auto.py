@@ -410,10 +410,11 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     result = {"status": "built", "job_id": job_id, "video": str(video), "title": script["title"],
               "sources": [s["publisher"] for s in story["sources"]]}
     if upload:
-        from core.publish import DuplicateUpload, publish_job
+        from core.publish import DuplicateUpload
         from core.release_gate import ReleaseBlocked
+        from core.news_private_release import NewsAutoReleaseBlocked, publish_news_job
         try:
-            from core.news_private_release import publish_news_job\n            result["upload"] = publish_news_job(job_id, wait=True)
+            result["upload"] = publish_news_job(job_id, wait=True)
             result["status"] = "uploaded"
         except (ReleaseBlocked, DuplicateUpload, NewsAutoReleaseBlocked) as exc:
             # The video exists and is kept for review; it is simply not uploaded.
