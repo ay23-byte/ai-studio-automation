@@ -400,7 +400,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     (build_dir / "verification.json").write_text(json.dumps({
         "status": "PASS", "method": "deterministic source-tier and independence gate",
         "gate": story["gate"], "sources": story["sources"], "checked_at": _now().isoformat(),
-        "notice": "Automated corroboration of headlines only. Nothing is uploaded until a human has reviewed the package.",
+        "notice": "Automated source-tier corroboration only; the dedicated private-release gate independently checks script, render QA, MP4 geometry/duration, channel identity, and YouTube privacy read-back.",
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     video = build_shorts(script, job_id, language=language)
     # Record immediately so a later failure cannot cause the same story to be rebuilt.
@@ -410,14 +410,15 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     result = {"status": "built", "job_id": job_id, "video": str(video), "title": script["title"],
               "sources": [s["publisher"] for s in story["sources"]]}
     if upload:
-        from core.publish import DuplicateUpload, publish_job
+        from core.publish import DuplicateUpload
         from core.release_gate import ReleaseBlocked
+        from core.news_private_release import NewsAutoReleaseBlocked, publish_news_job
         try:
-            result["upload"] = publish_job(job_id, wait=True)
+            result["upload"] = publish_news_job(job_id, wait=True)
             result["status"] = "uploaded"
-        except (ReleaseBlocked, DuplicateUpload) as exc:
+        except (ReleaseBlocked, DuplicateUpload, NewsAutoReleaseBlocked) as exc:
             # The video exists and is kept for review; it is simply not uploaded.
-            # A new video always stops here: it has no human review yet.
+            # A failed automated gate leaves the MP4 available for investigation; it is never force-uploaded.
             result["status"] = "upload_blocked"
             result["upload_blocked_reason"] = str(exc)
             try:
