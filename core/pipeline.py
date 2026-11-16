@@ -126,11 +126,12 @@ def _voice_stage(checkpoint, text, bd, language, gender, refuse_robotic=False):
 
 
 def measured_runtime_report(script, narration, narration_seconds):
-    """Compare the synthesised narration with the runtime that was requested.
+    """Compare measured narration with both the lower and upper runtime bounds.
 
-    ``script["runtime_validation"]["target_minutes"]`` is the request (absent for scripts that
-    were not generated against a runtime, which are measured but never refused). The narration
-    must reach ``LONGFORM_MIN_MEASURED_RUNTIME_FRACTION`` (0.80) of it.
+    The report is checked before any footage is fetched. The lower bound prevents
+    under-length films; the upper bound prevents expensive renders that cannot meet
+    the requested duration. Set LONGFORM_MAX_MEASURED_RUNTIME_FRACTION to tune the
+    upper tolerance (default 1.10).
     """
     words = len(str(narration or "").split())
     seconds = float(narration_seconds or 0)
@@ -139,23 +140,40 @@ def measured_runtime_report(script, narration, narration_seconds):
         floor = float(os.getenv("LONGFORM_MIN_MEASURED_RUNTIME_FRACTION", "0.80") or 0.80)
     except ValueError:
         floor = 0.80
+    try:
+        ceiling = float(os.getenv("LONGFORM_MAX_MEASURED_RUNTIME_FRACTION", "1.10") or 1.10)
+    except ValueError:
+        ceiling = 1.10
     floor = min(1.0, max(0.0, floor))
+    ceiling = max(1.0, ceiling)
+    if ceiling < floor:
+        raise ValueError("LONGFORM_MAX_MEASURED_RUNTIME_FRACTION must be >= the minimum runtime fraction.")
     report = {
         "target_minutes": target, "narration_seconds": round(seconds, 3),
         "narration_minutes": round(seconds / 60.0, 2), "words": words,
         "words_per_minute": round(words / seconds * 60.0, 1) if seconds > 0 else 0.0,
-        "minimum_fraction": floor, "fraction_of_target": None, "status": "NOT_APPLICABLE", "issue": None,
+        "minimum_fraction": floor, "maximum_fraction": ceiling,
+        "fraction_of_target": None, "status": "NOT_APPLICABLE", "issue": None,
     }
     if target:
         fraction = seconds / (float(target) * 60.0)
         report["fraction_of_target"] = round(fraction, 4)
-        report["status"] = "PASS" if fraction >= floor else "FAIL"
         if fraction < floor:
+            report["status"] = "FAIL"
             report["issue"] = (
                 f"The narration runs {seconds / 60.0:.1f} minutes, {fraction:.0%} of the requested "
                 f"{float(target):g} minutes (at least {floor:.0%} is required). The script has {words} words, "
                 f"spoken at {report['words_per_minute']:.0f} words a minute. "
                 "Refusing to render an under-length documentary.")
+        elif fraction > ceiling:
+            report["status"] = "FAIL"
+            report["issue"] = (
+                f"The narration runs {seconds / 60.0:.1f} minutes, {fraction:.0%} of the requested "
+                f"{float(target):g} minutes (maximum {ceiling:.0%} is allowed). The script has {words} words, "
+                f"spoken at {report['words_per_minute']:.0f} words a minute. "
+                "Refusing to fetch footage or render an over-length documentary; shorten the narration and retry.")
+        else:
+            report["status"] = "PASS"
     return report
 
 
