@@ -71,8 +71,8 @@ RESEARCH & EVIDENCE RULES:
 - No defamatory or accusatory language beyond what reliable evidence supports. Explain uncertainty and limitations.
 
 RUNTIME & NARRATION:
-- Aim for approximately 145-155 spoken words per minute; total narration should fit the selected runtime, not include visual directions.
-- The requested upper runtime is {duration_max} minutes. Write at least {minimum_words} spoken words across all section narration (excluding titles, visual directions, captions and metadata), and target approximately {target_words} words.
+- Aim for approximately {target_wpm} spoken words per minute; total narration should fit the selected runtime, not include visual directions.
+- The requested upper runtime is {duration_max} minutes. Write at least {minimum_words} spoken words across all section narration (excluding titles, visual directions, captions and metadata), target approximately {target_words} words, and do not exceed {maximum_words} words.
 - Distribute narration meaningfully across the cold open, five chapters and outro. Do not make chapters into short summaries.
 - Do not pad or repeat. Expand with sourced context, mechanisms, examples, evidence limitations and consequences. Never invent facts to reach a word count.
 - Write natural spoken narration in the requested language. For Hindi, use conversational Devanagari Hindi. For Hinglish, use natural Hindi-English code-mixing in Roman script (Latin letters), not formal Hindi and not pure English. Keep technical terms in English where natural.
@@ -1056,7 +1056,8 @@ def generate_longform_script(topic: str, category: str = "finance",
     prompt = LONGFORM_PROMPT.format(
         topic=topic, category=("auto" if auto_category else requested_category),
         duration_min=duration_min, duration_max=duration_max, language=language,
-        minimum_words=minimum_words, target_words=target_words)
+        minimum_words=minimum_words, target_words=target_words, target_wpm=target_wpm,
+        maximum_words=target_words + max(50, int(target_words * 0.02)))
     if auto_category:
         prompt += (
             "\n\nUNIVERSAL DOCUMENTARY CATEGORY: Infer the most accurate subject category "
