@@ -195,7 +195,7 @@ jobs:
           CHANNEL_PROFILE: ${{ inputs.channel_profile || 'beyond_science' }}
           LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
-          VISUAL_SEMANTIC_MAX_SHOTS: "100"
+          VISUAL_SEMANTIC_MAX_SHOTS: "200"
           # Inputs are passed through the environment, never interpolated into
           # the shell script, so a topic containing quotes or $(...) cannot run code.
           INPUT_TOPIC: ${{ inputs.topic }}
