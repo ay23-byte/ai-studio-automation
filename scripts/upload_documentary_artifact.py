@@ -148,8 +148,8 @@ def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -
     if audio.get("status") != "PASS":
         raise ValueError("Audio quality report is failed or incomplete.")
     quality = reports["quality_report.json"]
-    if quality.get("status") != "PASS":
-        raise ValueError("Final video quality report is failed or incomplete.")
+    if quality.get("status") != "PASS" or quality.get("upload_blocked"):
+        raise ValueError("Final video quality report is failed, incomplete, or explicitly blocks upload.")
     research = reports["research_verification_report.json"]
     sources = research.get("sources") or []
     claims = research.get("claims") or []
