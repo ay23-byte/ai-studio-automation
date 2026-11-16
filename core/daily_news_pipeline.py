@@ -33,9 +33,32 @@ def _text(node, path, default=''):
     return (child.text or '').strip() if child is not None else default
 
 def _plain(html):
-    """RSS descriptions are HTML fragments; keep readable text only."""
-    import html as _html, re as _re
-    return _re.sub(r'\s+', ' ', _html.unescape(_re.sub(r'<[^>]+>', ' ', html or ''))).strip()
+    """Extract RSS text while omitting Google News' styled publisher-credit labels."""
+    import re as _re
+    from html.parser import HTMLParser
+
+    class _DescriptionText(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.parts = []
+            self.skip_depth = 0
+
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() == 'font':
+                self.skip_depth += 1
+
+        def handle_endtag(self, tag):
+            if tag.lower() == 'font' and self.skip_depth:
+                self.skip_depth -= 1
+
+        def handle_data(self, data):
+            if not self.skip_depth:
+                self.parts.append(data)
+
+    parser = _DescriptionText()
+    parser.feed(str(html or ''))
+    parser.close()
+    return _re.sub(r'\s+', ' ', ' '.join(parser.parts)).strip()
 
 def _item_id(url):
     return hashlib.sha256(url.strip().encode('utf-8')).hexdigest()[:20]
