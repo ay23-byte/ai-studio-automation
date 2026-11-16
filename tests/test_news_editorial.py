@@ -9,6 +9,17 @@ class NewsEditorialTests(unittest.TestCase):
  def test_related_headlines_cluster(self):
   groups=cluster_candidates(self.items,threshold=0.2)
   self.assertEqual(len(groups),2)
+ def test_google_news_redirects_use_real_publisher_domains(self):
+  items=[
+   {'id':'g1','title':'India launches new satellite mission','url':'https://news.google.com/rss/articles/one',
+    'publisher_url':'https://www.reuters.com/world/india/one','publisher':'Reuters','published':''},
+   {'id':'g2','title':'India satellite mission launch today','url':'https://news.google.com/rss/articles/two',
+    'publisher_url':'https://www.thehindu.com/science/space/two','publisher':'The Hindu','published':''}]
+  groups=cluster_candidates(items,threshold=0.2)
+  self.assertEqual(len(groups),1)
+  self.assertEqual(groups[0]['publisher_domain_count'],2)
+  self.assertEqual(groups[0]['publishers'],['reuters.com','thehindu.com'])
+
  def test_rank_is_explicitly_not_reliability(self):
   ranked=rank_clusters(cluster_candidates(self.items,0.2),self.items)
   self.assertIn('Not a fact-check',ranked[0]['score_explanation'])
