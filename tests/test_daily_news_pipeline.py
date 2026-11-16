@@ -21,6 +21,22 @@ class DailyNewsPipelineTests(unittest.TestCase):
         result = collect_candidates(['https://feed.test'])
         self.assertEqual(result['candidate_count'], 1)
         self.assertIn('independently verified', result['notice'])
+    @patch('core.daily_news_pipeline.collect_feed')
+    def test_reports_feed_health_and_partial_failures(self, feed):
+        item = {'id':'abc','title':'Headline','url':'https://x.test/a','publisher':'X','published':''}
+        def response(url):
+            if url.endswith('/broken'):
+                raise RuntimeError('temporary feed outage')
+            return [item]
+        feed.side_effect = response
+        result = collect_candidates(['https://feed.test/ok', 'https://feed.test/broken'])
+        self.assertEqual(result['feed_count'], 2)
+        self.assertEqual(result['healthy_feed_count'], 1)
+        self.assertEqual(result['failed_feed_count'], 1)
+        self.assertEqual(result['feed_health'][0]['candidate_count'], 1)
+        self.assertEqual(result['feed_health'][1]['status'], 'error')
+        self.assertEqual(result['candidate_count'], 1)
+
     def test_seen_state_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:
             mark_seen(['a','b'], tmp)
