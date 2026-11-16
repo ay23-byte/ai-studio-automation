@@ -86,8 +86,8 @@ jobs:
         with:
           name: documentary-private-release-${{ github.run_id }}
           path: |
-            youtube-upload-result.json
-            youtube-upload-failure.json
+            release-artifact/youtube-upload-result.json
+            release-artifact/youtube-upload-failure.json
           if-no-files-found: warn
           retention-days: 90
 
@@ -95,10 +95,10 @@ jobs:
         if: always()
         run: |
           echo "## Documentary private release" >> "$GITHUB_STEP_SUMMARY"
-          if [ -s youtube-upload-result.json ]; then
-            cat youtube-upload-result.json >> "$GITHUB_STEP_SUMMARY"
-          elif [ -s youtube-upload-failure.json ]; then
-            cat youtube-upload-failure.json >> "$GITHUB_STEP_SUMMARY"
+          if [ -s release-artifact/youtube-upload-result.json ]; then
+            cat release-artifact/youtube-upload-result.json >> "$GITHUB_STEP_SUMMARY"
+          elif [ -s release-artifact/youtube-upload-failure.json ]; then
+            cat release-artifact/youtube-upload-failure.json >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No verified upload result was produced." >> "$GITHUB_STEP_SUMMARY"
           fi
