@@ -202,7 +202,8 @@ def main():
             return
 
         vid_id, out = _build(script, args.format, language, category, t.get("topic") or title)
-        mark_done(topics, t)
+        if not args.auto_private_release:
+            mark_done(topics, t)
         print(f"Built: {out}")
         remaining = topic_queue.remaining()
         if remaining <= 3:
