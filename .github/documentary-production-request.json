@@ -1,9 +1,9 @@
 {
-  "_note": "Automated production test: English narration/subtitles, male presenter, video-first visuals, and semantic screening enabled. This is a build-only test; no YouTube upload is performed by the build workflow.",
+  "_note": "Automated production regression test (runtime ceiling, narration length, and paginated credits): English narration/subtitles, male presenter, video-first visuals, and semantic screening enabled. This is a build-only test; no YouTube upload is performed by the build workflow.",
   "topic": "How the James Webb Space Telescope Sees the First Galaxies",
   "category": "science",
   "semantic_review": true,
-  "minutes": "18",
+  "minutes": 18,
   "language": "english",
   "channel_profile": "beyond_science",
   "voice_gender": "male",

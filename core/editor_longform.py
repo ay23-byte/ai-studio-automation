@@ -98,9 +98,25 @@ def _seg(src, idx, dur, is_image, bd, shot=None):
     return out
 
 
-def _append_credits_card(video_path, credits_path):
-    """Append a restrained source-credit slate to the rendered documentary."""
+def _paginate_credit_lines(raw_lines, width=100, lines_per_page=14):
+    """Wrap and paginate the complete attribution register for readable end credits."""
     import textwrap
+
+    if width < 20:
+        raise ValueError("Credit line width must be at least 20 characters.")
+    if lines_per_page < 1:
+        raise ValueError("Credit lines per page must be at least one.")
+    display_lines = []
+    for line in raw_lines:
+        clean = str(line or "").strip()
+        if clean:
+            display_lines.extend(textwrap.wrap(clean, width=width) or [""])
+    return [display_lines[index:index + lines_per_page]
+            for index in range(0, len(display_lines), lines_per_page)]
+
+
+def _append_credits_card(video_path, credits_path):
+    """Append paginated, readable source credits without holding one static slate."""
 
     credits_file = Path(credits_path)
     if not credits_file.is_file():
@@ -112,28 +128,43 @@ def _append_credits_card(video_path, credits_path):
     ]
     if not raw_lines:
         return video_path
-    display_lines = []
-    for line in raw_lines:
-        display_lines.extend(textwrap.wrap(line, width=100) or [""])
-    duration = max(10.0, 6.0 + len(display_lines) * 0.48)
+
+    # The former implementation placed the entire 27 KB credits register on one
+    # static screen. Its duration grew by 0.48 s for every wrapped line (162 s in
+    # production), while most lines were outside the visible frame. Paginate it.
+    pages = _paginate_credit_lines(raw_lines, width=100, lines_per_page=14)
+    page_seconds = 3.75
+    duration = max(6.0, len(pages) * page_seconds)
 
     def ass_time(seconds):
         centiseconds = int(round(seconds * 100))
         return f"{centiseconds // 360000}:{(centiseconds // 6000) % 60:02d}:{(centiseconds % 6000) / 100:05.2f}"
 
-    body = r"\N".join(line.replace("{", "(").replace("}", ")") for line in display_lines)
     ass_path = Path(video_path).parent / "source_credits.ass"
+    events = []
+    for index, page in enumerate(pages):
+        page_start = index * page_seconds
+        page_end = duration if index == len(pages) - 1 else (index + 1) * page_seconds
+        heading = f"SOURCE CREDITS  /  {index + 1:02d} OF {len(pages):02d}"
+        body = r"\N".join(
+            line.replace("{", "(").replace("}", ")").replace("\\", "/")
+            for line in page
+        )
+        events.append(
+            f"Dialogue: 0,{ass_time(page_start)},{ass_time(page_end)},Heading,,0,0,0,,{heading}"
+        )
+        events.append(
+            f"Dialogue: 0,{ass_time(page_start)},{ass_time(page_end)},Credit,,0,0,0,,{body}"
+        )
     ass_content = "\n".join([
         "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1920",
         "PlayResY: 1080", "WrapStyle: 2", "", "[V4+ Styles]",
         "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding",
-        "Style: Heading,Noto Sans,48,&H00D6C39A,&H000000FF,&H0010151D,&H0010151D,1,0,0,0,100,100,0,0,1,0,0,8,110,110,70,1",
-        "Style: Credit,Noto Sans,25,&H00F2F2F2,&H000000FF,&H0010151D,&H0010151D,0,0,0,0,100,100,0,0,1,0,0,7,120,120,170,1",
+        "Style: Heading,Noto Sans,42,&H00D6C39A,&H000000FF,&H0010151D,&H0010151D,1,0,0,0,100,100,0,0,1,0,0,8,110,110,48,1",
+        "Style: Credit,Noto Sans,24,&H00F2F2F2,&H000000FF,&H0010151D,&H0010151D,0,0,0,0,100,100,0,0,1,0,0,7,120,120,125,1",
         "", "[Events]",
         "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text",
-        f"Dialogue: 0,0:00:00.00,{ass_time(duration)},Heading,,0,0,0,,SOURCE CREDITS",
-        f"Dialogue: 0,0:00:00.00,{ass_time(duration)},Credit,,0,0,0,,{body}",
-        "",
+        *events, "",
     ])
     ass_path.write_text(ass_content, encoding="utf-8")
     temp_out = Path(video_path).with_name(Path(video_path).stem + "_with_credits.mp4")
@@ -156,7 +187,7 @@ def _append_credits_card(video_path, credits_path):
             temp_out.replace(video_path)
     finally:
         temp_out.unlink(missing_ok=True)
-        ass_path.unlink(missing_ok=True)  # scratch file; never leave it beside deliverables
+        ass_path.unlink(missing_ok=True)
     return video_path
 
 def _segment_key(src, dur, is_image, shot):

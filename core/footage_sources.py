@@ -106,6 +106,7 @@ def reset_run_state():
         _HOST_LAST_REQUEST.clear()
         _JSON_CACHE.clear()
         _DVIDS_RUN.update(headers=None, legacy_tried=False)
+        _RUN_SUBJECT["text"] = ""
     stock = sys.modules.get("core.images")
     if stock is not None and hasattr(stock, "reset_stock_state"):
         stock.reset_stock_state()
@@ -552,13 +553,36 @@ def _nasa_renditions(manifest):
     return [url for _rank, url in sorted(ranked)]
 
 
+def _shorter_query(query, words=3):
+    """The first few subject words of a long query, or "" when the query is already short.
+
+    Archive searches match every word, so "James Webb Space Telescope sunshield deployment test"
+    can return nothing while "James Webb Space" returns hundreds. Results of the shorter search
+    are still ranked and accepted against the full query.
+    """
+    parts = [word for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", str(query or ""))
+             if len(word) > 2 and word.lower() not in _GENERIC_QUERY_WORDS]
+    return " ".join(parts[:words]) if len(parts) > words else ""
+
+
 def _nasa(query):
-    """NASA Image and Video Library. No key. One search, then the asset manifest per hit."""
+    """NASA Image and Video Library. No key. One search, then the asset manifest per hit.
+
+    A long query that finds nothing is searched once more by its first subject words.
+    """
     results = []
+    searched_as = query
     for page in range(1, _search_pages() + 1):
         data = _get_json("https://images-api.nasa.gov/search",
-                         {"q": query, "media_type": "video", "page_size": 12, "page": page})
+                         {"q": searched_as, "media_type": "video", "page_size": 12, "page": page})
         items = ((data or {}).get("collection") or {}).get("items") or []
+        if page == 1 and not items and data is not None:
+            shorter = _shorter_query(query)
+            if shorter:
+                searched_as = shorter
+                data = _get_json("https://images-api.nasa.gov/search",
+                                 {"q": searched_as, "media_type": "video", "page_size": 12, "page": page})
+                items = ((data or {}).get("collection") or {}).get("items") or []
         _count("results_found", len(items))
         ranked = sorted(items, key=lambda item: -_lead_relevance(
             query, ((item.get("data") or [{}])[0]).get("title"),
@@ -595,7 +619,7 @@ def _nasa(query):
                 "page_url": f"https://images.nasa.gov/details/{quote(nasa_id)}" if nasa_id else "",
                 "licence": "Public Domain" if explicit_public_domain else "NASA Media Usage Guidelines",
                 "licence_url": NASA_LICENCE_URL,
-                "query": query, "alternate_urls": urls[1:4],
+                "query": query, "searched_as": searched_as, "alternate_urls": urls[1:4],
                 "rights_statement": "NASA media usage guidelines: NASA content is generally not subject to U.S. copyright unless third-party copyright is indicated; credit NASA and inspect all embedded third-party material.",
                 "licence_status": "NASA center metadata present and no third-party/copyright marker detected; human review required",
             }
@@ -1358,10 +1382,28 @@ def _expanded_queries(keywords, scene_prompt=""):
 
 
 _NASA_TOPICS = {
-    "space", "nasa", "planet", "mars", "moon", "lunar", "astronaut", "rocket", "apollo", "saturn",
-    "satellite", "orbit", "shuttle", "telescope", "galaxy", "solar", "spacecraft", "launch", "iss",
-    "hubble", "comet", "asteroid", "jupiter", "venus", "mercury", "cosmos", "universe",
+    "space", "nasa", "planet", "planets", "mars", "moon", "lunar", "astronaut", "astronauts", "rocket",
+    "rockets", "apollo", "saturn", "satellite", "satellites", "orbit", "orbital", "shuttle", "telescope",
+    "telescopes", "galaxy", "galaxies", "solar", "spacecraft", "launch", "iss", "hubble", "comet", "comets",
+    "asteroid", "asteroids", "jupiter", "venus", "mercury", "cosmos", "cosmic", "universe", "webb", "jwst",
+    "nebula", "nebulae", "exoplanet", "exoplanets", "astronomy", "astronomer", "astronomers", "astrophysics",
+    "infrared", "star", "stars", "stellar", "supernova", "voyager", "artemis", "earth", "sun", "rover",
+    "observatory", "cosmology", "interstellar", "milky",
 }
+
+# The subject of the whole production (documentary title and category). A scene of a space
+# documentary is often worded without a space term ("gold mirror segments unfolding"); the
+# subject keeps the specialist archive in that scene's pool.
+_RUN_SUBJECT = {"text": ""}
+
+
+def set_run_subject(*parts):
+    """Record what the production is about; cleared by ``reset_run_state``."""
+    _RUN_SUBJECT["text"] = " ".join(str(part or "") for part in parts).strip()
+
+
+def run_subject():
+    return _RUN_SUBJECT["text"]
 
 
 def _host_status(host, enabled=True, auth="not_required", reason=""):
@@ -1394,7 +1436,7 @@ def archive_providers(context=""):
         return _key_status("api.europeana.eu", EUROPEANA_API_KEY, "EUROPEANA_API_KEY")
 
     providers = []
-    if _tokens(context) & _NASA_TOPICS:
+    if (_tokens(context) | _tokens(run_subject())) & _NASA_TOPICS:
         providers.append(Provider("NASA", lambda query: _nasa(query),
                                   status=lambda: _host_status("images-api.nasa.gov")))
     providers += [

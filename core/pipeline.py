@@ -75,7 +75,28 @@ def _caption_fonts(header: str, *samples) -> str:
     return header if family == "Noto Sans" else header.replace(",Noto Sans,", f",{family},")
 
 
-def _voice_stage(checkpoint, text, bd, language, gender):
+def robotic_narration_problem(build_dir):
+    """Why this narration can never be published, or ``None``.
+
+    When the voice provider does not answer, the narration falls back to the offline robotic
+    voice so that short formats still get a file. Audio QA always refuses a documentary with
+    that voice, so building the rest of it (two hours in production build 43702915253) only
+    delays the same refusal. ``LONGFORM_ALLOW_ROBOTIC_NARRATION=1`` keeps the old behaviour.
+    """
+    if os.getenv("LONGFORM_ALLOW_ROBOTIC_NARRATION", "").strip().lower() in ("1", "true", "yes"):
+        return None
+    from core.review_packaging import ROBOTIC_ENGINES, narration_metadata
+    narration = narration_metadata(build_dir)
+    engine = str(narration.get("provider") or "").lower()
+    if not (narration.get("fallback_used") and engine in ROBOTIC_ENGINES):
+        return None
+    return (f"Narration failed, no natural voice was available: {narration.get('fallback_reason') or 'no reason recorded'} "
+            f"Only the robotic offline voice ({engine}) was left. Audio QA never accepts it, so the build "
+            "stops here instead of rendering a film that would be refused. Start a new run; if the same "
+            "phrase stops every voice again, the wording of that phrase is the cause.")
+
+
+def _voice_stage(checkpoint, text, bd, language, gender, refuse_robotic=False):
     """Narration with checkpoint reuse: identical text/voice is never re-synthesised."""
     import json
     timings_path = Path(bd) / "voice_timings.json"
@@ -85,6 +106,11 @@ def _voice_stage(checkpoint, text, bd, language, gender):
 
     def run():
         path, timings = synthesise(text, bd, language=language, gender=gender)
+        if refuse_robotic:
+            # Raised inside the checkpointed step, so a later run speaks the narration again.
+            problem = robotic_narration_problem(bd)
+            if problem:
+                raise RuntimeError(problem)
         timings_path.write_text(json.dumps([[float(a), float(b), str(c)] for a, b, c in timings],
                                            ensure_ascii=False), encoding="utf-8")
         return str(path)
@@ -97,6 +123,157 @@ def _voice_stage(checkpoint, text, bd, language, gender):
     except (OSError, ValueError) as exc:
         raise RuntimeError("Narration timings are missing or unreadable.") from exc
     return Path(path or voice_path), timings
+
+
+def measured_runtime_report(script, narration, narration_seconds):
+    """Compare measured narration with both the lower and upper runtime bounds.
+
+    The report is checked before any footage is fetched. The lower bound prevents
+    under-length films; the upper bound prevents expensive renders that cannot meet
+    the requested duration. Set LONGFORM_MAX_MEASURED_RUNTIME_FRACTION to tune the
+    upper tolerance (default 1.10).
+    """
+    words = len(str(narration or "").split())
+    seconds = float(narration_seconds or 0)
+    target = (script.get("runtime_validation") or {}).get("target_minutes")
+    try:
+        floor = float(os.getenv("LONGFORM_MIN_MEASURED_RUNTIME_FRACTION", "0.80") or 0.80)
+    except ValueError:
+        floor = 0.80
+    try:
+        ceiling = float(os.getenv("LONGFORM_MAX_MEASURED_RUNTIME_FRACTION", "1.10") or 1.10)
+    except ValueError:
+        ceiling = 1.10
+    floor = min(1.0, max(0.0, floor))
+    ceiling = max(0.0, ceiling)
+    if ceiling < floor:
+        raise ValueError("LONGFORM_MAX_MEASURED_RUNTIME_FRACTION must be >= the minimum runtime fraction.")
+    report = {
+        "target_minutes": target, "narration_seconds": round(seconds, 3),
+        "narration_minutes": round(seconds / 60.0, 2), "words": words,
+        "words_per_minute": round(words / seconds * 60.0, 1) if seconds > 0 else 0.0,
+        "minimum_fraction": floor, "maximum_fraction": ceiling,
+        "fraction_of_target": None, "status": "NOT_APPLICABLE", "issue": None,
+    }
+    if target:
+        fraction = seconds / (float(target) * 60.0)
+        report["fraction_of_target"] = round(fraction, 4)
+        if fraction < floor:
+            report["status"] = "FAIL"
+            report["issue"] = (
+                f"The narration runs {seconds / 60.0:.1f} minutes, {fraction:.0%} of the requested "
+                f"{float(target):g} minutes (at least {floor:.0%} is required). The script has {words} words, "
+                f"spoken at {report['words_per_minute']:.0f} words a minute. "
+                "Refusing to render an under-length documentary.")
+        elif fraction > ceiling:
+            report["status"] = "FAIL"
+            report["issue"] = (
+                f"The narration runs {seconds / 60.0:.1f} minutes, {fraction:.0%} of the requested "
+                f"{float(target):g} minutes (maximum {ceiling:.0%} is allowed). The script has {words} words, "
+                f"spoken at {report['words_per_minute']:.0f} words a minute. "
+                "Refusing to fetch footage or render an over-length documentary; shorten the narration and retry.")
+        else:
+            report["status"] = "PASS"
+    return report
+
+
+def max_shot_seconds():
+    """Longest time one B-roll picture may stay on screen: ``LONGFORM_MAX_SHOT_SECONDS`` (12, 0 = no limit)."""
+    try:
+        value = float(os.getenv("LONGFORM_MAX_SHOT_SECONDS", "12") or 12)
+    except ValueError:
+        value = 12.0
+    return 0.0 if value <= 0 else max(4.0, value)
+
+
+def split_long_beat(shot, acquire, limit_seconds, max_parts=4):
+    """Cover one long narration beat with several different pictures instead of one.
+
+    A storyboard beat can last 30-40 seconds in a long documentary; one clip looping for that
+    long reads as a slideshow. The beat keeps its narration, prompt and search terms, and
+    ``acquire(part_number)`` is asked for another asset ({"type", "path"}) for each further
+    part. When no further asset exists the last picture found simply stays for the rest of
+    the beat, so the timeline never has a gap. Returns the shots in order; their durations
+    add up to the beat's original duration.
+    """
+    duration = float(shot.get("_dur") or 0.0)
+    if not limit_seconds or duration <= limit_seconds:
+        return [shot]
+    import math
+    parts = min(int(max_parts), int(math.ceil(duration / float(limit_seconds))))
+    if parts <= 1:
+        return [shot]
+    part_seconds = duration / parts
+    start = float(shot.get("_start") or 0.0)
+    shots = [shot]
+    for number in range(2, parts + 1):
+        try:
+            media = acquire(number)
+        except Exception as exc:
+            print(f"  additional picture {number} for this beat failed: {type(exc).__name__}: {exc}")
+            media = None
+        if not media:
+            break
+        extra = dict(shot)
+        extra["_media"] = media
+        extra["beat_part"] = number
+        if extra.get("title"):
+            extra["title"] = ""            # the chapter heading belongs to the first picture only
+        shots.append(extra)
+    shot["beat_part"] = 1
+    for index, item in enumerate(shots):
+        item["_start"] = start + index * part_seconds
+        item["_dur"] = part_seconds
+        item["beat_parts"] = len(shots)
+    shots[-1]["_dur"] = duration - part_seconds * (len(shots) - 1)
+    return shots
+
+
+def repair_unusable_pictures(shot_timeline, replace, check=None, max_attempts=3):
+    """Replace, before the edit, every B-roll picture that the picture audit would refuse.
+
+    The audit of the finished film cannot be overridden, and it runs after everything else, so
+    one black clip used to cost the whole build. Here each shot that carries ``_picture_repair``
+    (B-roll found or generated for a storyboard beat) is measured with the audit's own rule on
+    the seconds it shows. ``replace(shot, problem, attempt)`` returns another asset
+    ({"type", "path"}, optionally ``"project_graphic": True`` for a card drawn by this project,
+    which is not measured again) or None when nothing else exists.
+
+    Returns one record per shot that had a problem; ``"resolved"`` says whether it was replaced.
+    """
+    if check is None:
+        from core.visual_consistency import media_picture_problem
+
+        def check(path, seconds):
+            return media_picture_problem(path, window_seconds=seconds, dark_margin=0.0, check_size=True)
+
+    records = []
+    for index, shot in enumerate(shot_timeline):
+        media = shot.get("_media") or {}
+        if not shot.get("_picture_repair") or not media.get("path") or media.get("project_graphic"):
+            continue
+        problem = check(media["path"], shot.get("_dur"))
+        if not problem:
+            continue
+        record = {"shot": index + 1, "problem": problem, "original": str(media["path"]),
+                  "attempts": 0, "resolved": False, "replacement": None}
+        while problem and record["attempts"] < max_attempts:
+            record["attempts"] += 1
+            try:
+                new_media = replace(shot, problem, record["attempts"])
+            except Exception as exc:
+                print(f"  replacement {record['attempts']} for shot {index + 1} failed: {type(exc).__name__}: {exc}")
+                new_media = None
+            if not new_media:
+                continue
+            shot["_media"] = new_media
+            record["replacement"] = str(new_media.get("path"))
+            problem = None if new_media.get("project_graphic") else check(new_media["path"], shot.get("_dur"))
+        record["resolved"] = not problem
+        if problem:
+            record["remaining_problem"] = problem
+        records.append(record)
+    return records
 
 
 def _fallback_card(path, text, *, size, kicker, index, total, category, keywords=None):
@@ -709,8 +886,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     full_narration = " ".join(sec.get("narration","") for sec in sections)
     checkpoint = Checkpoint(job_id, bd)
     update_video(job_id, status="building", error=None)
-    voice_path, timings = _voice_stage(checkpoint, full_narration, bd, language, voice_gender)
+    voice_path, timings = _voice_stage(checkpoint, full_narration, bd, language, voice_gender,
+                                       refuse_robotic=True)
     total = _media_seconds(voice_path)
+    # The script gate counts words; this one measures the narration that was actually
+    # synthesised, before any visual is fetched or rendered.
+    runtime_report = measured_runtime_report(script, full_narration, total)
+    import json as _json
+    (bd / "runtime_report.json").write_text(_json.dumps(runtime_report, indent=2), encoding="utf-8")
+    print(f"Measured narration: {runtime_report['narration_minutes']:.1f} min, "
+          f"{runtime_report['words']} words, {runtime_report['words_per_minute']:.0f} words a minute.")
+    if runtime_report["status"] == "FAIL":
+        raise RuntimeError(runtime_report["issue"])
 
     # Chapter boundaries follow the measured narration (phrase timings from the
     # voice stage) instead of a word-count estimate, so chapter slates, lower
@@ -721,6 +908,12 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # rejected and why, and which scenes still need a person.
     from core import footage_report, footage_sources
     footage_sources.reset_run_state()
+    footage_sources.set_run_subject(script.get("title"), script.get("topic"), script.get("category"))
+    # The finished film is refused when a source is smaller than the visual audit's floor, so
+    # refuse such a clip here, while the next candidate can still take its place.
+    from core import visual_consistency
+    os.environ.setdefault("FOOTAGE_MIN_WIDTH", str(visual_consistency.MIN_SOURCE_WIDTH))
+    os.environ.setdefault("FOOTAGE_MIN_HEIGHT", str(visual_consistency.MIN_SOURCE_HEIGHT))
     footage_run = footage_report.begin_run(f"long-form job {job_id}")
     section_spans = align_units([str(sec.get("narration", "")) for sec in sections], timings, total,
                                 min_duration=3.0)
@@ -733,8 +926,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # The spoken audio and its timing remain untouched; only visible subtitle text
     # changes. This runs BEFORE visuals so a translation outage fails fast instead
     # of after every asset has been produced, and its result is checkpointed.
-    from core.subtitle_translation import translate_longform_subtitles, normalize_subtitle_language
-    subtitle_target = normalize_subtitle_language(
+    from core.subtitle_translation import (
+        documentary_subtitle_language, english_subtitle_report, translate_longform_subtitles,
+    )
+    # English subtitles only: Hindi, Hinglish or as-spoken subtitles are refused here.
+    subtitle_target = documentary_subtitle_language(
         subtitle_language or os.getenv("SUBTITLE_LANGUAGE", "english"))
     translation_path = bd / "subtitle_translation.json"
 
@@ -750,8 +946,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                   "because SUBTITLE_TRANSLATION_FALLBACK=source.")
             lines, titles = list(timings), [str(sec.get("title") or "") for sec in sections]
             mode = "source_fallback"
+        english_check = None
+        if subtitle_target == "english":
+            # Whatever produced the text (translation, or the narration as spoken), it is
+            # only burned in and exported if it really is English.
+            english_check = english_subtitle_report([text for _, _, text in lines] + list(titles))
+            if english_check["status"] != "PASS":
+                raise RuntimeError(
+                    "Subtitles are not English and were not rendered: " + " ".join(english_check["issues"])
+                    + (" The translation failed and the spoken text is not English." if mode == "source_fallback" else "")
+                )
         translation_path.write_text(json.dumps(
-            {"target": subtitle_target, "mode": mode,
+            {"target": subtitle_target, "mode": mode, "english_check": english_check,
              "captions": [[float(a), float(b), str(c)] for a, b, c in lines], "titles": titles},
             ensure_ascii=False, indent=2), encoding="utf-8")
         return {"target": subtitle_target, "mode": mode}
@@ -830,15 +1036,36 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     f"but the chapter narration is {sec['_dur']:.2f}s. Recreate the clip "
                     "from that chapter's exact narration audio so lip-sync stays aligned."
                 )
-            from core.presenter_quality import inspect_presenter_clip, write_presenter_metadata
+            from core.presenter_quality import (
+                analyse_presenter_motion, inspect_presenter_clip, read_presenter_metadata,
+                read_render_record, write_presenter_metadata,
+            )
+            # The narration slice the clip was rendered from, when it is on record. Comparing
+            # the clip with its own length proves nothing.
+            recorded = read_presenter_metadata(avatar_clip)
+            render_record = read_render_record(avatar_clip)
+            expected_duration = recorded.get("narration_segment_seconds")
             validation = inspect_presenter_clip(
-                avatar_clip, expected_duration=actual_duration,
-                tolerance_seconds=0.75, require_audio=True,
+                avatar_clip, expected_duration=expected_duration,
+                tolerance_seconds=0.75 if expected_duration is None else 0.25, require_audio=True,
+                ffprobe=ffprobe_bin(),
             )
             if validation["status"] == "FAIL":
                 raise ValueError(
                     f"Talking Avatar clip for chapter {i + 1} failed A/V validation: "
                     + "; ".join(validation["issues"])
+                )
+            # Count the frames that are really different and check the mouth moves with the
+            # voice. A file that states 30 fps but repeats one picture is not accepted.
+            motion = analyse_presenter_motion(
+                avatar_clip, mouth_box=render_record.get("mouth_box"),
+                mouth_track=render_record.get("mouth_open_per_frame"),
+                ffmpeg=ffmpeg_bin(), ffprobe=ffprobe_bin(),
+            )
+            if motion["status"] == "FAIL":
+                raise ValueError(
+                    f"Talking Avatar clip for chapter {i + 1} failed the motion check: "
+                    + "; ".join(motion["issues"])
                 )
             write_presenter_metadata(avatar_clip, {
                 "provider": "AI Studio Avatar Studio (Talking Avatar SDK)",
@@ -846,9 +1073,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "model": "AI Studio Avatar Studio 3D renderer",
                 "prompt": "3D virtual documentary presenter generated from the chapter narration audio; an illustrative host, not a real interview or documentary source.",
                 "presenter_mode": "talking_avatar",
-                "validation": validation, "lip_sync_verified": False,
-                "licence_status": "Review the Avatar Studio/SDK and built-in avatar terms before redistribution or commercial use.",
-                "notice": "AI-generated presenter footage. Stream and duration alignment do not prove phoneme-level lip-sync; human visual/audio and terms review remains required.",
+                "validation": validation, "motion": motion, "lip_sync_verified": False,
+                "human_visual_review": "pending",
+                "licence": "MIT",
+                "licence_status": "Talking Avatar SDK and the built-in Microsoft Rocketbox avatars are MIT licensed; keep the licence notice with redistributed copies.",
+                "notice": "AI-generated presenter footage. Frame, freeze and mouth-movement measurements do not prove phoneme-level lip-sync; a person must watch the clip before release.",
             })
             presenter_shot = dict(sec)
             presenter_shot["visual_type"] = "presenter"
@@ -860,9 +1089,17 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             presenter_shot["_chapter_index"] = i
             presenter_shot["title"] = sec.get("title", "")
             presenter_shot["presenter_mode"] = "talking_avatar"
+            measured = motion["status"] == "PASS" and validation["status"] == "PASS"
             presenter_shot["presenter_sync_status"] = (
-                "duration_aligned" if validation["status"] == "PASS" else "duration_aligned_review"
+                "motion_measured_human_review_pending" if measured else "duration_aligned_review"
             )
+            presenter_shot["presenter_motion"] = {
+                key: motion.get(key) for key in (
+                    "status", "distinct_frame_rate", "longest_frozen_seconds", "repeated_frame_ratio",
+                    "voiced_mouth_motion_ratio", "mouth_track_offset_frames", "mouth_measured", "warnings",
+                )
+            }
+            presenter_shot["presenter_human_review"] = "pending"
             presenter_shot["presenter_lip_sync_verified"] = False
             presenter_shot["_start"] = shot_cursor
             presenter_shot["_dur"] = actual_duration
@@ -1016,6 +1253,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             kws = beat["keywords"] or sec.get("keywords", ["documentary"])
             # Search with concise semantic anchors, not cinematic camera/lens prose.
             scene_search_brief = _scene_search_brief(beat, kws)
+            shot["_picture_repair"] = {"keywords": list(kws), "brief": scene_search_brief, "chapter": i, "beat": j,
+                                       "kicker": str(sec.get("title") or f"Chapter {i+1}")[:40],
+                                       "card_keywords": beat.get("keywords") or None,
+                                       "card_allowed": str(beat.get("visual_type") or "").lower() != "archival"}
             # Resume: a visual acquired for this exact prompt by an interrupted
             # attempt is reused instead of being searched/generated again.
             prompt_signature = stable_hash(prompt, beat.get("visual_type"), kws)
@@ -1112,7 +1353,27 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "type": shot["_media"]["type"], "path": str(shot["_media"]["path"]),
                 "fallback_card": str(shot["_media"]["path"]) in fallback_state["cards"],
             })
-            shot_timeline.append(shot)
+            # A beat longer than the shot limit gets further, different pictures for the same
+            # narration. Explainer cards and context graphics are not multiplied.
+            is_substitute = (str(shot["_media"]["path"]) in fallback_state["cards"]
+                             or shot.get("visual_type") == "context_graphic")
+
+            def more_pictures(number, _i=i, _j=j, _kws=kws, _brief=scene_search_brief, _prompt=prompt):
+                extra_clip = bd / f"lraw{_i}_{_j}_{number}.mp4"
+                if fetch_clip(_kws, extra_clip, used_ids, scene_prompt=_brief):
+                    return {"type": "video", "path": str(extra_clip)}
+                extra_image = bd / f"limg{_i}_{_j}_{number}.jpg"
+                angle = ("a different angle and framing of the same subject",
+                         "a close-up detail of the same subject",
+                         "a wide establishing view of the same setting")[(number - 2) % 3]
+                if generate_image(_prompt + f" Show {angle}.", extra_image, category=script.get("category", "general")):
+                    return {"type": "image", "path": str(extra_image)}
+                return None
+
+            beat_shots = [shot] if is_substitute else split_long_beat(shot, more_pictures, max_shot_seconds())
+            if len(beat_shots) > 1:
+                print(f"  long-form visual {i+1}.{j+1}: {shot_dur:.0f} s beat covered by {len(beat_shots)} pictures")
+            shot_timeline.extend(beat_shots)
 
     # Optional second-pass Wan2.1 handoff: mapped review shots replace the
     # corresponding generated visuals before the EDL, review manifest and render.
@@ -1124,6 +1385,44 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             f"Wan2.1 timeline adapter: {wan_result['applied_count']} clips applied; "
             "all mapped clips remain pending human review and rights clearance."
         )
+
+    # Measure every chosen B-roll picture with the final audit's rule and replace the ones it
+    # would refuse, while replacing is still possible.
+    def replace_picture(shot, problem, attempt):
+        plan = shot["_picture_repair"]
+        stem = f"{plan['chapter']}_{plan['beat']}_{int(shot.get('beat_part') or 1)}_{attempt}"
+        if attempt < 3:
+            clip = bd / f"lfix{stem}.mp4"
+            if fetch_clip(plan["keywords"], clip, used_ids, scene_prompt=plan["brief"]):
+                return {"type": "video", "path": str(clip)}
+            return None
+        card = bd / f"lcardfix{stem}.jpg"
+        if plan["card_allowed"] and _fallback_card(
+                card, shot.get("narration") or "", size=(W_L, H_L), kicker=plan["kicker"], index=plan["chapter"],
+                total=len(sections), category=script.get("category", "general"), keywords=plan["card_keywords"]):
+            shot["visual_type"] = "context_graphic"
+            shot["visual_disclosure"] = "Original explainer graphic; the footage found for this moment was unusable."
+            fallback_state["cards"].append(str(card))
+            return {"type": "image", "path": str(card), "project_graphic": True}
+        return None
+
+    picture_repairs = repair_unusable_pictures(shot_timeline, replace_picture)
+    (bd / "picture_repair_report.json").write_text(json.dumps({
+        "checked_rule": "core.visual_consistency.picture_defects on the seconds each shot shows",
+        "replaced": sum(1 for item in picture_repairs if item["resolved"]),
+        "unresolved": sum(1 for item in picture_repairs if not item["resolved"]),
+        "shots": picture_repairs,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    for item in picture_repairs:
+        print(f"  picture check: shot {item['shot']} ({item['problem']}) "
+              + ("replaced" if item["resolved"] else "could NOT be replaced"))
+    unresolved_pictures = [item for item in picture_repairs if not item["resolved"]]
+    if unresolved_pictures:
+        raise RuntimeError(
+            f"No usable footage for {len(unresolved_pictures)} shot(s): the picture found is unusable and no "
+            "replacement exists (" + "; ".join(
+                f"shot {item['shot']}: {item.get('remaining_problem') or item['problem']}"
+                for item in unresolved_pictures[:6]) + "). Refusing to render a film that the picture audit would reject.")
 
     if not any(item.get("_media", {}).get("path") for item in shot_timeline):
         raise RuntimeError("No usable long-form visuals were generated. Configure an image provider or add licensed clips.")
@@ -1307,6 +1606,6 @@ build_longform = _record_failures(build_longform)
 
 # Record one event per complete render operation.
 from core.monitoring import monitored as _monitored
-from core.ffmpeg_utils import PROBE_TIMEOUT, ffprobe_bin
+from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
 build_shorts = _monitored("pipeline", "build_shorts", build_shorts)
 build_longform = _monitored("pipeline", "build_longform", build_longform)

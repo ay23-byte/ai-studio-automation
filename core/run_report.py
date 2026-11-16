@@ -172,7 +172,7 @@ def _voice_section(build_dir: Path) -> dict:
         "provider": actual,
         "voice": report.get("voice"),
         "language": report.get("language"),
-        "fallback_reason": _redact(report.get("fallback_reason"))[:400] if report.get("fallback_reason") else None,
+        "fallback_reason": _redact(report.get("fallback_reason"))[:700] if report.get("fallback_reason") else None,
         "speech_seconds": report.get("speech_seconds"),
     }
 
@@ -364,7 +364,7 @@ def _recent_alerts(limit: int = 3, include_info: bool = False) -> list[str]:
             continue  # the run-level alert quotes this report; never quote it back
         important = message.startswith(("❌", "⚠️")) or entry.get("level") in {"error", "warning"}
         if important or (include_info and message.startswith("ℹ️")):
-            alerts.append(_redact(message)[:400])
+            alerts.append(_redact(message)[:700])
     return alerts[-limit:]
 
 
@@ -434,6 +434,7 @@ def collect(pipeline: str, job_id: int | None = None, *, job_status: str | None 
                 or "No job was created in this run (no eligible topic or story)."),
             "upload": {"status": "not attempted"},
         })
+        _categorise(report)
         return report
 
     build_dir = build_root / f"job_{row.get('id')}"
@@ -475,13 +476,17 @@ def collect(pipeline: str, job_id: int | None = None, *, job_status: str | None 
 
     reasons = []
     if row.get("error"):
-        reasons.append(_redact(row["error"])[:400])
+        reasons.append(_redact(row["error"])[:700])
     reasons += [f"stage '{item['stage']}' did not finish" + (f": {item['error']}" if item.get("error") else "")
                 for item in failed_stages]
     if outcome in {FAILED, UPLOAD_BLOCKED}:
         if upload.get("reason"):
             reasons.append(upload["reason"])
         reasons += [f"QA: {item}" for item in (quality.get("issues") or [])[:3]]
+        # The review packager records why a package cannot be approved. Without this the
+        # report said only that "no failure detail was recorded" when packaging failed.
+        package = _load(build_dir / "shared_review_package" / "package_summary.json")
+        reasons += [f"Review package: {_redact(item)[:300]}" for item in (package.get("errors") or [])[:5]]
         if not reasons and alerts:
             reasons.append(alerts[-1])
         if not reasons:
@@ -508,7 +513,22 @@ def collect(pipeline: str, job_id: int | None = None, *, job_status: str | None 
         "failure_reason": "; ".join(dict.fromkeys(reasons))[:1200] if reasons and outcome in {FAILED, UPLOAD_BLOCKED} else None,
         "skip_reason": None,
     })
+    _categorise(report)
     return report
+
+
+def _categorise(report: dict) -> None:
+    """Name the kind of failure and the next action, from the first recorded reason."""
+    if not report.get("failure_reason"):
+        report["failure_category"] = None
+        return
+    from core.failure_category import classify_failure
+    found = classify_failure(str(report["failure_reason"]).split("; ")[0])
+    if found["category"] == "unknown":
+        found = classify_failure(report["failure_reason"])
+    report["failure_category"] = found["category"]
+    report["failure_category_label"] = found["label"]
+    report["failure_action"] = found["action"]
 
 
 def _fmt_duration(seconds) -> str:
@@ -543,6 +563,8 @@ def to_markdown(report: dict) -> str:
         rows.append(("Upload status", "not attempted"))
         if report.get("failure_reason"):
             rows.append(("Failure reason", report["failure_reason"]))
+        if report.get("failure_category"):
+            rows.append(("Failure category", f"{report.get('failure_category_label')}: {report.get('failure_action')}"))
         if report.get("skip_reason"):
             rows.append(("Why nothing was built", report["skip_reason"]))
     else:
@@ -600,6 +622,8 @@ def to_markdown(report: dict) -> str:
                          + (f": {upload.get('reason')}" if upload.get("reason") else "")))
         if report.get("failure_reason"):
             rows.append(("Failure reason", report["failure_reason"]))
+        if report.get("failure_category"):
+            rows.append(("Failure category", f"{report.get('failure_category_label')}: {report.get('failure_action')}"))
 
     rows.append(("Artifact", report.get("artifact") or "none configured"))
     run = report.get("run") or {}
@@ -652,7 +676,8 @@ def annotation(report: dict) -> str | None:
     title = {"shorts": "Short", "longform": "Documentary", "news_short": "News Short"}.get(
         report.get("pipeline"), "Run")
     if outcome == FAILED:
-        return f"::error title={title} failed::{clean(report.get('failure_reason') or 'no detail recorded')}"
+        kind = f"[{report['failure_category_label']}] " if report.get("failure_category") else ""
+        return f"::error title={title} failed::{kind}{clean(report.get('failure_reason') or 'no detail recorded')}"
     if outcome == UPLOAD_BLOCKED:
         return f"::warning title={title} built but not uploaded::{clean(report.get('failure_reason') or 'upload blocked')}"
     if outcome == SKIPPED:

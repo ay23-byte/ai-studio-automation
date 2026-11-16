@@ -216,10 +216,10 @@ def create_package(build_dir, video_file, output_dir=None, *, pipeline_job_id=No
                   for item in (visual.get("issues") or []) if isinstance(item, dict)
                   and item.get("level") == "error"
                   and "AI visual-to-narration screening status" not in str(item.get("message") or "")]
-    status, details = packaging.technical_report(
+    status, details, technical_failures = packaging.technical_findings(
         root, "longform", root / "video.mp4",
         _technical_failures(build) + [f"Unresolved media error, {item}" for item in unresolved[:12]])
-    packaging.write_qa(root, "technical", status, details)
+    packaging.write_qa(root, "technical", status, details, failures=technical_failures)
 
     research, research_problems = _research(build)
     flagged = sum(count for state, count in screening_counts.items() if state != "match")

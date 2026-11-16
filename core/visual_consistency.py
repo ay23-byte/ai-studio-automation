@@ -11,6 +11,17 @@ from pathlib import Path
 from typing import Any
 
 
+# A source below this is a technical defect in a 1080p documentary. The footage engine uses
+# the same floor for long-form builds, so a small clip is refused while another candidate
+# can still be chosen instead of failing the finished film.
+MIN_SOURCE_WIDTH = 640
+MIN_SOURCE_HEIGHT = 360
+# A picture whose mean level is below DARK_MEAN is a black or unusable frame unless it also
+# holds real highlights: a night sky, a deep-field image or a spacecraft against space.
+DARK_MEAN = 12.0
+DARK_SCENE_HIGHLIGHT = 60.0
+
+
 def _frame_metrics(path: str | Path) -> dict[str, Any]:
     from PIL import Image, ImageChops, ImageFilter, ImageStat
 
@@ -24,6 +35,8 @@ def _frame_metrics(path: str | Path) -> dict[str, Any]:
         count = max(len(pixels), 1)
         luminance = [0.2126 * r + 0.7152 * g + 0.0722 * b for r, g, b in pixels]
         brightness = sum(luminance) / count
+        # Level reached by the brightest 1% of the picture: tells a night sky from a black frame.
+        highlight = sorted(luminance)[min(count - 1, int(count * 0.99))] if luminance else 0.0
         contrast = statistics.pstdev(luminance) if count > 1 else 0.0
         saturation = sum(max(rgb) - min(rgb) for rgb in pixels) / count
         clipped = sum(1 for value in luminance if value <= 5 or value >= 250) / count
@@ -33,11 +46,112 @@ def _frame_metrics(path: str | Path) -> dict[str, Any]:
     return {
         "width": width, "height": height,
         "brightness": round(brightness, 2),
+        "highlight_level": round(highlight, 2),
         "contrast": round(contrast, 2),
         "saturation": round(saturation, 2),
         "clipped_pixel_ratio": round(clipped, 4),
         "sharpness_proxy": round(sharpness, 2),
     }
+
+
+_METRIC_KEYS = ("brightness", "highlight_level", "contrast", "saturation", "clipped_pixel_ratio", "sharpness_proxy")
+
+
+def picture_defects(average: dict, min_width: int, min_height: int,
+                    dark_margin: float = 0.0) -> tuple[list[str], list[str]]:
+    """(blocking defects, review notes) for averaged frame metrics.
+
+    This is the one rule for an unusable picture. The audit of the finished film uses it, and
+    so does the footage engine when it chooses a clip (``media_picture_problem``), so a clip
+    that would fail the film is refused while another candidate can still take its place.
+    """
+    failures, reviews = [], []
+    if min_width < MIN_SOURCE_WIDTH or min_height < MIN_SOURCE_HEIGHT:
+        failures.append(f"Sampled visual is {min_width}×{min_height}, below the "
+                        f"{MIN_SOURCE_WIDTH}×{MIN_SOURCE_HEIGHT} source resolution floor.")
+    if average["brightness"] < DARK_MEAN + dark_margin:
+        if average["highlight_level"] >= DARK_SCENE_HIGHLIGHT + dark_margin * 2:
+            reviews.append("Dark scene with bright detail (for example a night sky); "
+                           "check that it reads on a small screen.")
+        else:
+            failures.append("Visual is severely underexposed.")
+    elif average["brightness"] > 242 - dark_margin:
+        failures.append("Visual is severely overexposed.")
+    # A simple clipped-pixel percentage over-penalizes legitimate night footage,
+    # archival film, letterboxed shots and intentional high-key/low-key scenes.
+    # Treat clipping as a hard failure only when almost the entire frame is
+    # clipped AND the image has virtually no tonal detail. Exposure extremes
+    # are independently blocked by the brightness checks above.
+    if average["clipped_pixel_ratio"] > 0.85 and average["contrast"] < 3.0:
+        failures.append(
+            "Frame is almost entirely clipped and has negligible tonal detail; replace or re-render this shot."
+        )
+    return failures, reviews
+
+
+def sample_times(duration: float, window_seconds: float | None = None, count: int = 3) -> list[float]:
+    """Evenly spaced moments inside the part of a clip that is shown.
+
+    A clip plays from its start for the length of its shot, so a ten-minute source is judged on
+    the seconds the viewer sees and not on its middle.
+    """
+    span = max(float(duration or 0.0), 0.1)
+    if window_seconds and float(window_seconds) > 0:
+        span = min(span, float(window_seconds))
+    return [span * (index + 1) / (count + 1) for index in range(count)]
+
+
+def media_picture_problem(path: str | Path, window_seconds: float | None = 12.0,
+                          dark_margin: float = 3.0, check_size: bool = False) -> str | None:
+    """Why this downloaded clip or still would fail the picture audit, or None.
+
+    Checked a little more strictly than the audit (``dark_margin``) so a borderline clip is not
+    accepted here and refused in the finished film. Returns None when the file cannot be
+    measured: an unreadable file is the validator's business, not this check's. With
+    ``check_size`` the documentary source floor is applied as well.
+    """
+    import subprocess
+    import tempfile
+    from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
+
+    path = Path(path)
+    if not path.is_file():
+        return None
+    metrics = []
+    if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}:
+        try:
+            metrics.append(_frame_metrics(path))
+        except Exception:
+            return None
+    else:
+        try:
+            raw = subprocess.check_output(
+                [ffprobe_bin(), "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+                stderr=subprocess.DEVNULL, text=True, timeout=PROBE_TIMEOUT).strip()
+            duration = float(raw)
+        except Exception:
+            return None
+        with tempfile.TemporaryDirectory(prefix="picture_check_") as folder:
+            for index, moment in enumerate(sample_times(duration, window_seconds)):
+                target = Path(folder) / f"frame_{index}.jpg"
+                try:
+                    subprocess.run([ffmpeg_bin(), "-y", "-ss", f"{moment:.3f}", "-i", str(path),
+                                    "-frames:v", "1", "-q:v", "3", str(target)],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=45)
+                    metrics.append(_frame_metrics(target))
+                except Exception:
+                    continue
+    if not metrics:
+        return None
+    average = {key: statistics.mean(item[key] for item in metrics) for key in _METRIC_KEYS}
+    # Size is not judged here: the footage validator applies the floor of the production mode
+    # (a vertical Short has other dimensions than a documentary).
+    width, height = MIN_SOURCE_WIDTH, MIN_SOURCE_HEIGHT
+    if check_size:
+        width, height = min(item["width"] for item in metrics), min(item["height"] for item in metrics)
+    failures, _reviews = picture_defects(average, width, height, dark_margin)
+    return failures[0] if failures else None
 
 
 def audit_visual_consistency(visual_report: dict[str, Any],
@@ -57,27 +171,11 @@ def audit_visual_consistency(visual_report: dict[str, Any],
             rows.append({"shot_id": shot_id, "status": "unavailable",
                          "frame_count": 0, "issues": frame_errors or ["No readable sample frames."]})
             continue
-        keys = ("brightness", "contrast", "saturation", "clipped_pixel_ratio", "sharpness_proxy")
-        average = {key: round(statistics.mean(item[key] for item in metrics), 2) for key in keys}
+        average = {key: round(statistics.mean(item[key] for item in metrics), 2) for key in _METRIC_KEYS}
         min_width = min(item["width"] for item in metrics)
         min_height = min(item["height"] for item in metrics)
         average.update({"min_width": min_width, "min_height": min_height})
-        failure_issues, review_issues = [], []
-        if min_width < 640 or min_height < 360:
-            failure_issues.append("Sampled visual is below the recommended 640×360 source resolution.")
-        if average["brightness"] < 12:
-            failure_issues.append("Visual is severely underexposed.")
-        elif average["brightness"] > 242:
-            failure_issues.append("Visual is severely overexposed.")
-        # A simple clipped-pixel percentage over-penalizes legitimate night footage,
-        # archival film, letterboxed shots and intentional high-key/low-key scenes.
-        # Treat clipping as a hard failure only when almost the entire frame is
-        # clipped AND the image has virtually no tonal detail. Exposure extremes
-        # are independently blocked by the brightness checks above.
-        if average["clipped_pixel_ratio"] > 0.85 and average["contrast"] < 3.0:
-            failure_issues.append(
-                "Frame is almost entirely clipped and has negligible tonal detail; replace or re-render this shot."
-            )
+        failure_issues, review_issues = picture_defects(average, min_width, min_height)
         if average["contrast"] < 8:
             review_issues.append("Visual has very low contrast; inspect readability and detail.")
         if average["sharpness_proxy"] < 1.2:

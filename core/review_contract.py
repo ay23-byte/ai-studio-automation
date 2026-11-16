@@ -522,6 +522,24 @@ def rights_evidence_problems(asset: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 # QA reports
 # ---------------------------------------------------------------------------
+def _qa_failures(root, name: str, limit: int = 6) -> str:
+    """" Failing checks: a | b" from a QA report, or "" when it records none."""
+    try:
+        report = json.loads((Path(root) / QA_FILES[name]).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError, KeyError):
+        return ""
+    if not isinstance(report, dict):
+        return ""
+    failures = report.get("failures")
+    if not isinstance(failures, list):
+        failures = report.get("details") if str(report.get("status") or "").upper() == "FAIL" else []
+    items = [" ".join(str(item).split())[:300] for item in (failures or []) if str(item).strip()]
+    if not items:
+        return ""
+    more = f" (+{len(items) - limit} more)" if len(items) > limit else ""
+    return " Failing checks: " + " | ".join(items[:limit]) + more
+
+
 def qa_statuses(root) -> dict:
     """Status of each QA report: PASS, REVIEW, FAIL, NOT_RUN or INVALID."""
     statuses = {}
@@ -830,11 +848,11 @@ def evaluate_release(package_dir, decisions: Any = None, *, expected_sha256: str
     for name in TECHNICAL_QA:
         if statuses.get(name) != "PASS":
             technical.append(f"qa/{name}.json is {statuses.get(name)}; technical QA must be PASS and "
-                             "cannot be overridden by a reviewer.")
+                             "cannot be overridden by a reviewer." + _qa_failures(root, name))
     for name in HUMAN_RESOLVABLE_QA:
         if statuses.get(name) not in {"PASS", "REVIEW"}:
             technical.append(f"qa/{name}.json is {statuses.get(name)}; a FAIL or missing report cannot be "
-                             "resolved by a reviewer.")
+                             "resolved by a reviewer." + _qa_failures(root, name))
     try:
         captions = inside(root, (manifest.get("captions") or {}).get("file") or manifest.get("captions_file"))
         if not captions.is_file() or captions.stat().st_size == 0:

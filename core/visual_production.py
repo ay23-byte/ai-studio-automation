@@ -22,8 +22,13 @@ def _source_metadata(media_path: Path) -> dict:
         return {}
 
 
-def _sample_frames(media_path: Path, out_dir: Path, shot_id: str, count: int = 3) -> list[str]:
-    """Extract evenly spaced stills from a video using ffmpeg; images are copied as samples."""
+def _sample_frames(media_path: Path, out_dir: Path, shot_id: str, count: int = 3,
+                   window_seconds: float | None = None) -> list[str]:
+    """Extract evenly spaced stills from the part of a video that its shot shows.
+
+    A clip plays from its start for ``window_seconds`` (the shot length); sampling the whole
+    source would judge, and show the reviewer, pictures that are not in the film.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         raw = subprocess.check_output([
@@ -33,9 +38,9 @@ def _sample_frames(media_path: Path, out_dir: Path, shot_id: str, count: int = 3
         duration = max(float(raw), 0.1)
     except Exception:
         return []
+    from core.visual_consistency import sample_times
     samples = []
-    for index in range(count):
-        timestamp = duration * (index + 1) / (count + 1)
+    for index, timestamp in enumerate(sample_times(duration, window_seconds, count)):
         target = out_dir / f"{shot_id}_frame_{index + 1}.jpg"
         try:
             subprocess.run([
@@ -114,7 +119,7 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
                      shot.get("title") or shot.get("narration") or "")
         frames = []
         if path and path.is_file() and media_type == "video" and sample_video_frames:
-            frames = _sample_frames(path, frame_dir, shot_id)
+            frames = _sample_frames(path, frame_dir, shot_id, window_seconds=shot.get("_dur"))
         elif path and path.is_file() and media_type == "image":
             frames = [str(path)]
         if not path or not path.is_file():
@@ -146,6 +151,8 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
             "presenter_mode": shot.get("presenter_mode"),
             "presenter_sync_status": shot.get("presenter_sync_status"),
             "presenter_lip_sync_verified": shot.get("presenter_lip_sync_verified", False),
+            "presenter_motion": shot.get("presenter_motion"),
+            "presenter_human_review": shot.get("presenter_human_review"),
             "presenter_validation": source.get("validation") or {},
             "subject": shot.get("subject", ""), "location": shot.get("location", ""),
             "time_period": shot.get("time_period", ""),

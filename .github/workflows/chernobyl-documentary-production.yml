@@ -78,8 +78,9 @@ jobs:
           sudo apt-get install --yes ffmpeg fonts-noto-core fonts-dejavu-core
           ffmpeg -version
           ffprobe -version
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          # Pinned 3D engine, avatar SDK and browser driver for the offline presenter renderer.
+          npm ci --prefix avatar_studio
+          (cd avatar_studio && npx playwright install --with-deps chromium)
 
       - name: Install project dependencies
         run: |
@@ -98,8 +99,8 @@ jobs:
             echo "::error::Female presenter image is missing: $PRESENTER_IMAGE"
             exit 1
           }
-          test -f avatar_studio/generate-clips.mjs
-          test -f avatar_studio/index.html
+          test -f avatar_studio/render-offline.mjs
+          test -f avatar_studio/offline.html
 
       # This is a known-good, item-provenanced candidate from the earlier successful
       # Chernobyl archival E2E run. Reuse it only after re-running the full local audit.

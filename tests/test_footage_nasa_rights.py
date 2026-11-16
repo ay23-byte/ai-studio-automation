@@ -83,3 +83,58 @@ class NASAArchivalRightsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NASASearchReachTests(unittest.TestCase):
+    """A space documentary asks NASA for every scene, and long queries are searched again shorter."""
+
+    def setUp(self):
+        from core import footage_sources
+        footage_sources.reset_run_state()
+        self.addCleanup(footage_sources.reset_run_state)
+
+    def _names(self, context):
+        from core.footage_sources import archive_providers
+        return [provider.name for provider in archive_providers(context)]
+
+    def test_scene_without_a_space_word_gets_nasa_when_the_documentary_is_about_space(self):
+        from core import footage_sources
+        scene = "gold hexagonal mirror segments unfolding in a clean room"
+        self.assertNotIn("NASA", self._names(scene))
+        footage_sources.set_run_subject("How the James Webb Space Telescope Sees the First Galaxies", "science")
+        self.assertIn("NASA", self._names(scene))
+        footage_sources.reset_run_state()
+        self.assertNotIn("NASA", self._names(scene))                 # the subject does not leak into the next run
+
+    def test_plural_and_mission_words_select_nasa(self):
+        for context in ("distant galaxies in infrared light", "JWST sunshield", "stars forming in a nebula"):
+            self.assertIn("NASA", self._names(context), context)
+        self.assertNotIn("NASA", self._names("farmers market in a village square"))
+
+    def test_shorter_query_keeps_the_first_subject_words(self):
+        from core.footage_sources import _shorter_query
+        self.assertEqual(_shorter_query("James Webb Space Telescope sunshield deployment test"), "James Webb Space")
+        self.assertEqual(_shorter_query("Apollo 11 launch"), "")                    # already short
+        self.assertEqual(_shorter_query("archival film of Ariane rocket launch Kourou"), "Ariane rocket launch")
+
+    @patch("core.footage_sources._get_json")
+    def test_a_long_query_with_no_results_is_searched_again_shorter(self, get_json):
+        item = NASAArchivalRightsTests()._item("James Webb Space Telescope sunshield deployment test at Northrop.")
+        item["collection"]["items"][0]["data"][0].update(title="Webb sunshield deployment test", center="GSFC")
+        get_json.side_effect = [
+            {"collection": {"items": []}},
+            item,
+            ["https://images-assets.nasa.gov/video/KSC-1969-001/KSC-1969-001~orig.mp4"],
+        ]
+        found = _nasa("James Webb Space Telescope sunshield deployment test")
+        self.assertEqual(len(found), 1)
+        self.assertEqual(get_json.call_args_list[0].args[1]["q"], "James Webb Space Telescope sunshield deployment test")
+        self.assertEqual(get_json.call_args_list[1].args[1]["q"], "James Webb Space")
+        self.assertEqual(found[0][1]["query"], "James Webb Space Telescope sunshield deployment test")
+        self.assertEqual(found[0][1]["searched_as"], "James Webb Space")
+
+    @patch("core.footage_sources._get_json")
+    def test_a_failed_request_is_not_repeated_shorter(self, get_json):
+        get_json.return_value = None                                  # provider error or switched off
+        self.assertEqual(_nasa("James Webb Space Telescope sunshield deployment test"), [])
+        self.assertEqual(get_json.call_count, 1)

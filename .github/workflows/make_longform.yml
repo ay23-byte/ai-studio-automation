@@ -18,10 +18,10 @@ on:
       minutes:
         description: "Target length in minutes"
         type: choice
-        options: ["18", "20", "22", "25"]
+        options: ["18", "20", "22", "25", "28", "30"]
         default: "22"
       language:
-        description: "Narration and subtitle language"
+        description: "Narration language (subtitles are always English)"
         type: choice
         options: [hinglish, hindi, english]
         default: hinglish
@@ -36,7 +36,7 @@ on:
         options: [male, female]
         default: male
       presenter_mode:
-        description: "Presenter animation (auto 3D avatar records each chapter from its narration)"
+        description: "Presenter animation (auto 3D avatar renders each chapter opening from its narration)"
         type: choice
         options: [talking_avatar_auto, talking_avatar, sadtalker, still_cpu, off]
         default: talking_avatar_auto
@@ -45,6 +45,12 @@ on:
         type: choice
         options: [video_first, image_first]
         default: video_first
+  # Production test from a pull request: only when the request file is part of the pull
+  # request AND the newest commit message contains [documentary-run] (checked by the
+  # "request" job). The build uploads nothing; release stays a separate, reviewed workflow.
+  pull_request:
+    branches: [main]
+    paths: [".github/documentary-production-request.json"]
 
 permissions:
   contents: read
@@ -56,7 +62,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Decides what is built: the Run workflow form, or the request file of a pull request.
+  request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.resolve.outputs.run }}
+      topic: ${{ steps.resolve.outputs.topic }}
+      category: ${{ steps.resolve.outputs.category }}
+      semantic_review: ${{ steps.resolve.outputs.semantic_review }}
+      minutes: ${{ steps.resolve.outputs.minutes }}
+      language: ${{ steps.resolve.outputs.language }}
+      channel_profile: ${{ steps.resolve.outputs.channel_profile }}
+      voice_gender: ${{ steps.resolve.outputs.voice_gender }}
+      presenter_mode: ${{ steps.resolve.outputs.presenter_mode }}
+      visual_mode: ${{ steps.resolve.outputs.visual_mode }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve the build request
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SAME_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          INPUT_TOPIC: ${{ inputs.topic }}
+          INPUT_CATEGORY: ${{ inputs.category }}
+          INPUT_SEMANTIC_REVIEW: ${{ inputs.semantic_review }}
+          INPUT_MINUTES: ${{ inputs.minutes }}
+          INPUT_LANGUAGE: ${{ inputs.language }}
+          INPUT_CHANNEL_PROFILE: ${{ inputs.channel_profile }}
+          INPUT_VOICE_GENDER: ${{ inputs.voice_gender }}
+          INPUT_PRESENTER_MODE: ${{ inputs.presenter_mode }}
+          INPUT_VISUAL_MODE: ${{ inputs.visual_mode }}
+        run: |
+          HEAD_COMMIT_MESSAGE="$(git log -1 --format=%B)" python3 scripts/resolve_documentary_request.py
+
   build:
+    needs: request
+    if: needs.request.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -110,13 +154,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Set up Python for SadTalker CPU inference
-        if: ${{ inputs.presenter_mode == 'sadtalker' }}
+        if: ${{ needs.request.outputs.presenter_mode == 'sadtalker' }}
         uses: actions/setup-python@v7
         with:
           python-version: "3.8"
 
       - name: Install SadTalker and pretrained models (CPU)
-        if: ${{ inputs.presenter_mode == 'sadtalker' }}
+        if: ${{ needs.request.outputs.presenter_mode == 'sadtalker' }}
         env:
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_VENV: ${{ runner.temp }}/sadtalker-venv
@@ -146,15 +190,18 @@ jobs:
         run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
-        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+        if: ${{ needs.request.outputs.presenter_mode == 'talking_avatar_auto' }}
         uses: actions/setup-node@v7
         with:
           node-version: "20"
 
-      - name: Install browser automation dependencies
-        if: ${{ inputs.presenter_mode == 'talking_avatar_auto' }}
+      # Pinned versions from avatar_studio/package-lock.json: the 3D engine, the avatar SDK
+      # with its models, and the browser driver. Nothing is fetched from a CDN during the build.
+      - name: Install the 3D presenter's pinned browser packages
+        if: ${{ needs.request.outputs.presenter_mode == 'talking_avatar_auto' }}
+        working-directory: avatar_studio
         run: |
-          npm install --no-save playwright
+          npm ci
           npx playwright install --with-deps chromium
 
       - name: Build long-form video
@@ -184,29 +231,31 @@ jobs:
           TTS_ENGINE: "edge"
           ALLOW_CHATTERBOX_ON_CI: "false"
           CHATTERBOX_TORCH_THREADS: "2"
-          PRESENTER_ENABLED: ${{ inputs.presenter_mode == 'off' && '0' || '1' }}
-          PRESENTER_MODE: ${{ inputs.presenter_mode }}
-          LONGFORM_VISUAL_MODE: ${{ inputs.visual_mode }}
+          PRESENTER_ENABLED: ${{ needs.request.outputs.presenter_mode == 'off' && '0' || '1' }}
+          PRESENTER_MODE: ${{ needs.request.outputs.presenter_mode }}
+          LONGFORM_VISUAL_MODE: ${{ needs.request.outputs.visual_mode }}
           SADTALKER_DIR: ${{ runner.temp }}/SadTalker
           SADTALKER_PYTHON: ${{ runner.temp }}/sadtalker-venv/bin/python
           SADTALKER_DEVICE: cpu
-          PRESENTER_IMAGE: ${{ inputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
+          PRESENTER_IMAGE: ${{ needs.request.outputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
-          CHANNEL_PROFILE: ${{ inputs.channel_profile || 'beyond_science' }}
-          LONGFORM_LANGUAGE: ${{ inputs.language || 'hinglish' }}
-          VISUAL_SEMANTIC_CHECK: ${{ inputs.semantic_review && '1' || '0' }}
+          CHANNEL_PROFILE: ${{ needs.request.outputs.channel_profile || 'beyond_science' }}
+          LONGFORM_LANGUAGE: ${{ needs.request.outputs.language || 'hinglish' }}
+          # Narration may be Hindi or Hinglish; subtitles are English only.
+          SUBTITLE_LANGUAGE: "english"
+          VISUAL_SEMANTIC_CHECK: ${{ needs.request.outputs.semantic_review == 'true' && '1' || '0' }}
           VISUAL_SEMANTIC_MAX_SHOTS: "100"
           # Inputs are passed through the environment, never interpolated into
           # the shell script, so a topic containing quotes or $(...) cannot run code.
-          INPUT_TOPIC: ${{ inputs.topic }}
-          INPUT_CATEGORY: ${{ inputs.category }}
-          INPUT_MINUTES: ${{ inputs.minutes }}
-          INPUT_LANGUAGE: ${{ inputs.language || 'hinglish' }}
-          INPUT_VOICE_GENDER: ${{ inputs.voice_gender }}
+          INPUT_TOPIC: ${{ needs.request.outputs.topic }}
+          INPUT_CATEGORY: ${{ needs.request.outputs.category }}
+          INPUT_MINUTES: ${{ needs.request.outputs.minutes }}
+          INPUT_LANGUAGE: ${{ needs.request.outputs.language || 'hinglish' }}
+          INPUT_VOICE_GENDER: ${{ needs.request.outputs.voice_gender }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25)$ ]] || { echo "::error::minutes must be one of 18, 20, 22 or 25."; exit 1; }
+          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25|28|30)$ ]] || { echo "::error::minutes must be one of 18, 20, 22, 25, 28 or 30."; exit 1; }
           python run.py long "$INPUT_TOPIC" \
             --category "$INPUT_CATEGORY" \
             --minutes "$INPUT_MINUTES" \
@@ -235,6 +284,16 @@ jobs:
         run: |
           python scripts/write_job_summary.py --pipeline longform \
             --artifact "longform-review-${GITHUB_RUN_ID}"
+
+      # The measured facts of the build (runtime, visual sources, footage providers, presenter
+      # motion, subtitles, audio, research) as notices on the run page, readable without
+      # downloading the artifact.
+      - name: Show the measured build evidence on the run page
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          TARGET_MINUTES: ${{ needs.request.outputs.minutes }}
+        run: python scripts/annotate_build_evidence.py --pipeline longform --target-minutes "$TARGET_MINUTES"
 
       # Preserve the complete reviewable build, not only the MP4. GitHub-hosted
       # runners are ephemeral, so the visual/source/rights/audio/research decisions

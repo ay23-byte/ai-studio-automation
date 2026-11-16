@@ -54,6 +54,7 @@ def provider_status() -> dict:
 # Voice that actually produced the last Edge narration (a fallback voice may differ
 # from the configured one); written to narration_synthesis_report.json.
 _LAST_EDGE_VOICE = None
+_LAST_EDGE_FAILURES = []     # one line per Edge voice that gave up, for the synthesis report
 
 _CHATTERBOX_MODEL = None
 
@@ -71,7 +72,40 @@ def pick_voice(language="hindi", gender="male"):
 def _sentences(text):
     """Split narration at sentence boundaries, including Hindi danda punctuation."""
     clean = re.sub(r"\s+", " ", str(text or "")).strip()
-    return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if s.strip()]
+    # A piece with no letter or digit ("...", a stray dash or quote) has nothing to say. Edge TTS
+    # answers such text with "No audio was received", which no retry can cure.
+    return [s.strip() for s in re.split(r"(?<=[।!?])\s+|(?<=[.!?])\s+", clean) if _speakable(s)]
+
+
+def _speakable(text):
+    """True when the text holds at least one letter or digit."""
+    import unicodedata
+    return any(unicodedata.category(char)[0] in "LN" for char in str(text or ""))
+
+
+_PLAIN_PUNCTUATION = set(".,?!;:'-%\u0964")
+
+
+def _plain_speech_text(text):
+    """The same words with every symbol a speech service may refuse removed.
+
+    Letters, marks and digits of any script are kept, with spaces and basic punctuation.
+    """
+    import unicodedata
+    kept = []
+    for char in str(text or ""):
+        kind = unicodedata.category(char)[0]
+        if kind in "LMN" or char in _PLAIN_PUNCTUATION:
+            kept.append(char)
+        elif kind in "ZPS" or char.isspace():
+            kept.append(" ")
+    return re.sub(r"\s+", " ", "".join(kept)).strip()
+
+
+def _short_error(exc, limit=50):
+    """The root cause of a provider error as ``Type: message``, short enough for a notice."""
+    cause = exc.__cause__ or exc
+    return f"{type(cause).__name__}: {' '.join(str(cause).split())[:limit]}"
 
 
 def _speech_chunks(text, max_chars=220):
@@ -160,17 +194,100 @@ async def _synth_edge(text, voice, rate, pitch, path):
         f"Edge TTS failed after 3 attempts for voice {voice}: {last_error}"
     ) from last_error
 
+def trim_edge_silence(wav, threshold_db=-48.0, keep_seconds=0.03):
+    """Remove silence from the two ENDS of a 16-bit PCM WAV; pauses inside are never touched.
+
+    Edge TTS appends about a second of digital silence to every phrase; joined over 100+
+    phrases that is minutes of dead air. The previous FFmpeg ``silenceremove`` filter with
+    ``stop_periods=1`` did not trim the end: it stopped at the FIRST pause of 0.12 s, so every
+    phrase lost everything after its first comma or full stop. Trimming is done here on the
+    samples so the result does not depend on the FFmpeg version.
+
+    Returns {"source_seconds", "kept_seconds", "removed_start_seconds", "removed_end_seconds"}.
+    """
+    import wave
+
+    import numpy as np
+
+    with wave.open(str(wav), "rb") as handle:
+        params = handle.getparams()
+        raw = handle.readframes(params.nframes)
+    if params.sampwidth != 2:
+        raise ValueError(f"Narration WAV must be 16-bit PCM, got {params.sampwidth * 8}-bit.")
+    samples = np.frombuffer(raw, dtype="<i2").reshape(-1, params.nchannels)
+    total = len(samples)
+    source_seconds = total / float(params.framerate or 1)
+    if not total:
+        return {"source_seconds": 0.0, "kept_seconds": 0.0, "removed_start_seconds": 0.0, "removed_end_seconds": 0.0}
+    limit = 32768.0 * (10.0 ** (float(threshold_db) / 20.0))
+    loud = np.flatnonzero(np.abs(samples.astype(np.int32)).max(axis=1) > limit)
+    if not len(loud):                     # nothing audible: leave the file for the caller to reject
+        return {"source_seconds": round(source_seconds, 3), "kept_seconds": round(source_seconds, 3),
+                "removed_start_seconds": 0.0, "removed_end_seconds": 0.0}
+    margin = int(float(keep_seconds) * params.framerate)
+    first = max(0, int(loud[0]) - margin)
+    last = min(total, int(loud[-1]) + 1 + margin)
+    if first > 0 or last < total:
+        with wave.open(str(wav), "wb") as handle:
+            handle.setparams(params)
+            handle.writeframes(samples[first:last].tobytes())
+    return {"source_seconds": round(source_seconds, 3),
+            "kept_seconds": round((last - first) / float(params.framerate), 3),
+            "removed_start_seconds": round(first / float(params.framerate), 3),
+            "removed_end_seconds": round((total - last) / float(params.framerate), 3)}
+
+
 def _to_wav(mp3, wav):
-    # Edge TTS often appends ~1s of digital silence to every sentence. When
-    # 100+ chunks are concatenated this becomes minutes of dead air. Trim only
-    # leading/trailing silence per chunk (not pauses inside the spoken sentence).
-    trim = (
-        "silenceremove=start_periods=1:start_duration=0.08:start_threshold=-48dB:"
-        "stop_periods=1:stop_duration=0.12:stop_threshold=-48dB"
-    )
+    """Decode one synthesised phrase to mono 44.1 kHz PCM and trim the silence at its two ends."""
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(mp3),
-                    "-af", trim, "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
+                    "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
                     str(wav)], check=True, timeout=render_timeout())
+    return trim_edge_silence(wav)
+
+
+class NarrationIncompleteError(RuntimeError):
+    """The synthesised audio is too short to contain the words it was given."""
+
+
+def _spoken_characters(text) -> int:
+    return len(re.sub(r"\s+", "", str(text or "")))
+
+
+def check_narration_complete(sentences, durations):
+    """Refuse narration whose audio cannot contain its text.
+
+    Natural speech runs at roughly 12-20 characters a second (150-200 words a minute).
+    Audio far shorter than that for its text means words were dropped: a truncated provider
+    response, or a trim that cut into the speech. Limits: ``NARRATION_MAX_CHARS_PER_SECOND``
+    (26) over the whole narration, and one and a half times that for any single phrase of
+    60 characters or more.
+
+    Returns {"characters", "words", "speech_seconds", "characters_per_second", "words_per_minute"}.
+    """
+    try:
+        limit = float(os.getenv("NARRATION_MAX_CHARS_PER_SECOND", "26") or 26)
+    except ValueError:
+        limit = 26.0
+    limit = max(10.0, limit)
+    characters = sum(_spoken_characters(sentence) for sentence in sentences)
+    words = sum(len(str(sentence).split()) for sentence in sentences)
+    seconds = float(sum(durations))
+    rate = characters / seconds if seconds > 0 else float("inf")
+    if characters and rate > limit:
+        raise NarrationIncompleteError(
+            f"Narration audio is too short for its text: {characters} characters ({words} words) in "
+            f"{seconds:.1f} s is {rate:.0f} characters a second; speech runs at 12-20. "
+            "Part of the narration was not spoken. Refusing to build a documentary with missing narration.")
+    for index, (sentence, duration) in enumerate(zip(sentences, durations), start=1):
+        size = _spoken_characters(sentence)
+        if size >= 60 and (duration <= 0 or size / duration > limit * 1.5):
+            raise NarrationIncompleteError(
+                f"Narration phrase {index} of {len(sentences)} is too short for its text: {size} characters "
+                f"in {duration:.2f} s. Part of the phrase was not spoken: {str(sentence)[:90]!r}")
+    return {"characters": characters, "words": words, "speech_seconds": round(seconds, 3),
+            "characters_per_second": round(rate, 2) if seconds > 0 else None,
+            "words_per_minute": round(words / seconds * 60.0, 1) if seconds > 0 else None}
+
 
 def _dur(path):
     return float(subprocess.check_output(
@@ -225,50 +342,109 @@ def _synth_all_chatterbox(sentences, language, build_dir):
         wavs.append(wav)
     return wavs
 
+# Alternatives when the configured Edge voice is unavailable. Every list holds one gender only:
+# a male presenter must never be given a female voice (production build 43691314957 was), and
+# the reverse. A build that cannot keep the requested gender falls through to the next
+# narration provider or fails; it does not change the speaker silently.
+_EDGE_FALLBACK_VOICES = {
+    ("english", "male"): ["en-IN-PrabhatNeural", "en-US-GuyNeural", "en-GB-RyanNeural"],
+    ("english", "female"): ["en-IN-NeerjaNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"],
+    ("other", "male"): ["hi-IN-MadhurNeural", "en-IN-PrabhatNeural"],
+    ("other", "female"): ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"],
+}
+
+
 def _edge_voice_candidates(language, gender):
-    """Try the configured voice first, then independent Edge voices."""
+    """The configured voice first, then other Edge voices of the same gender."""
     preferred = pick_voice(language, gender)
-    if language == "english":
-        fallbacks = ["en-IN-PrabhatNeural", "en-US-AriaNeural", "en-GB-SoniaNeural"]
-    elif gender == "female":
-        fallbacks = ["hi-IN-SwaraNeural", "hi-IN-AnanyaNeural", "en-IN-NeerjaNeural"]
-    else:
-        fallbacks = ["hi-IN-MadhurNeural", "hi-IN-SwaraNeural", "en-IN-PrabhatNeural"]
-    return list(dict.fromkeys([preferred, *fallbacks]))
+    key = ("english" if language == "english" else "other", "female" if gender == "female" else "male")
+    return list(dict.fromkeys([preferred, *_EDGE_FALLBACK_VOICES[key]]))
+
+
+def _same_voice_passes():
+    """How often one voice is tried before another is used: ``EDGE_TTS_VOICE_PASSES`` (4).
+
+    With the default waits (20, 40 and 80 s) one voice rides out an outage of over two minutes.
+    """
+    try:
+        return max(1, int(float(os.getenv("EDGE_TTS_VOICE_PASSES", "4") or 4)))
+    except ValueError:
+        return 4
+
+
+def _voice_retry_wait(attempt):
+    """Seconds to wait before trying the same voice again: ``EDGE_TTS_VOICE_RETRY_SECONDS`` (20), doubling."""
+    try:
+        base = max(0.0, float(os.getenv("EDGE_TTS_VOICE_RETRY_SECONDS", "20") or 20))
+    except ValueError:
+        base = 20.0
+    return base * (2 ** max(0, attempt - 1))
 
 
 def _synth_all_edge(sentences, language, gender, build_dir):
-    """Synthesize the complete narration with one voice; never mix voices mid-video."""
-    global _LAST_EDGE_VOICE
+    """Synthesize the complete narration with one voice; never mix voices mid-video.
+
+    A phrase that fails is tried again with the same voice after a wait, keeping the phrases
+    already spoken, before any other voice is considered: a short service outage must not
+    change the speaker.
+    """
+    import time
+    global _LAST_EDGE_VOICE, _LAST_EDGE_FAILURES
     _LAST_EDGE_VOICE = None
+    _LAST_EDGE_FAILURES = []
     _edge_module()  # fail once, immediately, instead of once per voice and retry
     last_error = None
+    passes = _same_voice_passes()
     for voice in _edge_voice_candidates(language, gender):
         wavs = []
-        try:
-            for i, sentence in enumerate(sentences):
-                mp3 = build_dir / f"s{i}.mp3"
-                wav = build_dir / f"s{i}.wav"
-                mp3.unlink(missing_ok=True)
-                wav.unlink(missing_ok=True)
-                rate, pitch = _prosody(i, len(sentences), sentence)
-                asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
-                _to_wav(mp3, wav)
-                if not wav.exists() or wav.stat().st_size == 0:
-                    raise RuntimeError(f"Edge TTS produced an empty WAV for chunk {i + 1}.")
-                wavs.append(wav)
-            print(f"Edge TTS narration completed with voice {voice}.")
-            _LAST_EDGE_VOICE = voice
-            return wavs
-        except VoiceProviderUnavailable:
-            raise
-        except Exception as exc:
-            last_error = exc
-            print(f"WARNING: Edge voice {voice} failed; trying another voice: {exc}")
-            for i in range(len(sentences)):
-                (build_dir / f"s{i}.mp3").unlink(missing_ok=True)
-                (build_dir / f"s{i}.wav").unlink(missing_ok=True)
-    raise RuntimeError(f"All Edge TTS voices failed: {last_error}") from last_error
+        failed_index = None
+        for attempt in range(1, passes + 1):
+            try:
+                for i in range(len(wavs), len(sentences)):
+                    sentence = sentences[i]
+                    if i == failed_index and attempt == passes and passes > 1:
+                        # Last try with this voice: the same words without symbols, in case the
+                        # service refuses a character rather than being unavailable.
+                        plain = _plain_speech_text(sentence)
+                        if plain and plain != sentence:
+                            print(f"Edge voice {voice}: phrase {i + 1} is sent again as plain text.")
+                            sentence = plain
+                    mp3 = build_dir / f"s{i}.mp3"
+                    wav = build_dir / f"s{i}.wav"
+                    mp3.unlink(missing_ok=True)
+                    wav.unlink(missing_ok=True)
+                    rate, pitch = _prosody(i, len(sentences), sentences[i])
+                    asyncio.run(_synth_edge(sentence, voice, rate, pitch, mp3))
+                    _to_wav(mp3, wav)
+                    if not wav.exists() or wav.stat().st_size == 0:
+                        raise RuntimeError(f"Edge TTS produced an empty WAV for chunk {i + 1}.")
+                    wavs.append(wav)
+                print(f"Edge TTS narration completed with voice {voice}.")
+                _LAST_EDGE_VOICE = voice
+                return wavs
+            except VoiceProviderUnavailable:
+                raise
+            except Exception as exc:
+                last_error = exc
+                failed_index = len(wavs)
+                if attempt < passes:
+                    wait = _voice_retry_wait(attempt)
+                    print(f"WARNING: Edge voice {voice} failed at phrase {len(wavs) + 1} of {len(sentences)} "
+                          f"({exc}); trying the same voice again in {wait:.0f} s.")
+                    time.sleep(wait)
+        # Which phrase stopped which voice, and why: without this a failed build cannot be
+        # told apart from an outage (production build 43702915253 named the last voice only).
+        stopped = min(len(wavs), len(sentences) - 1)
+        excerpt = " ".join(str(sentences[stopped]).split())[:32]
+        _LAST_EDGE_FAILURES.append(
+            f"{voice} stopped at phrase {stopped + 1}/{len(sentences)} \"{excerpt}\" "
+            f"({_short_error(last_error)})")
+        print(f"WARNING: Edge voice {voice} failed {passes} times; trying another voice "
+              f"of the same gender: {last_error}")
+        for i in range(len(sentences)):
+            (build_dir / f"s{i}.mp3").unlink(missing_ok=True)
+            (build_dir / f"s{i}.wav").unlink(missing_ok=True)
+    raise RuntimeError("All Edge TTS voices failed: " + "; ".join(_LAST_EDGE_FAILURES)) from last_error
 
 
 def _synth_all_espeak(sentences, language, build_dir):
@@ -303,6 +479,8 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     # Pause after the phrase that was just spoken (not the next phrase).
     pauses = [_pause_after(chunk) for chunk in sentences[:-1]] + [0.0]
 
+    global _LAST_EDGE_FAILURES
+    _LAST_EDGE_FAILURES = []
     requested_engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
     engine = requested_engine
     fallback_reason = None
@@ -336,7 +514,11 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             wavs = _synth_all_edge(sentences, language, gender, build_dir)
             engine = "edge"
         except Exception as edge_exc:
-            fallback_reason = f"All Edge TTS voices failed ({type(edge_exc).__name__}: {edge_exc}); using offline espeak-ng."
+            if str(edge_exc).startswith("All Edge TTS voices failed"):
+                fallback_reason = f"{edge_exc}; using offline espeak-ng."
+            else:
+                fallback_reason = (f"All Edge TTS voices failed ({type(edge_exc).__name__}: {edge_exc}); "
+                                   "using offline espeak-ng.")
             print("WARNING: " + fallback_reason)
             wavs = _synth_all_espeak(sentences, language, build_dir)
             engine = "espeak-ng"
@@ -346,6 +528,7 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     playback_speed = float(os.getenv("CHATTERBOX_PLAYBACK_SPEED", "1.04")) if engine == "chatterbox" else 1.0
     playback_speed = max(0.95, min(playback_speed, 1.10))
     durations = [_dur(wav) / playback_speed for wav in wavs]
+    completeness = check_narration_complete(sentences, durations)
     out = build_dir / "voice.wav"
     _join(wavs, pauses, out, speed=playback_speed)
     timings, current = [], 0.0
@@ -358,10 +541,17 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "fallback_reason": fallback_reason,
         "voice": (_LAST_EDGE_VOICE or pick_voice(language, gender)) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
         "configured_voice": pick_voice(language, gender),
+        "voice_failures": list(_LAST_EDGE_FAILURES),
+        "voice_changed": bool(engine == "edge" and _LAST_EDGE_VOICE
+                              and _LAST_EDGE_VOICE != pick_voice(language, gender)),
         "providers_available": provider_status(),
         "language": language,
         "gender": gender,
         "chunk_count": len(sentences),
+        "characters": completeness["characters"],
+        "words": completeness["words"],
+        "characters_per_second": completeness["characters_per_second"],
+        "speech_words_per_minute": completeness["words_per_minute"],
         "speech_seconds": round(sum(durations), 3),
         "inserted_pause_seconds": round(sum(pauses), 3),
         "assembled_duration_seconds": round(_dur(out), 3),

@@ -91,6 +91,19 @@ def _check_duplicate(kind, title, topic, force):
     return duplicate
 
 
+def _script_or_alert(label, make):
+    """Write the script; when that fails, say why before the run ends.
+
+    No job exists yet at this point, so nothing else records the cause: production build
+    43716476390 ended after three minutes with "The run stopped before a job was created".
+    """
+    try:
+        return make()
+    except Exception as exc:
+        send(f"❌ {label} script failed, nothing was built: {type(exc).__name__}: {str(exc)[:600]}")
+        raise
+
+
 def _record_built(kind, script, topic, job_id):
     from core import dedupe
     try:
@@ -109,7 +122,8 @@ def cmd_shorts(args):
     else:
         _check_duplicate("shorts", topic, topic, force)
         print(f"Generating Shorts script for: {args.topic}")
-        script = generate_shorts_script(args.topic, args.category, language=args.language)
+        script = _script_or_alert("Shorts", lambda: generate_shorts_script(
+            args.topic, args.category, language=args.language))
         _check_duplicate("shorts", script.get("title", ""), topic, force)
     print(f"Script: {script.get('title')}")
     vid_id = save_video(script.get("title",""), "shorts", args.language, args.category, script,
@@ -137,8 +151,8 @@ def cmd_long(args):
     else:
         _check_duplicate("longform", topic, topic, force)
         print(f"Generating long-form script for: {args.topic}")
-        script = generate_longform_script(args.topic, args.category,
-                                           args.minutes - 2, args.minutes, args.language)
+        script = _script_or_alert("Long-form", lambda: generate_longform_script(
+            args.topic, args.category, args.minutes - 2, args.minutes, args.language))
     print(f"Script: {script.get('title')} ({len(script.get('sections',[]))} sections)")
     vid_id = save_video(script.get("title",""), "longform", args.language, args.category, script,
                         pipeline="longform", topic_key=dedupe.topic_key(topic or script.get("title", "")))
@@ -300,9 +314,10 @@ def main():
     pl.add_argument("--category", default="auto", help="Documentary category; use auto to infer from any topic")
     pl.add_argument("--language", default="english", choices=["english", "hindi", "hinglish"])
     pl.add_argument("--subtitle-language", default=None, choices=["english", "hindi", "hinglish", "source"],
-                    help="Burned-in caption language (default: SUBTITLE_LANGUAGE or english)")
+                    help="Burned-in caption language. Documentaries accept english only; the other "
+                         "choices are refused unless DOCUMENTARY_SUBTITLE_POLICY=any is set")
     pl.add_argument("--voice-gender", choices=["male", "female"], default="male", help="Narration voice gender")
-    pl.add_argument("--minutes", type=int, choices=range(10, 26), default=12, help="Target runtime in minutes (10-25)")
+    pl.add_argument("--minutes", type=int, choices=range(10, 31), default=12, help="Target runtime in minutes (10-30)")
     pl.add_argument("--demo", action="store_true")
     pl.add_argument("--force", action="store_true", help="Build even if this topic was already produced")
     pl.add_argument("--upload", action="store_true", help="After the build, prepare the review package needed for a private upload")

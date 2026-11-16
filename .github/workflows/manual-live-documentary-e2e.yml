@@ -127,8 +127,9 @@ jobs:
 
       - name: Install Playwright Chromium for 3D avatar recording
         run: |
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          # Pinned 3D engine, avatar SDK and browser driver for the offline presenter renderer.
+          npm ci --prefix avatar_studio
+          (cd avatar_studio && npx playwright install --with-deps chromium)
 
       - name: Install project dependencies
         run: |
@@ -148,8 +149,8 @@ jobs:
       - name: Verify 3D presenter mode is selected
         run: |
           test "$PRESENTER_MODE" = "talking_avatar_auto"
-          test -f avatar_studio/generate-clips.mjs
-          test -f avatar_studio/index.html
+          test -f avatar_studio/render-offline.mjs
+          test -f avatar_studio/offline.html
 
       - name: Discover live footage candidates
         run: |

@@ -332,6 +332,35 @@ class QaTests(_Package):
                 self.build(qa={"technical": status})
                 self.assertBlocked(self.evaluate(), "technical QA must be PASS")
 
+    def test_a_failed_technical_report_names_what_failed(self):
+        # Production build 43655186698 said only "qa/technical.json is FAIL".
+        self.build(qa={"technical": "FAIL"})
+        path = self.root / contract.QA_FILES["technical"]
+        path.write_text(json.dumps({
+            "status": "FAIL",
+            "details": ["1920x1080, 1230.0 s, 30.0 fps, h264/aac, 2 audio channel(s).",
+                        "Visual consistency report has blocking defects: shot_0007: Visual is severely underexposed."],
+            "failures": ["Visual consistency report has blocking defects: shot_0007: Visual is severely underexposed."],
+        }), encoding="utf-8")
+        report = self.evaluate()
+        self.assertBlocked(report, "technical QA must be PASS")
+        self.assertBlocked(report, "Failing checks: Visual consistency report has blocking defects: shot_0007")
+        self.assertNotIn("1920x1080, 1230.0 s", "\n".join(report["blocking"]))
+
+    def test_an_older_technical_report_without_a_failures_list_still_gives_detail(self):
+        self.build(qa={"technical": "FAIL"})
+        path = self.root / contract.QA_FILES["technical"]
+        path.write_text(json.dumps({"status": "FAIL", "details": ["Decode errors: moov atom not found"]}),
+                        encoding="utf-8")
+        self.assertBlocked(self.evaluate(), "Failing checks: Decode errors: moov atom not found")
+
+    def test_a_failed_rights_or_audio_report_also_names_what_failed(self):
+        self.build(qa={"assets": "FAIL"})
+        path = self.root / contract.QA_FILES["assets"]
+        path.write_text(json.dumps({"status": "FAIL", "details": ["shot_0012: licence register status 'blocked'"]}),
+                        encoding="utf-8")
+        self.assertBlocked(self.evaluate(), "Failing checks: shot_0012: licence register status 'blocked'")
+
     def test_missing_or_corrupt_qa_report_blocks(self):
         self.build()
         decisions = approve(self.root)
