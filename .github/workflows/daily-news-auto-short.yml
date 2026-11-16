@@ -78,7 +78,6 @@ jobs:
           YT_CHANNEL_VERIFY: "1"
           PRIVACY: "private"
           PUBLISH_AT_IST: ""
-          ALLOW_PUBLIC_PUBLISH: "0"
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
