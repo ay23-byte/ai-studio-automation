@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -155,8 +156,8 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
         raise NewsAutoReleaseBlocked(
             "YouTube upload needs attention; it is not reported as verified: " + "; ".join(problems))
     update_video(job_id, youtube_id=video_id, status="uploaded",
-                 privacy_status="private", uploaded_at=__import__("datetime").datetime.now(
-                     __import__("datetime").timezone.utc).isoformat(), error=None)
+                 privacy_status="private", uploaded_at=datetime.now(timezone.utc).isoformat(),
+                 error=None)
     dedupe.Ledger().record(
         "news_short", str(row.get("title") or metadata["title"]),
         key=str(row.get("topic_key") or ""), job_id=job_id, youtube_id=video_id,
