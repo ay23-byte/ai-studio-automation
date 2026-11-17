@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from pathlib import Path
-from core.quality import _seconds, _hamming
+from core.quality import _seconds, _hamming, _black_frame_issue
 from core.pipeline import _quality_check
 
 
@@ -14,6 +14,22 @@ class QualityInspectorUnitTests(unittest.TestCase):
     def test_hamming_distance_counts_changed_bits(self):
         self.assertEqual(_hamming(0b1010, 0b1001), 2)
         self.assertEqual(_hamming(255, 255), 0)
+
+    def test_black_footage_is_measured_against_programme_not_long_credits_slate(self):
+        issue, ratio = _black_frame_issue(65.23, 1376.8, body_seconds=1214.24)
+        self.assertIsNotNone(issue)
+        self.assertGreater(ratio, 0.03)
+        self.assertIn("programme", issue)
+
+    def test_short_black_transition_does_not_fail(self):
+        issue, ratio = _black_frame_issue(1.0, 1376.8, body_seconds=1214.24)
+        self.assertIsNone(issue)
+        self.assertLess(ratio, 0.03)
+
+    def test_black_ratio_uses_full_duration_when_body_duration_is_unknown(self):
+        issue, ratio = _black_frame_issue(2.0, 100.0)
+        self.assertIsNone(issue)
+        self.assertAlmostEqual(ratio, 0.02)
 
     def test_render_quality_failure_blocks_completion(self):
         report = {"status": "FAIL", "score": 60, "issues": ["No audio stream found."], "warnings": []}
