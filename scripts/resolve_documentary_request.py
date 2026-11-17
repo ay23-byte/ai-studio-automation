@@ -4,6 +4,7 @@
 The workflow starts in two ways:
 
 * **Run workflow** (workflow_dispatch): the form's inputs are used.
+* **A weekly schedule** selects a topic from the curated rotation.
 * **A pull request that changes `.github/documentary-production-request.json`**, when the
   newest commit message contains `[documentary-run]`. This is a production *test*: it runs
   the same steps with the repository's real providers. It uploads nothing. Whether such a
@@ -22,6 +23,13 @@ import os
 import re
 import sys
 from pathlib import Path
+
+# A script launched as ``python scripts/resolve_documentary_request.py`` gets
+# scripts/ (not the repository root) on sys.path. Add the root before importing
+# the shared topic queue so both direct execution and package imports work.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.documentary_topic_queue import scheduled_topic
 
