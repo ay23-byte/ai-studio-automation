@@ -24,6 +24,36 @@ class OpenverseImageTests(unittest.TestCase):
         self.assertEqual(ov._relevance("Apollo 11 lunar module", {"title": "Tropical beach"}), 0.0)
 
     @patch.object(ov.requests, "get")
+    @patch("core.openverse_images.fetch_openverse_image")
+    @patch("core.images._pollinations", return_value=False)
+    @patch("core.images._pixabay_image", return_value=False)
+    @patch("core.images._cloudflare", return_value=False)
+    def test_news_image_generation_uses_openverse_before_synthetic_fallback(
+        self, cloudflare, pixabay, pollinations, openverse
+    ):
+        from core.images import generate_image
+        openverse.return_value = True
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "news-scene.jpg"
+            self.assertTrue(generate_image("semiconductor fabrication cleanroom", target, "technology"))
+        openverse.assert_called_once()
+        pollinations.assert_not_called()
+
+    @patch("core.openverse_images.fetch_openverse_image")
+    @patch("core.images._pollinations", return_value=False)
+    @patch("core.images._pixabay_image", return_value=False)
+    @patch("core.images._cloudflare", return_value=False)
+    def test_archival_request_never_falls_through_to_openverse_or_synthetic(
+        self, cloudflare, pixabay, pollinations, openverse
+    ):
+        from core.images import generate_image
+        with patch("core.archival_images.fetch_archival_image", return_value=False):
+            with tempfile.TemporaryDirectory() as directory:
+                target = Path(directory) / "archive.jpg"
+                self.assertFalse(generate_image("genuine archival newsreel footage", target, "history"))
+        openverse.assert_not_called()
+        pollinations.assert_not_called()
+
     def test_download_writes_provenance_sidecar(self, get):
         buffer = io.BytesIO()
         Image.new("RGB", (1200, 800), "white").save(buffer, format="PNG")
