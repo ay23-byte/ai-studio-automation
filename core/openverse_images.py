@@ -168,7 +168,10 @@ def fetch_openverse_image(query: str, path: str | Path,
                           used_ids: set[str] | None = None,
                           min_relevance: float = 0.25) -> bool:
     """Download one relevant Openverse image with item-level licence metadata."""
-    query = re.sub(r"\s+", " ", str(query or "")).strip()[:180]
+    # Normalize the full narration/creative prompt into a concise subject query.
+    # Passing "Create a visual..." to Openverse produced long, poor API searches
+    # and prevented relevant openly licensed stills from being discovered.
+    query = _search_query(str(query or ""))
     if not query:
         return False
     used_ids = used_ids if used_ids is not None else set()
