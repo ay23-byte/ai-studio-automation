@@ -35,3 +35,19 @@ def test_browser_smoke_test_expects_video_only_recording():
     assert 'Saved video-only talking_presenter.webm' in smoke
     assert 'result.audioTracks !== 0' in smoke
     assert 'result.audioTracks < 1' not in smoke
+
+
+
+def test_documentary_production_uses_frame_accurate_offline_renderer():
+    generation = (ROOT / "core" / "avatar_clip_generation.py").read_text(encoding="utf-8")
+    renderer = (ROOT / "avatar_studio" / "render-offline.mjs").read_text(encoding="utf-8")
+    assert 'studio / "render-offline.mjs"' in generation
+    assert "generate-clips.mjs" not in generation
+    # The old real-time MediaRecorder path could export a 50 ms clip for an
+    # eight-second narration. Production now renders exactly one frame per
+    # narration frame and checks both decoded frame count and final duration.
+    assert "Math.round(seconds * fps)" in renderer
+    assert "Math.abs(decoded - frames) > 1" in renderer
+    assert "Math.abs(duration - seconds) > 0.25" in renderer
+    assert '"-i", audio' in renderer
+    assert '"offline-frame-accurate"' in renderer
