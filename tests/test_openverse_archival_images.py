@@ -24,6 +24,15 @@ class OpenverseImageTests(unittest.TestCase):
             "Indian rupee currency exchange market",
         )
 
+    def test_search_query_prefers_visual_direction_after_spoken_line(self):
+        prompt = ("Create a visual. Spoken line: The rupee rose against the dollar. "
+                  "Visual direction: Indian currency notes beside a forex trading screen. "
+                  "9:16 cinematic documentary image.")
+        self.assertEqual(
+            ov._search_query(prompt),
+            "Indian currency notes beside forex trading screen",
+        )
+
     def test_search_query_uses_spoken_line_when_no_visual_idea(self):
         query = ov._search_query("Create a visual that directly illustrates this narration. Spoken line: The Hindu noted that the rupee rose six paise against the US dollar.")
         self.assertIn("rupee", query.lower())
