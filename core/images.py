@@ -225,17 +225,18 @@ def _pixabay_image(scene_prompt, path):
         return False
 
 
-def generate_image(scene_prompt, path, category="general"):
+def generate_image(scene_prompt, path, category="general", search_query=None):
     # A scene explicitly requesting real archival material must never silently
     # fall through to a synthetic image generator.
     import re
+    query = str(search_query or scene_prompt or "").strip()
     archival_request = bool(re.search(
         r"\b(archival\s+(?:footage|film|video|photograph|photo|still|image)|archive\s+footage|newsreel|period\s+(?:photograph|photo|film)|historical\s+(?:footage|film|photograph)|old\s+footage)\b",
-        str(scene_prompt or ""), re.I
+        f"{scene_prompt or ''} {query}", re.I
     ))
     if archival_request:
         from core.archival_images import fetch_archival_image
-        if fetch_archival_image(scene_prompt, path):
+        if fetch_archival_image(query or scene_prompt, path):
             print("  genuine archival still candidate retrieved; human review required")
             return True
         print("  archival still unavailable; synthetic-image substitution refused")
@@ -243,7 +244,7 @@ def generate_image(scene_prompt, path, category="general"):
 
     full = _image_style(category) + scene_prompt
     if _cloudflare(full, path): print(f"  image ok (cloudflare)"); return True
-    if _pixabay_image(scene_prompt, path): return True
+    if _pixabay_image(query, path): return True
     # Openverse is a free, keyless source for stills with item-level commercial
     # licence metadata. Use it before the synthetic endpoint so a provider outage
     # does not turn a news Short into a text-card slideshow.
@@ -251,7 +252,7 @@ def generate_image(scene_prompt, path, category="general"):
         from core.openverse_images import fetch_openverse_image
         used_openverse_ids = set()
         minimum = float(os.getenv("OPENVERSE_IMAGE_MIN_RELEVANCE", "0.25") or 0.25)
-        if fetch_openverse_image(scene_prompt, path, used_ids=used_openverse_ids,
+        if fetch_openverse_image(query, path, used_ids=used_openverse_ids,
                                  min_relevance=minimum):
             print("  image ok (Openverse openly licensed still; provenance recorded)")
             return True
@@ -261,7 +262,7 @@ def generate_image(scene_prompt, path, category="general"):
     # datacenter-IP authentication policy while retaining per-file licence data.
     try:
         from core.wikimedia_images import fetch_wikimedia_image
-        if fetch_wikimedia_image(scene_prompt, path):
+        if fetch_wikimedia_image(query, path):
             print("  image ok (Wikimedia Commons openly licensed still; provenance recorded)")
             return True
     except Exception as exc:
@@ -681,7 +682,10 @@ def fetch_clip(keywords, path, used, scene_prompt=""):
     scripted/bot mass downloading and site scraping.
     """
     queries = []
-    for value in list(keywords or []) + [scene_prompt]:
+    # Keep the full scene brief inside the provider query budget. Scripts can
+    # supply eight or more keywords; appending the brief last silently dropped
+    # the only query that carries the complete visual context.
+    for value in [scene_prompt] + list(keywords or []):
         query = _compact_search_query(value, 100)
         if query and query not in queries:
             queries.append(query)
