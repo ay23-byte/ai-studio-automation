@@ -57,17 +57,17 @@ def _license_label(item: dict) -> tuple[str, str] | None:
 
 def _search_query(value: str) -> str:
     """Turn a narration instruction into a short subject query, not a paragraph."""
-    text = re.sub(r"\\s+", " ", str(value or "")).strip()
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
     # Prefer an explicit visual description; otherwise use the spoken line rather
     # than the renderer's surrounding instruction template.
-    visual = re.search(r"visual idea\\s*:\\s*(.+?)(?=\\s+(?:art direction|spoken line)\\s*:|$)", text, re.I)
-    spoken = re.search(r"spoken line\\s*:\\s*(.+)$", text, re.I)
+    visual = re.search(r"visual idea\s*:\s*(.+?)(?=\s+(?:art direction|spoken line)\s*:|$)", text, re.I)
+    spoken = re.search(r"spoken line\s*:\s*(.+)$", text, re.I)
     if visual:
         text = visual.group(1)
     elif spoken:
         text = spoken.group(1)
-    text = re.sub(r"^(?:according to|as reported by|the report says|reports that)\\s+", "", text, flags=re.I)
-    text = re.sub(r"\\b(?:noted|reported|reports|says|said)\\b", " ", text, flags=re.I)
+    text = re.sub(r"^(?:according to|as reported by|the report says|reports that)\s+", "", text, flags=re.I)
+    text = re.sub(r"\b(?:noted|reported|reports|says|said)\b", " ", text, flags=re.I)
     words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", text)
     stop = {"the", "and", "for", "with", "from", "that", "this", "according", "noted",
             "reported", "reports", "says", "said", "news", "today", "yesterday"}
