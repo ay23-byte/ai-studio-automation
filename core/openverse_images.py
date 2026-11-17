@@ -70,7 +70,7 @@ def _search_query(value: str) -> str:
     text = re.sub(r"\b(?:noted|reported|reports|says|said)\b", " ", text, flags=re.I)
     words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", text)
     stop = {"the", "and", "for", "with", "from", "that", "this", "according", "noted",
-            "reported", "reports", "says", "said", "news", "today", "yesterday"}
+            "reported", "reports", "says", "said", "news", "today", "yesterday", "vertical"}
     words = [w for w in words if len(w) > 2 and w.lower() not in stop]
     # 8-10 meaningful terms is enough for a broad still search and keeps the
     # relevance denominator from being diluted by narration filler.
