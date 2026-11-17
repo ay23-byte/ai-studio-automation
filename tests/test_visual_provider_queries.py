@@ -1,7 +1,8 @@
 """Regression tests for concise visual-provider search queries."""
 import unittest
+from unittest.mock import patch
 
-from core.images import _compact_search_query
+from core.images import _compact_search_query, fetch_clip, generate_image
 from core.archival_images import _search_query
 
 
@@ -26,6 +27,26 @@ class VisualProviderQueryTests(unittest.TestCase):
     def test_archival_query_is_bounded(self):
         query = _search_query("Specific context: " + ("historical power plant construction 1975 " * 30))
         self.assertLessEqual(len(query), 180)
+
+    def test_image_libraries_receive_concise_scene_query_not_generation_wrapper(self):
+        prompt = "Create a visual that directly illustrates this exact spoken narration. Spoken line: ..."
+        query = "noise cancelling headphones sound wave interference"
+        with patch("core.images._cloudflare", return_value=False), \
+             patch("core.images._pixabay_image", return_value=True) as pixabay:
+            self.assertTrue(generate_image(prompt, "scene.jpg", search_query=query))
+        pixabay.assert_called_once_with(query, "scene.jpg")
+
+    def test_clip_search_keeps_scene_brief_ahead_of_many_keywords(self):
+        scene = "noise cancelling headphones sound wave interference"
+        keywords = [f"generic keyword {index}" for index in range(10)]
+        with patch("core.footage_sources.fetch_documentary_clip", return_value=False) as fetch, \
+             patch("core.footage_sources._is_archival_video_request", return_value=False), \
+             patch("core.images.stock_providers", return_value=[]):
+            self.assertFalse(fetch_clip(keywords, "scene.mp4", set(), scene_prompt=scene))
+        queries = fetch.call_args.args[0]
+        self.assertEqual(queries[0], scene)
+        self.assertLessEqual(len(queries), 8)
+        self.assertIn("generic keyword 0", queries)
 
 
 if __name__ == "__main__":
