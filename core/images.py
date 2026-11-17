@@ -244,6 +244,19 @@ def generate_image(scene_prompt, path, category="general"):
     full = _image_style(category) + scene_prompt
     if _cloudflare(full, path): print(f"  image ok (cloudflare)"); return True
     if _pixabay_image(scene_prompt, path): return True
+    # Openverse is a free, keyless source for stills with item-level commercial
+    # licence metadata. Use it before the synthetic endpoint so a provider outage
+    # does not turn a news Short into a text-card slideshow.
+    try:
+        from core.openverse_images import fetch_openverse_image
+        used_openverse_ids = set()
+        minimum = float(os.getenv("OPENVERSE_IMAGE_MIN_RELEVANCE", "0.25") or 0.25)
+        if fetch_openverse_image(scene_prompt, path, used_ids=used_openverse_ids,
+                                 min_relevance=minimum):
+            print("  image ok (Openverse openly licensed still; provenance recorded)")
+            return True
+    except Exception as exc:
+        print(f"  Openverse still fallback unavailable: {type(exc).__name__}: {str(exc)[:180]}")
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
 
