@@ -23,6 +23,8 @@ import re
 import sys
 from pathlib import Path
 
+from scripts.documentary_topic_queue import scheduled_topic
+
 REQUEST_FILE = ".github/documentary-production-request.json"
 MARKER = "[documentary-run]"
 CHOICES = {
@@ -73,6 +75,22 @@ def normalise(raw: dict) -> dict[str, str]:
 
 def resolve(event: str, inputs: dict, request_path: Path, head_message: str, same_repository: bool) -> dict[str, str]:
     """{"run": "true"|"false", "reason": ..., plus the parameters when run is true}."""
+    if event == "schedule":
+        return {
+            "run": "true",
+            "reason": "Weekly scheduled documentary build; topic selected from the curated rotation.",
+            **normalise({
+                "topic": scheduled_topic(),
+                "category": "auto",
+                "semantic_review": "true",
+                "minutes": "22",
+                "language": "hinglish",
+                "channel_profile": "beyond_science",
+                "voice_gender": "male",
+                "presenter_mode": "talking_avatar_auto",
+                "visual_mode": "video_first",
+            }),
+        }
     if event == "workflow_dispatch":
         return {"run": "true", "reason": "Started from the Run workflow form.", **normalise(inputs)}
     if event != "pull_request":
