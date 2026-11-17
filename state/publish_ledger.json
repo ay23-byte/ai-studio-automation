@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-16T23:13:47+00:00",
+  "updated_at": "2026-11-17T11:32:25+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -109,6 +109,21 @@
       "source_refs": [
         "43eba2effba4d22aa9c1",
         "7834a8f9fd34671eb7ad"
+      ],
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "197922b64dcdec15bac42da6",
+      "created_at": "2026-11-17T11:32:25+00:00",
+      "title": "Rupee Movements Against U.S. Dollar",
+      "status": "built",
+      "updated_at": "2026-11-17T11:32:25+00:00",
+      "topic": "Rupee rises 31 paise to 93.63 against U.S. dollar in early trade",
+      "source_refs": [
+        "e5e19eda0dfaf8d024a3",
+        "131b517a3ed74a9c9beb",
+        "a9a3bde6ecd02227f321"
       ],
       "job_id": 7
     }
