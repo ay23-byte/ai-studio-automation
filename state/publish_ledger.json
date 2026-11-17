@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-17T12:40:19+00:00",
+  "updated_at": "2026-11-17T22:07:26+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -135,6 +135,20 @@
       "status": "built",
       "updated_at": "2026-11-17T12:40:19+00:00",
       "topic": "How do noise-canceling headphones block sound using wave interference?",
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "3e1f90d7e629e90e9fb021e8",
+      "created_at": "2026-11-17T22:07:26+00:00",
+      "title": "Jensen Huang Signals Willingness to Return as Nvidia CEO",
+      "status": "built",
+      "updated_at": "2026-11-17T22:07:26+00:00",
+      "topic": "Jensen Huang says he would be 'honoured' to return as Nvidia CEO if board asked him",
+      "source_refs": [
+        "6e4161a0149e2d4af61e",
+        "38c89b3387232dcd11ef"
+      ],
       "job_id": 7
     }
   ]
