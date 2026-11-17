@@ -122,6 +122,7 @@ def _search(query: str) -> list[dict]:
                 params={
                     "q": query,
                     "license": "cc0,pdm,by,by-sa",
+                    "license_type": "commercial",
                     "filter_dead": "true",
                     "page_size": 20,
                 },
