@@ -257,6 +257,15 @@ def generate_image(scene_prompt, path, category="general"):
             return True
     except Exception as exc:
         print(f"  Openverse still fallback unavailable: {type(exc).__name__}: {str(exc)[:180]}")
+    # Independent Commons API fallback: this avoids depending on Openverse's
+    # datacenter-IP authentication policy while retaining per-file licence data.
+    try:
+        from core.wikimedia_images import fetch_wikimedia_image
+        if fetch_wikimedia_image(scene_prompt, path):
+            print("  image ok (Wikimedia Commons openly licensed still; provenance recorded)")
+            return True
+    except Exception as exc:
+        print(f"  Wikimedia Commons still fallback unavailable: {type(exc).__name__}: {str(exc)[:180]}")
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
 
