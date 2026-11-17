@@ -29,7 +29,7 @@ class OpenverseImageTests(unittest.TestCase):
     @patch("core.images._pixabay_image", return_value=False)
     @patch("core.images._cloudflare", return_value=False)
     def test_news_image_generation_uses_openverse_before_synthetic_fallback(
-        self, cloudflare, pixabay, pollinations, openverse
+        self, cloudflare, pixabay, pollinations, openverse, get
     ):
         from core.images import generate_image
         openverse.return_value = True
@@ -54,6 +54,7 @@ class OpenverseImageTests(unittest.TestCase):
         openverse.assert_not_called()
         pollinations.assert_not_called()
 
+    @patch.object(ov.requests, "get")
     def test_download_writes_provenance_sidecar(self, get):
         buffer = io.BytesIO()
         Image.new("RGB", (1200, 800), "white").save(buffer, format="PNG")
