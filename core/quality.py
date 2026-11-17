@@ -50,6 +50,25 @@ def _hamming(left, right):
     return (left ^ right).bit_count()
 
 
+def _black_frame_issue(black_seconds, duration, body_seconds=None, limit=0.03):
+    """Return a blocking issue and ratio when black footage exceeds the programme limit.
+
+    Credit slates are excluded from the numerator by the caller. When the programme
+    duration is known, use it as the denominator too; using the full export duration
+    would dilute the black-frame ratio with a long, intentionally dark credits slate.
+    """
+    total = _seconds(duration)
+    body = _seconds(body_seconds)
+    denominator = body if body > 0 and (not total or body < total) else total
+    if denominator <= 0:
+        return None, 0.0
+    ratio = max(0.0, _seconds(black_seconds)) / denominator
+    if ratio > float(limit):
+        return (f"More than {limit:.0%} of the programme is detected as black "
+                f"({ratio:.1%}); replace the affected footage before release."), ratio
+    return None, ratio
+
+
 def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto", body_seconds=None):
     """Return a JSON-safe report. Requires ffprobe/ffmpeg; never changes the video.
 
@@ -124,7 +143,7 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
     if video_stream and duration:
         command = [
             _ffmpeg(), "-hide_banner", "-nostats", "-i", str(video_path),
-            "-vf", "blackdetect=d=0.5:pix_th=0.10", "-an", "-f", "null", "-"
+            "-vf", "blackdetect=d=0.5:pix_th=0.05", "-an", "-f", "null", "-"
         ]
         result = subprocess.run(command, capture_output=True, text=True, timeout=600)
         log = (result.stderr or "") + (result.stdout or "")
@@ -192,8 +211,10 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
         "silence_intervals": silence_events,
         "silence_seconds": round(silence_duration, 2),
     })
-    if duration and black_duration / duration > 0.03:
-        warnings.append("More than 3% of the export is detected as black.")
+    black_issue, black_ratio = _black_frame_issue(black_duration, duration, body_seconds)
+    metrics["black_ratio"] = round(black_ratio, 4)
+    if black_issue:
+        issues.append(black_issue)
     if silence_duration > max(5.0, duration * 0.08):
         warnings.append("Long or frequent near-silent audio intervals detected.")
 
