@@ -91,6 +91,7 @@ jobs:
           CHANNEL_NAME: "Engineering Physics"
           PRIVACY: "private"
           VISUAL_SEMANTIC_CHECK: "1"
+          VISUAL_SEMANTIC_MAX_SHOTS: "200"
         run: |
           test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY repository Actions secret. Add it under Settings > Secrets and variables > Actions." && exit 1)
           python run.py long "The Mystery of India's Disappearing Villages" --category india --minutes 12 --language english --voice-gender female
