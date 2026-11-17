@@ -114,6 +114,7 @@ jobs:
           TTS_ENGINE: "edge"
           ALLOW_CHATTERBOX_ON_CI: "false"
           SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
+          TOPIC_CATEGORIES: "physics,engineering,technology,science"
           CHANNEL_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.channel_profile || 'standard' }}
           # Inputs travel through the environment and are never interpolated
           # into the script, so a topic cannot inject shell commands.
@@ -134,8 +135,7 @@ jobs:
             python scripts/build_with_recovery.py -- python run_daily.py --format shorts
           fi
 
-      # Build-only: this workflow has no YouTube credentials. A separate workflow
-      # consumes only successful scheduled-run artifacts and performs private release.
+      # Build job is credential-isolated. The dependent release job below receives YouTube credentials only after success.
       - name: Assemble the review package (no upload)
         if: success()
         run: python scripts/package_build_for_review.py --mode shortform
