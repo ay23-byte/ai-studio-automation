@@ -60,7 +60,7 @@ def _search_query(value: str) -> str:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     # Prefer an explicit visual description; otherwise use the spoken line rather
     # than the renderer's surrounding instruction template.
-    visual = re.search(r"visual idea\s*:\s*(.+?)(?=\s+(?:art direction|spoken line)\s*:|$)", text, re.I)
+    visual = re.search(r"(?:visual idea|visual direction)\s*:\s*(.+?)(?=\s+(?:art direction|spoken line)\s*:|\s+9:16\b|$)", text, re.I)
     spoken = re.search(r"spoken line\s*:\s*(.+)$", text, re.I)
     if visual:
         text = visual.group(1)
