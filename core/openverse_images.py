@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import time
+import threading
 from datetime import date
 from pathlib import Path
 
@@ -17,6 +18,9 @@ from core.visual_consistency import MIN_SOURCE_WIDTH
 
 API = "https://api.openverse.org/v1/images/"
 USER_AGENT = "AIStudioDocumentary/1.0 (openly licensed documentary image research)"
+TOKEN_API = "https://api.openverse.org/v1/auth_tokens/token/"
+_TOKEN = {"value": "", "expires_at": 0.0}
+_TOKEN_LOCK = threading.Lock()
 _ALLOWED = {"cc0", "pdm", "by", "by-sa"}
 
 
@@ -51,10 +55,68 @@ def _license_label(item: dict) -> tuple[str, str] | None:
     return f"CC BY-SA {version}", str(item.get("license_url") or f"https://creativecommons.org/licenses/by-sa/{version}/")
 
 
+def _search_query(value: str) -> str:
+    """Turn a narration instruction into a short subject query, not a paragraph."""
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    # Prefer an explicit visual description; otherwise use the spoken line rather
+    # than the renderer's surrounding instruction template.
+    visual = re.search(r"(?:visual idea|visual direction)\s*:\s*(.+?)(?=\s+(?:art direction|spoken line)\s*:|\s+9:16\b|$)", text, re.I)
+    spoken = re.search(r"spoken line\s*:\s*(.+)$", text, re.I)
+    if visual:
+        text = visual.group(1)
+    elif spoken:
+        text = spoken.group(1)
+    text = re.sub(r"^(?:according to|as reported by|the report says|reports that)\s+", "", text, flags=re.I)
+    text = re.sub(r"\b(?:noted|reported|reports|says|said)\b", " ", text, flags=re.I)
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", text)
+    stop = {"the", "and", "for", "with", "from", "that", "this", "according", "noted",
+            "reported", "reports", "says", "said", "news", "today", "yesterday"}
+    words = [w for w in words if len(w) > 2 and w.lower() not in stop]
+    # 8-10 meaningful terms is enough for a broad still search and keeps the
+    # relevance denominator from being diluted by narration filler.
+    return " ".join(words[:10])[:120]
+
+
+def _access_token() -> str:
+    """Get/refresh the optional Openverse OAuth token using client credentials."""
+    import os
+    client_id = os.getenv("OPENVERSE_CLIENT_ID", "").strip()
+    client_secret = os.getenv("OPENVERSE_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        return ""
+    now = time.monotonic()
+    with _TOKEN_LOCK:
+        if _TOKEN["value"] and _TOKEN["expires_at"] > now + 60:
+            return str(_TOKEN["value"])
+        try:
+            response = requests.post(
+                TOKEN_API,
+                data={"grant_type": "client_credentials", "client_id": client_id,
+                      "client_secret": client_secret},
+                headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+                timeout=20,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            token = str(payload.get("access_token") or "")
+            if not token:
+                raise ValueError("Openverse token response omitted access_token")
+            _TOKEN.update(value=token, expires_at=now + max(60, int(payload.get("expires_in") or 36000)))
+            return token
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            print(f"  Openverse OAuth unavailable: {type(exc).__name__}: {exc}")
+            _TOKEN.update(value="", expires_at=0.0)
+            return ""
+
+
 def _search(query: str) -> list[dict]:
     last_error = None
+    token = _access_token()
     for attempt in range(3):
         try:
+            headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
             response = requests.get(
                 API,
                 params={
@@ -62,11 +124,15 @@ def _search(query: str) -> list[dict]:
                     "license": "cc0,pdm,by,by-sa",
                     "license_type": "commercial",
                     "filter_dead": "true",
-                    "page_size": 30,
+                    "page_size": 20,
                 },
-                headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+                headers=headers,
                 timeout=35,
             )
+            if response.status_code == 401 and token and attempt == 0:
+                _TOKEN.update(value="", expires_at=0.0)
+                token = _access_token()
+                continue
             if response.status_code == 429 or response.status_code in (500, 502, 503, 504):
                 if attempt < 2:
                     retry = response.headers.get("Retry-After", "")
