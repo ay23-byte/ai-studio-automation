@@ -31,6 +31,15 @@ class ResolveRequestTests(unittest.TestCase):
         self.assertEqual((result["topic"], result["minutes"], result["semantic_review"]), ("Tides", "22", "true"))
         self.assertEqual(result["language"], "hinglish")           # the form's default
 
+    def test_weekly_schedule_selects_a_topic_and_enables_machine_screening(self):
+        result = request.resolve("schedule", {}, self.file, "", False)
+        self.assertEqual(result["run"], "true")
+        self.assertTrue(result["topic"])
+        self.assertEqual(result["semantic_review"], "true")
+        self.assertEqual(result["minutes"], "22")
+        self.assertEqual(result["presenter_mode"], "talking_avatar_auto")
+        self.assertIn("curated rotation", result["reason"])
+
     def test_a_marked_pull_request_commit_starts_a_production_test(self):
         result = self._pull_request()
         self.assertEqual(result["run"], "true")
@@ -107,6 +116,9 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("needs: request", build)
         self.assertIn("if: needs.request.outputs.run == 'true'", build)
         self.assertNotIn("inputs.", build)
+
+    def test_weekly_schedule_is_configured_for_sunday_evening_ist(self):
+        self.assertIn('cron: "0 13 * * 0"', WORKFLOW)
 
     def test_the_pull_request_trigger_is_limited_to_the_request_file(self):
         trigger = WORKFLOW[WORKFLOW.index("  pull_request:"):WORKFLOW.index("\npermissions:")]
