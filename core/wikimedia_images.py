@@ -22,7 +22,7 @@ USER_AGENT = "AIStudioAutomation/1.0 (https://github.com/ay23-byte/ai-studio-aut
 
 def _query(value: str) -> str:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
-    visual = re.search(r"visual idea\s*:\s*(.+?)(?=\s+(?:art direction|spoken line)\s*:|$)", text, re.I)
+    visual = re.search(r"(?:visual idea|visual direction)\s*:\s*(.+?)(?=\s+(?:art direction|spoken line)\s*:|\s+9:16\b|$)", text, re.I)
     spoken = re.search(r"spoken line\s*:\s*(.+)$", text, re.I)
     if visual:
         text = visual.group(1)
