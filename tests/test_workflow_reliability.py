@@ -68,12 +68,24 @@ class ActionVersionTests(unittest.TestCase):
             self.assertNotRegex(path.read_text(encoding="utf-8"), r"require\(['\"]@actions/github['\"]\)", path.name)
 
 
-    def test_standard_shorts_workflow_is_review_only(self):
+    def test_standard_shorts_build_is_isolated_and_scheduled_release_is_private(self):
         text = _text("make_shorts.yml")
-        self.assertNotIn("run_daily.py --format shorts --upload-latest", text)
-        self.assertNotIn("Upload completed Short to YouTube", text)
-        self.assertIn('UPLOAD_REQUESTED: "false"', text)
-        self.assertIn("shorts-review-${{ github.run_id }}", text)
+        build = text[text.index("  build:"):text.index("  release:")]
+        release = text[text.index("  release:"):]
+        self.assertNotIn("run_daily.py --format shorts --upload-latest", build)
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn('UPLOAD_REQUESTED: "false"', build)
+        self.assertIn("shorts-review-${{ github.run_id }}", build)
+        self.assertIn("needs: build", release)
+        self.assertIn("github.event_name == 'schedule'", release)
+        self.assertIn("run_daily.py --format shorts --upload-latest --auto-private-release", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertIn('PRIVACY: "private"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
+        self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
+        self.assertIn("REQUIRE_ASSET_PROVENANCE: \"1\"", release)
+        self.assertIn("shorts-review-${{ github.run_id }}", release)
 
     def test_daily_news_workflow_uses_guarded_private_autorelease(self):
         text = _text("daily-news-auto-short.yml")
@@ -182,7 +194,11 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                 self.assertLess(steps.index(package), steps.index(artifact))
                 self.assertIn("build/job_*/", artifact)                # the package lives inside the build dir
                 self.assertIn("if: always()", artifact)
-                if name != "daily-news-auto-short.yml":
+                if name == "make_shorts.yml":
+                    build_workflow = text[text.index("  build:"):text.index("  release:")]
+                    for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
+                        self.assertNotIn(secret, build_workflow)
+                elif name != "daily-news-auto-short.yml":
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, text)
                 self.assertNotIn("release_review_package.py", text)
@@ -191,7 +207,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "release_shorts_auto.yml", "release_documentary_auto.yml")))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_shorts.yml", "release_documentary_auto.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
