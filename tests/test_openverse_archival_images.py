@@ -39,6 +39,19 @@ class OpenverseImageTests(unittest.TestCase):
         self.assertIn("dollar", query.lower())
         self.assertLessEqual(len(query.split()), 10)
 
+    @patch.object(ov, "_search", return_value=[])
+    def test_fetch_normalizes_full_creative_prompt_before_api_search(self, search):
+        prompt = (
+            "Create a visual that directly illustrates this exact spoken narration. "
+            "Do not use unrelated generic filler. Spoken line: According to the Hindu, "
+            "the rupee rose against the US dollar. Visual direction: Indian rupee notes "
+            "beside a currency exchange trading screen. Vertical 9:16."
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "rupee.jpg"
+            self.assertFalse(ov.fetch_openverse_image(prompt, target))
+        search.assert_called_once_with("Indian rupee notes beside currency exchange trading screen")
+
     @patch.object(ov.requests, "post")
     @patch.object(ov.requests, "get")
     def test_oauth_token_is_used_for_openverse_search(self, get, post):
