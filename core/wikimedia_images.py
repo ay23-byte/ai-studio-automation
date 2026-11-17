@@ -48,7 +48,10 @@ def _licence(info: dict) -> tuple[str, str] | None:
     if "cc0" in normalized or "cc zero" in normalized:
         return "CC0 1.0", url or "https://creativecommons.org/publicdomain/zero/1.0/"
     if "public domain" in normalized:
-        return "Public Domain", url or "https://creativecommons.org/publicdomain/mark/1.0/"
+        return ("Public Domain", url) if url else None
+    # Never accept NC or ND variants, even though their labels also contain "CC BY".
+    if re.search(r"cc by (?:nc|nd)(?:\\s|$)", normalized):
+        return None
     if "cc by sa" in normalized:
         return (label, url) if url else None
     if re.search(r"cc by(?:\s|$)", normalized):
