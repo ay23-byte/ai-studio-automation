@@ -78,6 +78,8 @@ jobs:
           YT_CHANNEL_VERIFY: "1"
           PRIVACY: "private"
           PUBLISH_AT_IST: ""
+          OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
+          OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
           NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
