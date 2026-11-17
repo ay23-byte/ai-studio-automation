@@ -82,7 +82,7 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn("run_daily.py --format shorts --upload-latest --auto-private-release", release)
         self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
         self.assertIn('PRIVACY: "private"', release)
-        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
         self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
         self.assertIn("REQUIRE_ASSET_PROVENANCE: \"1\"", release)
         self.assertIn("shorts-review-${{ github.run_id }}", release)
