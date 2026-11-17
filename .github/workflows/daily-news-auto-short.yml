@@ -79,6 +79,12 @@ jobs:
           PRIVACY: "private"
           PUBLISH_AT_IST: ""
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          DVIDS_API_REFERER: ${{ secrets.DVIDS_API_REFERER }}
+          FOOTAGE_CONTACT: ${{ vars.FOOTAGE_CONTACT }}
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
           WANT_UPLOAD: "true"
