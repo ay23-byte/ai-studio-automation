@@ -347,6 +347,16 @@ def _scene_search_brief(beat: dict, keywords) -> str:
     )
     return " ".join(" ".join(str(part or "").split()) for part in parts if str(part or "").strip())[:600]
 
+
+def _short_scene_search_brief(scene: dict) -> str:
+    """Use the scene's visual direction and stock keywords, not narration prose."""
+    keywords = scene.get("keywords") or []
+    keyword_text = " ".join(str(item).strip() for item in keywords if str(item).strip())
+    image = " ".join(str(scene.get("image") or "").split())
+    if not image and not keyword_text:
+        image = " ".join(str(scene.get("say") or "").split())
+    return " ".join(part for part in (image, keyword_text) if part)[:400]
+
 def _caption_style(preset, is_shorts):
     if is_shorts:
         styles = {
@@ -624,6 +634,8 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
     img_p = bd / f"img{index}.jpg"
     clip_p = bd / f"raw{index}.mp4"
     card_p = bd / f"card{index}.jpg"
+    keywords = scene.get("keywords") or [str(scene.get("say", ""))[:100]]
+    scene_search_prompt = _short_scene_search_brief(scene)
     scene_prompt = (
         "Create a visual that directly illustrates this exact spoken narration. "
         "Do not use unrelated generic filler. Spoken line: "
@@ -652,8 +664,7 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
         if generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16"):
             return {"type": "video", "path": clip_p, "provider": "ai_video"}
         state["ai_video_failed"] = True
-    keywords = scene.get("keywords") or [str(scene.get("say", ""))[:100]]
-    if fetch_clip(keywords, clip_p, used_ids, scene_prompt=scene_prompt):
+    if fetch_clip(keywords, clip_p, used_ids, scene_prompt=scene_search_prompt):
         return {"type": "video", "path": clip_p, "provider": "stock"}
     card_text = " ".join(str(scene.get(key) or "") for key in ("label", "caption", "say")).strip()
     # The scene label is already burned in by the caption track; no kicker here.
