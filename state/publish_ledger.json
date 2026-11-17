@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-17T11:32:25+00:00",
+  "updated_at": "2026-11-17T12:40:19+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -125,6 +125,16 @@
         "131b517a3ed74a9c9beb",
         "a9a3bde6ecd02227f321"
       ],
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "37447b2294bbef4b029be7d0",
+      "created_at": "2026-11-17T12:40:19+00:00",
+      "title": "How Noise-Canceling Headphones Work Using Physics!",
+      "status": "built",
+      "updated_at": "2026-11-17T12:40:19+00:00",
+      "topic": "How do noise-canceling headphones block sound using wave interference?",
       "job_id": 7
     }
   ]
