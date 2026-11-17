@@ -4,6 +4,7 @@
 The workflow starts in two ways:
 
 * **Run workflow** (workflow_dispatch): the form's inputs are used.
+* **A weekly schedule** selects a topic from the curated rotation.
 * **A pull request that changes `.github/documentary-production-request.json`**, when the
   newest commit message contains `[documentary-run]`. This is a production *test*: it runs
   the same steps with the repository's real providers. It uploads nothing. Whether such a
@@ -22,6 +23,15 @@ import os
 import re
 import sys
 from pathlib import Path
+
+# A script launched as ``python scripts/resolve_documentary_request.py`` gets
+# scripts/ (not the repository root) on sys.path. Add the root before importing
+# the shared topic queue so both direct execution and package imports work.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.documentary_topic_queue import scheduled_topic
 
 REQUEST_FILE = ".github/documentary-production-request.json"
 MARKER = "[documentary-run]"
@@ -73,6 +83,22 @@ def normalise(raw: dict) -> dict[str, str]:
 
 def resolve(event: str, inputs: dict, request_path: Path, head_message: str, same_repository: bool) -> dict[str, str]:
     """{"run": "true"|"false", "reason": ..., plus the parameters when run is true}."""
+    if event == "schedule":
+        return {
+            "run": "true",
+            "reason": "Weekly scheduled documentary build; topic selected from the curated rotation.",
+            **normalise({
+                "topic": scheduled_topic(),
+                "category": "auto",
+                "semantic_review": "true",
+                "minutes": "22",
+                "language": "hinglish",
+                "channel_profile": "beyond_science",
+                "voice_gender": "male",
+                "presenter_mode": "talking_avatar_auto",
+                "visual_mode": "video_first",
+            }),
+        }
     if event == "workflow_dispatch":
         return {"run": "true", "reason": "Started from the Run workflow form.", **normalise(inputs)}
     if event != "pull_request":
