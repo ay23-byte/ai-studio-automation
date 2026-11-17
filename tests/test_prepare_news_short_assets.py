@@ -8,6 +8,7 @@ from scripts.prepare_news_short_assets import (
     find_one,
     visual_plan,
     create_story_graphic,
+    visual_search_brief,
 )
 
 
@@ -71,6 +72,14 @@ class PrepareNewsShortAssetsTests(unittest.TestCase):
         self.assertEqual(visual_plan(4, 5, True)["kind"], "stock")
         self.assertEqual(visual_plan(5, 5, True)["kind"], "stock")
         self.assertEqual(visual_plan(5, 5, False), {})
+
+    def test_news_visual_search_uses_scene_description_and_keywords_not_wrapper(self):
+        scene = {"image": "Rupee notes beside a dollar exchange-rate display",
+                 "keywords": ["Indian rupee currency", "USD INR exchange rate"]}
+        query = visual_search_brief(scene, scene["keywords"])
+        self.assertIn("Rupee notes", query)
+        self.assertIn("USD INR exchange rate", query)
+        self.assertNotIn("Illustrative, non-archival", query)
 
     def test_story_graphics_are_local_and_have_provenance_sidecars(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -232,6 +232,12 @@ def create_story_graphic(path: str | Path, graphic: str) -> dict:
     return metadata
 
 
+def visual_search_brief(scene: dict, keywords=None) -> str:
+    """Build a concise, scene-specific query separate from creative instructions."""
+    values = [scene.get("image")] + list(keywords or scene.get("keywords") or [])
+    return " ".join(" ".join(str(value or "").split()) for value in values if str(value or "").strip())[:400]
+
+
 def prepare_candidate_script(script: dict, packet: dict, scene_assets: list[dict]) -> dict:
     # Carry the user's approved editorial corrections into the production candidate.
     # The original generated artifact remains unchanged for auditability.
@@ -301,7 +307,8 @@ def prepare_assets(artifact_dir: str | Path, output_dir: str | Path) -> dict:
                     f"Narration: {scene['say']} Visual direction: {scene['image']}. Vertical 9:16."
                 )
                 keywords = scene.get("keywords") or [scene.get("image", "")]
-            if fetch_clip(keywords, clip_path, used_ids, scene_prompt=prompt):
+            search_prompt = visual_search_brief(scene, keywords)
+            if fetch_clip(keywords, clip_path, used_ids, scene_prompt=search_prompt):
                 asset_type, asset_path, ai_disclosure = "video", clip_path, False
                 metadata = json.loads(clip_path.with_suffix(clip_path.suffix + ".source.json").read_text(encoding="utf-8"))
                 if float(metadata.get("relevance_score", 0)) < 0.45:
@@ -332,7 +339,8 @@ def prepare_assets(artifact_dir: str | Path, output_dir: str | Path) -> dict:
                 clip_path.with_suffix(clip_path.suffix + ".source.json").write_text(
                     json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
-            elif generate_image(prompt, image_path, category="geopolitics" if himalayan else "general"):
+            elif generate_image(prompt, image_path, category="geopolitics" if himalayan else "general",
+                                search_query=search_prompt):
                 asset_type, asset_path, ai_disclosure = "image", image_path, True
                 metadata = json.loads(image_path.with_suffix(image_path.suffix + ".source.json").read_text(encoding="utf-8"))
             else:

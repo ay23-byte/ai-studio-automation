@@ -654,7 +654,8 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
     # After repeated consecutive failures the image provider is down or rate
     # limited: stop paying its retry/back-off cost for every remaining scene.
     if state["image_failures"] < state["image_failure_limit"]:
-        if generate_image(scene_prompt, img_p, category=script.get("category", "general")):
+        if generate_image(scene_prompt, img_p, category=script.get("category", "general"),
+                          search_query=scene_search_prompt):
             state["image_failures"] = 0
             return {"type": "image", "path": img_p, "provider": "image"}
         state["image_failures"] += 1

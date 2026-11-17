@@ -64,6 +64,32 @@ class OpenverseImageTests(unittest.TestCase):
             os.environ.pop("OPENVERSE_CLIENT_SECRET", None)
             ov._TOKEN.update(value="", expires_at=0.0)
 
+    @patch.object(ov.requests, "post")
+    @patch.object(ov.requests, "get")
+    def test_rejected_oauth_token_retries_openverse_anonymously(self, get, post):
+        import os
+        os.environ["OPENVERSE_CLIENT_ID"] = "client"
+        os.environ["OPENVERSE_CLIENT_SECRET"] = "secret"
+        ov._TOKEN.update(value="", expires_at=0.0)
+        token = Mock(status_code=200)
+        token.json.return_value = {"access_token": "rejected-token", "expires_in": 36000}
+        token.raise_for_status = Mock()
+        post.return_value = token
+        denied = Mock(status_code=401)
+        accepted = Mock(status_code=200)
+        accepted.json.return_value = {"results": []}
+        accepted.raise_for_status = Mock()
+        get.side_effect = [denied, accepted]
+        try:
+            self.assertEqual(ov._search("rupee dollar"), [])
+            self.assertEqual(get.call_count, 2)
+            self.assertEqual(get.call_args_list[0].kwargs["headers"]["Authorization"], "Bearer rejected-token")
+            self.assertNotIn("Authorization", get.call_args_list[1].kwargs["headers"])
+        finally:
+            os.environ.pop("OPENVERSE_CLIENT_ID", None)
+            os.environ.pop("OPENVERSE_CLIENT_SECRET", None)
+            ov._TOKEN.update(value="", expires_at=0.0)
+
     def test_relevance_uses_subject_terms(self):
         item = {"title": "Apollo 11 lunar module on the Moon", "creator": "NASA"}
         self.assertGreater(ov._relevance("Apollo 11 lunar module", item), 0.5)

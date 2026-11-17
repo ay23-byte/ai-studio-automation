@@ -130,8 +130,13 @@ def _search(query: str) -> list[dict]:
                 timeout=35,
             )
             if response.status_code == 401 and token and attempt == 0:
+                # A rejected bearer token must not disable Openverse entirely:
+                # its public API also supports anonymous searches. Retry once
+                # without the stale/invalid token, then retain normal fail-closed
+                # handling if anonymous access is unavailable on this runner.
+                print("  Openverse bearer token was rejected; retrying once without authentication.")
                 _TOKEN.update(value="", expires_at=0.0)
-                token = _access_token()
+                token = ""
                 continue
             if response.status_code == 429 or response.status_code in (500, 502, 503, 504):
                 if attempt < 2:
