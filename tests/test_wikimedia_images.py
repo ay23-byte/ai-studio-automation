@@ -47,6 +47,15 @@ class WikimediaImageTests(unittest.TestCase):
             self.assertEqual(sidecar["licence"], "CC BY-SA 4.0")
             self.assertEqual(sidecar["page_url"], "https://commons.wikimedia.org/wiki/File:Indian_rupee.jpg")
 
+    def test_query_prefers_visual_direction_after_spoken_line(self):
+        prompt = ("Create a visual. Spoken line: The rupee rose against the dollar. "
+                  "Visual direction: Indian currency notes beside a forex trading screen. "
+                  "9:16 cinematic documentary image.")
+        self.assertEqual(
+            wm._query(prompt),
+            "Indian currency notes beside forex trading screen",
+        )
+
     def test_rejects_noncommercial_and_unlinked_licences(self):
         self.assertIsNone(wm._licence({"extmetadata": {
             "LicenseShortName": {"value": "CC BY-NC 4.0"},
