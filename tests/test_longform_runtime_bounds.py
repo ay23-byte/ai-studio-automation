@@ -52,3 +52,13 @@ class MeasuredDocumentaryRuntimeBoundsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FinalDeliveryTests(unittest.TestCase):
+    def test_runtime_tolerance_applies_to_container_including_credits(self):
+        from core.quality import final_runtime_problem
+        for minutes in (15, 18, 20, 25, 30):
+            self.assertIsNone(final_runtime_problem(60 * minutes, minutes))
+            self.assertIn('Final MP4', final_runtime_problem(60 * minutes * 1.06, minutes))
+        for invalid in (0, 900, float('nan'), float('inf'), None):
+            self.assertTrue(final_runtime_problem(invalid, 18))

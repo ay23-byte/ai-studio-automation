@@ -577,7 +577,7 @@ def _timeline_drift(shot_timeline, sections):
     return worst
 
 
-def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=False, body_seconds=None):
+def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=False, body_seconds=None, target_minutes=None):
     """Run required post-render QA; fail closed when inspection fails or cannot run.
 
     ``body_seconds`` is the programme length before an appended credit slate, so
@@ -589,6 +589,15 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
         if body_seconds:
             options["body_seconds"] = float(body_seconds)
         report = inspect_video(video_path, subtitle_path=subtitle_path, **options)
+        if documentary and target_minutes is not None:
+            from core.quality import final_runtime_problem
+            problem = final_runtime_problem(report["metrics"]["duration_seconds"], target_minutes)
+            report["delivery_runtime"] = {"target_minutes": target_minutes, "tolerance_fraction": .05,
+                                          "status": "FAIL" if problem else "PASS"}
+            if problem:
+                report["issues"].append(problem)
+                report["status"] = "FAIL"
+                report["score"] = max(0, report["score"] - 20)
         if documentary:
             from core.audio_quality import inspect_audio
             audio_report = inspect_audio(video_path, **({"body_seconds": float(body_seconds)} if body_seconds else {}))
@@ -1580,7 +1589,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
               work_dir=bd / "render_work")
     checkpoint.mark("render", "done", files=[str(out)])
     _quality_check(job_id, out, ass, bd, documentary=True,
-                   body_seconds=total if credits_file.is_file() else None)
+                   body_seconds=total if credits_file.is_file() else None,
+                   target_minutes=runtime_report["target_minutes"])
     gated = _apply_fallback_gate(bd / "quality_report.json", fallback_report)
     if gated:
         update_video(job_id, quality_score=gated["score"], quality_status=gated["status"])

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
+import math
 import json
 import sys
 from pathlib import Path
@@ -111,7 +111,7 @@ def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -
                 score = float(screening.get("match_score") or 0)
             except (TypeError, ValueError):
                 score = 0.0
-            if screening.get("status") != "match" or score < 0.72:
+            if screening.get("status") != "match" or not math.isfinite(score) or not 0.72 <= score <= 1:
                 unresolved.append(str(shot.get("shot_id") or "unknown"))
         if unresolved:
             raise ValueError("AI visual-to-narration screening did not confirm every shot: " + ", ".join(unresolved[:20]))
@@ -199,8 +199,27 @@ def upload_automated_artifact(artifact_dir: Path, source_run_id: str, *, machine
 
     metadata_path, metadata = _find_release_metadata(root)
     video_path, probe = _find_video(root, metadata_path.parent)
+    from core.review_contract import verify_built_video, write_json
+    from core.quality import final_runtime_problem
+    manifest = verify_built_video(metadata_path.parent, video_path, mode="longform", run_id=source_run_id)
+    script = _load_json(metadata_path.parent / "script.json")
+    if not script.get("sections") or any(not section.get("narration") or not section.get("visuals") for section in script["sections"]):
+        raise ValueError("Missing chapter narration or storyboard.")
+    target = (script.get("runtime_validation") or {}).get("target_minutes")
+    problem = final_runtime_problem(probe.get("duration_seconds"), target)
+    if problem:
+        raise ValueError(problem)
     evidence = _validate_release_evidence(metadata_path.parent, machine_only=machine_only)
-    digest = hashlib.sha256(video_path.read_bytes()).hexdigest()
+    if machine_only:
+        # A URL and a model-written evidence note do not verify a historical claim.
+        # Until independent verification exists, preserve the film for the reviewed path.
+        from core.research_verification import assert_research_review_ready
+        assert_research_review_ready(metadata_path.parent)
+        from core.asset_licensing import machine_rights_problems
+        issues = machine_rights_problems(metadata_path.parent, evidence["shot_count"])
+        if issues:
+            raise ValueError("Documentary licensing: " + "; ".join(issues[:10]))
+    digest = manifest["video"]["sha256"]
 
     # Verify the destination before the upload. Search errors fail closed.
     from core.uploader import verify_channel, get_video_status
@@ -208,14 +227,17 @@ def upload_automated_artifact(artifact_dir: Path, source_run_id: str, *, machine
     if not channel.get("verified"):
         raise ValueError("Authenticated YouTube channel does not match the configured Engineering Physics channel.")
     # A stable source-run marker makes retries idempotent. Search errors fail closed.
-    marker = f"AI_STUDIO_SOURCE_RUN_ID:{source_run_id}"
+    marker = "AI-STUDIO-REVIEWED-SHA256:" + digest
     existing_video_id = find_private_video_by_marker(marker)
+    run_marker = f"AI_STUDIO_SOURCE_RUN_ID:{source_run_id}"
+    if not existing_video_id and find_private_video_by_marker(run_marker):
+        raise ValueError("Earlier upload for this run has a different or unrecorded checksum; reconcile it before release.")
     if existing_video_id:
         video_id = existing_video_id
         print(f"Found existing private upload for source run {source_run_id}; skipping duplicate upload.")
     else:
         # Hard-code privacy and disable scheduling: this workflow must never publish.
-        description = (metadata["description"].rstrip() + "\n\n" + marker).strip()
+        description = (metadata["description"][:4600].rstrip() + "\n\n" + run_marker + "\n" + marker).strip()
         video_id = upload(
             video_path,
             metadata["title"],
@@ -224,6 +246,9 @@ def upload_automated_artifact(artifact_dir: Path, source_run_id: str, *, machine
             privacy_status="private",
             disable_scheduling=True,
         )
+    write_json(root / "youtube-upload-result.json", {
+        "source_run_id": source_run_id, "status": "processing", "privacy_verified": False,
+        "video_id": video_id, "sha256": digest, "url": f"https://www.youtube.com/watch?v={video_id}"})
     processing = wait_processed(video_id, max_wait=600)
     stored = get_video_status(video_id)
     problems = []

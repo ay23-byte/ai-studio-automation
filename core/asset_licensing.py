@@ -135,6 +135,8 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             # A credit the licence requires must appear; the rest are listed as sources.
             (credits if decision.get("attribution_required") or is_project_graphic else courtesy).append(attribution)
         validation = metadata.get("validation") if isinstance(metadata.get("validation"), dict) else {}
+        from core.review_contract import sha256_file
+        media_digest = sha256_file(path) if path and path.is_file() else ""
         rows.append({
             "provider_asset_id": str(metadata.get("asset_id") or ""),
             "title": str(metadata.get("title") or ""),
@@ -147,7 +149,7 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
             "share_alike": "unknown" if is_ai else tri_state(decision["share_alike"]),
             "download_url": str(metadata.get("download_url") or ""),
             "local_file": str(path) if path else "",
-            "media_sha256": str(metadata.get("media_sha256") or ""),
+            "media_sha256": media_digest,
             "width": metadata.get("width") or "", "height": metadata.get("height") or "",
             "duration_seconds": metadata.get("duration_seconds") or "",
             "file_validated": "yes" if validation.get("ok") else "not_recorded",
@@ -204,3 +206,32 @@ def build_licence_register(shot_timeline: list[dict], build_dir: str | Path) -> 
         "publication_ready": False,
         "notice": "Scores are metadata-only screening. Human inspection must confirm exact visual match, clean/stable frames, watermarks, privacy, context, licence terms and attribution before publication.",
     }
+
+
+def machine_rights_problems(build_dir: Path, shot_count: int) -> list[str]:
+    """Stricter than a review queue: reject missing evidence or unresolved use obligations."""
+    from core.review_contract import is_http_url
+    from core.footage_licence import classify_licence
+    import re
+    try:
+        with (build_dir / "licenses.csv").open(encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        credits = (build_dir / "credits.txt").read_text(encoding="utf-8")
+    except (OSError, ValueError, csv.Error):
+        return ["No readable licence register and credits."]
+    if shot_count <= 0 or {row.get("shot_id") for row in rows} != {f"shot_{n:04d}" for n in range(1, shot_count+1)} or len(rows) != shot_count:
+        return ["Licence register does not cover every rendered shot exactly once."]
+    problems = []
+    for row in rows:
+        decision = classify_licence({**row, "provider": row.get("source"), "creator": row.get("author")})
+        # Project graphics, reconstructions, special permissions, likenesses and share-alike
+        # obligations need the reviewed release path; never infer clearance from the name.
+        if not (decision["publishable"] and not decision.get("share_alike")
+                and row.get("commercial_use_allowed") == row.get("modification_allowed") == "yes"
+                and row.get("use_status") == "eligible_pending_human_review"
+                and row.get("fallback_required", "").lower() == "false"
+                and is_http_url(row.get("url")) and is_http_url(row.get("licence_url"))
+                and re.fullmatch(r"[0-9a-f]{64}", row.get("media_sha256") or "")
+                and row.get("attribution_text") and row["attribution_text"] in credits):
+            problems.append(f"{row.get('shot_id')}: incomplete rights evidence or review required ({decision['reason']}).")
+    return problems

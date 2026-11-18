@@ -42,3 +42,22 @@ class ProductionIntegrityTests(unittest.TestCase):
         self.assertEqual(len(entries), 2)
         self.assertEqual((entries[0]['job_id'], entries[0]['youtube_id'], entries[0]['status']),
                          (4, 'confirmed', 'uploaded'))
+
+    def test_machine_artifact_is_bound_to_run_job_and_bytes(self):
+        from tests.review_package_fixture import make_package, fake_media
+        from core import review_contract as c
+        job = self.root / 'job_7'
+        with fake_media('shortform'), patch.dict('os.environ', {'GITHUB_RUN_ID': '312', 'GITHUB_REPOSITORY': 'org/repo'}):
+            root = job / 'shared_review_package'
+            make_package(root, 'shortform')
+            m = c.read_manifest(root)
+            m['source'].update(workflow_run_id='312', pipeline_job_id=7, repository='org/repo')
+            c.write_json(root / c.MANIFEST_NAME, m)
+            video = root / m['video']['file']
+            self.assertEqual(c.verify_built_video(job, video, mode='shortform', run_id='312')['job_id'], m['job_id'])
+            with self.assertRaises(c.ContractError):
+                c.verify_built_video(job, video, mode='shortform', run_id='313')
+            with video.open('r+b') as f:
+                f.write(b'!')
+            with self.assertRaisesRegex(c.ContractError, 'SHA-256'):
+                c.verify_built_video(job, video, mode='shortform', run_id='312')

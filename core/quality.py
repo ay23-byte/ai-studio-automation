@@ -1,5 +1,6 @@
 """Free, local FFmpeg-based video quality checks for rendered exports."""
 import json
+import math
 import re
 import subprocess
 import tempfile
@@ -87,6 +88,18 @@ def _black_frame_issue(black_seconds, duration, body_seconds=None, limit=0.03):
         return (f"More than {limit:.0%} of the programme is detected as black "
                 f"({ratio:.1%}); replace the affected footage before release."), ratio
     return None, ratio
+
+
+def final_runtime_problem(seconds, target_minutes):
+    """The delivered programme including credits must be within 5% of the request."""
+    try:
+        duration, target = float(seconds), float(target_minutes) * 60
+    except (TypeError, ValueError):
+        return "Missing final duration or requested target."
+    if not (math.isfinite(duration) and math.isfinite(target) and target > 0
+            and target * .95 <= duration <= target * 1.05):
+        return f"Final MP4 runs {duration:.2f}s; target {target:.2f}s including credits (tolerance ±5%)."
+    return None
 
 
 def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto", body_seconds=None):

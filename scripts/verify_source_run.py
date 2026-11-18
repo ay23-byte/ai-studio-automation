@@ -50,7 +50,9 @@ def problems_with(run: dict, *, repository: str, mode: str, ref: str | None, run
     if actual_repo.lower() != repository.lower():
         problems.append(f"The run belongs to {actual_repo or 'an unknown repository'}, not {repository}.")
     head_repo = str((run.get("head_repository") or {}).get("full_name") or "")
-    if head_repo and head_repo.lower() != repository.lower():
+    if not head_repo:
+        problems.append("Cannot verify the source repository of the build.")
+    elif head_repo.lower() != repository.lower():
         problems.append(f"The run built code from a fork ({head_repo}).")
     path = str(run.get("path") or "").split("@")[0]
     if path not in BUILD_WORKFLOWS[mode]:
