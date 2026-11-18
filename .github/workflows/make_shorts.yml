@@ -22,9 +22,9 @@ on:
         options: [english, hinglish, hindi]
         default: english
       upload:
-        description: "Deprecated: scheduled builds release privately automatically; manual dispatch remains build-only"
+        description: "Automatically upload the generated Short to YouTube as PRIVATE after strict machine QA passes"
         type: boolean
-        default: false
+        default: true
       force:
         description: "Build even if this topic was already produced"
         type: boolean
@@ -155,7 +155,7 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          UPLOAD_REQUESTED: "false"
+          UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}
         run: python scripts/write_job_summary.py --pipeline shorts --artifact "shorts-review-${GITHUB_RUN_ID}"
 
       - uses: actions/upload-artifact@v7
@@ -178,13 +178,12 @@ jobs:
         run: python scripts/alert_on_failure.py --name "make-shorts"
 
 
-  # Upload only after the scheduled build has completed successfully. Keeping
-  # this as a dependent job avoids relying on a cross-workflow workflow_run event.
-  # YouTube credentials are scoped to this job and never reach the build job.
+  # Upload after scheduled builds and opted-in manual builds. The dependent
+  # release job receives YouTube credentials only after the isolated build succeeds.
   release:
     name: Strict QA and automatic PRIVATE YouTube release
     needs: build
-    if: ${{ github.event_name == 'schedule' && needs.build.result == 'success' }}
+    if: ${{ needs.build.result == 'success' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
