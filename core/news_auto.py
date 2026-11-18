@@ -225,7 +225,8 @@ def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
         audit.append({
             **{k: result[k] for k in ("cluster_id", "headline", "eligible", "reason", "sensitive_term")},
             "publishers": sorted({s["publisher"] for s in result["all_sources"]}),
-            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],\n            "youtube_trend_matches": result["youtube_trend_matches"],
+            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],
+            "youtube_trend_matches": result["youtube_trend_matches"],
             "sources": [{
                 "publisher": source["publisher"], "title": source["title"],
                 "url": source["link"] or source["url"],
@@ -454,9 +455,11 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     output_dir = Path(output_dir or cfg.OUTPUT_DIR / "daily_news")
     state_dir = cfg.STATE_DIR / "daily_news"
     feed_errors = []
+    trend_report = {"available": False, "reason": "candidates supplied externally"}
     if candidates is None:
         collected = collect_candidates()
         candidates, feed_errors = collected["candidates"], collected.get("feed_errors", [])
+        trend_report = collected.get("youtube_trending", trend_report)
     seen = load_seen(state_dir / "seen.json")
     fresh = [item for item in candidates if item.get("id") not in seen]
     ledger = dedupe.Ledger()
@@ -473,7 +476,8 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         "editorial_mix_target": {"india_percent": 50, "world_percent": 50,
                                  "target_for_this_run": target_region,
                                  "rolling_history_count": len(region_history)},
-        "clusters_considered_count": len(audit), "feed_errors": feed_errors,\n        "youtube_trending": trend_report,
+        "clusters_considered_count": len(audit), "feed_errors": feed_errors,
+        "youtube_trending": trend_report,
         "eligible_cluster_count": sum(1 for item in audit if item.get("eligible")),
         "rejection_reason_counts": reason_counts,
         "clusters_considered": audit,
