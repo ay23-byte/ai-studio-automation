@@ -29,7 +29,7 @@ class ResolveRequestTests(unittest.TestCase):
                                  self.file, "", False)
         self.assertEqual(result["run"], "true")
         self.assertEqual((result["topic"], result["minutes"], result["semantic_review"]), ("Tides", "22", "true"))
-        self.assertEqual(result["language"], "hinglish")           # the form's default
+        self.assertEqual(result["language"], "english")           # the form's default
 
     def test_weekly_schedule_selects_a_topic_and_enables_machine_screening(self):
         result = request.resolve("schedule", {}, self.file, "", False)

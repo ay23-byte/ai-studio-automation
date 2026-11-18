@@ -35,6 +35,15 @@ def _load(path) -> dict:
         return {}
 
 
+def _sha256_file(path: Path) -> str:
+    import hashlib
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def evaluate(row: dict, build_dir: Path | None = None, *, require_human_review: bool = True) -> dict:
     """Run every gate and return a JSON-safe report (never raises for a failed gate)."""
     from core.db import normalize_format
@@ -68,6 +77,15 @@ def evaluate(row: dict, build_dir: Path | None = None, *, require_human_review: 
         check("qa_matches_video", same_file,
               "quality report describes this file" if same_file
               else "quality report belongs to a different file")
+    if exists and quality.get("video_sha256"):
+        # A recorded digest binds the report to the exact bytes, not just the name.
+        try:
+            same_bytes = _sha256_file(video) == str(quality["video_sha256"]).lower()
+        except OSError:
+            same_bytes = False
+        check("qa_video_sha256", same_bytes,
+              "quality report digest matches this file" if same_bytes
+              else "quality report digest does not match this file")
     if quality.get("upload_blocked") and not _flag("ALLOW_FALLBACK_VISUAL_UPLOAD"):
         check("visual_fallback_share", False, str(quality.get("upload_block_reason") or
                                                   "too many fallback visuals"))
@@ -127,6 +145,18 @@ def evaluate(row: dict, build_dir: Path | None = None, *, require_human_review: 
         verification = _load(build_dir / "verification.json")
         check("news_source_verification", verification.get("status") == "PASS",
               f"source verification is '{verification.get('status') or 'missing'}'")
+        if not require_human_review:
+            # Automated release cannot trust a bare PASS flag: the retrieved-passage
+            # grounding report must cover every line of the stored script.
+            grounding = _load(build_dir / "source_grounding.json")
+            try:
+                from core.source_grounding import complete_for
+                grounded = bool(script.get("scenes")) and complete_for(script, grounding)
+            except Exception:
+                grounded = False
+            check("news_source_grounding", grounded,
+                  "retrieved-passage grounding covers the stored script" if grounded
+                  else "source_grounding.json is missing, incomplete, or does not match the stored script")
 
     # Human review: the same rules as the GitHub release workflows.  Checked last,
     # and only when a video exists, so earlier failures are reported on their own.

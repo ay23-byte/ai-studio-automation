@@ -11,6 +11,7 @@ stages whose inputs are unchanged *and* whose output files still exist.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import os
@@ -18,6 +19,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+
+from core.review_contract import sha256_file, write_json
 
 CHECKPOINT_NAME = "checkpoint.json"
 
@@ -53,6 +56,8 @@ class Checkpoint:
             try:
                 loaded = json.loads(self.path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict) and isinstance(loaded.get("stages"), dict):
+                    if loaded.get("job_id") != job_id:
+                        raise RuntimeError("Checkpoint belongs to a different production job.")
                     self.data = loaded
             except (OSError, ValueError):
                 # A truncated checkpoint only costs a rebuild; keep the bad file
@@ -65,9 +70,7 @@ class Checkpoint:
     # ------------------------------------------------------------ persistence
     def _save(self) -> None:
         self.data["updated_at"] = _now()
-        tmp = self.path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp, self.path)
+        write_json(self.path, self.data)
 
     def _mirror(self, stage: str, record: dict) -> None:
         if not self.mirror_to_db or self.job_id is None:
@@ -95,13 +98,15 @@ class Checkpoint:
             return False
         if input_hash is not None and record.get("input_hash") != input_hash:
             return False
-        for name in list(files or ()) + list(record.get("files") or ()):
+        for name in dict.fromkeys([*map(str, files or ()), *record.get("files", [])]):
             path = Path(name)
             if not path.is_absolute():
                 path = self.build_dir / path
             try:
                 if not path.is_file() or path.stat().st_size == 0:
                     return False
+                if (record.get("checksums") or {}).get(name) != sha256_file(path):
+                    return False  # includes pre-checksum checkpoints; rebuild once
             except OSError:
                 return False
         return True
@@ -125,8 +130,13 @@ class Checkpoint:
             "finished_at": _now() if status in {"done", "failed", "skipped"} else None,
             "duration_seconds": duration_seconds,
             "input_hash": input_hash if input_hash is not None else previous.get("input_hash"),
-            "files": [str(item) for item in files] if files else previous.get("files", []),
+            "files": [str(item) for item in files],
         }
+        if status == "done":
+            if isinstance(result, dict) and result.get("path"):
+                record["files"] = list(dict.fromkeys([*record["files"], str(result["path"])]))
+            record["checksums"] = {name: sha256_file(self.build_dir / name) for name in record["files"]}
+        self.data["current_stage"] = stage
         if result is not None:
             record["result"] = result
         elif status == "done" and "result" in previous:
@@ -183,3 +193,23 @@ def load_checkpoint_summary(build_dir) -> list[dict]:
         return []
     return [{"stage": name, **{k: v for k, v in record.items() if k != "result"}}
             for name, record in stages.items() if isinstance(record, dict)]
+
+
+def exclusive_build(function):
+    """One renderer per job; OS releases the lock on process death, not after a TTL."""
+    @functools.wraps(function)
+    def wrapper(script, job_id, build_dir=None, *args, **kwargs):
+        from filelock import FileLock
+        from core import config as cfg
+        directory = Path(build_dir or cfg.BUILD_DIR / f"job_{job_id}").resolve()
+        directory.mkdir(parents=True, exist_ok=True)
+        with FileLock(directory / ".production.lock", timeout=0):
+            cp = Checkpoint(job_id, directory, mirror_to_db=False)
+            cp.data.update(topic=script.get("title"), production_type=script.get("format") or function.__name__,
+                           run_id=os.getenv("GITHUB_RUN_ID"), configuration={
+                               key: os.environ[key] for key in ("CHANNEL_PROFILE", "TTS_ENGINE", "TTS_RATE",
+                               "VOICE_ENGLISH", "PRESENTER_MODE", "LONGFORM_VISUAL_MODE", "SUBTITLE_LANGUAGE",
+                               "GEMINI_MODEL", "VISUAL_SEMANTIC_CHECK") if key in os.environ})
+            cp._save()
+            return function(script, job_id, directory, *args, **kwargs)
+    return wrapper

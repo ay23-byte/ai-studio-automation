@@ -22,7 +22,7 @@ class ReleaseCertificationSmokeTests(unittest.TestCase):
             video = root / "documentary.mp4"
             subprocess.run([
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=25",
+                "-f", "lavfi", "-i", "testsrc=size=1920x1080:rate=30",
                 "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
                 "-t", "5", "-shortest", "-c:v", "libx264", "-preset", "ultrafast",
                 "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ac", "2",

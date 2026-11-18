@@ -493,7 +493,9 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
 
     # Provider cascade: requested engine -> multiple Edge voices -> offline espeak-ng.
     # A transient network outage must not abort a documentary after script generation.
-    if engine == "chatterbox":
+    if engine == "espeak-ng":
+        wavs = _synth_all_espeak(sentences, language, build_dir)
+    elif engine == "chatterbox":
         try:
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
         except Exception as exc:

@@ -63,8 +63,8 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
 
     # Reuse the shared gate's independent checks, but do not invent or waive a
     # human review. The automatic path requires every non-human check to PASS.
-    gate = evaluate(row, build_dir)
-    checks = [item for item in gate.get("checks", []) if item.get("check") != "human_review"]
+    gate = evaluate(row, build_dir, require_human_review=False)
+    checks = gate.get("checks", [])
     failed = [f"{item.get('check')}: {item.get('detail')}"
               for item in checks if item.get("status") != "PASS"]
     if failed:
@@ -113,16 +113,31 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
 
     metadata = build_metadata(row, script, build_dir)
     marker = upload_marker(row)
-    existing = uploader.find_private_video_by_marker(marker)
+    pending_path = build_dir / "upload_pending.json"
+    existing_id = row.get("youtube_id")
+    if pending_path.exists():
+        try:
+            pending = json.loads(pending_path.read_text(encoding="utf-8"))
+            if pending.get("job_id") != job_id or pending.get("marker") != marker:
+                raise ValueError("pending upload identity mismatch")
+            existing_id = pending.get("youtube_id") or existing_id
+        except (OSError, ValueError, AttributeError) as exc:
+            raise NewsAutoReleaseBlocked("Pending upload state is invalid; refusing to upload again.") from exc
+    existing = existing_id or uploader.find_private_video_by_marker(marker)
+    if pending_path.exists() and not existing:
+        raise NewsAutoReleaseBlocked("An earlier upload may have been interrupted; reconcile it on YouTube before retrying.")
     if existing:
         video_id = existing
         reused = True
     else:
+        pending_path.write_text(json.dumps({"job_id": job_id, "marker": marker, "status": "uploading"}), encoding="utf-8")
         video_id = uploader.upload(
             video, metadata["title"], metadata["description"], metadata["tags"],
             category_id=metadata["category_id"], contains_synthetic=True,
             privacy_status="private", disable_scheduling=True, marker=marker)
         reused = False
+    pending_path.write_text(json.dumps({"job_id": job_id, "marker": marker, "youtube_id": video_id,
+                                        "status": "uploaded_unverified"}), encoding="utf-8")
 
     processing = uploader.wait_processed(video_id) if wait else None
     stored = uploader.get_video_status(video_id)

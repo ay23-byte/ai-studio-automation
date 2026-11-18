@@ -16,8 +16,16 @@ def main(argv=None) -> int:
     parser.add_argument("--candidates", help="Use a saved candidates JSON instead of fetching RSS feeds")
     args = parser.parse_args(argv)
 
-    from core import news_auto
+    from core import news_auto, config
     from core.notify import send
+
+    result_path = config.OUTPUT_DIR / "daily_news" / "build_result.json"
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    result_path.unlink(missing_ok=True)
+
+    def record_result(result):
+        result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
     candidates = None
     if args.candidates:
         payload = json.loads(Path(args.candidates).read_text(encoding="utf-8"))
@@ -27,8 +35,10 @@ def main(argv=None) -> int:
     except news_auto.NoPublishableStory as exc:
         message = f"Daily news Short skipped: {exc}"
         send(f"ℹ️ {message}")
-        print(json.dumps({"status": "no_story", "reason": str(exc),
-                          "video_created": False, "upload_attempted": False}, indent=2))
+        skipped = {"status": "no_story", "reason": str(exc),
+                   "video_created": False, "upload_attempted": False}
+        record_result(skipped)
+        print(json.dumps(skipped, indent=2))
         # A skip is not a successful video build. Keep exit code 0 so the
         # workflow can still package the diagnostic/review artifact.
         print(f"::notice title=News Short not produced::{message}")
@@ -48,6 +58,7 @@ def main(argv=None) -> int:
     except Exception as exc:
         send(f"❌ Daily news Short failed: {str(exc)[:400]}")
         raise
+    record_result(result)
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     if result["status"] == "no_story":
         send(f"ℹ️ Daily news Short skipped: {result['reason']}")

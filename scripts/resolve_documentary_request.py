@@ -36,7 +36,7 @@ from scripts.documentary_topic_queue import scheduled_topic
 REQUEST_FILE = ".github/documentary-production-request.json"
 MARKER = "[documentary-run]"
 CHOICES = {
-    "minutes": ["18", "20", "22", "25", "28", "30"],
+    "minutes": ["15", "18", "20", "22", "25", "28", "30"],
     "language": ["hinglish", "hindi", "english"],
     "channel_profile": ["beyond_science", "standard"],
     "voice_gender": ["male", "female"],
@@ -44,7 +44,7 @@ CHOICES = {
     "visual_mode": ["video_first", "image_first"],
 }
 DEFAULTS = {
-    "category": "auto", "semantic_review": "false", "minutes": "22", "language": "hinglish",
+    "category": "auto", "semantic_review": "true", "minutes": "22", "language": "english",
     "channel_profile": "beyond_science", "voice_gender": "male",
     "presenter_mode": "talking_avatar_auto", "visual_mode": "video_first",
 }
@@ -92,7 +92,7 @@ def resolve(event: str, inputs: dict, request_path: Path, head_message: str, sam
                 "category": "auto",
                 "semantic_review": "true",
                 "minutes": "22",
-                "language": "hinglish",
+                "language": "english",
                 "channel_profile": "beyond_science",
                 "voice_gender": "male",
                 "presenter_mode": "talking_avatar_auto",
@@ -115,7 +115,10 @@ def resolve(event: str, inputs: dict, request_path: Path, head_message: str, sam
         raise RequestError(f"{REQUEST_FILE} is not valid JSON: {exc}") from exc
     if not isinstance(raw, dict):
         raise RequestError(f"{REQUEST_FILE} must hold one JSON object.")
-    return {"run": "true", "reason": f"Production test requested by {REQUEST_FILE}; this build uploads nothing.",
+    if not isinstance(raw.get("force_rebuild", False), bool):
+        raise RequestError("force_rebuild must be a boolean in a production test request.")
+    return {"force_rebuild": str(raw.get("force_rebuild", False)).lower(),
+            "run": "true", "reason": f"Production test requested by {REQUEST_FILE}; this build uploads nothing.",
             **normalise(raw)}
 
 

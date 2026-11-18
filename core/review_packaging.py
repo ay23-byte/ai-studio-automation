@@ -175,9 +175,9 @@ def audio_status(build_dir, narration: dict | None = None) -> tuple[str, list]:
         details.append(f"Narration engine: {narration.get('provider')} (requested {narration.get('requested_provider')}), "
                        f"voice {narration.get('voice')}, language {narration.get('language')}.")
         engine = str(narration.get("provider") or "").lower()
-        if narration.get("fallback_used") and engine in ROBOTIC_ENGINES:
+        if engine in ROBOTIC_ENGINES:
             status = "FAIL"
-            details.append("The configured narrator was unavailable and a robotic fallback voice was substituted "
+            details.append("A robotic preview voice was used "
                            f"({narration.get('fallback_reason') or 'no reason recorded'}). This is not a "
                            "publishable narration; rebuild when the voice provider is available.")
         elif narration.get("fallback_used"):

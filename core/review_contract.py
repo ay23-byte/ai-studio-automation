@@ -1076,3 +1076,22 @@ def find_packages(root) -> list[Path]:
                 and (path.parent / "video.mp4").is_file():
             found.append(path.parent)
     return found
+
+
+def verify_built_video(build_dir: Path, video: Path, *, mode: str, run_id: str) -> dict:
+    """Bind a machine release to the *producer's* identity and hash, not a new hash of arbitrary bytes."""
+    manifest = read_manifest(build_dir / 'shared_review_package')
+    problems = manifest_structure_problems(manifest)
+    source = manifest.get('source') or {}
+    if (not str(run_id).isdigit() or source.get('workflow_run_id') != str(run_id)
+            or build_dir.name != f"job_{source.get('pipeline_job_id')}" or manifest.get('mode') != mode):
+        problems.append('Package mode, source workflow run or pipeline job does not match the requested build.')
+    if os.getenv('GITHUB_REPOSITORY') and source.get('repository') != os.environ['GITHUB_REPOSITORY']:
+        problems.append('Package was not produced in this repository.')
+    if manifest.get('fingerprint') != manifest_fingerprint(manifest):
+        problems.append('Producer manifest fingerprint mismatch.')
+    if problems:
+        raise ContractError('; '.join(problems))
+    if not video.is_file() or video.stat().st_size != manifest['video'].get('bytes') or sha256_file(video) != manifest['video']['sha256']:
+        raise ContractError('MP4 does not match the size and SHA-256 measured by the build.')
+    return manifest

@@ -35,7 +35,8 @@ jobs:
       - name: Install FFmpeg and test dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          python -m pip install --upgrade pip requests Pillow numpy google-api-python-client edge-tts python-dotenv
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-ci.txt -r requirements-dev.txt
       - name: Run provider adapter unit tests
         run: python -m unittest tests.test_documentary_source_adapters -v
       - name: Run footage engine tests (offline providers, real FFmpeg clips)

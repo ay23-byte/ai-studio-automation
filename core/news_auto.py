@@ -34,7 +34,7 @@ from urllib.parse import urlparse
 from core import config as cfg
 from core import dedupe
 from core.news_editorial import cluster_candidates, rank_clusters
-from core.news_source_verification import classify_source, verify_fact_sources
+from core.news_source_verification import classify_source, is_fresh, verify_fact_sources
 
 KIND = "news_short"
 
@@ -128,7 +128,8 @@ def evaluate_cluster(cluster: dict, by_id: dict, now: datetime | None = None) ->
             "tier": classify_source({"url": url}) if url else "unknown",
         })
     fact = {"fact": cluster.get("cluster_title", ""), "source_ids": [s["source_id"] for s in sources]}
-    gate = verify_fact_sources(fact, sources, breaking=True, now=now or _now())
+    dated = [s for s in sources if is_fresh(s["published"], now)]
+    gate = verify_fact_sources(fact, dated, breaking=True, now=now or _now())
     combined = " ".join(f"{s['title']} {s['text_snippet']}" for s in sources)
     sensitive = is_sensitive(combined, ignore=[s["publisher"] for s in sources])
     accepted_ids = {s["source_id"] for s in gate.get("sources", [])}
@@ -263,23 +264,25 @@ def template_script(story: dict) -> dict:
     """Model-free English script that only restates the corroborated headline."""
     sources = story["sources"]
     names = list(dict.fromkeys(s["publisher"] for s in sources if s.get("publisher")))
-    first, second = names[0], (names[1] if len(names) > 1 else names[0])
+    first = names[0]
+    other_source = next((s for s in sources if s.get("publisher") and s["publisher"] != first), None)
+    second = other_source["publisher"] if other_source else None
     headline = story["headline"].rstrip(".")
-    other = next((s["title"].rstrip(".") for s in sources[1:] if s["title"].rstrip(".") != headline), "")
+    other = other_source["title"].rstrip(".") if other_source else ""
     scenes = [
         {"say": f"According to {first}, {headline}.", "label": "What happened",
          "image": "a modern newsroom desk with screens showing abstract world map graphics",
          "keywords": ["newsroom", "world map"]},
-        {"say": (f"{second} reports the same development: {other}." if other and second != first
-                 else f"The report has also been carried by {second}, which describes the same development."),
+        {"say": (f"{second} reports: {other}." if other
+                 else f"This update is attributed to the original report from {first}, linked in the description."),
          "label": "Second source",
          "image": "stacked newspapers and a tablet on a wooden table in soft daylight",
          "keywords": ["newspapers", "tablet reading"]},
-        {"say": "These are early reports. More details are expected as the publishers update their coverage.",
+        {"say": "Read the original coverage linked below for the wording and context of this report.",
          "label": "Developing",
          "image": "a city skyline at dawn with light traffic trails",
          "keywords": ["city skyline", "dawn"]},
-        {"say": f"This is a developing report based on {first} and {second}. Follow {cfg.CHANNEL_NAME} for clear, sourced updates.",
+        {"say": f"This summary is based on {first}{' and ' + second if second else ''}. Follow {cfg.CHANNEL_NAME} for more sourced updates.",
          "label": "Sourced update",
          "image": "an abstract glowing network of connected points on a dark blue background",
          "keywords": ["network", "data"]},
@@ -318,19 +321,22 @@ def build_script(story: dict, language: str = "english") -> dict:
     except Exception as exc:  # no model configured / every provider down
         last = f"{type(exc).__name__}: {str(exc)[:200]}"
     if script is None:
-        if os.getenv("NEWS_TEMPLATE_FALLBACK", "").strip().lower() in {"1", "true", "yes"}:
+        if language == "english" and os.getenv("NEWS_TEMPLATE_FALLBACK", "").strip().lower() in {"1", "true", "yes"}:
             script = template_script(story)
-            language = "english"
+            script["generation"] = {"provider": "deterministic_template", "fallback_used": True, "reason": last}
             problems = validate_news_script(script, story, language)
             if problems:
                 raise NoPublishableStory("Template script failed grounding checks: " + "; ".join(problems))
             print("News script: using the model-free attributed template.")
         else:
             raise NoPublishableStory(f"No grounded news script could be written ({last}).")
+    if not script.get("generation"):
+        from core.script_engine import _stamp_generation
+        _stamp_generation(script)
     script["format"] = KIND
     script["category"] = "news"
     script["language"] = language
-    script["sources"] = [{"title": s["title"], "publisher": s["publisher"],
+    script["sources"] = [{"source_id": s["source_id"], "title": s["title"], "publisher": s["publisher"],
                           "url": s.get("link") or s.get("url"), "published": s.get("published"),
                           "tier": s.get("tier")} for s in story["sources"]]
     script["description"] = (
@@ -386,23 +392,49 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
             "note": ("This queue is for editorial investigation only. Rejected items are not "
                      "verified facts and must not be scripted or published without source review."),
         })
+    if not story and not candidates and feed_errors and collected.get("healthy_feed_count") == 0:
+        raise RuntimeError(f"News discovery unavailable: all {len(feed_errors)} RSS feeds failed; no sources were verified.")
     if not story:
         return {"status": "no_story", "candidate_count": len(fresh),
                 "reason": "No story was corroborated by eligible independent sources and safe to automate."}
 
+    from core.source_grounding import assess, read_sources
+    documents, gaps = read_sources(story["sources"], news=True)
+    original_gate = verify_fact_sources({"source_ids": [s["source_id"] for s in documents]}, documents)
+    if not original_gate["ok"]:
+        raise NoPublishableStory("Original dated articles did not corroborate the story: " +
+                                 "; ".join(gaps + [original_gate["reason"]]))
+    # Replace discovery URLs/text with the inspected originals, not aggregator home pages.
+    story = {**story, "sources": documents, "headline": documents[0]["title"]}
+    if any(is_sensitive(s["title"] + " " + s["text_snippet"], ignore=[s["publisher"]]) for s in documents):
+        raise NoPublishableStory("Original source contains a sensitive subject requiring an editor.")
     script = build_script(story, language)
+    grounding = assess(script, documents, news=True)
+    save_json(output_dir / "source_grounding.json", grounding)
+    if grounding["status"] != "PASS":
+        raise NoPublishableStory("Script was not grounded in the original articles: " + "; ".join(grounding["issues"]))
+    script["claims"] = [{"claim_id": f"C{r['scene']}", "text": script["scenes"][r["scene"]-1]["say"],
+                         "source_ids": list(dict.fromkeys(e["source_id"] for e in r["evidence"])),
+                         "evidence": " / ".join(e["quote"] for e in r["evidence"])} for r in grounding["scenes"]]
     language = script.get("language", language)
     job_id = save_video(script["title"], KIND, language, "news", script, pipeline="daily_news_auto",
                         topic_key=dedupe.topic_key(story["headline"]),
                         source_ref=",".join(story["source_refs"][:20]))
     build_dir = cfg.BUILD_DIR / f"job_{job_id}"
     build_dir.mkdir(parents=True, exist_ok=True)
+    save_json(build_dir / "source_grounding.json", grounding)
     (build_dir / "verification.json").write_text(json.dumps({
-        "status": "PASS", "method": "deterministic source-tier and independence gate",
-        "gate": story["gate"], "sources": story["sources"], "checked_at": _now().isoformat(),
-        "notice": "Automated source-tier corroboration only; the dedicated private-release gate independently checks script, render QA, MP4 geometry/duration, channel identity, and YouTube privacy read-back.",
+        "status": "PASS",
+        "method": "retrieved original-article passage grounding (core.source_grounding.assess) plus deterministic source-tier and independence gate",
+        "grounding_status": grounding.get("status"), "grounding_method": grounding.get("method"),
+        "grounding_script_hash": grounding.get("script_hash"),
+        "grounding_source_count": len(grounding.get("sources") or []),
+        "gate": original_gate, "sources": grounding["sources"], "checked_at": _now().isoformat(),
+        "notice": "Every delivered line was screened against passages retrieved from the original publisher articles (source_grounding.json); the dedicated private-release gate re-checks that report against the stored script, plus script, render QA, MP4 geometry/duration, channel identity, and YouTube privacy read-back.",
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     video = build_shorts(script, job_id, language=language)
+    if not Path(video).is_file() or Path(video).stat().st_size == 0:
+        raise RuntimeError("News renderer returned without a nonempty MP4.")
     # Record immediately so a later failure cannot cause the same story to be rebuilt.
     ledger.record(KIND, script["title"], topic=story["headline"], source_refs=story["source_refs"],
                   job_id=job_id, status="built")

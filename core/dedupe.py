@@ -127,7 +127,9 @@ class Ledger:
         entries = data.get("entries") if isinstance(data, dict) else None
         if not isinstance(entries, list):
             raise RuntimeError(f"Publish ledger {self.path} has an unexpected structure.")
-        self.entries = [item for item in entries if isinstance(item, dict)]
+        if any(not isinstance(item, dict) or not item.get("kind") or not item.get("key") for item in entries):
+            raise RuntimeError(f"Invalid entries in publish ledger {self.path}; refusing to drop duplicate history.")
+        self.entries = entries
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -156,12 +158,24 @@ class Ledger:
                source_refs=(), job_id=None, youtube_id=None, privacy_status=None,
                status: str = "built", extra: dict | None = None) -> dict:
         """Insert or update an entry, save atomically, and mirror it to SQLite."""
+        from core.topics import locked
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with locked(self.path):
+            self._load()  # another worker may have committed since this instance was created
+            return self._record_locked(kind, title, topic, key, source_refs, job_id,
+                                       youtube_id, privacy_status, status, extra)
+
+    def _record_locked(self, kind, title, topic, key, source_refs, job_id,
+                       youtube_id, privacy_status, status, extra):
         key = key or topic_key(topic or title)
         entry = next((item for item in self.entries
                       if item.get("kind") == kind and item.get("key") == key), None)
         if entry is None:
             entry = {"kind": kind, "key": key, "created_at": _now()}
             self.entries.append(entry)
+        if entry.get("youtube_id") and not youtube_id:
+            # A rebuild cannot replace the identity or the state of an existing upload.
+            job_id, status = entry.get("job_id"), entry.get("status")
         entry.update({"title": str(title or entry.get("title") or "")[:300],
                       "status": status, "updated_at": _now()})
         if topic:

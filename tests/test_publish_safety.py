@@ -207,7 +207,11 @@ class PublishJobTests(_Sandbox):
         mocks = {
             "upload": patch("core.uploader.upload", return_value="yt_new"),
             "status": patch("core.uploader.get_video_status",
-                            return_value={"found": True, "privacy_status": stored_privacy, "publish_at": None}),
+                            return_value={"found": True, "privacy_status": stored_privacy, "publish_at": None,
+                                          "channel_id": "UC_test", "upload_status": "processed"}),
+            "channel": patch("core.uploader.verify_channel",
+                             return_value={"verified": True, "id": "UC_test", "title": "Engineering Physics",
+                                           "handle": "@engineeringphysics-n5g"}),
             "privacy": patch("core.uploader.set_video_privacy"),
             "playlist": patch("core.uploader.add_to_playlist"),
             "thumb": patch("core.uploader.set_video_thumbnail"),
@@ -298,9 +302,14 @@ class PublishJobTests(_Sandbox):
 
     def test_non_private_result_is_reverted(self):
         mocks = self._uploader(stored_privacy="public")
+        mocks["status"].side_effect = [
+            {"found": True, "privacy_status": "public", "publish_at": None, "channel_id": "UC_test"},
+            {"found": True, "privacy_status": "private", "publish_at": None, "channel_id": "UC_test"},
+        ]
         result = publish.publish_job(self.make_job(), notify=False)
         mocks["privacy"].assert_called_once_with("yt_new", "private")
         self.assertEqual(result["privacy"], "private")
+        self.assertTrue(result["privacy_verified"])
 
     def test_dry_run_uploads_nothing(self):
         mocks = self._uploader()

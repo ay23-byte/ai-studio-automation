@@ -108,7 +108,8 @@ def generate_topic_variants(title, script, output_dir, channel="AI Studio"):
         "minimal": "minimal elegant editorial composition, one clear symbolic object, uncluttered background",
     }
     outputs = []
-    provider_available = True
+    import os
+    provider_available = os.getenv("THUMBNAIL_PROVIDER", "").lower() != "local"
     for style, direction in variants.items():
         background = output_dir / f"background_{style}.jpg"
         prompt = (

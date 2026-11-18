@@ -193,10 +193,14 @@ def _append_credits_card(video_path, credits_path):
 def _segment_key(src, dur, is_image, shot):
     """Fingerprint of everything that determines a rendered segment."""
     try:
-        stat = Path(src).stat()
-        identity = [str(Path(src).resolve()), stat.st_size, int(stat.st_mtime)]
+        digest = hashlib.sha256()
+        with Path(src).open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        identity = [str(Path(src).resolve()), digest.hexdigest()]
     except OSError:
-        identity = [str(src), 0, 0]
+        # Missing inputs must never match a previously rendered segment.
+        raise FileNotFoundError(f"Segment source is not readable: {src}")
     from core.visual_consistency import color_grade_filter
     payload = [identity, round(float(dur), 3), bool(is_image),
                (shot or {}).get("cinema_settings") or {}, color_grade_filter(), W, H, ENC]
@@ -277,7 +281,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
         afilt[0] = f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
         afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.5[mu]")
-        afilt.append("[mu]asplit=2[mu1][mu2];[mu1][key]"
+        afilt.append("[mu][key]"
                      "sidechaincompress=threshold=0.03:ratio=5:attack=15:release=600:makeup=1[duck]")
         mix_in = ["[va]","[duck]"]
     fade = f"afade=t=out:st={max(T-2.0,0):.3f}:d=2.0"

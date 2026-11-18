@@ -1,5 +1,8 @@
 """Free, local FFmpeg-based video quality checks for rendered exports."""
 import json
+import hashlib
+from fractions import Fraction
+import math
 import re
 import subprocess
 import tempfile
@@ -89,6 +92,18 @@ def _black_frame_issue(black_seconds, duration, body_seconds=None, limit=0.03):
     return None, ratio
 
 
+def final_runtime_problem(seconds, target_minutes):
+    """The delivered programme including credits must be within 5% of the request."""
+    try:
+        duration, target = float(seconds), float(target_minutes) * 60
+    except (TypeError, ValueError):
+        return "Missing final duration or requested target."
+    if not (math.isfinite(duration) and math.isfinite(target) and target > 0
+            and target * .95 <= duration <= target * 1.05):
+        return f"Final MP4 runs {duration:.2f}s; target {target:.2f}s including credits (tolerance ±5%)."
+    return None
+
+
 def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto", body_seconds=None):
     """Return a JSON-safe report. Requires ffprobe/ffmpeg; never changes the video.
 
@@ -109,6 +124,10 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
     audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
     duration = _seconds(probe.get("format", {}).get("duration"))
     size_bytes = video_path.stat().st_size
+    digest = hashlib.sha256()
+    with video_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
     issues, warnings, metrics = [], [], {
         "duration_seconds": round(duration, 2),
         "size_mb": round(size_bytes / (1024 * 1024), 2),
@@ -136,8 +155,15 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
             elif 0 < duration < 8:
                 warnings.append(f"Runtime {duration:.1f}s is too short for a publishable Short.")
         else:
-            if width < 1280 or height < 720:
-                warnings.append(f"Low video resolution: {width}×{height}.")
+            if width != 1920 or height != 1080:
+                issues.append(f"Long-form export must be 1920×1080; got {width}×{height}.")
+            try:
+                fps = float(Fraction(video_stream.get("avg_frame_rate") or "0"))
+            except (ValueError, ZeroDivisionError):
+                fps = 0.0
+            metrics["frame_rate"] = fps
+            if abs(fps - 30) > 0.01:
+                issues.append(f"Long-form export must be 30 fps; got {fps:.3f} fps.")
             if width and height and width / height < 1.2:
                 warnings.append("Unexpected aspect ratio for a landscape long-form export.")
         if video_stream.get("codec_name") and video_stream.get("codec_name") != "h264":
@@ -171,7 +197,7 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
             black_events.append({"start": float(match.group(1)), "end": float(match.group(2)),
                                  "duration": float(match.group(3))})
         if result.returncode != 0:
-            warnings.append("Black-frame scan could not complete.")
+            issues.append("Black-frame scan could not complete.")
     if audio_stream and duration:
         command = [
             _ffmpeg(), "-hide_banner", "-nostats", "-i", str(video_path),
@@ -186,7 +212,26 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
             if end > start:
                 silence_events.append({"start": start, "end": end, "duration": end - start})
         if result.returncode != 0:
-            warnings.append("Audio silence scan could not complete.")
+            issues.append("Audio silence scan could not complete.")
+
+    freeze_events = []
+    if video_stream and duration:
+        result = subprocess.run([
+            _ffmpeg(), "-hide_banner", "-nostats", "-i", str(video_path),
+            "-vf", "freezedetect=n=-60dB:d=3", "-an", "-f", "null", "-"
+        ], capture_output=True, text=True, timeout=600)
+        log = (result.stderr or "") + (result.stdout or "")
+        starts = [float(x) for x in re.findall(r"freeze_start:\s*([\d.]+)", log)]
+        ends = [float(x) for x in re.findall(r"freeze_end:\s*([\d.]+)", log)]
+        for index, start in enumerate(starts):
+            end = ends[index] if index < len(ends) else duration
+            if end > start:
+                freeze_events.append({"start": start, "end": end, "duration": end - start})
+        if result.returncode != 0:
+            issues.append("Freeze scan could not complete.")
+        if freeze_events:
+            warnings.append("Static or frozen video intervals detected; review whether intentional.")
+    metrics["freeze_intervals"] = freeze_events
 
     if audio_stream and duration:
         # A track that exists but carries no audible narration is a failed render.
@@ -291,6 +336,7 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
     score = max(0, min(100, 100 - deductions))
     return {
         "video_path": str(video_path),
+        "video_sha256": digest.hexdigest(),
         "status": "FAIL" if issues else ("REVIEW" if warnings else "PASS"),
         "score": score,
         "issues": issues,

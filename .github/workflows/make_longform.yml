@@ -1,4 +1,4 @@
-name: '2. Build a Documentary — automatic PRIVATE release'
+name: '2. Build a Documentary — build and package'
 on:
   workflow_dispatch:
     inputs:
@@ -18,13 +18,13 @@ on:
       minutes:
         description: "Target length in minutes"
         type: choice
-        options: ["18", "20", "22", "25", "28", "30"]
+        options: ["15", "18", "20", "22", "25", "28", "30"]
         default: "22"
       language:
         description: "Narration language (subtitles are always English)"
         type: choice
         options: [hinglish, hindi, english]
-        default: hinglish
+        default: english
       channel_profile:
         description: "Editorial profile for this build"
         type: choice
@@ -73,6 +73,7 @@ jobs:
       run: ${{ steps.resolve.outputs.run }}
       topic: ${{ steps.resolve.outputs.topic }}
       category: ${{ steps.resolve.outputs.category }}
+      force_rebuild: ${{ steps.resolve.outputs.force_rebuild }}
       semantic_review: ${{ steps.resolve.outputs.semantic_review }}
       minutes: ${{ steps.resolve.outputs.minutes }}
       language: ${{ steps.resolve.outputs.language }}
@@ -116,6 +117,8 @@ jobs:
 
       - name: Preflight documentary providers
         env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -128,8 +131,8 @@ jobs:
         run: |
           python - <<'PY'
           import os, sys
-          if not os.getenv("GEMINI_API_KEY"):
-              print("FATAL: GEMINI_API_KEY is missing; script generation cannot start.")
+          if not any(os.getenv(name) for name in ("GEMINI_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY")):
+              print("FATAL: No configured documentary text provider; script generation cannot start.")
               sys.exit(1)
           providers = {
               "Pixabay": bool(os.getenv("PIXABAY_API_KEY")),
@@ -143,7 +146,7 @@ jobs:
               "Internet Archive (public metadata)": True,
           }
           for name, configured in providers.items():
-              print(f"Provider {'READY' if configured else 'NOT CONFIGURED'}: {name}")
+              print(f"Provider {'configured or keyless (not tested)' if configured else 'NOT CONFIGURED'}: {name}")
           if not any(providers[name] for name in ("Pixabay", "Cloudflare image generation", "Coverr")):
               print("WARNING: No keyed general visual provider is configured; archival/context graphics and keyless fallback may be needed.")
           PY
@@ -154,7 +157,7 @@ jobs:
       # This workflow runs on GitHub-hosted CPU runners. Chatterbox v3
       # inference is too slow there for dependable long-form production.
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: python -m pip install -r requirements-ci.txt
 
       - name: Set up Python for SadTalker CPU inference
         if: ${{ needs.request.outputs.presenter_mode == 'sadtalker' }}
@@ -207,12 +210,17 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      - name: Restore duplicate history (read only)
+        run: python scripts/persist_state.py restore
+
       - name: Build long-form video
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
           # set the repository variable to override without a code change.
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL_LONGFORM }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_PROFILE: longform
           GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS_LONGFORM }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -243,7 +251,7 @@ jobs:
           PRESENTER_IMAGE: ${{ needs.request.outputs.voice_gender == 'female' && 'assets/presenter/presenter_female.png' || 'assets/presenter/presenter_master.png' }}
           CHANNEL_NAME: "Engineering Physics"
           CHANNEL_PROFILE: ${{ needs.request.outputs.channel_profile || 'beyond_science' }}
-          LONGFORM_LANGUAGE: ${{ needs.request.outputs.language || 'hinglish' }}
+          LONGFORM_LANGUAGE: ${{ needs.request.outputs.language || 'english' }}
           # Narration may be Hindi or Hinglish; subtitles are English only.
           SUBTITLE_LANGUAGE: "english"
           VISUAL_SEMANTIC_CHECK: ${{ needs.request.outputs.semantic_review == 'true' && '1' || '0' }}
@@ -252,30 +260,26 @@ jobs:
           # the shell script, so a topic containing quotes or $(...) cannot run code.
           INPUT_TOPIC: ${{ needs.request.outputs.topic }}
           INPUT_CATEGORY: ${{ needs.request.outputs.category }}
+          TEST_REBUILD: ${{ github.event_name == 'pull_request' && needs.request.outputs.force_rebuild == 'true' }}
           INPUT_MINUTES: ${{ needs.request.outputs.minutes }}
-          INPUT_LANGUAGE: ${{ needs.request.outputs.language || 'hinglish' }}
+          INPUT_LANGUAGE: ${{ needs.request.outputs.language || 'english' }}
           INPUT_VOICE_GENDER: ${{ needs.request.outputs.voice_gender }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25|28|30)$ ]] || { echo "::error::minutes must be one of 18, 20, 22, 25, 28 or 30."; exit 1; }
-          python run.py long "$INPUT_TOPIC" \
+          [[ "$INPUT_MINUTES" =~ ^(15|18|20|22|25|28|30)$ ]] || { echo "::error::minutes must be one of 15, 18, 20, 22, 25, 28 or 30."; exit 1; }
+          FLAGS=()
+          if [[ "$TEST_REBUILD" == true ]]; then FLAGS+=(--force); fi
+          python run.py long "$INPUT_TOPIC" "${FLAGS[@]}" \
             --category "$INPUT_CATEGORY" \
             --minutes "$INPUT_MINUTES" \
             --language "$INPUT_LANGUAGE" \
-            --voice-gender "$INPUT_VOICE_GENDER" \
-            --force
+            --voice-gender "$INPUT_VOICE_GENDER"
 
-      # Build and release remain separate jobs. The release job receives YouTube secrets;
-      # the renderer never does. It uploads only after the strict machine-only documentary gate passes.
+      # This workflow never uploads. Release requires a completed build on the default branch.
       - name: Assemble the documentary QA package (no upload)
         if: success()
         run: python scripts/package_build_for_review.py --mode longform
-
-      - name: Mark build as ready for the separate private-release gate
-        if: always()
-        run: |
-          echo "The build is complete. The dependent release job will independently validate the package and upload PRIVATE only."
 
       - name: Write job summary and run report
         if: always()
@@ -307,8 +311,7 @@ jobs:
             output/*.mp4
             output/run_report.json
             build/job_*/
-            youtube-upload-result.json
-            youtube-upload-failure.json
+            !build/job_*/render_work/
           if-no-files-found: error
           retention-days: 14
 
@@ -334,6 +337,10 @@ jobs:
             build/job_*/narration_synthesis_report.json
             build/job_*/shared_review_package/qa/*.json
             build/job_*/shared_review_package/package_summary.json
+            build/job_*/shared_review_package/production_manifest.json
+            build/job_*/runtime_report.json
+            build/job_*/research_review_decisions.json
+            build/job_*/music.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -360,107 +367,3 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: python scripts/alert_on_failure.py --name "make-longform"
-
-
-  # Autonomous release: the renderer has no YouTube credentials. This dependent
-  # job downloads this exact run's artifact and applies the stricter machine-only
-  # documentary gate. Any missing evidence, uncertain shot, non-PASS QA, rights
-  # issue, channel mismatch or upload/read-back problem fails closed.
-  release:
-    needs: [request, build]
-    if: >-
-      needs.build.result == 'success' &&
-      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Verify this exact successful documentary build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.run_id }}
-        run: python scripts/verify_source_run.py --run-id "$SOURCE_RUN_ID" --mode longform --ref "$GITHUB_REF_NAME"
-
-      - name: Install FFmpeg and uploader dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install -r requirements-ci.txt
-
-      - name: Download the documentary artifact from this exact run
-        uses: actions/download-artifact@v8
-        with:
-          name: longform-review-${{ github.run_id }}
-          path: release-artifact
-
-      - name: Run strict machine-only documentary release and verify PRIVATE status
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
-          YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
-          YT_CHANNEL_VERIFY: "1"
-          CHANNEL_NAME: "Engineering Physics"
-        run: |
-          set -euo pipefail
-          test -n "$YT_CLIENT_ID" || { echo "::error::YT_CLIENT_ID is missing."; exit 1; }
-          test -n "$YT_CLIENT_SECRET" || { echo "::error::YT_CLIENT_SECRET is missing."; exit 1; }
-          test -n "$YT_REFRESH_TOKEN" || { echo "::error::YT_REFRESH_TOKEN is missing."; exit 1; }
-          python scripts/upload_documentary_artifact.py \
-            --artifact-dir release-artifact \
-            --source-run-id "$GITHUB_RUN_ID" \
-            --machine-only
-
-      - name: Write private-release result to the run summary
-        if: always()
-        run: |
-          if [[ -s release-artifact/youtube-upload-result.json ]]; then
-            echo "## Documentary private upload" >> "$GITHUB_STEP_SUMMARY"
-            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          from pathlib import Path
-          data = json.loads(Path("release-artifact/youtube-upload-result.json").read_text())
-          print(f"- **Result:** {'PRIVATE verified' if data.get('privacy_verified') else 'NOT VERIFIED'}")
-          print(f"- **Video:** {data.get('url', 'unavailable')}")
-          print(f"- **Video ID:** `{data.get('video_id', 'unavailable')}`")
-          print(f"- **Processing:** {data.get('processing_status', 'unknown')}")
-          print(f"- **SHA-256:** `{data.get('sha256', 'unavailable')}`")
-          PY
-          elif [[ -s release-artifact/youtube-upload-failure.json ]]; then
-            echo "## Documentary upload blocked" >> "$GITHUB_STEP_SUMMARY"
-            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          from pathlib import Path
-          data = json.loads(Path("release-artifact/youtube-upload-failure.json").read_text())
-          print(f"**Nothing was uploaded.** {data.get('error', 'Unknown release failure')}")
-          PY
-          else
-            echo "## Documentary upload not completed. No verified private upload result exists." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Preserve upload verification evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: longform-private-release-${{ github.run_id }}
-          path: |
-            release-artifact/youtube-upload-result.json
-            release-artifact/youtube-upload-failure.json
-          if-no-files-found: warn
-          retention-days: 90
-
-      - name: Alert on release failure
-        if: failure()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: python scripts/alert_on_failure.py --name "longform-private-release"

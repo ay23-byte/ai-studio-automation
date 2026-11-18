@@ -8,7 +8,7 @@ from core.db import save_video, update_video
 from core.cinematic_shot_planner import plan_cinematic_shots, write_cinematic_shot_plan
 
 from core import ffmpeg_utils
-from core.jobs import Checkpoint, stable_hash
+from core.jobs import Checkpoint, exclusive_build, stable_hash
 
 W_S, H_S = 1080, 1920   # Shorts
 W_L, H_L = 1920, 1080   # Long-form
@@ -102,7 +102,8 @@ def _voice_stage(checkpoint, text, bd, language, gender, refuse_robotic=False):
     timings_path = Path(bd) / "voice_timings.json"
     voice_path = Path(bd) / "voice.wav"
     signature = stable_hash(text, language, gender, os.getenv("TTS_ENGINE", "edge"),
-                            os.getenv("TTS_VOICE", ""), os.getenv("TTS_PRONUNCIATION_MAP", ""))
+                            {name: os.getenv(name) for name in ("TTS_VOICE", "TTS_RATE", "TTS_PITCH", "TTS_PRONUNCIATION_MAP",
+                             "VOICE_ENGLISH", "VOICE_ENGLISH_FEMALE", "VOICE_HINDI", "VOICE_FEMALE", "ESPEAK_RATE")})
 
     def run():
         path, timings = synthesise(text, bd, language=language, gender=gender)
@@ -322,9 +323,27 @@ def _apply_fallback_gate(report_path, fallback_report):
     return report
 
 
-def _pick_music():
-    files = list(cfg.MUSIC_DIR.glob("*.mp3")) + list(cfg.MUSIC_DIR.glob("*.wav"))
-    return random.choice(files) if files else None
+def _pick_music(build_dir):
+    """Use only file-bound, documented music rights. Otherwise mix narration alone."""
+    from core.footage_licence import classify_licence, provenance_gaps, attribution_line
+    from core.review_contract import sha256_file, write_json
+    from core.review_packaging import load_sidecar
+    root = Path(build_dir)
+    for path in sorted((*cfg.MUSIC_DIR.glob("*.mp3"), *cfg.MUSIC_DIR.glob("*.wav"))):
+        meta = load_sidecar(path)
+        decision = classify_licence(meta)
+        if (decision["publishable"] and decision["commercial_use"] and decision["modification"]
+                and not decision["share_alike"] and not provenance_gaps(meta, decision)
+                and meta.get("media_sha256") == sha256_file(path)):
+            credit = attribution_line(meta, decision)
+            with (root / "credits.txt").open("a", encoding="utf-8") as handle:
+                handle.write("\nMusic: " + credit + "\n")
+            write_json(root / "music.json", {"used": True, "file": path.name, "sha256": meta["media_sha256"],
+                       "credit": credit, "source": meta.get("page_url") or meta.get("url"),
+                       "licence": meta.get("licence") or meta.get("license"), "decision": decision})
+            return path
+    write_json(root / "music.json", {"used": False, "reason": "No checksum-bound, rights-eligible music."})
+    return None
 
 def _local_clips():
     files = [p for p in cfg.CLIPS_DIR.iterdir() if p.suffix.lower() in (".mp4",".mov",".webm")]
@@ -576,7 +595,7 @@ def _timeline_drift(shot_timeline, sections):
     return worst
 
 
-def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=False, body_seconds=None):
+def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=False, body_seconds=None, target_minutes=None):
     """Run required post-render QA; fail closed when inspection fails or cannot run.
 
     ``body_seconds`` is the programme length before an appended credit slate, so
@@ -588,6 +607,15 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
         if body_seconds:
             options["body_seconds"] = float(body_seconds)
         report = inspect_video(video_path, subtitle_path=subtitle_path, **options)
+        if documentary and target_minutes is not None:
+            from core.quality import final_runtime_problem
+            problem = final_runtime_problem(report["metrics"]["duration_seconds"], target_minutes)
+            report["delivery_runtime"] = {"target_minutes": target_minutes, "tolerance_fraction": .05,
+                                          "status": "FAIL" if problem else "PASS"}
+            if problem:
+                report["issues"].append(problem)
+                report["status"] = "FAIL"
+                report["score"] = max(0, report["score"] - 20)
         if documentary:
             from core.audio_quality import inspect_audio
             audio_report = inspect_audio(video_path, **({"body_seconds": float(body_seconds)} if body_seconds else {}))
@@ -733,14 +761,17 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         state = {"ai_video_failed": False, "image_failures": 0,
                  "image_failure_limit": max(1, int(os.getenv("IMAGE_PROVIDER_FAILURE_LIMIT", "2")))}
         for i, sc in enumerate(scenes):
-            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat)
+            from core.asset_manifest import supplied_scene
+            supplied = supplied_scene(os.getenv("SHORTS_ASSET_DIR"), i, script, bd)
+            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat,
+                                    supplied and supplied["sha256"])
             record = checkpoint.get(f"visual_{i}") or {}
             stored = record.get("result") or {}
             was_card = stored.get("provider") == "fallback_card"
             retry_cards = os.getenv("RETRY_FALLBACK_CARDS_ON_RESUME", "1").strip().lower() in {"1", "true", "yes"}
 
             def acquire(i=i, sc=sc):
-                item = _short_scene_visual(i, sc, scenes, script, bd, used_ids, state)
+                item = supplied or _short_scene_visual(i, sc, scenes, script, bd, used_ids, state)
                 return {"type": item["type"], "path": str(item["path"]), "provider": item["provider"]}
 
             if was_card and retry_cards and record.get("status") == "done":
@@ -748,7 +779,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
                 checkpoint.mark(f"visual_{i}", "stale", input_hash="retry-card")
             item = checkpoint.run(
                 f"visual_{i}", acquire, input_hash=signature,
-                files=[Path(stored["path"]).name] if stored.get("path") else (),
+                files=(),  # Checkpoint records the path returned by acquire, not the previous path.
             )
             media.append({"type": item["type"], "path": Path(item["path"]), "provider": item.get("provider")})
 
@@ -772,11 +803,8 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         write_cinematic_shot_plan(short_shots, bd / "cinematic_shot_plan.json", defaults={"aspect_ratio": "9:16"})
 
         # Asset provenance for every visual (provider, licence, attribution).
-        try:
-            from core.asset_manifest import write_shorts_asset_manifest
-            write_shorts_asset_manifest(bd, scenes, media)
-        except Exception as exc:
-            print(f"WARNING: asset manifest could not be written: {exc}")
+        from core.asset_manifest import write_shorts_asset_manifest
+        write_shorts_asset_manifest(bd, scenes, media, starts=starts)
 
         # Captions
         caption_items = []
@@ -798,7 +826,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
             print(f"WARNING: SRT/VTT caption sidecars could not be written: {exc}")
 
         # Render
-        music = _pick_music()
+        music = _pick_music(bd)
         cfg.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         out = cfg.OUTPUT_DIR / f"shorts_{job_id}.mp4"
         if footage_run.scenes:
@@ -1275,7 +1303,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             visual_stage = f"visual_{i}_{j}"
             previous = (checkpoint.get(visual_stage) or {})
             previous_result = previous.get("result") or {}
-            if (previous.get("status") == "done" and previous.get("input_hash") == prompt_signature
+            if (checkpoint.is_done(visual_stage, prompt_signature)
                     and previous_result.get("path") and not previous_result.get("fallback_card")
                     and Path(previous_result["path"]).is_file()
                     and Path(previous_result["path"]).stat().st_size > 1000
@@ -1568,7 +1596,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     except Exception as exc:
         print(f"WARNING: SRT/VTT caption sidecars could not be written: {exc}")
 
-    music = _pick_music()
+    music = _pick_music(bd)
     cfg.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
     credits_file = bd / "credits.txt"
@@ -1579,7 +1607,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
               work_dir=bd / "render_work")
     checkpoint.mark("render", "done", files=[str(out)])
     _quality_check(job_id, out, ass, bd, documentary=True,
-                   body_seconds=total if credits_file.is_file() else None)
+                   body_seconds=total if credits_file.is_file() else None,
+                   target_minutes=runtime_report["target_minutes"])
     gated = _apply_fallback_gate(bd / "quality_report.json", fallback_report)
     if gated:
         update_video(job_id, quality_score=gated["score"], quality_status=gated["status"])
@@ -1619,5 +1648,5 @@ build_longform = _record_failures(build_longform)
 # Record one event per complete render operation.
 from core.monitoring import monitored as _monitored
 from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
-build_shorts = _monitored("pipeline", "build_shorts", build_shorts)
-build_longform = _monitored("pipeline", "build_longform", build_longform)
+build_shorts = exclusive_build(_monitored("pipeline", "build_shorts", build_shorts))
+build_longform = exclusive_build(_monitored("pipeline", "build_longform", build_longform))

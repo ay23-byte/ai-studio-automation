@@ -220,9 +220,9 @@ def _candidate(title, publisher, publisher_url, hours=2, summary=""):
 
 CORROBORATED = [
     _candidate("ISRO successfully tests reusable launch vehicle landing in Karnataka", "Reuters",
-               "https://www.reuters.com", 3, "The space agency said the experiment met all 3 objectives."),
+               "https://www.reuters.com/science/isro-reusable-launch-vehicle-landing-test/", 3, "The space agency said the experiment met all 3 objectives."),
     _candidate("ISRO reusable launch vehicle completes autonomous landing test", "The Hindu",
-               "https://www.thehindu.com", 4),
+               "https://www.thehindu.com/science/isro-reusable-launch-vehicle-landing-test/", 4),
 ]
 
 
@@ -290,8 +290,31 @@ class NewsAutoTests(_StateSandbox):
         self.assertTrue((self.root / "output" / "daily_news" / "auto_selection.json").is_file())
 
     def test_run_builds_records_and_marks_story_seen(self):
+        documents = [
+            {"source_id": "S1", "publisher": "reuters.com", "title": "ISRO successfully tests reusable launch vehicle landing in Karnataka",
+             "url": "https://www.reuters.com/science/isro-reusable-launch-vehicle-landing-test/",
+             "published": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(),
+             "text_snippet": "ISRO successfully tests reusable launch vehicle landing in Karnataka. The space agency said the experiment met all 3 objectives."},
+            {"source_id": "S2", "publisher": "thehindu.com", "title": "ISRO reusable launch vehicle completes autonomous landing test",
+             "url": "https://www.thehindu.com/science/isro-reusable-launch-vehicle-landing-test/",
+             "published": (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat(),
+             "text_snippet": "ISRO reusable launch vehicle completes autonomous landing test."},
+        ]
+        def fake_assess(script, docs, *, news=False):
+            from core.source_grounding import units
+            from core.jobs import stable_hash
+            wanted = units(script)
+            return {"status": "PASS", "method": "retrieved-passage-v1", "script_hash": stable_hash(wanted),
+                    "sources": [{k: v for k, v in d.items() if k != "text_snippet"} for d in docs],
+                    "scenes": [{"scene": row["scene"], "verdict": "supported",
+                                "evidence": [{"source_id": "S1", "quote": docs[0]["text_snippet"][:80]}]} for row in wanted],
+                    "issues": [], "checked_at": datetime.now(timezone.utc).isoformat()}
+        news_video = self.root / "news.mp4"
+        news_video.write_bytes(b"0" * 1000)
         with patch("core.db.save_video", return_value=77), \
-                patch("core.pipeline.build_shorts", return_value="news.mp4") as build, \
+                patch("core.pipeline.build_shorts", return_value=str(news_video)) as build, \
+                patch("core.source_grounding.read_sources", return_value=(documents, [])), \
+                patch("core.source_grounding.assess", side_effect=fake_assess), \
                 patch.dict(os.environ, {"NEWS_TEMPLATE_FALLBACK": "1"}), \
                 patch("core.script_engine._ask_gemini", side_effect=RuntimeError("no key")):
             result = news_auto.run(candidates=list(CORROBORATED))

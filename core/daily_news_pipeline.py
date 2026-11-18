@@ -83,13 +83,13 @@ def collect_feed(url, timeout=20):
                      'published': _text(node, 'pubDate'), 'discovery_feed': url})
     ns = {'a': 'http://www.w3.org/2005/Atom'}
     for node in root.findall('.//a:entry', ns):
-        title = _text(node, 'a:title')
+        title = _text(node, '{http://www.w3.org/2005/Atom}title')
         link_node = node.find('a:link', ns)
         link = link_node.attrib.get('href', '') if link_node is not None else ''
         if not link or not title: continue
         rows.append({'id': _item_id(link), 'title': title[:300], 'url': link,
                      'publisher': urlparse(url).netloc,
-                     'published': _text(node, 'a:published') or _text(node, 'a:updated'),
+                     'published': _text(node, '{http://www.w3.org/2005/Atom}published'),
                      'discovery_feed': url})
     return rows
 

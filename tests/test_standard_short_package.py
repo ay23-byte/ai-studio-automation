@@ -102,7 +102,7 @@ class StandardShortPackageTests(unittest.TestCase):
             "fallback_reason": "All Edge TTS voices failed", "voice": "espeak-ng offline fallback"})
         self.assertTrue(manifest["narration"]["fallback_used"])
         self.assertEqual(summary["qa_statuses"]["audio"], "FAIL")
-        self.assertIn("robotic fallback voice", (root / "qa" / "audio.json").read_text())
+        self.assertIn("robotic preview voice", (root / "qa" / "audio.json").read_text())
 
     def test_pipeline_quality_failure_or_upload_block_carries_over(self):
         for index, quality in enumerate(({"status": "FAIL", "issues": [{"message": "black frames"}]},

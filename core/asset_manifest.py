@@ -20,7 +20,7 @@ def _sidecar(path: Path) -> dict:
         return {}
 
 
-def write_shorts_asset_manifest(build_dir, scenes, media) -> dict:
+def write_shorts_asset_manifest(build_dir, scenes, media, *, starts=None) -> dict:
     """Write ``asset_manifest.json``, ``licenses.csv`` and ``credits.txt``."""
     from core.asset_licensing import build_licence_register
 
@@ -30,8 +30,10 @@ def write_shorts_asset_manifest(build_dir, scenes, media) -> dict:
         path = Path(item["path"])
         metadata = _sidecar(path)
         timeline.append({"_media": {"path": str(path), "type": item.get("type")},
-                         "_start": float(index * 1000)})  # distinct scenes, not reuse
+                         "_start": float(starts[index]) if starts is not None else float(index)})
+        from core.review_contract import sha256_file
         assets.append({
+            "sha256": sha256_file(path), "job": root.name, "asset_id": f"{root.name}:scene_{index+1}",
             "scene": index + 1,
             "file": path.name,
             "media_type": item.get("type"),
@@ -63,3 +65,29 @@ def write_shorts_asset_manifest(build_dir, scenes, media) -> dict:
     (root / "asset_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifest
+
+
+def supplied_scene(directory, index, script, build_dir):
+    """An explicitly supplied scene pack is all-or-nothing; model output cannot select host files."""
+    if not directory:
+        return None
+    import shutil
+    from core.jobs import stable_hash
+    from core.review_contract import inside, read_json, sha256_file, write_json
+    root = Path(directory)
+    pack = read_json(root / 'scene_pack.json')
+    rows = pack.get('scenes')
+    if pack.get('script_hash') != stable_hash(script) or not isinstance(rows, list) or len(rows) != len(script['scenes']):
+        raise ValueError('Scene pack does not match the supplied script or scene count.')
+    row = rows[index]
+    source = inside(root, row['file'])
+    sidecar = inside(root, row['file'] + '.source.json')
+    meta = read_json(sidecar, what='asset provenance')
+    if source.suffix.lower() not in {'.mp4', '.png', '.jpg'} or sha256_file(source) != row.get('sha256'):
+        raise ValueError(f'Invalid supplied asset type or SHA-256 for scene {index+1}.')
+    kind = 'video' if source.suffix.lower() == '.mp4' else 'image'
+    dest = build_dir / (('raw' if kind == 'video' else 'img') + str(index) + source.suffix.lower())
+    if not dest.exists() or sha256_file(dest) != row['sha256']:
+        shutil.copyfile(source, dest)
+    write_json(dest.with_suffix(dest.suffix+'.source.json'), meta)
+    return {'type': kind, 'path': dest, 'provider': 'supplied', 'sha256': row['sha256']}
