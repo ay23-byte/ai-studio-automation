@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-18T13:41:55+00:00",
+  "updated_at": "2026-11-18T21:43:37+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -211,6 +211,22 @@
       ],
       "job_id": 7,
       "youtube_id": "e40ZIeAHfMU",
+      "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "4384cc1bd73ff452343324b8",
+      "created_at": "2026-11-18T21:42:50+00:00",
+      "title": "House Democrats Nominate Hakeem Jeffries for Speaker",
+      "status": "uploaded",
+      "updated_at": "2026-11-18T21:43:37+00:00",
+      "topic": "Democrats nominate Hakeem Jeffries to be US Speaker of the House",
+      "source_refs": [
+        "29e3d15185749f88c47a",
+        "fc2541614de8c1f823cc"
+      ],
+      "job_id": 7,
+      "youtube_id": "ryE-s5j6DoA",
       "privacy_status": "private"
     }
   ]
