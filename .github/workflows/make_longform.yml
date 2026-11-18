@@ -370,7 +370,15 @@ jobs:
     needs: [request, build]
     if: >-
       needs.build.result == 'success' &&
-      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+      (
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'schedule' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.base.ref == 'main' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -385,7 +393,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SOURCE_RUN_ID: ${{ github.run_id }}
-        run: python scripts/verify_source_run.py --run-id "$SOURCE_RUN_ID" --mode longform --ref "$GITHUB_REF_NAME"
+          RELEASE_REF: ${{ github.event_name == 'pull_request' && 'main' || github.ref_name }}
+        run: python scripts/verify_source_run.py --run-id "$SOURCE_RUN_ID" --mode longform --ref "$RELEASE_REF"
 
       - name: Install FFmpeg and uploader dependencies
         run: |
