@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from pathlib import Path
-from core.quality import _seconds, _hamming, _black_frame_issue
+from core.quality import _seconds, _hamming, _black_frame_issue, _near_duplicate_pairs
 from core.pipeline import _quality_check
 
 
@@ -14,6 +14,16 @@ class QualityInspectorUnitTests(unittest.TestCase):
     def test_hamming_distance_counts_changed_bits(self):
         self.assertEqual(_hamming(0b1010, 0b1001), 2)
         self.assertEqual(_hamming(255, 255), 0)
+
+    def test_duplicate_samples_inside_one_shot_are_not_counted_as_repeated_shots(self):
+        hashes = [(0, 123), (1, 123), (2, 123), (3, 456), (4, 456), (5, 456),
+                  (6, 789), (7, 789), (8, 789), (9, 321), (10, 321), (11, 321)]
+        self.assertEqual(_near_duplicate_pairs(hashes, 12), [])
+
+    def test_same_visual_reappearing_in_distant_shots_is_counted(self):
+        hashes = [(0, 123), (1, 456), (2, 789), (3, 111), (4, 222), (5, 333),
+                  (6, 444), (7, 555), (8, 666), (9, 777), (10, 888), (11, 123)]
+        self.assertEqual(_near_duplicate_pairs(hashes, 12), [[0, 11]])
 
     def test_black_footage_is_measured_against_programme_not_long_credits_slate(self):
         issue, ratio = _black_frame_issue(65.23, 1376.8, body_seconds=1214.24)
