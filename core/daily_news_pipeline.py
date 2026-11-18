@@ -169,11 +169,22 @@ def collect_candidates(feeds=None, limit_per_feed=35):
     unique.sort(key=lambda x: x.get('published', ''), reverse=True)
     trend_report = {"available": False, "reason": "not requested", "videos": []}
     if (os.getenv("YOUTUBE_DATA_API_KEY") or os.getenv("YOUTUBE_API_KEY") or os.getenv("YT_API_KEY")):
-        try:
-            trend_report = fetch_youtube_news_trending()
-            apply_youtube_trend_signals(unique, trend_report.get("videos", []))
-        except Exception as exc:
-            trend_report = {"available": False, "reason": str(exc)[:300], "videos": []}
+        trend_reports = []
+        trend_errors = []
+        for region_code in ("IN", "US"):
+            try:
+                trend_reports.append(fetch_youtube_news_trending(region_code=region_code))
+            except Exception as exc:
+                trend_errors.append({"region_code": region_code, "error": str(exc)[:250]})
+        trend_videos = [video for report in trend_reports for video in report.get("videos", [])]
+        apply_youtube_trend_signals(unique, trend_videos)
+        trend_report = {
+            "available": bool(trend_videos), "regions_checked": ["IN", "US"],
+            "region_video_counts": {report.get("region_code"): report.get("video_count", 0)
+                                    for report in trend_reports},
+            "video_count": len(trend_videos), "errors": trend_errors,
+            "global_proxy": "US News & Politics chart; not a worldwide aggregate",
+        }
     else:
         for item in unique:
             item["youtube_trend_score"] = 0.0
