@@ -16,13 +16,16 @@ class QualityInspectorUnitTests(unittest.TestCase):
         self.assertEqual(_hamming(255, 255), 0)
 
     def test_duplicate_samples_inside_one_shot_are_not_counted_as_repeated_shots(self):
-        hashes = [(0, 123), (1, 123), (2, 123), (3, 456), (4, 456), (5, 456),
-                  (6, 789), (7, 789), (8, 789), (9, 321), (10, 321), (11, 321)]
+        hashes = [(0, 0), (1, 0), (2, 0), (3, 0xFFFFFFFF), (4, 0xFFFFFFFF), (5, 0xFFFFFFFF),
+                  (6, 0xAAAAAAAA), (7, 0xAAAAAAAA), (8, 0xAAAAAAAA),
+                  (9, 0x55555555), (10, 0x55555555), (11, 0x55555555)]
         self.assertEqual(_near_duplicate_pairs(hashes, 12), [])
 
     def test_same_visual_reappearing_in_distant_shots_is_counted(self):
-        hashes = [(0, 123), (1, 456), (2, 789), (3, 111), (4, 222), (5, 333),
-                  (6, 444), (7, 555), (8, 666), (9, 777), (10, 888), (11, 123)]
+        hashes = [(0, 0), (1, 0xFFFFFFFF), (2, 0xAAAAAAAA), (3, 0x55555555),
+                  (4, 0xF0F0F0F0), (5, 0x0F0F0F0F), (6, 0xCCCCCCCC),
+                  (7, 0x33333333), (8, 0xFF00FF00), (9, 0x00FF00FF),
+                  (10, 0x96969696), (11, 0)]
         self.assertEqual(_near_duplicate_pairs(hashes, 12), [[0, 11]])
 
     def test_black_footage_is_measured_against_programme_not_long_credits_slate(self):
