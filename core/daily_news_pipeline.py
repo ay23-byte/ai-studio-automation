@@ -32,37 +32,62 @@ YOUTUBE_NEWS_CATEGORY_ID = "25"  # News & Politics
 
 
 def fetch_youtube_news_trending(api_key=None, region_code="IN", max_results=50):
-    """Fetch YouTube's popular News & Politics videos as discovery signals only.
+    """Find highly viewed recent news videos; a trend proxy, not YouTube's old Trending chart.
 
-    Trending video metadata never counts as a verified news source. Every story
-    still has to pass the independent publisher/source gate in news_auto.
+    YouTube retired the old Trending page and changed mostPopular in July 2025.
+    We therefore use search.list ordered by viewCount, restricted to recent
+    News & Politics videos in a region, then retrieve their current view counts.
+    These videos are discovery signals only, never factual sources.
     """
-    key = str(api_key or os.getenv("YOUTUBE_DATA_API_KEY") or os.getenv("YOUTUBE_API_KEY") or os.getenv("YT_API_KEY") or "").strip()
+    from datetime import timedelta
+
+    key = str(api_key or os.getenv("YOUTUBE_DATA_API_KEY") or os.getenv("YOUTUBE_API_KEY")
+              or os.getenv("YT_API_KEY") or "").strip()
     if not key:
         return {"available": False, "reason": "YOUTUBE_DATA_API_KEY is not configured", "videos": []}
-    response = requests.get(YOUTUBE_TRENDING_URL, params={
-        "part": "snippet,statistics", "chart": "mostPopular", "regionCode": region_code,
+    query = "India news" if region_code == "IN" else "world news"
+    published_after = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat(timespec="seconds").replace("+00:00", "Z")
+    response = requests.get("https://www.googleapis.com/youtube/v3/search", params={
+        "part": "snippet", "type": "video", "q": query, "order": "viewCount",
+        "publishedAfter": published_after, "regionCode": region_code,
         "videoCategoryId": YOUTUBE_NEWS_CATEGORY_ID, "maxResults": min(max(1, int(max_results)), 50),
         "key": key,
     }, timeout=20, headers={"User-Agent": USER_AGENT})
     response.raise_for_status()
     payload = response.json()
+    search_items = payload.get("items", [])
+    ids = [str(item.get("id", {}).get("videoId") or "") for item in search_items]
+    ids = [video_id for video_id in ids if video_id]
+    if not ids:
+        return {"available": True, "region_code": region_code, "video_count": 0, "videos": [],
+                "method": "YouTube Search API: recent News & Politics videos ordered by viewCount"}
+    stats_response = requests.get(YOUTUBE_TRENDING_URL, params={
+        "part": "snippet,statistics", "id": ",".join(ids[:50]), "maxResults": min(len(ids), 50),
+        "key": key,
+    }, timeout=20, headers={"User-Agent": USER_AGENT})
+    stats_response.raise_for_status()
+    details = {str(item.get("id")): item for item in stats_response.json().get("items", [])}
     videos = []
-    for item in payload.get("items", []):
-        snippet = item.get("snippet") or {}
-        stats = item.get("statistics") or {}
+    for item in search_items:
+        video_id = str(item.get("id", {}).get("videoId") or "")
+        detail = details.get(video_id, {})
+        snippet = detail.get("snippet") or item.get("snippet") or {}
+        stats = detail.get("statistics") or {}
         title = str(snippet.get("title") or "").strip()
         if not title:
             continue
         videos.append({
-            "video_id": str(item.get("id") or ""), "title": title[:300],
+            "video_id": video_id, "title": title[:300],
             "channel": str(snippet.get("channelTitle") or "")[:160],
             "published_at": str(snippet.get("publishedAt") or ""),
             "view_count": int(stats.get("viewCount") or 0),
-            "url": "https://www.youtube.com/watch?v=" + str(item.get("id") or ""),
+            "url": "https://www.youtube.com/watch?v=" + video_id,
             "region_code": region_code, "category_id": YOUTUBE_NEWS_CATEGORY_ID,
         })
-    return {"available": True, "region_code": region_code, "video_count": len(videos), "videos": videos}
+    videos.sort(key=lambda item: item["view_count"], reverse=True)
+    return {"available": True, "region_code": region_code, "video_count": len(videos), "videos": videos,
+            "method": "YouTube Search API: recent News & Politics videos ordered by viewCount",
+            "published_within_hours": 48}
 
 
 def apply_youtube_trend_signals(candidates, trending_videos):
@@ -183,7 +208,7 @@ def collect_candidates(feeds=None, limit_per_feed=35):
             "region_video_counts": {report.get("region_code"): report.get("video_count", 0)
                                     for report in trend_reports},
             "video_count": len(trend_videos), "errors": trend_errors,
-            "global_proxy": "US News & Politics chart; not a worldwide aggregate",
+            "global_proxy": "US recent News & Politics search; not a worldwide aggregate",
         }
     else:
         for item in unique:
