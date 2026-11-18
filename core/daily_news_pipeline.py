@@ -37,7 +37,7 @@ def fetch_youtube_news_trending(api_key=None, region_code="IN", max_results=50):
     Trending video metadata never counts as a verified news source. Every story
     still has to pass the independent publisher/source gate in news_auto.
     """
-    key = str(api_key or os.getenv("YOUTUBE_DATA_API_KEY") or "").strip()
+    key = str(api_key or os.getenv("YOUTUBE_DATA_API_KEY") or os.getenv("YOUTUBE_API_KEY") or os.getenv("YT_API_KEY") or "").strip()
     if not key:
         return {"available": False, "reason": "YOUTUBE_DATA_API_KEY is not configured", "videos": []}
     response = requests.get(YOUTUBE_TRENDING_URL, params={
@@ -168,7 +168,7 @@ def collect_candidates(feeds=None, limit_per_feed=35):
             seen.add(item['id']); unique.append(item)
     unique.sort(key=lambda x: x.get('published', ''), reverse=True)
     trend_report = {"available": False, "reason": "not requested", "videos": []}
-    if os.getenv("YOUTUBE_DATA_API_KEY"):
+    if (os.getenv("YOUTUBE_DATA_API_KEY") or os.getenv("YOUTUBE_API_KEY") or os.getenv("YT_API_KEY")):
         try:
             trend_report = fetch_youtube_news_trending()
             apply_youtube_trend_signals(unique, trend_report.get("videos", []))
