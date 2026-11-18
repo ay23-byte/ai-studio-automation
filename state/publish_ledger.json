@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-17T22:07:26+00:00",
+  "updated_at": "2026-11-18T10:53:38+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -148,6 +148,20 @@
       "source_refs": [
         "6e4161a0149e2d4af61e",
         "38c89b3387232dcd11ef"
+      ],
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "6c122eae92b0b6b909897b2a",
+      "created_at": "2026-11-18T10:53:38+00:00",
+      "title": "Foreign Portfolio Investment Surge in Indian Equities",
+      "status": "built",
+      "updated_at": "2026-11-18T10:53:38+00:00",
+      "topic": "What’s behind the record ₹89,856-crore FPI surge into Indian equities? | Explained",
+      "source_refs": [
+        "b216b253a6b0f7a8dd79",
+        "c4196bab4aea3b194816"
       ],
       "job_id": 7
     }
