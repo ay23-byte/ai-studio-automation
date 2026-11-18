@@ -512,9 +512,9 @@ class NewsVisualPriorityTests(unittest.TestCase):
         }
         state = {"ai_video_failed": False, "image_failures": 0, "image_failure_limit": 2}
         with tempfile.TemporaryDirectory() as tmp:
-            with patch.dict(os.environ, {"OPENVINO_LTX_MODEL_DIR": ""}), \\
-                 patch("core.pipeline.fetch_clip", return_value=True) as footage, \\
-                 patch("core.pipeline.generate_image") as still, \\
+            with patch.dict(os.environ, {"OPENVINO_LTX_MODEL_DIR": ""}), \
+                 patch("core.pipeline.fetch_clip", return_value=True) as footage, \
+                 patch("core.pipeline.generate_image") as still, \
                  patch("core.pipeline.generate_ai_video") as ai_video:
                 result = pipeline._short_scene_visual(
                     0, scene, [scene], {"category": "news"}, Path(tmp), set(), state
