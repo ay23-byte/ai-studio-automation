@@ -209,11 +209,18 @@ def _pixabay_image(scene_prompt, path):
             "provider": "Pixabay",
             "asset_type": "stock_image",
             "page_url": str(hit.get("pageURL") or "https://pixabay.com/"),
+            "licence": "Pixabay Content License",
             "licence_url": PIXABAY_LICENCE_URL,
             "terms_reviewed": False,
             "licence_status": "Pixabay Content License (provider-reported); check source-specific restrictions before reuse.",
             "title": str(hit.get("tags") or "")[:300],
             "creator": str(hit.get("user") or "")[:160],
+            "attribution_text": (
+                f"{str(hit.get('tags') or 'Untitled Pixabay image')[:300]} by "
+                f"{str(hit.get('user') or 'Pixabay contributor')[:160]} — "
+                f"Pixabay Content License; {str(hit.get('pageURL') or 'https://pixabay.com/')}"
+            ),
+            "date_accessed": __import__("datetime").date.today().isoformat(),
             "relevance_score": round(score, 3),
             "ai_disclosure": False,
             "prompt_sha256": hashlib.sha256(str(scene_prompt).encode("utf-8")).hexdigest(),
