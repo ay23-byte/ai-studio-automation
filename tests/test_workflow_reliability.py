@@ -600,5 +600,5 @@ class LongformAutomaticPrivateReleaseTests(unittest.TestCase):
         self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
         self.assertIn("longform-private-release-${{ github.run_id }}", release)
         self.assertIn("verify_source_run.py --run-id", release)
-        self.assertIn("PRIVACY", text[text.index("  release:"):])  # uploader hard-codes private; workflow never sets public
+        self.assertIn("privacy_status=\"private\"", (ROOT / "scripts" / "upload_documentary_artifact.py").read_text(encoding="utf-8"))
         self.assertNotIn("ALLOW_PUBLIC_PUBLISH: \"1\"", release)
