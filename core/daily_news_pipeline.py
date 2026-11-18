@@ -1,12 +1,12 @@
 """Daily news Shorts research queue. Discovery is not verification."""
 from __future__ import annotations
-import hashlib, json
+import hashlib, json, os, re
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
 import xml.etree.ElementTree as ET
-from core.news_editorial import build_review_packets
+from core.news_editorial import build_review_packets, similarity
 
 # Broad discovery is intentionally separate from the source-verification gate.
 # Prefer direct publisher feeds so candidate metadata retains publisher provenance.
@@ -27,6 +27,62 @@ FEEDS = [
  'https://feeds.npr.org/1001/rss.xml',
 ]
 USER_AGENT = 'AIStudioDailyNews/1.0 (+RSS metadata discovery)'
+YOUTUBE_TRENDING_URL = "https://www.googleapis.com/youtube/v3/videos"
+YOUTUBE_NEWS_CATEGORY_ID = "25"  # News & Politics
+
+
+def fetch_youtube_news_trending(api_key=None, region_code="IN", max_results=50):
+    """Fetch YouTube's popular News & Politics videos as discovery signals only.
+
+    Trending video metadata never counts as a verified news source. Every story
+    still has to pass the independent publisher/source gate in news_auto.
+    """
+    key = str(api_key or os.getenv("YOUTUBE_DATA_API_KEY") or "").strip()
+    if not key:
+        return {"available": False, "reason": "YOUTUBE_DATA_API_KEY is not configured", "videos": []}
+    response = requests.get(YOUTUBE_TRENDING_URL, params={
+        "part": "snippet,statistics", "chart": "mostPopular", "regionCode": region_code,
+        "videoCategoryId": YOUTUBE_NEWS_CATEGORY_ID, "maxResults": min(max(1, int(max_results)), 50),
+        "key": key,
+    }, timeout=20, headers={"User-Agent": USER_AGENT})
+    response.raise_for_status()
+    payload = response.json()
+    videos = []
+    for item in payload.get("items", []):
+        snippet = item.get("snippet") or {}
+        stats = item.get("statistics") or {}
+        title = str(snippet.get("title") or "").strip()
+        if not title:
+            continue
+        videos.append({
+            "video_id": str(item.get("id") or ""), "title": title[:300],
+            "channel": str(snippet.get("channelTitle") or "")[:160],
+            "published_at": str(snippet.get("publishedAt") or ""),
+            "view_count": int(stats.get("viewCount") or 0),
+            "url": "https://www.youtube.com/watch?v=" + str(item.get("id") or ""),
+            "region_code": region_code, "category_id": YOUTUBE_NEWS_CATEGORY_ID,
+        })
+    return {"available": True, "region_code": region_code, "video_count": len(videos), "videos": videos}
+
+
+def apply_youtube_trend_signals(candidates, trending_videos):
+    """Attach title-overlap discovery signals without treating videos as sources."""
+    for candidate in candidates:
+        title = str(candidate.get("title") or "")
+        matches = []
+        for video in trending_videos:
+            score = similarity(title, video.get("title", ""))
+            if score >= 0.16:
+                matches.append({
+                    "title": video["title"], "channel": video.get("channel", ""),
+                    "url": video.get("url", ""), "view_count": video.get("view_count", 0),
+                    "similarity": round(score, 3),
+                })
+        matches.sort(key=lambda item: (item["similarity"], item["view_count"]), reverse=True)
+        candidate["youtube_trend_score"] = round(max((m["similarity"] for m in matches), default=0.0), 3)
+        candidate["youtube_trend_matches"] = matches[:3]
+    return candidates
+
 
 def _text(node, path, default=''):
     child = node.find(path)
@@ -111,11 +167,22 @@ def collect_candidates(feeds=None, limit_per_feed=35):
         if item['id'] not in seen:
             seen.add(item['id']); unique.append(item)
     unique.sort(key=lambda x: x.get('published', ''), reverse=True)
+    trend_report = {"available": False, "reason": "not requested", "videos": []}
+    if os.getenv("YOUTUBE_DATA_API_KEY"):
+        try:
+            trend_report = fetch_youtube_news_trending()
+            apply_youtube_trend_signals(unique, trend_report.get("videos", []))
+        except Exception as exc:
+            trend_report = {"available": False, "reason": str(exc)[:300], "videos": []}
+    else:
+        for item in unique:
+            item["youtube_trend_score"] = 0.0
+            item["youtube_trend_matches"] = []
     return {'collected_at': datetime.now(timezone.utc).isoformat(),
             'feed_count': len(configured_feeds),
             'healthy_feed_count': sum(1 for item in feed_health if item['status'] == 'ok'),
             'failed_feed_count': len(errors), 'feed_health': feed_health,
-            'candidate_count': len(unique), 'candidates': unique, 'feed_errors': errors,
+            'candidate_count': len(unique), 'candidates': unique, 'feed_errors': errors,\n            'youtube_trending': {k: v for k, v in trend_report.items() if k != 'videos'},
             'notice': 'Discovery metadata only. No story has been independently verified.'}
 
 def load_seen(path):
