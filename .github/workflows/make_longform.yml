@@ -47,9 +47,9 @@ on:
         default: video_first
   schedule:
     - cron: "0 13 * * 0"  # Every Sunday at 18:30 IST; topic is selected automatically.
-  # Production test from a pull request: only when the request file is part of the pull
-  # request AND the newest commit message contains [documentary-run] (checked by the
-  # "request" job). The build uploads nothing; release stays a separate, reviewed workflow.
+  # Same-repository PRs targeting main may request a production documentary run.
+  # The request job requires [documentary-run]; release then applies the strict machine-only
+  # QA gate and uploads PRIVATE only. Fork PRs are excluded from both build and release.
   pull_request:
     branches: [main]
     paths: [".github/documentary-production-request.json"]
