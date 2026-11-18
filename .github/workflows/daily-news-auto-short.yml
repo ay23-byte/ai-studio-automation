@@ -28,7 +28,7 @@ env:
   TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-  YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY }}
+  YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY || secrets.YOUTUBE_API_KEY || secrets.YT_API_KEY }}
 
 jobs:
   news-short:
