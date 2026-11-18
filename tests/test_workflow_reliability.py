@@ -203,6 +203,10 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                     build_workflow = text[text.index("  build:"):text.index("  release:")]
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
+                elif name == "make_longform.yml":
+                    build_workflow = text[text.index("  build:"):text.index("  release:")]
+                    for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
+                        self.assertNotIn(secret, build_workflow)
                 elif name != "daily-news-auto-short.yml":
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, text)
@@ -212,7 +216,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_shorts.yml", "release_documentary_auto.yml")))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_longform.yml", "make_shorts.yml", "release_documentary_auto.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
