@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-18T13:24:18+00:00",
+  "updated_at": "2026-11-18T13:41:55+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -195,6 +195,22 @@
       "topic": "Why Do We See Lightning Before Hearing Thunder? ⚡",
       "job_id": 7,
       "youtube_id": "XNt68emeBZw",
+      "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "1dadc24a4af44541e74b9245",
+      "created_at": "2026-11-18T13:41:08+00:00",
+      "title": "Updates on Alaska Senate Race and Nvidia Earnings",
+      "status": "uploaded",
+      "updated_at": "2026-11-18T13:41:55+00:00",
+      "topic": "Mary Peltola flips Alaska's Senate seat. And, Nvidia won't reinstate Jensen Huang",
+      "source_refs": [
+        "5daa65e9f5f65c630a05",
+        "58ccec08be884d74fb76"
+      ],
+      "job_id": 7,
+      "youtube_id": "e40ZIeAHfMU",
       "privacy_status": "private"
     }
   ]
