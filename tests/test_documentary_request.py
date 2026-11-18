@@ -150,8 +150,8 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertTrue(problems(pull_requests=[]))
 
     def test_only_the_separate_release_job_can_upload(self):
-        build = WORKFLOW[WORKFLOW.index("  build:\\n"):WORKFLOW.index("  release:\\n")]
-        release = WORKFLOW[WORKFLOW.index("  release:\\n"):]
+        build = WORKFLOW[WORKFLOW.index("  build:\n"):WORKFLOW.index("  release:\n")]
+        release = WORKFLOW[WORKFLOW.index("  release:\n"):]
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
