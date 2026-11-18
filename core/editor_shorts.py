@@ -63,7 +63,7 @@ def _clip_seg(src, idx, dur, bd, settings=None):
           "-i",str(src),"-t",f"{dur:.3f}","-vf",vf,"-an",*ENC,str(out)])
     return out
 
-def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.45, sfx_vol=0.15,
+def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.18, sfx_vol=0.15,
            work_dir=None):
     """Render a Short. Intermediate files live in a private work directory.
 
@@ -114,7 +114,7 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
         afilt.append("[va0]asplit=2[va][key]")
         afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.0[mu]")
-        afilt.append("[mu]asplit=2[mu1][mu2];[mu1][key]"
+        afilt.append("[mu][key]"
                      "sidechaincompress=threshold=0.03:ratio=6:attack=12:release=450:makeup=1[duck]")
         mix_in = ["[va]","[duck]"]; idx += 1
     else:
@@ -129,7 +129,7 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
             afilt.append(f"[w{i}]adelay={ms}|{ms},volume={sfx_vol}[d{i}]"); mix_in.append(f"[d{i}]")
     fade = f"afade=t=out:st={max(T-1.2,0):.3f}:d=1.2"
     afilt.append("".join(mix_in)+f"amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
-                 f"normalize=0,alimiter=limit=0.95,{fade}[aout]")
+                 f"normalize=0,alimiter=limit=0.95,{fade},loudnorm=I=-16:TP=-1.5:LRA=11[aout]")
     filt += ";".join(afilt)
     _run([ffmpeg_bin(),"-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,

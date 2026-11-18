@@ -40,7 +40,8 @@ def main() -> int:
 
     title = str(script.get("title") or "Untitled Shorts review").strip()
     job_id = save_video(title, "shorts", args.language, script.get("category", "general"), script)
-    build_dir = Path("build") / f"job_{job_id}"
+    from core.config import BUILD_DIR
+    build_dir = BUILD_DIR / f"job_{job_id}"
     build_dir.mkdir(parents=True, exist_ok=True)
     (build_dir / "script.json").write_text(
         json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -73,15 +74,16 @@ def main() -> int:
             shutil.copy2(source, destination / optional)
     from scripts.package_standard_short_review import create_review_package
     package = create_review_package(script, build_dir, destination)
+    summary = json.loads((Path(package) / "package_summary.json").read_text(encoding="utf-8"))
     print(json.dumps({
-        "status": "REVIEW_REQUIRED",
+        "status": summary["status"],
         "job_id": job_id,
         "video": str(destination / "video.mp4"),
         "review_bundle": str(destination),
         "shared_package": str(package),
         "youtube_upload_attempted": False,
     }, ensure_ascii=False, indent=2))
-    return 0
+    return 0 if summary["status"] == "REVIEW_REQUIRED" else 2
 
 
 if __name__ == "__main__":

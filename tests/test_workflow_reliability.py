@@ -90,17 +90,23 @@ class ActionVersionTests(unittest.TestCase):
 
     def test_daily_news_workflow_uses_guarded_private_autorelease(self):
         text = _text("daily-news-auto-short.yml")
-        self.assertIn("run_daily_news_short.py --upload", text)
+        build = text[text.index("  build:"):text.index("  release:")]
+        release = text[text.index("  release:"):]
+        self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py", build)
+        self.assertNotIn("run_daily_news_short.py --upload", build)
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertNotIn("--upload-after-recovery", text)
         self.assertIn('NEWS_TEMPLATE_FALLBACK: "1"', text)
-        self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload", text)
         self.assertNotIn('if [ "$result" -eq 3 ]', text)
         self.assertNotIn("review handoff; never bypass", text)
-        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", text)
-        self.assertIn('PRIVACY: "private"', text)
+        self.assertIn("needs: build", release)
+        self.assertIn("python scripts/release_news_job.py", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertIn('PRIVACY: "private"', release)
         self.assertNotIn('ALLOW_PUBLIC_PUBLISH', text)
-        self.assertIn('YT_CHANNEL_VERIFY: "1"', text)
-        self.assertIn('UPLOAD_REQUESTED: "true"', text)
+        self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
+        self.assertIn('UPLOAD_REQUESTED: "true"', build)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
 
 
@@ -199,7 +205,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                 self.assertLess(steps.index(package), steps.index(artifact))
                 self.assertIn("build/job_*/", artifact)                # the package lives inside the build dir
                 self.assertIn("if: always()", artifact)
-                if name == "make_shorts.yml":
+                if name in ("make_shorts.yml", "daily-news-auto-short.yml"):
                     build_workflow = text[text.index("  build:"):text.index("  release:")]
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
@@ -573,7 +579,7 @@ class DocumentaryUploadFailureRecordTests(unittest.TestCase):
             result.write_text(json.dumps({"video_id": "vid12345678", "url": "https://www.youtube.com/watch?v=vid12345678",
                                           "privacy_status": "private", "processing_status": "ok"}))
             section = run_report._upload_section({}, Path(tmp), {}, {}, result, None)
-        self.assertEqual(section["status"], "uploaded")
+        self.assertEqual(section["status"], "uploaded_unverified")
         self.assertEqual(section["privacy"], "private")
         self.assertIsNone(section["privacy_verified"])
 

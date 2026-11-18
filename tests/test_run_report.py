@@ -98,12 +98,15 @@ class OutcomeTests(_Sandbox):
             {"youtube_id": "abc123XYZ00", "url": "https://youtu.be/abc123XYZ00", "privacy": "private",
              "privacy_verified": False}))
         report = run_report.collect("shorts", job_status="success")
-        self.assertEqual(report["outcome"], run_report.UPLOADED)
+        self.assertEqual(report["outcome"], run_report.UPLOAD_BLOCKED)
+        self.assertEqual(report["upload"]["status"], run_report.UPLOADED_UNVERIFIED)
         self.assertFalse(report["upload"]["privacy_verified"])
         self.assertIn("privacy NOT read back from YouTube", run_report.to_markdown(report))
         (build / "upload_result.json").write_text(json.dumps(
             {"youtube_id": "abc123XYZ00", "privacy": "private", "privacy_verified": True}))
-        self.assertIn("privacy read back from YouTube", run_report.to_markdown(run_report.collect("shorts")))
+        verified_report = run_report.collect("shorts")
+        self.assertEqual(verified_report["outcome"], run_report.UPLOADED)
+        self.assertIn("privacy read back from YouTube", run_report.to_markdown(verified_report))
 
     def test_release_gate_block_is_not_reported_as_an_upload(self):
         self.job(files={"quality_report.json": QUALITY,

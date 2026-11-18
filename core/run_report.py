@@ -33,6 +33,7 @@ PIPELINE_ALIASES = {"short": "shorts", "long": "longform", "documentary": "longf
 
 # Outcomes, most specific first.
 UPLOADED = "uploaded"
+UPLOADED_UNVERIFIED = "uploaded_unverified"
 UPLOAD_BLOCKED = "upload_blocked"
 BUILT = "built"
 SKIPPED = "skipped"
@@ -40,6 +41,7 @@ FAILED = "failed"
 
 _HEADLINE = {
     UPLOADED: "UPLOADED (private)",
+    UPLOADED_UNVERIFIED: "UPLOADED, PRIVACY NOT VERIFIED",
     UPLOAD_BLOCKED: "BUILT, UPLOAD BLOCKED",
     BUILT: "BUILT, NOT UPLOADED",
     SKIPPED: "SKIPPED (nothing was built)",
@@ -274,13 +276,22 @@ def _upload_section(row: dict, build_dir: Path, gate: dict, quality: dict,
     youtube_id = result.get("youtube_id") or row.get("youtube_id")
     if youtube_id:
         verified = result.get("privacy_verified")
+        problems = result.get("verification_problems") or []
+        processing = result.get("processing") or result.get("processing_status")
+        verified_private = (
+            verified is True and result.get("privacy") in (None, "private")
+            and not result.get("publish_at") and not problems
+            and processing in (None, "ok")
+        )
         return {
-            "status": UPLOADED,
+            "status": UPLOADED if verified_private else UPLOADED_UNVERIFIED,
             "youtube_id": youtube_id,
             "url": result.get("url") or f"https://youtu.be/{youtube_id}",
             "privacy": result.get("privacy") or row.get("privacy_status"),
             # True only when YouTube's stored status was read back after upload.
             "privacy_verified": bool(verified) if verified is not None else None,
+            "verification_problems": [_redact(item)[:200] for item in problems][:5],
+            "processing": processing,
             "warnings": [_redact(item)[:200] for item in (result.get("warnings") or [])][:5],
         }
     if gate.get("status") == "BLOCKED":
@@ -461,9 +472,11 @@ def collect(pipeline: str, job_id: int | None = None, *, job_status: str | None 
         # A stage left "running" on an unfinished job is where the build stopped.
         failed_stages = [item for item in stages if item.get("status") == "running"]
 
-    built = bool(output["exists"]) and str(row.get("status")) in {"done", "approved", "uploaded"}
+    built = bool(output["exists"]) and str(row.get("status")) in {"done", "approved", "uploaded", "upload_unverified", "youtube_processing", "youtube_timeout", "youtube_failed", "youtube_rejected", "youtube_deleted", "youtube_not_found"}
     if upload["status"] == UPLOADED:
         outcome = UPLOADED
+    elif upload["status"] == UPLOADED_UNVERIFIED:
+        outcome = UPLOAD_BLOCKED
     elif not built or job_status == "cancelled":
         outcome = FAILED
     elif upload["status"] == "blocked":
@@ -482,6 +495,8 @@ def collect(pipeline: str, job_id: int | None = None, *, job_status: str | None 
     if outcome in {FAILED, UPLOAD_BLOCKED}:
         if upload.get("reason"):
             reasons.append(upload["reason"])
+        if upload.get("verification_problems"):
+            reasons.append("YouTube verification: " + "; ".join(upload["verification_problems"]))
         reasons += [f"QA: {item}" for item in (quality.get("issues") or [])[:3]]
         # The review packager records why a package cannot be approved. Without this the
         # report said only that "no failure detail was recorded" when packaging failed.
@@ -611,7 +626,7 @@ def to_markdown(report: dict) -> str:
         qa_text = f"{qa.get('status')}" + (f" ({qa.get('score')}/100)" if qa.get("score") is not None else "")
         qa_text += f"; release gate: {qa.get('release_gate')}"
         rows.append(("QA status", qa_text))
-        if upload.get("status") == UPLOADED:
+        if upload.get("status") in {UPLOADED, UPLOADED_UNVERIFIED}:
             verified = upload.get("privacy_verified")
             proof = ("privacy read back from YouTube" if verified else
                      "privacy NOT read back from YouTube" if verified is False else

@@ -71,8 +71,8 @@ def probe_release_video(video_path: str | Path) -> dict[str, Any]:
     if video is None or audio is None:
         raise ValueError("Final export must contain both video and audio streams.")
     width, height = int(video.get("width") or 0), int(video.get("height") or 0)
-    if width < 1280 or height < 720:
-        raise ValueError(f"Final export is below 720p landscape delivery: {width}×{height}.")
+    if (width, height) != (1920, 1080):
+        raise ValueError(f"Final documentary export must be 1920×1080: {width}×{height}.")
     ratio = width / max(height, 1)
     if not 1.6 <= ratio <= 1.9:
         raise ValueError(f"Unexpected final aspect ratio {ratio:.3f}; expected a landscape documentary frame.")
@@ -82,8 +82,8 @@ def probe_release_video(video_path: str | Path) -> dict[str, Any]:
         frame_rate = float(numerator) / max(float(denominator), 1e-9)
     except (TypeError, ValueError, ZeroDivisionError):
         frame_rate = 0.0
-    if frame_rate < 20:
-        raise ValueError(f"Final export frame rate is too low or unavailable: {frame_rate:.2f} fps.")
+    if abs(frame_rate - 30) > 0.01:
+        raise ValueError(f"Final documentary export must be 30 fps: {frame_rate:.2f} fps.")
     duration = float((data.get("format") or {}).get("duration") or 0)
     if duration <= 0:
         raise ValueError("Final export duration is missing or zero.")

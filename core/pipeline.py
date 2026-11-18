@@ -323,9 +323,27 @@ def _apply_fallback_gate(report_path, fallback_report):
     return report
 
 
-def _pick_music():
-    files = list(cfg.MUSIC_DIR.glob("*.mp3")) + list(cfg.MUSIC_DIR.glob("*.wav"))
-    return random.choice(files) if files else None
+def _pick_music(build_dir):
+    """Use only file-bound, documented music rights. Otherwise mix narration alone."""
+    from core.footage_licence import classify_licence, provenance_gaps, attribution_line
+    from core.review_contract import sha256_file, write_json
+    from core.review_packaging import load_sidecar
+    root = Path(build_dir)
+    for path in sorted((*cfg.MUSIC_DIR.glob("*.mp3"), *cfg.MUSIC_DIR.glob("*.wav"))):
+        meta = load_sidecar(path)
+        decision = classify_licence(meta)
+        if (decision["publishable"] and decision["commercial_use"] and decision["modification"]
+                and not decision["share_alike"] and not provenance_gaps(meta, decision)
+                and meta.get("media_sha256") == sha256_file(path)):
+            credit = attribution_line(meta, decision)
+            with (root / "credits.txt").open("a", encoding="utf-8") as handle:
+                handle.write("\nMusic: " + credit + "\n")
+            write_json(root / "music.json", {"used": True, "file": path.name, "sha256": meta["media_sha256"],
+                       "credit": credit, "source": meta.get("page_url") or meta.get("url"),
+                       "licence": meta.get("licence") or meta.get("license"), "decision": decision})
+            return path
+    write_json(root / "music.json", {"used": False, "reason": "No checksum-bound, rights-eligible music."})
+    return None
 
 def _local_clips():
     files = [p for p in cfg.CLIPS_DIR.iterdir() if p.suffix.lower() in (".mp4",".mov",".webm")]
@@ -743,14 +761,17 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         state = {"ai_video_failed": False, "image_failures": 0,
                  "image_failure_limit": max(1, int(os.getenv("IMAGE_PROVIDER_FAILURE_LIMIT", "2")))}
         for i, sc in enumerate(scenes):
-            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat)
+            from core.asset_manifest import supplied_scene
+            supplied = supplied_scene(os.getenv("SHORTS_ASSET_DIR"), i, script, bd)
+            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat,
+                                    supplied and supplied["sha256"])
             record = checkpoint.get(f"visual_{i}") or {}
             stored = record.get("result") or {}
             was_card = stored.get("provider") == "fallback_card"
             retry_cards = os.getenv("RETRY_FALLBACK_CARDS_ON_RESUME", "1").strip().lower() in {"1", "true", "yes"}
 
             def acquire(i=i, sc=sc):
-                item = _short_scene_visual(i, sc, scenes, script, bd, used_ids, state)
+                item = supplied or _short_scene_visual(i, sc, scenes, script, bd, used_ids, state)
                 return {"type": item["type"], "path": str(item["path"]), "provider": item["provider"]}
 
             if was_card and retry_cards and record.get("status") == "done":
@@ -782,11 +803,8 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         write_cinematic_shot_plan(short_shots, bd / "cinematic_shot_plan.json", defaults={"aspect_ratio": "9:16"})
 
         # Asset provenance for every visual (provider, licence, attribution).
-        try:
-            from core.asset_manifest import write_shorts_asset_manifest
-            write_shorts_asset_manifest(bd, scenes, media)
-        except Exception as exc:
-            print(f"WARNING: asset manifest could not be written: {exc}")
+        from core.asset_manifest import write_shorts_asset_manifest
+        write_shorts_asset_manifest(bd, scenes, media, starts=starts)
 
         # Captions
         caption_items = []
@@ -808,7 +826,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
             print(f"WARNING: SRT/VTT caption sidecars could not be written: {exc}")
 
         # Render
-        music = _pick_music()
+        music = _pick_music(bd)
         cfg.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         out = cfg.OUTPUT_DIR / f"shorts_{job_id}.mp4"
         if footage_run.scenes:
@@ -1578,7 +1596,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     except Exception as exc:
         print(f"WARNING: SRT/VTT caption sidecars could not be written: {exc}")
 
-    music = _pick_music()
+    music = _pick_music(bd)
     cfg.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out = cfg.OUTPUT_DIR / f"longform_{job_id}.mp4"
     credits_file = bd / "credits.txt"

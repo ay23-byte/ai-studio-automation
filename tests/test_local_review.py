@@ -206,8 +206,10 @@ class ReviewStatusTests(_Sandbox):
 class LocalUploadTests(_Sandbox):
     def _uploader(self):
         mocks = {"upload": patch("core.uploader.upload", return_value="yt_new"),
+                 "channel": patch("core.uploader.verify_channel", return_value={"verified": True, "id": "channel-test"}),
                  "status": patch("core.uploader.get_video_status",
-                                 return_value={"found": True, "privacy_status": "private", "publish_at": None}),
+                                 return_value={"found": True, "privacy_status": "private", "publish_at": None,
+                                               "channel_id": "channel-test"}),
                  "privacy": patch("core.uploader.set_video_privacy"),
                  "playlist": patch("core.uploader.add_to_playlist"),
                  "thumb": patch("core.uploader.set_video_thumbnail")}

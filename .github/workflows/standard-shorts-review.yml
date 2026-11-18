@@ -48,14 +48,14 @@ jobs:
       - name: Install FFmpeg and fonts
         run: |
           sudo apt-get update
-          sudo apt-get install --yes ffmpeg fonts-dejavu-core
+          sudo apt-get install --yes ffmpeg fonts-dejavu-core espeak-ng
           ffmpeg -version
           ffprobe -version
 
       - name: Install free CPU rendering dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install edge-tts requests Pillow python-dotenv google-api-python-client google-auth google-auth-oauthlib
+          python -m pip install -r requirements-ci.txt
           python -m pip check
 
       - name: Save supplied script

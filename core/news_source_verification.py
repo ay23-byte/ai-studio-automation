@@ -6,6 +6,7 @@ prove that an article supports a claim. A human must inspect each cited passage.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -77,13 +78,26 @@ def _parse_date(value: str):
         return None
 
 
+def is_fresh(value, now=None):
+    published = _parse_date(value)
+    if not published or not re.search(r"(?:Z|[+-]\d{2}:?\d{2})$", str(value)):
+        return False
+    age = (now or datetime.now(timezone.utc)) - published
+    hours = _load(TRUSTED_PATH).get("freshness_hours", {}).get("breaking", 48)
+    return timedelta(0) <= age <= timedelta(hours=hours)
+
+
 def _wire_origin(source: dict, trusted: dict) -> str:
     text = " ".join(str(source.get(k, "")) for k in
                     ("origin", "wire", "text_snippet", "title")).lower()
     for marker in trusted.get("wire_markers", []):
-        if marker.lower() in text:
+        if re.search(r"(?<!\w)" + re.escape(marker.lower()) + r"(?!\w)", text):
             return marker.lower()
-    return "own:" + _host(source.get("url", ""))
+    host = _host(source.get("url", ""))
+    for domain in trusted.get("tier2_major", []) + trusted.get("tier3_specialist", []):
+        if _matches(host, [domain]):
+            return "own:" + ("bbc" if domain in {"bbc.co.uk", "bbc.com"} else domain)
+    return "own:" + host
 
 
 def verify_fact_sources(fact: dict, sources: list[dict], *,
