@@ -651,7 +651,6 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
     if fetch_clip(keywords, clip_p, used_ids, scene_prompt=scene_search_prompt):
         return {"type": "video", "path": clip_p, "provider": "stock"}
 
-    ai_video_mode = os.getenv("AI_VIDEO_MODE", "fallback").strip().lower()
     has_local_video_model = bool(os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip())
     if has_local_video_model and not state["ai_video_failed"]:
         if generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16"):
