@@ -50,6 +50,27 @@ def _hamming(left, right):
     return (left ^ right).bit_count()
 
 
+def _near_duplicate_pairs(hashes, sample_count):
+    """Find repeated visuals across shots, not multiple samples of one still shot.
+
+    Samples are evenly spaced through the video. Comparing every pair makes a
+    single static image shot look like many repeated shots because several
+    samples naturally land inside that same shot. Require a temporal separation
+    of at least one quarter of the sample grid before counting a duplicate.
+    """
+    min_gap = max(2, int(sample_count) // 4)
+    duplicates = []
+    for left in range(len(hashes)):
+        for right in range(left + 1, len(hashes)):
+            left_index, left_hash = hashes[left]
+            right_index, right_hash = hashes[right]
+            if right_index - left_index < min_gap:
+                continue
+            if _hamming(left_hash, right_hash) <= 2:
+                duplicates.append([left_index, right_index])
+    return duplicates
+
+
 def _black_frame_issue(black_seconds, duration, body_seconds=None, limit=0.03):
     """Return a blocking issue and ratio when black footage exceeds the programme limit.
 
@@ -232,10 +253,7 @@ def inspect_video(video_path, subtitle_path=None, sample_count=12, profile="auto
                     value = _average_hash(frame)
                     if value is not None:
                         hashes.append((index, value))
-            for left in range(len(hashes)):
-                for right in range(left + 1, len(hashes)):
-                    if _hamming(hashes[left][1], hashes[right][1]) <= 2:
-                        duplicate_pairs.append([hashes[left][0], hashes[right][0]])
+            duplicate_pairs = _near_duplicate_pairs(hashes, sample_count)
     metrics["sampled_frames"] = sample_count
     metrics["near_duplicate_frame_pairs"] = duplicate_pairs
     if len(duplicate_pairs) >= max(3, sample_count // 3):
