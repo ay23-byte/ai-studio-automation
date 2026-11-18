@@ -190,15 +190,27 @@ def evaluate_cluster(cluster: dict, by_id: dict, now: datetime | None = None) ->
         "reason": ("sensitive subject requires a human editor: '%s'" % sensitive) if sensitive
                   else gate.get("reason", ""),
         "discovery_priority_score": cluster.get("discovery_priority_score", 0),
+        "youtube_trend_score": max((float(by_id.get(i, {}).get("youtube_trend_score", 0) or 0)
+                                    for i in cluster.get("candidate_ids", [])), default=0.0),
+        "region": classify_story_region(combined),
     }
 
 
 def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
-                 now: datetime | None = None) -> tuple[dict | None, list[dict]]:
+                 now: datetime | None = None, target_region: str | None = None) -> tuple[dict | None, list[dict]]:
     """Return (best eligible story or None, audit trail of every cluster considered)."""
     ledger = ledger or dedupe.Ledger()
     by_id = {item["id"]: item for item in candidates if item.get("id")}
     ranked = rank_clusters(cluster_candidates(candidates), candidates)
+    # Trend metadata is only a discovery signal. It never bypasses source checks.
+    def priority(cluster):
+        items = [by_id[i] for i in cluster.get("candidate_ids", []) if i in by_id]
+        combined = " ".join(str(x.get("title", "")) + " " + str(x.get("summary", "")) for x in items)
+        region = classify_story_region(combined)
+        trend = max((float(x.get("youtube_trend_score", 0) or 0) for x in items), default=0.0)
+        return (0 if target_region and region == target_region else 1, -trend,
+                -float(cluster.get("discovery_priority_score", 0)))
+    ranked.sort(key=priority)
     audit, chosen = [], None
     for cluster in ranked:
         result = evaluate_cluster(cluster, by_id, now)
@@ -450,13 +462,17 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         reason = str(item.get("reason") or "not eligible")
         reason_counts[reason] = reason_counts.get(reason, 0) + 1
     selection = {
-        "generated_at": _now().isoformat(), "candidate_count": len(fresh),\n        "editorial_mix_target": {"india_percent": 50, "world_percent": 50,\n                                 "target_for_this_run": target_region,\n                                 "rolling_history_count": len(region_history)},
+        "generated_at": _now().isoformat(), "candidate_count": len(fresh),
+        "editorial_mix_target": {"india_percent": 50, "world_percent": 50,
+                                 "target_for_this_run": target_region,
+                                 "rolling_history_count": len(region_history)},\n        "editorial_mix_target": {"india_percent": 50, "world_percent": 50,\n                                 "target_for_this_run": target_region,\n                                 "rolling_history_count": len(region_history)},
         "clusters_considered_count": len(audit), "feed_errors": feed_errors,
         "eligible_cluster_count": sum(1 for item in audit if item.get("eligible")),
         "rejection_reason_counts": reason_counts,
         "clusters_considered": audit,
         "manual_review_queue": [item for item in audit if not item.get("eligible")],
         "selected": story and {"headline": story["headline"], "reason": story["reason"],
+                               "region": story["region"], "youtube_trend_score": story["youtube_trend_score"],
                                "sources": story["sources"]},
         "video_created": False if not story else None,
         "upload_attempted": False,
@@ -475,7 +491,8 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         return {"status": "no_story", "candidate_count": len(fresh),
                 "reason": "No story was corroborated by eligible independent sources and safe to automate."}
 
-    script = build_script(story, language)\n    _record_region(region_path, story["region"], story["headline"])
+    script = build_script(story, language)
+    _record_region(region_path, story["region"], story["headline"])\n    _record_region(region_path, story["region"], story["headline"])
     language = script.get("language", language)
     job_id = save_video(script["title"], KIND, language, "news", script, pipeline="daily_news_auto",
                         topic_key=dedupe.topic_key(story["headline"]),
