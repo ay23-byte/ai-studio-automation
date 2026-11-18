@@ -272,6 +272,22 @@ class NewsAutoTests(_StateSandbox):
         self.assertTrue(any("attribut" in p or "publisher" in p
                             for p in news_auto.validate_news_script(unattributed, story)))
 
+    def test_generic_newsroom_filler_is_rejected(self):
+        story, _ = news_auto.select_story(CORROBORATED)
+        script = news_auto.template_script(story)
+        script["scenes"][-1]["say"] = (
+            f"This is a developing report based on Reuters and The Hindu. "
+            "Follow Engineering Physics for clear, sourced updates."
+        )
+        problems = " ".join(news_auto.validate_news_script(script, story))
+        self.assertIn("generic template filler", problems)
+
+    def test_news_prompt_requires_a_broadcast_story_arc(self):
+        self.assertIn("senior output editor", news_auto.NEWS_PROMPT)
+        self.assertIn("THE LEAD", news_auto.NEWS_PROMPT)
+        self.assertIn("THE CONFIRMATION", news_auto.NEWS_PROMPT)
+        self.assertIn("Never manufacture context", news_auto.NEWS_PROMPT)
+
     def test_ungrounded_model_output_fails_closed(self):
         story, _ = news_auto.select_story(CORROBORATED)
         bad = json.dumps({"title": "Rocket", "scenes": [
