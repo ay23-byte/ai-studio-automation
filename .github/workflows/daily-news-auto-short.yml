@@ -91,22 +91,18 @@ jobs:
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
           WANT_UPLOAD: "true"
+          # If all configured text providers are temporarily unavailable, use the
+          # deterministic source-attributed template. It still passes the same
+          # grounding/content QA; it cannot introduce unsupported facts.
+          NEWS_TEMPLATE_FALLBACK: "1"
           BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
         shell: bash
         run: |
           set -euo pipefail
-          # Exit 3 is the application's explicit "built, but guarded upload blocked" result.
-          # Keep the run green for this review handoff; never bypass the QA gate or upload.
-          if python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload; then
-            echo "News build/release command completed."
-          else
-            result=$?
-            if [ "$result" -eq 3 ]; then
-              echo "::warning title=Human review required::Short was rendered but NOT uploaded; inspect the review artifact."
-            else
-              exit "$result"
-            fi
-          fi
+          # A guarded upload failure is a real workflow failure, not a green
+          # "review handoff". Never swallow exit code 3: the summary/artifact
+          # steps below still run via if: always() and preserve diagnostics.
+          python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload
 
       - name: Assemble the diagnostic and review package
         if: always()
