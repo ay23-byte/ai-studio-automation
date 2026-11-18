@@ -92,7 +92,9 @@ class ActionVersionTests(unittest.TestCase):
         text = _text("daily-news-auto-short.yml")
         self.assertIn("run_daily_news_short.py --upload", text)
         self.assertNotIn("--upload-after-recovery", text)
-        self.assertIn('NEWS_TEMPLATE_FALLBACK: "1"', text)
+        # Production news must fail closed instead of publishing generic template filler.
+        self.assertNotIn('NEWS_TEMPLATE_FALLBACK: "1"', text)
+        self.assertIn("No generic template fallback", text)
         self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload", text)
         self.assertNotIn('if [ "$result" -eq 3 ]', text)
         self.assertNotIn("review handoff; never bypass", text)
