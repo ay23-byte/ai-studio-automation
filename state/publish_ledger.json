@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-18T12:18:12+00:00",
+  "updated_at": "2026-11-18T12:43:05+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -173,6 +173,16 @@
       "status": "built",
       "updated_at": "2026-11-18T12:18:12+00:00",
       "topic": "Why Doesn't the Leaning Tower of Pisa Fall Over?",
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "731dbfb380cf1c5d67f71ebb",
+      "created_at": "2026-11-18T12:43:05+00:00",
+      "title": "Why Do Astronauts See 16 Sunrises Every Day? 🌍🚀",
+      "status": "built",
+      "updated_at": "2026-11-18T12:43:05+00:00",
+      "topic": "Why Do Astronauts See 16 Sunrises Every Day? 🌍🚀",
       "job_id": 7
     }
   ]
