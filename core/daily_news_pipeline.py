@@ -182,7 +182,8 @@ def collect_candidates(feeds=None, limit_per_feed=35):
             'feed_count': len(configured_feeds),
             'healthy_feed_count': sum(1 for item in feed_health if item['status'] == 'ok'),
             'failed_feed_count': len(errors), 'feed_health': feed_health,
-            'candidate_count': len(unique), 'candidates': unique, 'feed_errors': errors,\n            'youtube_trending': {k: v for k, v in trend_report.items() if k != 'videos'},
+            'candidate_count': len(unique), 'candidates': unique, 'feed_errors': errors,
+            'youtube_trending': {k: v for k, v in trend_report.items() if k != 'videos'},
             'notice': 'Discovery metadata only. No story has been independently verified.'}
 
 def load_seen(path):
