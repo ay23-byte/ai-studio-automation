@@ -221,7 +221,8 @@ def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
             result["reason"] = f"already covered: {duplicate.get('match')}"
         audit.append({
             **{k: result[k] for k in ("cluster_id", "headline", "eligible", "reason", "sensitive_term")},
-            "publishers": sorted({s["publisher"] for s in result["all_sources"]}),\n            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],
+            "publishers": sorted({s["publisher"] for s in result["all_sources"]}),
+            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],
             "sources": [{
                 "publisher": source["publisher"], "title": source["title"],
                 "url": source["link"] or source["url"],
@@ -456,7 +457,10 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     seen = load_seen(state_dir / "seen.json")
     fresh = [item for item in candidates if item.get("id") not in seen]
     ledger = dedupe.Ledger()
-    region_path = _region_history_path(state_dir)\n    region_history = _read_region_history(region_path)\n    target_region = _target_region(region_history)\n    story, audit = select_story(fresh, ledger, target_region=target_region)
+    region_path = _region_history_path(state_dir)
+    region_history = _read_region_history(region_path)
+    target_region = _target_region(region_history)
+    story, audit = select_story(fresh, ledger, target_region=target_region)
     reason_counts = {}
     for item in audit:
         reason = str(item.get("reason") or "not eligible")
@@ -465,7 +469,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         "generated_at": _now().isoformat(), "candidate_count": len(fresh),
         "editorial_mix_target": {"india_percent": 50, "world_percent": 50,
                                  "target_for_this_run": target_region,
-                                 "rolling_history_count": len(region_history)},\n        "editorial_mix_target": {"india_percent": 50, "world_percent": 50,\n                                 "target_for_this_run": target_region,\n                                 "rolling_history_count": len(region_history)},
+                                 "rolling_history_count": len(region_history)},
         "clusters_considered_count": len(audit), "feed_errors": feed_errors,
         "eligible_cluster_count": sum(1 for item in audit if item.get("eligible")),
         "rejection_reason_counts": reason_counts,
