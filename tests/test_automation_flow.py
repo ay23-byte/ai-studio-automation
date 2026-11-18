@@ -499,5 +499,33 @@ class HealthCheckTests(_StateSandbox):
         self.assertNotIn(secret, json.dumps(report))
 
 
+class NewsVisualPriorityTests(unittest.TestCase):
+    def test_relevant_stock_video_is_selected_before_still_image(self):
+        from core import pipeline
+
+        scene = {
+            "say": "The space agency confirmed the launch schedule.",
+            "caption": "Launch schedule confirmed",
+            "label": "Launch update",
+            "image": "A launch vehicle at the spaceport before liftoff",
+            "keywords": ["space launch", "launch vehicle", "spaceport"],
+        }
+        state = {"ai_video_failed": False, "image_failures": 0, "image_failure_limit": 2}
+        with tempfile.TemporaryDirectory() as tmp, \\
+             patch.dict(os.environ, {"OPENVINO_LTX_MODEL_DIR": ""}), \\
+             patch("core.pipeline.fetch_clip", return_value=True) as footage, \\
+             patch("core.pipeline.generate_image") as still, \\
+             patch("core.pipeline.generate_ai_video") as ai_video:
+            result = pipeline._short_scene_visual(
+                0, scene, [scene], {"category": "news"}, Path(tmp), set(), state
+            )
+
+        self.assertEqual(result["type"], "video")
+        self.assertEqual(result["provider"], "stock")
+        footage.assert_called_once()
+        still.assert_not_called()
+        ai_video.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
