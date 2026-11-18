@@ -1,11 +1,10 @@
 {
-  "_note": "Automated production regression test (runtime ceiling, narration length, and paginated credits): English narration/subtitles, male presenter, video-first visuals, and semantic screening enabled. This is a build-only test; no YouTube upload is performed by the build workflow.",
-  "topic": "How the James Webb Space Telescope Sees the First Galaxies",
-  "category": "science",
+  "topic": "JAPAN: THE MIRACLE OF REBIRTH — How Japan Rose from the Ashes of World War II",
+  "category": "history",
   "semantic_review": true,
-  "minutes": 18,
+  "minutes": "18",
   "language": "english",
-  "channel_profile": "beyond_science",
+  "channel_profile": "standard",
   "voice_gender": "male",
   "presenter_mode": "talking_avatar_auto",
   "visual_mode": "video_first"
