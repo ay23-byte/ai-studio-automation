@@ -45,7 +45,7 @@ class ResolveRequestTests(unittest.TestCase):
         self.assertEqual(result["run"], "true")
         self.assertEqual(result["minutes"], "18")
         self.assertEqual(result["voice_gender"], "female")
-        self.assertIn("uploads nothing", result["reason"])
+        self.assertIn("machine-gated PRIVATE release", result["reason"])
 
     def test_an_ordinary_push_to_the_pull_request_builds_nothing(self):
         result = self._pull_request(message="Fix a typo")
@@ -149,9 +149,13 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertTrue(problems(base="develop"))
         self.assertTrue(problems(pull_requests=[]))
 
-    def test_the_workflow_still_does_not_upload(self):
-        self.assertNotIn("YT_REFRESH_TOKEN", WORKFLOW)
-        self.assertIn('UPLOAD_REQUESTED: "false"', WORKFLOW)
+    def test_only_the_separate_release_job_can_upload(self):
+        build = WORKFLOW[WORKFLOW.index("  build:\n"):WORKFLOW.index("  release:\n")]
+        release = WORKFLOW[WORKFLOW.index("  release:\n"):]
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertIn('UPLOAD_REQUESTED: "false"', build)
         self.assertNotIn("contents: write", WORKFLOW)
 
 
