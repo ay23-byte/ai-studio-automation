@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import requests
 from core.images import _cloudflare, _pollinations, _pixabay_image, _POLLINATIONS_STATE
+from core.footage_licence import classify_licence
 
 
 class _Response:
@@ -53,6 +54,12 @@ class ImageProvenanceTests(unittest.TestCase):
             sidecar = json.loads(path.with_suffix(".jpg.source.json").read_text(encoding="utf-8"))
             self.assertEqual(sidecar["provider"], "Pixabay")
             self.assertEqual(sidecar["page_url"], "https://pixabay.com/photos/rocket-launch-123/")
+            self.assertEqual(sidecar["licence"], "Pixabay Content License")
+            self.assertEqual(sidecar["licence_url"], "https://pixabay.com/service/license-summary/")
+            self.assertIn("Pixabay Content License", sidecar["attribution_text"])
+            decision = classify_licence(sidecar)
+            self.assertTrue(decision["publishable"])
+            self.assertEqual(decision["state"], "eligible")
             self.assertGreaterEqual(sidecar["relevance_score"], 0.12)
 
     def test_pixabay_rejects_unrelated_images_instead_of_using_generic_filler(self):
