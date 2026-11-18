@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-18T21:43:37+00:00",
+  "updated_at": "2026-11-18T22:44:11+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -227,6 +227,22 @@
       ],
       "job_id": 7,
       "youtube_id": "ryE-s5j6DoA",
+      "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "cdead76cd4d0e14d33606724",
+      "created_at": "2026-11-18T22:43:25+00:00",
+      "title": "Bulk Scotch Imports Par 162.5 Percent Duty Aur Tax",
+      "status": "uploaded",
+      "updated_at": "2026-11-18T22:44:11+00:00",
+      "topic": "India imposes 162.5% duty and tax on bulk Scotch imports amid UK trade pact dispute",
+      "source_refs": [
+        "3f319cbb3b0dfb28367d",
+        "3f90ad089db9e7d6a3d9"
+      ],
+      "job_id": 7,
+      "youtube_id": "wwCWm_reMnU",
       "privacy_status": "private"
     }
   ]
