@@ -192,6 +192,9 @@ def evaluate_cluster(cluster: dict, by_id: dict, now: datetime | None = None) ->
         "discovery_priority_score": cluster.get("discovery_priority_score", 0),
         "youtube_trend_score": max((float(by_id.get(i, {}).get("youtube_trend_score", 0) or 0)
                                     for i in cluster.get("candidate_ids", [])), default=0.0),
+        "youtube_trend_matches": next((by_id.get(i, {}).get("youtube_trend_matches", [])
+                                       for i in cluster.get("candidate_ids", [])
+                                       if by_id.get(i, {}).get("youtube_trend_matches")), []),
         "region": classify_story_region(combined),
     }
 
@@ -222,7 +225,7 @@ def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
         audit.append({
             **{k: result[k] for k in ("cluster_id", "headline", "eligible", "reason", "sensitive_term")},
             "publishers": sorted({s["publisher"] for s in result["all_sources"]}),
-            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],
+            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],\n            "youtube_trend_matches": result["youtube_trend_matches"],
             "sources": [{
                 "publisher": source["publisher"], "title": source["title"],
                 "url": source["link"] or source["url"],
@@ -387,7 +390,7 @@ def template_script(story: dict) -> dict:
     return {"title": headline[:80], "hook": headline[:50], "category": "news", "scenes": scenes}
 
 
-def build_script(story: dict, language: str = "english") -> dict:
+def build_script(story: dict, language: str = "hinglish") -> dict:
     """Write and validate the script; fails closed when it cannot be grounded."""
     language = language if language in _LANGUAGE_RULES else "english"
     attempts = max(1, int(os.getenv("NEWS_SCRIPT_ATTEMPTS", "2") or 2))
@@ -470,7 +473,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         "editorial_mix_target": {"india_percent": 50, "world_percent": 50,
                                  "target_for_this_run": target_region,
                                  "rolling_history_count": len(region_history)},
-        "clusters_considered_count": len(audit), "feed_errors": feed_errors,
+        "clusters_considered_count": len(audit), "feed_errors": feed_errors,\n        "youtube_trending": trend_report,
         "eligible_cluster_count": sum(1 for item in audit if item.get("eligible")),
         "rejection_reason_counts": reason_counts,
         "clusters_considered": audit,
