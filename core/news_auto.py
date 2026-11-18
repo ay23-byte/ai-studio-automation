@@ -112,6 +112,54 @@ def is_sensitive(text: str, ignore=()) -> str | None:
     return match.group(1).lower() if match else None
 
 
+INDIA_GEO_TERMS = (
+    "india", "indian", "new delhi", "delhi", "mumbai", "maharashtra", "uttar pradesh",
+    "uttarakhand", "himachal", "shimla", "lucknow", "bengaluru", "bangalore", "chennai",
+    "hyderabad", "kolkata", "jaipur", "ahmedabad", "gujarat", "rajasthan", "punjab",
+    "haryana", "bihar", "jharkhand", "odisha", "assam", "kerala", "karnataka",
+    "madhya pradesh", "chhattisgarh", "telangana", "andhra pradesh", "goa", "sikkim",
+    "manipur", "meghalaya", "mizoram", "nagaland", "tripura", "arunachal", "ladakh",
+    "jammu and kashmir", "isro", "rbi", "supreme court of india", "lok sabha", "rajya sabha",
+)
+
+
+def classify_story_region(text: str) -> str:
+    """Conservative geography label for a 50/50 editorial mix, not a truth claim."""
+    value = str(text or "").lower()
+    for term in INDIA_GEO_TERMS:
+        if re.search(r"(?<![a-z])" + re.escape(term) + r"(?![a-z])", value):
+            return "india"
+    return "world"
+
+
+def _region_history_path(state_dir: Path) -> Path:
+    return state_dir / "region_mix.json"
+
+
+def _read_region_history(path: Path) -> list[dict]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        rows = data.get("entries", []) if isinstance(data, dict) else []
+        return [x for x in rows if x.get("region") in {"india", "world"}][-30:]
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+
+
+def _target_region(history: list[dict]) -> str:
+    india = sum(1 for row in history if row.get("region") == "india")
+    world = sum(1 for row in history if row.get("region") == "world")
+    return "india" if india <= world else "world"
+
+
+def _record_region(path: Path, region: str, title: str) -> None:
+    rows = _read_region_history(path)
+    rows.append({"region": region, "title": title, "created_at": _now().isoformat()})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps({"version": 1, "entries": rows[-30:]}, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
 def evaluate_cluster(cluster: dict, by_id: dict, now: datetime | None = None) -> dict:
     """Run the deterministic source gate on one headline cluster."""
     items = [by_id[i] for i in cluster.get("candidate_ids", []) if i in by_id]
@@ -161,7 +209,7 @@ def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
             result["reason"] = f"already covered: {duplicate.get('match')}"
         audit.append({
             **{k: result[k] for k in ("cluster_id", "headline", "eligible", "reason", "sensitive_term")},
-            "publishers": sorted({s["publisher"] for s in result["all_sources"]}),
+            "publishers": sorted({s["publisher"] for s in result["all_sources"]}),\n            "region": result["region"], "youtube_trend_score": result["youtube_trend_score"],
             "sources": [{
                 "publisher": source["publisher"], "title": source["title"],
                 "url": source["link"] or source["url"],
@@ -386,7 +434,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     from core.db import save_video
     from core.pipeline import build_shorts
 
-    language = str(language or os.getenv("NEWS_LANGUAGE", "english")).strip().lower()
+    language = str(language or os.getenv("NEWS_LANGUAGE", "hinglish")).strip().lower()
     output_dir = Path(output_dir or cfg.OUTPUT_DIR / "daily_news")
     state_dir = cfg.STATE_DIR / "daily_news"
     feed_errors = []
@@ -396,13 +444,13 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
     seen = load_seen(state_dir / "seen.json")
     fresh = [item for item in candidates if item.get("id") not in seen]
     ledger = dedupe.Ledger()
-    story, audit = select_story(fresh, ledger)
+    region_path = _region_history_path(state_dir)\n    region_history = _read_region_history(region_path)\n    target_region = _target_region(region_history)\n    story, audit = select_story(fresh, ledger, target_region=target_region)
     reason_counts = {}
     for item in audit:
         reason = str(item.get("reason") or "not eligible")
         reason_counts[reason] = reason_counts.get(reason, 0) + 1
     selection = {
-        "generated_at": _now().isoformat(), "candidate_count": len(fresh),
+        "generated_at": _now().isoformat(), "candidate_count": len(fresh),\n        "editorial_mix_target": {"india_percent": 50, "world_percent": 50,\n                                 "target_for_this_run": target_region,\n                                 "rolling_history_count": len(region_history)},
         "clusters_considered_count": len(audit), "feed_errors": feed_errors,
         "eligible_cluster_count": sum(1 for item in audit if item.get("eligible")),
         "rejection_reason_counts": reason_counts,
@@ -427,7 +475,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         return {"status": "no_story", "candidate_count": len(fresh),
                 "reason": "No story was corroborated by eligible independent sources and safe to automate."}
 
-    script = build_script(story, language)
+    script = build_script(story, language)\n    _record_region(region_path, story["region"], story["headline"])
     language = script.get("language", language)
     job_id = save_video(script["title"], KIND, language, "news", script, pipeline="daily_news_auto",
                         topic_key=dedupe.topic_key(story["headline"]),
