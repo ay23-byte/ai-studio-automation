@@ -178,30 +178,43 @@ def select_story(candidates: list[dict], ledger: dedupe.Ledger | None = None,
 
 # --- script -----------------------------------------------------------------
 
-NEWS_PROMPT = """Write ONE 35-55 second YouTube news Short for the channel "{channel}".
+NEWS_PROMPT = """You are the senior output editor and on-air writer for a credible, independent television newsroom. Write a broadcast-ready news bulletin for the YouTube channel "{channel}". This is journalism, not a creator reaction video, headline-reading exercise, or generic AI summary.
 
-You may use ONLY the facts stated in the SOURCE HEADLINES AND SUMMARIES below. They are the
-complete evidence. Do not add background, causes, numbers, names, quotes, dates, predictions
-or opinions that are not written there. If the sources disagree, say so.
+EDITORIAL STANDARD
+- Sound like an experienced news anchor: direct, composed, precise, fluent when read aloud. Use natural spoken {language_rule}
+- Lead with the most important verified development. Answer what happened, who or what is involved, and where only when the supplied evidence establishes those details.
+- Build a coherent story, not a sequence of paraphrased headlines. Each scene must add a distinct piece of verified information.
+- Attribute claims naturally at the point they are made. Name the publisher in speech, but do not repeat source names in every sentence.
+- Explain context or significance only when the supplied evidence supports it. If it does not, say what the available reporting has not established. Never manufacture context to fill time.
+- Distinguish confirmed facts from claims, estimates and unknowns. Preserve qualifiers such as "the agency says" or "according to the report".
+- Use a restrained, factual tone. No hype, clickbait, emotional manipulation, speculation, editorial opinion, prediction or unsupported cause-and-effect.
+- Do not call a story "breaking" or "developing" unless the source evidence explicitly establishes that status.
+- Do not use filler such as "the same development", "more details are expected", "stay tuned", "here is what you need to know", or "this is a developing report".
+- Do not invent quotes, eyewitnesses, officials, dates, locations, numbers, motives, reactions, consequences or background.
+- If the evidence is too thin to support a coherent bulletin, return a short, transparent script that says what is confirmed and what is not known. Never pad it.
 
-LANGUAGE: {language_rule}
+STORY STRUCTURE
+Write 4-5 scenes, normally 65-95 spoken words total:
+1. THE LEAD: a crisp, specific first sentence with the verified news. No greeting or clickbait hook.
+2. THE DETAILS: add the strongest concrete detail available in the source summaries.
+3. THE CONFIRMATION: show what the second independent publisher confirms or adds. Do not pretend two similar headlines prove details they do not contain.
+4. THE CONTEXT: explain why it matters only if evidence supports that explanation; otherwise state the key information that remains unconfirmed.
+5. THE CLOSE (optional): one concise factual wrap-up and a restrained follow prompt of no more than six words. Do not use a generic CTA if the story is too sensitive or unresolved.
 
-RULES:
-- 4-5 scenes, 10-22 spoken words per scene, 60-100 spoken words in total.
-- Scene 1 states what happened and names a source in speech ("According to {first_publisher}, ...").
-- At least one more scene attributes the information to a named publisher.
-- Neutral, calm wording. No sensational words, no blame, no speculation, no advice.
-- Final scene: say that this is a developing report based on the named sources, then a short follow call to action.
-- "label": 1-3 short words, max 22 characters.
-- "image": a GENERIC illustrative visual in English (objects, places, technology, abstract concepts).
-  Never depict a real person, a logo, a flag, or the specific event itself.
-- "keywords": 2-4 generic English stock-footage search terms.
+FORMAT
+- Each scene: 10-22 spoken words where the evidence allows; never add unsupported words just to hit a count.
+- "say": exact anchor narration. "caption": concise subtitle matching the spoken meaning, not a second headline.
+- "label": 1-3 short words, maximum 22 characters.
+- "image": a scene-specific English visual direction for illustrative B-roll. Clearly illustrative; do not depict an unverified event, real person, logo or fabricated evidence.
+- "keywords": 2-4 precise English stock-footage search terms for that scene. Avoid generic newsroom imagery unless the scene is actually about the newsroom.
+- Use the requested language consistently in narration, captions, title, hook and labels.
+- Title: accurate, specific, neutral, maximum 80 characters. No clickbait.
 
-SOURCE HEADLINES AND SUMMARIES:
+EVIDENCE — THE ONLY FACTUAL BASIS
 {evidence}
 
 Return ONLY valid JSON:
-{{"title":"Neutral headline, max 80 chars","hook":"max 50 chars","category":"news","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
+{{"title":"Neutral, specific headline","hook":"Short factual lead, max 50 chars","category":"news","scenes":[{{"say":"...","caption":"...","label":"...","image":"...","keywords":["..."]}}]}}"""
 
 _LANGUAGE_RULES = {
     "english": "Natural spoken English for narration and captions.",
@@ -244,6 +257,22 @@ def validate_news_script(script: dict, story: dict, language: str = "english") -
         problems.append("Script contains numbers that are not in the sources: " + ", ".join(invented[:6]))
     if SENSATIONAL.search(everything):
         problems.append("Script uses sensational wording.")
+    # Reject the formulaic fallback language that makes a bulletin sound like
+    # a generic template rather than a newsroom-written report.
+    filler_patterns = (
+        r"reports the same development",
+        r"this is a developing report based on",
+        r"more details are expected as",
+        r"follow .{0,80} for clear, sourced updates",
+        r"here is what you need to know",
+        r"stay tuned for more",
+    )
+    if any(re.search(pattern, spoken, re.I) for pattern in filler_patterns):
+        problems.append("Narration contains generic template filler; write a story-specific newsroom close.")
+    if not 4 <= len(scenes) <= 5:
+        problems.append("A broadcast news Short must contain 4-5 purposeful scenes.")
+    if not 55 <= len(spoken.split()) <= 120:
+        problems.append("News narration must contain 55-120 words without padding.")
     sensitive = is_sensitive(everything, ignore=publishers)
     if sensitive:
         problems.append(f"Script touches a sensitive subject ('{sensitive}') that needs a human editor.")
@@ -266,23 +295,31 @@ def template_script(story: dict) -> dict:
     first, second = names[0], (names[1] if len(names) > 1 else names[0])
     headline = story["headline"].rstrip(".")
     other = next((s["title"].rstrip(".") for s in sources[1:] if s["title"].rstrip(".") != headline), "")
+    detail = next((str(s.get("text_snippet") or "").strip() for s in sources
+                   if str(s.get("text_snippet") or "").strip()), "")
+    second_headline = other if other else headline
     scenes = [
-        {"say": f"According to {first}, {headline}.", "label": "What happened",
-         "image": "a modern newsroom desk with screens showing abstract world map graphics",
-         "keywords": ["newsroom", "world map"]},
-        {"say": (f"{second} reports the same development: {other}." if other and second != first
-                 else f"The report has also been carried by {second}, which describes the same development."),
-         "label": "Second source",
-         "image": "stacked newspapers and a tablet on a wooden table in soft daylight",
-         "keywords": ["newspapers", "tablet reading"]},
-        {"say": "These are early reports. More details are expected as the publishers update their coverage.",
-         "label": "Developing",
-         "image": "a city skyline at dawn with light traffic trails",
-         "keywords": ["city skyline", "dawn"]},
-        {"say": f"This is a developing report based on {first} and {second}. Follow {cfg.CHANNEL_NAME} for clear, sourced updates.",
-         "label": "Sourced update",
-         "image": "an abstract glowing network of connected points on a dark blue background",
-         "keywords": ["network", "data"]},
+        {"say": f"{headline}. {first} is reporting the development.",
+         "label": "The lead",
+         "image": "A restrained editorial visual directly illustrating the subject described in the verified headline",
+         "keywords": ["editorial B-roll", "verified news subject"]},
+        {"say": (f"{first} reports this additional detail: {detail}" if detail
+                 else f"The available report from {first} confirms the headline, but provides no further verified detail."),
+         "label": "The details",
+         "image": "A close, factual illustrative visual related to the specific detail in the report",
+         "keywords": ["news detail", "relevant subject B-roll"]},
+        {"say": f"{second} has also reported the story. Its headline describes the development as: {second_headline}.",
+         "label": "Corroboration",
+         "image": "A second editorial visual showing the subject from a different factual angle",
+         "keywords": ["independent reporting", "subject context"]},
+        {"say": "The information available in these reports does not establish details beyond what has been stated. We will not speculate.",
+         "label": "What is known",
+         "image": "A clean editorial graphic separating confirmed information from unanswered questions",
+         "keywords": ["verified facts", "editorial graphic"]},
+        {"say": f"That is the confirmed information from {first} and {second}. Follow for further verified updates.",
+         "label": "The close",
+         "image": "A minimal, professional newsroom closing shot without logos or fabricated event footage",
+         "keywords": ["news bulletin close", "newsroom"]},
     ]
     for scene in scenes:
         scene["caption"] = scene["say"]
