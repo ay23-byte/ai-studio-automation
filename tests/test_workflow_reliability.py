@@ -580,3 +580,25 @@ class DocumentaryUploadFailureRecordTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LongformAutomaticPrivateReleaseTests(unittest.TestCase):
+    def test_documentary_build_has_a_separate_machine_gated_private_release(self):
+        text = _text("make_longform.yml")
+        build = text[text.index("  build:"):text.index("  release:")]
+        release = text[text.index("  release:"):]
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn("needs: [request, build]", release)
+        self.assertIn("needs.build.result == 'success'", release)
+        self.assertIn("github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'", release)
+        self.assertIn("longform-review-${{ github.run_id }}", release)
+        self.assertIn("actions/download-artifact@v8", release)
+        self.assertIn("upload_documentary_artifact.py", release)
+        self.assertIn("--machine-only", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
+        self.assertIn("longform-private-release-${{ github.run_id }}", release)
+        self.assertIn("verify_source_run.py --run-id", release)
+        self.assertIn("privacy_status=\"private\"", (ROOT / "scripts" / "upload_documentary_artifact.py").read_text(encoding="utf-8"))
+        self.assertNotIn("ALLOW_PUBLIC_PUBLISH: \"1\"", release)
