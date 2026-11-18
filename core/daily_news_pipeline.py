@@ -101,10 +101,12 @@ def apply_youtube_trend_signals(candidates, trending_videos):
                 matches.append({
                     "title": video["title"], "channel": video.get("channel", ""),
                     "url": video.get("url", ""), "view_count": video.get("view_count", 0),
-                    "similarity": round(score, 3),\n                    "region_code": video.get("region_code", ""),\n                    "popularity_score": round(score * (0.5 + 0.5 * min(1.0, math.log10(max(1, int(video.get("view_count", 0)) + 1)) / 7)), 3),
+                    "similarity": round(score, 3),
+                    "region_code": video.get("region_code", ""),
+                    "popularity_score": round(score * (0.5 + 0.5 * min(1.0, math.log10(max(1, int(video.get("view_count", 0)) + 1)) / 7)), 3),
                 })
-        matches.sort(key=lambda item: (item["similarity"], item["view_count"]), reverse=True)
-        candidate["youtube_trend_score"] = round(max((m["similarity"] for m in matches), default=0.0), 3)
+        matches.sort(key=lambda item: (item["popularity_score"], item["view_count"]), reverse=True)
+        candidate["youtube_trend_score"] = round(max((m["popularity_score"] for m in matches), default=0.0), 3)
         candidate["youtube_trend_matches"] = matches[:3]
     return candidates
 
