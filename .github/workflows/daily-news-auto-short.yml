@@ -57,6 +57,9 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r requirements-ci.txt
 
+      - name: Preflight image provenance and licence checks
+        run: python -m unittest discover -s tests -p "test_image_provenance.py" -v
+
       - name: Restore duplicate ledger and seen-story cache
         run: python scripts/persist_state.py restore
 
