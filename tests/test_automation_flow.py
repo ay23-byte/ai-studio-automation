@@ -302,16 +302,21 @@ class NewsAutoTests(_StateSandbox):
     def test_youtube_trending_fetch_requires_key_and_uses_news_category(self):
         from core.daily_news_pipeline import fetch_youtube_news_trending
         self.assertFalse(fetch_youtube_news_trending(api_key="")["available"])
-        response = MagicMock()
-        response.json.return_value = {"items": [{"id": "abc", "snippet": {
+        search_response = MagicMock()
+        search_response.json.return_value = {"items": [{"id": {"videoId": "abc"}, "snippet": {
+            "title": "India news update", "channelTitle": "News", "publishedAt": "2026-11-19T10:00:00Z"}}]}
+        stats_response = MagicMock()
+        stats_response.json.return_value = {"items": [{"id": "abc", "snippet": {
             "title": "India news update", "channelTitle": "News", "publishedAt": "2026-11-19T10:00:00Z"},
             "statistics": {"viewCount": "12345"}}]}
-        with patch("core.daily_news_pipeline.requests.get", return_value=response) as get:
+        with patch("core.daily_news_pipeline.requests.get", side_effect=[search_response, stats_response]) as get:
             result = fetch_youtube_news_trending(api_key="test-key")
         self.assertTrue(result["available"])
         self.assertEqual(result["videos"][0]["view_count"], 12345)
-        self.assertEqual(get.call_args.kwargs["params"]["videoCategoryId"], "25")
-        self.assertEqual(get.call_args.kwargs["params"]["regionCode"], "IN")
+        self.assertEqual(get.call_args_list[0].kwargs["params"]["videoCategoryId"], "25")
+        self.assertEqual(get.call_args_list[0].kwargs["params"]["regionCode"], "IN")
+        self.assertEqual(get.call_args_list[0].kwargs["params"]["order"], "viewCount")
+        self.assertEqual(get.call_args_list[0].kwargs["params"]["publishedAfter"][-1], "Z")
 
     def test_news_prompt_requires_a_broadcast_story_arc(self):
         self.assertIn("senior output editor", news_auto.NEWS_PROMPT)
