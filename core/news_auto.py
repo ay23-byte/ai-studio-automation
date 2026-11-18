@@ -496,7 +496,6 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
                 "reason": "No story was corroborated by eligible independent sources and safe to automate."}
 
     script = build_script(story, language)
-    _record_region(region_path, story["region"], story["headline"])\n    _record_region(region_path, story["region"], story["headline"])
     language = script.get("language", language)
     job_id = save_video(script["title"], KIND, language, "news", script, pipeline="daily_news_auto",
                         topic_key=dedupe.topic_key(story["headline"]),
@@ -509,6 +508,7 @@ def run(language: str | None = None, upload: bool = False, candidates: list[dict
         "notice": "Automated source-tier corroboration only; the dedicated private-release gate independently checks script, render QA, MP4 geometry/duration, channel identity, and YouTube privacy read-back.",
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     video = build_shorts(script, job_id, language=language)
+    _record_region(region_path, story["region"], story["headline"])
     # Record immediately so a later failure cannot cause the same story to be rebuilt.
     ledger.record(KIND, script["title"], topic=story["headline"], source_refs=story["source_refs"],
                   job_id=job_id, status="built")
