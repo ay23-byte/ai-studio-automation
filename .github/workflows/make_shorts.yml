@@ -82,6 +82,9 @@ jobs:
       - name: Validate Python syntax
         run: python -m compileall -q core run.py run_daily.py scripts
 
+      - name: Run visual-quality regression tests
+        run: python -m unittest discover -s tests -p "test_quality.py" -v
+
       - name: Restore duplicate ledger from the automation-state branch
         run: python scripts/persist_state.py restore
 
