@@ -17,8 +17,6 @@ on:
 permissions:
   contents: write   # only to push JSON state to the automation-state branch
 
-# One run of this mode at a time. Each mode has its own queue, so a long
-# documentary build cannot hold back (or displace) the daily Shorts and news runs.
 concurrency:
   group: studio-build-daily-news
   cancel-in-progress: false
@@ -90,18 +88,23 @@ jobs:
           TTS_ENGINE: "edge"
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
           WANT_UPLOAD: "true"
-          # The release path is PRIVATE-only and cannot schedule/publicly publish.
-          # One bounded recovery attempt: a job that fails part-way is resumed from
-          # its checkpoint (finished narration and visuals are reused). 0 turns it off.
           BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
         shell: bash
         run: |
           set -euo pipefail
-          # Daily-news auto-release is PRIVATE-only; all automated editorial and technical gates must PASS.
-          python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload
+          # Exit 3 is the application's explicit "built, but guarded upload blocked" result.
+          # Keep the run green for this review handoff; never bypass the QA gate or upload.
+          if python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload; then
+            echo "News build/release command completed."
+          else
+            result=$?
+            if [ "$result" -eq 3 ]; then
+              echo "::warning title=Human review required::Short was rendered but NOT uploaded; inspect the review artifact."
+            else
+              exit "$result"
+            fi
+          fi
 
-      # Also assembles a diagnostic package (manifest, sources, QA, dashboard).
-      # "No story qualified today" is a normal outcome and is not a failure.
       - name: Assemble the diagnostic and review package
         if: always()
         run: python scripts/package_build_for_review.py --mode daily_news --allow-no-build
@@ -109,8 +112,6 @@ jobs:
       - name: Persist duplicate ledger and seen-story cache
         if: always()
         env:
-          # Explicit token for the push to the state branch, so the step does not
-          # depend on how actions/checkout stores its credential.
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/persist_state.py save --message "news run ${GITHUB_RUN_ID}"
 
