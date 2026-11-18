@@ -630,7 +630,7 @@ def _quality_check(job_id, video_path, subtitle_path, build_dir, documentary=Fal
 
 
 def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
-    """Find the best available visual for one Shorts scene (video > image > stock > card)."""
+    """Prefer relevant real footage, then optional AI video, then scene-matched stills."""
     img_p = bd / f"img{index}.jpg"
     clip_p = bd / f"raw{index}.mp4"
     card_p = bd / f"card{index}.jpg"
@@ -643,14 +643,21 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
         + str(scene.get("image") or scene.get("say", ""))
         + ". 9:16 cinematic documentary image, accurate subject and action, no text or logos."
     )
+
+    # News should feel like news: try relevant, licensed moving footage before
+    # spending time on still-image generation. The footage selector enforces
+    # relevance, licence and media validation; it is never allowed to invent
+    # footage of a specific event.
+    if fetch_clip(keywords, clip_p, used_ids, scene_prompt=scene_search_prompt):
+        return {"type": "video", "path": clip_p, "provider": "stock"}
+
     ai_video_mode = os.getenv("AI_VIDEO_MODE", "fallback").strip().lower()
     has_local_video_model = bool(os.getenv("OPENVINO_LTX_MODEL_DIR", "").strip())
-    ai_video_attempted = False
-    if ai_video_mode == "prefer" and has_local_video_model and not state["ai_video_failed"]:
-        ai_video_attempted = True
+    if has_local_video_model and not state["ai_video_failed"]:
         if generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16"):
             return {"type": "video", "path": clip_p, "provider": "ai_video"}
         state["ai_video_failed"] = True
+
     # After repeated consecutive failures the image provider is down or rate
     # limited: stop paying its retry/back-off cost for every remaining scene.
     if state["image_failures"] < state["image_failure_limit"]:
@@ -661,12 +668,6 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
         state["image_failures"] += 1
         if state["image_failures"] == state["image_failure_limit"]:
             print("  image provider failed repeatedly; skipping it for the remaining scenes.")
-    if not ai_video_attempted and has_local_video_model and not state["ai_video_failed"]:
-        if generate_ai_video(scene_prompt, clip_p, aspect_ratio="9:16"):
-            return {"type": "video", "path": clip_p, "provider": "ai_video"}
-        state["ai_video_failed"] = True
-    if fetch_clip(keywords, clip_p, used_ids, scene_prompt=scene_search_prompt):
-        return {"type": "video", "path": clip_p, "provider": "stock"}
     card_text = " ".join(str(scene.get(key) or "") for key in ("label", "caption", "say")).strip()
     # The scene label is already burned in by the caption track; no kicker here.
     if _fallback_card(card_p, card_text, size=(W_S, H_S), kicker="",
