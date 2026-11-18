@@ -389,12 +389,35 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Verify this exact successful documentary build
+      # This release job is part of the SAME workflow run as the build.
+      # The needs dependency already guarantees build.result == success and the
+      # artifact is downloaded by this exact run ID. Querying the Actions API here
+      # is incorrect: GitHub reports the parent run as in_progress until ALL jobs
+      # finish, and PR metadata may be absent on merge-ref runs.
+      - name: Verify this exact in-run build context
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.run_id }}
-          RELEASE_REF: ${{ github.event_name == 'pull_request' && 'main' || github.ref_name }}
-        run: python scripts/verify_source_run.py --run-id "$SOURCE_RUN_ID" --mode longform --ref "$RELEASE_REF"
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "$REPOSITORY" = "$GITHUB_REPOSITORY"
+          case "$EVENT_NAME" in
+            workflow_dispatch|schedule)
+              test "$REF_NAME" = "main" || { echo "::error::Production releases must run from main."; exit 1; }
+              ;;
+            pull_request)
+              test "$PR_BASE_REF" = "main" || { echo "::error::Pull request does not target main."; exit 1; }
+              test "$PR_HEAD_REPOSITORY" = "$REPOSITORY" || { echo "::error::Fork pull requests cannot receive release credentials."; exit 1; }
+              ;;
+            *)
+              echo "::error::Unsupported release event: $EVENT_NAME"
+              exit 1
+              ;;
+          esac
+          echo "Verified same-run build dependency and artifact context for run $GITHUB_RUN_ID."
 
       - name: Install FFmpeg and uploader dependencies
         run: |
