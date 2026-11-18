@@ -15,7 +15,7 @@ from core import config, dedupe, news_auto, notify, topics
 
 ROOT = Path(__file__).resolve().parents[1]
 QUIET_ENV = {"TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": "", "DISCORD_WEBHOOK_URL": "",
-             "SLACK_WEBHOOK_URL": "", "NOTIFY_WEBHOOK_URL": "", "GITHUB_STEP_SUMMARY": ""}
+             "SLACK_WEBHOOK_URL": "", "NOTIFY_WEBHOOK_URL": "", "GITHUB_STEP_SUMMARY": "", "YOUTUBE_DATA_API_KEY": ""}
 
 
 class _StateSandbox(unittest.TestCase):
@@ -282,11 +282,43 @@ class NewsAutoTests(_StateSandbox):
         problems = " ".join(news_auto.validate_news_script(script, story))
         self.assertIn("generic template filler", problems)
 
+    def test_india_world_mix_targets_underrepresented_region(self):
+        self.assertEqual(news_auto._target_region([]), "india")
+        history = [{"region": "india"} for _ in range(4)] + [{"region": "world"} for _ in range(2)]
+        self.assertEqual(news_auto._target_region(history), "world")
+        self.assertEqual(news_auto.classify_story_region("ISRO announces a new mission from Bengaluru"), "india")
+        self.assertEqual(news_auto.classify_story_region("European Central Bank announces rate decision"), "world")
+
+    def test_youtube_trend_matches_are_discovery_signals_only(self):
+        from core.daily_news_pipeline import apply_youtube_trend_signals
+        candidates = [{"title": "India launches new space mission", "id": "candidate-1"}]
+        trends = [{"title": "India space mission launch explained", "channel": "News Channel",
+                   "url": "https://www.youtube.com/watch?v=abc", "view_count": 120000}]
+        enriched = apply_youtube_trend_signals(candidates, trends)
+        self.assertGreater(enriched[0]["youtube_trend_score"], 0)
+        self.assertEqual(enriched[0]["youtube_trend_matches"][0]["channel"], "News Channel")
+        self.assertNotIn("verified", enriched[0])
+
+    def test_youtube_trending_fetch_requires_key_and_uses_news_category(self):
+        from core.daily_news_pipeline import fetch_youtube_news_trending
+        self.assertFalse(fetch_youtube_news_trending(api_key="")["available"])
+        response = MagicMock()
+        response.json.return_value = {"items": [{"id": "abc", "snippet": {
+            "title": "India news update", "channelTitle": "News", "publishedAt": "2026-11-19T10:00:00Z"},
+            "statistics": {"viewCount": "12345"}}]}
+        with patch("core.daily_news_pipeline.requests.get", return_value=response) as get:
+            result = fetch_youtube_news_trending(api_key="test-key")
+        self.assertTrue(result["available"])
+        self.assertEqual(result["videos"][0]["view_count"], 12345)
+        self.assertEqual(get.call_args.kwargs["params"]["videoCategoryId"], "25")
+        self.assertEqual(get.call_args.kwargs["params"]["regionCode"], "IN")
+
     def test_news_prompt_requires_a_broadcast_story_arc(self):
         self.assertIn("senior output editor", news_auto.NEWS_PROMPT)
         self.assertIn("THE LEAD", news_auto.NEWS_PROMPT)
         self.assertIn("THE CONFIRMATION", news_auto.NEWS_PROMPT)
         self.assertIn("Never manufacture context", news_auto.NEWS_PROMPT)
+        self.assertIn("Roman script", news_auto._LANGUAGE_RULES["hinglish"])
 
     def test_ungrounded_model_output_fails_closed(self):
         story, _ = news_auto.select_story(CORROBORATED)
