@@ -9,7 +9,7 @@ on:
         description: "Narration language"
         type: choice
         options: [english, hinglish, hindi]
-        default: english
+        default: hinglish
   schedule:
     - cron: '45 2 * * *'    # 08:15 IST
     - cron: '45 13 * * *'   # 19:15 IST
@@ -28,6 +28,7 @@ env:
   TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY }}
 
 jobs:
   news-short:
@@ -89,7 +90,7 @@ jobs:
           DVIDS_API_REFERER: ${{ secrets.DVIDS_API_REFERER }}
           FOOTAGE_CONTACT: ${{ vars.FOOTAGE_CONTACT }}
           TTS_ENGINE: "edge"
-          NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
+          NEWS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           WANT_UPLOAD: "true"
           # No generic template fallback: if a newsroom-quality script cannot be
           # generated and validated, skip production rather than publish filler.
