@@ -52,7 +52,7 @@ jobs:
       - name: Generate deterministic sample documentary media
         run: |
           mkdir -p output/sample_media
-          ffmpeg -y -f lavfi -i "color=c=navy:s=1280x720:r=24:d=8" -f lavfi -i "sine=frequency=440:duration=8" -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac output/sample_media/smoke_documentary.mp4
+          ffmpeg -y -f lavfi -i "color=c=navy:s=1920x1080:r=30:d=8" -f lavfi -i "sine=frequency=440:duration=8" -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac output/sample_media/smoke_documentary.mp4
           cat > output/sample_media/subtitles.ass <<'EOF'
           [Script Info]
           ScriptType: v4.00+
