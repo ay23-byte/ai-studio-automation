@@ -55,6 +55,7 @@ on:
     paths: [".github/documentary-production-request.json"]
 
 permissions:
+  actions: read
   contents: read
 
 # One run of this mode at a time. Each mode has its own queue, so a long
@@ -265,8 +266,8 @@ jobs:
             --voice-gender "$INPUT_VOICE_GENDER" \
             --force
 
-      # The build workflow never uploads. It packages machine-readable evidence
-      # consumed by the separate automatic PRIVATE release workflow after success.
+      # Build and release remain separate jobs. The release job receives YouTube secrets;
+      # the renderer never does. It uploads only after the strict machine-only documentary gate passes.
       - name: Assemble the documentary QA package (no upload)
         if: success()
         run: python scripts/package_build_for_review.py --mode longform
@@ -274,9 +275,7 @@ jobs:
       - name: Mark build as ready for the separate private-release gate
         if: always()
         run: |
-          echo "This workflow only builds and packages the documentary QA artifact."
-          echo "A separate workflow downloads this exact run and performs strict machine-only QA."
-          echo "Only a verified PRIVATE upload to Engineering Physics is permitted; failed gates block release."
+          echo "The build is complete. The dependent release job will independently validate the package and upload PRIVATE only."
 
       - name: Write job summary and run report
         if: always()
@@ -361,3 +360,107 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: python scripts/alert_on_failure.py --name "make-longform"
+
+
+  # Autonomous release: the renderer has no YouTube credentials. This dependent
+  # job downloads this exact run's artifact and applies the stricter machine-only
+  # documentary gate. Any missing evidence, uncertain shot, non-PASS QA, rights
+  # issue, channel mismatch or upload/read-back problem fails closed.
+  release:
+    needs: [request, build]
+    if: >-
+      needs.build.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Verify this exact successful documentary build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+        run: python scripts/verify_source_run.py --run-id "$SOURCE_RUN_ID" --mode longform --ref "$GITHUB_REF_NAME"
+
+      - name: Install FFmpeg and uploader dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install -r requirements-ci.txt
+
+      - name: Download the documentary artifact from this exact run
+        uses: actions/download-artifact@v8
+        with:
+          name: longform-review-${{ github.run_id }}
+          path: release-artifact
+
+      - name: Run strict machine-only documentary release and verify PRIVATE status
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
+          YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
+          YT_CHANNEL_VERIFY: "1"
+          CHANNEL_NAME: "Engineering Physics"
+        run: |
+          set -euo pipefail
+          test -n "$YT_CLIENT_ID" || { echo "::error::YT_CLIENT_ID is missing."; exit 1; }
+          test -n "$YT_CLIENT_SECRET" || { echo "::error::YT_CLIENT_SECRET is missing."; exit 1; }
+          test -n "$YT_REFRESH_TOKEN" || { echo "::error::YT_REFRESH_TOKEN is missing."; exit 1; }
+          python scripts/upload_documentary_artifact.py \
+            --artifact-dir release-artifact \
+            --source-run-id "$GITHUB_RUN_ID" \
+            --machine-only
+
+      - name: Write private-release result to the run summary
+        if: always()
+        run: |
+          if [[ -s release-artifact/youtube-upload-result.json ]]; then
+            echo "## Documentary private upload" >> "$GITHUB_STEP_SUMMARY"
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          data = json.loads(Path("release-artifact/youtube-upload-result.json").read_text())
+          print(f"- **Result:** {'PRIVATE verified' if data.get('privacy_verified') else 'NOT VERIFIED'}")
+          print(f"- **Video:** {data.get('url', 'unavailable')}")
+          print(f"- **Video ID:** `{data.get('video_id', 'unavailable')}`")
+          print(f"- **Processing:** {data.get('processing_status', 'unknown')}")
+          print(f"- **SHA-256:** `{data.get('sha256', 'unavailable')}`")
+          PY
+          elif [[ -s release-artifact/youtube-upload-failure.json ]]; then
+            echo "## Documentary upload blocked" >> "$GITHUB_STEP_SUMMARY"
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          data = json.loads(Path("release-artifact/youtube-upload-failure.json").read_text())
+          print(f"**Nothing was uploaded.** {data.get('error', 'Unknown release failure')}")
+          PY
+          else
+            echo "## Documentary upload not completed. No verified private upload result exists." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Preserve upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: longform-private-release-${{ github.run_id }}
+          path: |
+            release-artifact/youtube-upload-result.json
+            release-artifact/youtube-upload-failure.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Alert on release failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python scripts/alert_on_failure.py --name "longform-private-release"
