@@ -8,7 +8,7 @@ from core.db import save_video, update_video
 from core.cinematic_shot_planner import plan_cinematic_shots, write_cinematic_shot_plan
 
 from core import ffmpeg_utils
-from core.jobs import Checkpoint, stable_hash
+from core.jobs import Checkpoint, exclusive_build, stable_hash
 
 W_S, H_S = 1080, 1920   # Shorts
 W_L, H_L = 1920, 1080   # Long-form
@@ -102,7 +102,8 @@ def _voice_stage(checkpoint, text, bd, language, gender, refuse_robotic=False):
     timings_path = Path(bd) / "voice_timings.json"
     voice_path = Path(bd) / "voice.wav"
     signature = stable_hash(text, language, gender, os.getenv("TTS_ENGINE", "edge"),
-                            os.getenv("TTS_VOICE", ""), os.getenv("TTS_PRONUNCIATION_MAP", ""))
+                            {name: os.getenv(name) for name in ("TTS_VOICE", "TTS_RATE", "TTS_PITCH", "TTS_PRONUNCIATION_MAP",
+                             "VOICE_ENGLISH", "VOICE_ENGLISH_FEMALE", "VOICE_HINDI", "VOICE_FEMALE", "ESPEAK_RATE")})
 
     def run():
         path, timings = synthesise(text, bd, language=language, gender=gender)
@@ -748,7 +749,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
                 checkpoint.mark(f"visual_{i}", "stale", input_hash="retry-card")
             item = checkpoint.run(
                 f"visual_{i}", acquire, input_hash=signature,
-                files=[Path(stored["path"]).name] if stored.get("path") else (),
+                files=(),  # Checkpoint records the path returned by acquire, not the previous path.
             )
             media.append({"type": item["type"], "path": Path(item["path"]), "provider": item.get("provider")})
 
@@ -1275,7 +1276,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             visual_stage = f"visual_{i}_{j}"
             previous = (checkpoint.get(visual_stage) or {})
             previous_result = previous.get("result") or {}
-            if (previous.get("status") == "done" and previous.get("input_hash") == prompt_signature
+            if (checkpoint.is_done(visual_stage, prompt_signature)
                     and previous_result.get("path") and not previous_result.get("fallback_card")
                     and Path(previous_result["path"]).is_file()
                     and Path(previous_result["path"]).stat().st_size > 1000
@@ -1619,5 +1620,5 @@ build_longform = _record_failures(build_longform)
 # Record one event per complete render operation.
 from core.monitoring import monitored as _monitored
 from core.ffmpeg_utils import PROBE_TIMEOUT, ffmpeg_bin, ffprobe_bin
-build_shorts = _monitored("pipeline", "build_shorts", build_shorts)
-build_longform = _monitored("pipeline", "build_longform", build_longform)
+build_shorts = exclusive_build(_monitored("pipeline", "build_shorts", build_shorts))
+build_longform = exclusive_build(_monitored("pipeline", "build_longform", build_longform))
