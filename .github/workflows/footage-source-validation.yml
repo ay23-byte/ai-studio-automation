@@ -34,7 +34,7 @@ jobs:
           python-version: "3.11"
       - name: Install FFmpeg and test dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+          bash scripts/ci/install_apt_packages.sh ffmpeg
           python -m pip install --upgrade pip requests Pillow numpy google-api-python-client edge-tts python-dotenv
       - name: Run provider adapter unit tests
         run: python -m unittest tests.test_documentary_source_adapters -v
