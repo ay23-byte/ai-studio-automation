@@ -63,32 +63,8 @@ jobs:
           cache: "pip"
           cache-dependency-path: requirements-ci.txt
 
-      - name: Install system dependencies (bounded retries)
-        shell: bash
-        run: |
-          set -u
-          packages=(ffmpeg espeak-ng libraqm0)
-          missing=()
-          for package in "${packages[@]}"; do
-            if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"; then
-              missing+=("$package")
-            fi
-          done
-          if (("${#missing[@]}" == 0)); then
-            echo "System packages already installed; skipping APT."
-          else
-            apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::ForceIPv4=true)
-            for attempt in 1 2 3; do
-              if sudo apt-get "${apt_options[@]}" update &&
-                 sudo apt-get "${apt_options[@]}" install -y --no-install-recommends --fix-missing "${missing[@]}"; then
-                break
-              fi
-              [ "$attempt" -lt 3 ] || { echo "::error::Could not install system packages after 3 attempts."; exit 1; }
-              sleep $((attempt * 10))
-            done
-          fi
-          ffmpeg -version | head -n 1
-
+      - name: Install system dependencies (resilient apt)
+        run: bash scripts/ci/install_apt_packages.sh ffmpeg espeak-ng libraqm0
       - name: Install Python dependencies
         run: python -m pip install -r requirements-ci.txt
 
