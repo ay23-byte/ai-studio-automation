@@ -18,8 +18,7 @@ jobs:
           cache: pip
       - name: Install audio dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes ffmpeg
+          bash scripts/ci/install_apt_packages.sh ffmpeg
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
       - name: Test narration voice selection

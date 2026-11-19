@@ -21,8 +21,7 @@ jobs:
           cache: pip
       - name: Install system font dependency
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes fonts-dejavu-core
+          bash scripts/ci/install_apt_packages.sh fonts-dejavu-core
       # Deliberately minimal: RSS discovery needs only requests and Pillow.
       # Narration providers (edge-tts) and the YouTube client are NOT installed
       # here; core modules must import without them (see core/voice.py and the

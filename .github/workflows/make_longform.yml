@@ -149,10 +149,7 @@ jobs:
           PY
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng
-
-      # This workflow runs on GitHub-hosted CPU runners. Chatterbox v3
-      # inference is too slow there for dependable long-form production.
+        run: bash scripts/ci/install_apt_packages.sh ffmpeg fonts-noto-core espeak-ng
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
@@ -419,12 +416,12 @@ jobs:
           esac
           echo "Verified same-run build dependency and artifact context for run $GITHUB_RUN_ID."
 
-      - name: Install FFmpeg and uploader dependencies
+      - name: Ensure FFmpeg and install uploader dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          bash scripts/ci/install_apt_packages.sh ffmpeg
+          command -v ffmpeg
+          command -v ffprobe
           python -m pip install -r requirements-ci.txt
-
       - name: Download the documentary artifact from this exact run
         uses: actions/download-artifact@v8
         with:

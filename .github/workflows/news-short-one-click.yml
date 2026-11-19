@@ -63,8 +63,7 @@ jobs:
             fs.writeFileSync("input-news/reviewed_story.json", JSON.stringify(packet, null, 2) + "\n");
       - name: Install free CPU dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes ffmpeg fonts-dejavu-core
+          bash scripts/ci/install_apt_packages.sh ffmpeg fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install requests Pillow python-dotenv
       - name: Generate script draft

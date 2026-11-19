@@ -51,13 +51,9 @@ jobs:
 
       - name: Install free CPU rendering dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes ffmpeg fonts-dejavu-core fonts-noto-core espeak-ng
+          bash scripts/ci/install_apt_packages.sh ffmpeg fonts-dejavu-core fonts-noto-core espeak-ng
           python -m pip install --upgrade pip
           python -m pip install edge-tts requests Pillow python-dotenv jsonschema
-          ffmpeg -version
-          ffprobe -version
-
       - name: Validate approved inputs and asset paths
         env:
           SCRIPT_PATH: ${{ inputs.script_path }}
