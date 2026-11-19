@@ -1,9 +1,4 @@
-"""Operator notifications: console always, plus every configured channel.
-
-Channels are optional. Delivery uses requests when installed and falls back to
-Python's standard library so alerts still work when dependency installation
-fails. Notification failures never raise into the production pipeline.
-"""
+"""Operator notifications with requests optional and a stdlib fallback."""
 from __future__ import annotations
 
 import json
@@ -18,13 +13,15 @@ from urllib.request import Request, urlopen
 
 try:
     import requests
-except ImportError:  # alerting must remain available during broken pip installs
+except ImportError:  # keep alerts working during failed dependency installs
     requests = None
 
 from core.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
-_SECRET = re.compile(r"(bot\\d+:[A-Za-z0-9_-]+|hooks\\.slack\\.com/services/\\S+|"
-                     r"discord(?:app)?\\.com/api/webhooks/\\S+|(?:key|token)=[^&\\s]+)", re.I)
+_SECRET = re.compile(
+    r"(bot\d+:[A-Za-z0-9_-]+|hooks\.slack\.com/services/\S+|"
+    r"discord(?:app)?\.com/api/webhooks/\S+|(?:key|token)=[^&\s]+)", re.I
+)
 
 
 def _safe(text) -> str:
@@ -32,7 +29,6 @@ def _safe(text) -> str:
 
 
 def _stdlib_post(url, *, data=None, json_body=None, timeout=20):
-    """Requests-compatible minimal response for the stdlib fallback."""
     if json_body is not None:
         payload = json.dumps(json_body).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -40,8 +36,7 @@ def _stdlib_post(url, *, data=None, json_body=None, timeout=20):
         payload = urlencode(data).encode("utf-8")
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
     else:
-        payload = b""
-        headers = {}
+        payload, headers = b"", {}
     request = Request(url, data=payload, headers=headers, method="POST")
     try:
         with urlopen(request, timeout=timeout) as response:
@@ -62,7 +57,9 @@ def _post(name, url, attempts=3, **kwargs):
                 response = requests.post(url, timeout=20, **kwargs)
                 status, headers = response.status_code, response.headers
             else:
-                status, headers = _stdlib_post(url, timeout=20, data=kwargs.get("data"), json_body=kwargs.get("json"))
+                status, headers = _stdlib_post(
+                    url, timeout=20, data=kwargs.get("data"), json_body=kwargs.get("json")
+                )
             if status < 300:
                 return True
             last = f"HTTP {status}"
@@ -93,7 +90,7 @@ def _record(msg, level, delivered):
             handle.write(json.dumps({
                 "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "level": level, "message": msg[:3500], "delivered": delivered,
-            }, ensure_ascii=False) + "\\n")
+            }, ensure_ascii=False) + "\n")
     except OSError:
         pass
 
@@ -133,7 +130,7 @@ def send(msg: str, level: str | None = None) -> dict:
     if summary:
         try:
             with open(summary, "a", encoding="utf-8") as handle:
-                handle.write(f"\\n- **{level.upper()}** {msg[:1500]}\\n")
+                handle.write(f"\n- **{level.upper()}** {msg[:1500]}\n")
             delivered["github_summary"] = True
         except OSError:
             delivered["github_summary"] = False
