@@ -1,0 +1,2153 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "commit": "bdb6f82180a22e5ad7532372c3cbd1dc531d95c9",
+    "branch_audit_date": "2026-11-19",
+    "default_branch": "main",
+    "repository": "ay23-byte/ai-studio-automation",
+    "channel_handle": "@engineeringphysics-n5g"
+  },
+  "invariants": {
+    "production_privacy_status": "private",
+    "public_publish_allowed_in_protected_workflows": false,
+    "automatic_public_release": false,
+    "protected_workflow_count": 35,
+    "protected_config_count": 3
+  },
+  "schedules": {
+    "daily-news-auto-short.yml": [
+      "45 2 * * *",
+      "45 13 * * *"
+    ],
+    "daily-news-shorts.yml": [
+      "30 2 * * *",
+      "30 13 * * *"
+    ],
+    "make_longform.yml": [
+      "0 13 * * 0"
+    ],
+    "make_shorts.yml": [
+      "30 3 * * *"
+    ]
+  },
+  "secrets": [
+    "CEREBRAS_API_KEY",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_API_TOKEN",
+    "COVERR_API_KEY",
+    "DISCORD_WEBHOOK_URL",
+    "DVIDS_API_KEY",
+    "DVIDS_API_REFERER",
+    "EUROPEANA_API_KEY",
+    "GEMINI_API_KEY",
+    "GITHUB_TOKEN",
+    "GROQ_API_KEY",
+    "KAGGLE_API_TOKEN",
+    "KAGGLE_KEY",
+    "KAGGLE_USERNAME",
+    "MISTRAL_API_KEY",
+    "NARA_API_KEY",
+    "NASA_API_KEY",
+    "OPENROUTER_API_KEY",
+    "OPENVERSE_CLIENT_ID",
+    "OPENVERSE_CLIENT_SECRET",
+    "PIXABAY_API_KEY",
+    "REPLICATE_API_TOKEN",
+    "SLACK_WEBHOOK_URL",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "YOUTUBE_API_KEY",
+    "YOUTUBE_DATA_API_KEY",
+    "YT_API_KEY",
+    "YT_CLIENT_ID",
+    "YT_CLIENT_SECRET",
+    "YT_REFRESH_TOKEN"
+  ],
+  "variables": [
+    "BUILD_RECOVERY_ATTEMPTS",
+    "DVIDS_API_REFERER",
+    "FOOTAGE_CONTACT",
+    "GEMINI_FALLBACK_MODELS",
+    "GEMINI_FALLBACK_MODELS_LONGFORM",
+    "GEMINI_MODEL",
+    "GEMINI_MODEL_LONGFORM",
+    "KAGGLE_KERNEL_SLUG",
+    "REPLICATE_VIDEO_MODEL",
+    "YT_CHANNEL_HANDLE",
+    "YT_CHANNEL_ID"
+  ],
+  "artifact_names": [
+    "${{ steps.asset-source.outputs.artifact_name }}",
+    "archival-documentary-production-trial",
+    "archival-video-e2e-evidence",
+    "avatar-studio-browser-test-results",
+    "chernobyl-documentary-review-copy",
+    "compact-review-export-${{ inputs.source_run_id }}",
+    "daily-news-assets-${{ github.run_id }}",
+    "daily-news-candidates-${{ github.run_id }}",
+    "daily-news-short-review-${{ github.run_id }}",
+    "documentary-e2e-smoke-evidence",
+    "documentary-private-release-${{ github.run_id }}",
+    "documentary-voice-audition",
+    "first-documentary-production-trial",
+    "footage-live-verification",
+    "footage-provider-api-health",
+    "live-documentary-production-evidence",
+    "live-documentary-validation-${{ github.run_id }}",
+    "longform-mp4-${{ github.event.workflow_run.id }}",
+    "longform-mp4-${{ github.run_id }}",
+    "longform-private-release-${{ github.run_id }}",
+    "longform-qa-diagnostics-${{ github.event.workflow_run.id }}",
+    "longform-qa-diagnostics-${{ github.run_id }}",
+    "longform-review-${{ github.run_id }}",
+    "longform-review-package",
+    "news-review-mp4-issue-${{ inputs.issue_number }}",
+    "news-script-draft-${{ inputs.script_run_id }}",
+    "news-script-draft-issue-${{ github.event.issue.number }}",
+    "news-short-auto-${{ github.run_id }}",
+    "news-short-review-${{ github.run_id }}",
+    "news-visual-review-issue-${{ github.event.issue.number }}",
+    "news-visual-review-issue-${{ inputs.issue_number }}",
+    "offline-presenter-render-${{ matrix.gender }}",
+    "openvino-ltx-ai-video-review",
+    "private-release-${{ github.run_id }}",
+    "shorts-private-release-${{ github.run_id }}",
+    "shorts-review-${{ github.run_id }}",
+    "standard-shorts-review-${{ github.run_id }}",
+    "wan21-documentary-review",
+    "wan21-generated-clips"
+  ],
+  "immutable_files": {
+    ".github/workflows/archival-documentary-production-trial.yml": "35f163121b3ea985f6a417313245d6ce609c868b4049f1ccc5ca14e301ac5eee",
+    ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
+    ".github/workflows/avatar-studio-browser.yml": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
+    ".github/workflows/chernobyl-documentary-production.yml": "e36eaab335f184af7db83b229a0dfccb7dae17e9d06d256460acfaaf85ec5503",
+    ".github/workflows/daily-news-auto-short.yml": "94a87ea3a9ae999a5653775ab76569351db1d83da25e7fcea11d60315634a362",
+    ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
+    ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
+    ".github/workflows/daily-news-short-render.yml": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
+    ".github/workflows/daily-news-shorts.yml": "c161926460b0a6586dadafd9ed24ba2401e5864f45d6ec17951cf949660b3fde",
+    ".github/workflows/documentary-audit.yml": "0aea996b844b5e411b186867eff56715b12c78dd0ffad41ab84d76ff89548334",
+    ".github/workflows/documentary-e2e-smoke.yml": "32847c33716846f32eee9608b5e63a53c5cde804cb6cf14f1e2e571ea6204bc6",
+    ".github/workflows/documentary-voice-audition.yml": "4615133973cc5c3fe69c896b47f95f55ab99e2873e0a3847dcc9bd0da885b2c9",
+    ".github/workflows/export_documentary_review.yml": "ea2194738b6b423da76050e46ad3a19866d92956f0679a06783ba5e4603091a2",
+    ".github/workflows/first-documentary-production-trial.yml": "07dc424ab829af6b235e77f77d8b36443263b89ba30aa6dd47b37058fce538f9",
+    ".github/workflows/footage-live-verification.yml": "6435f55cd32595888c01068d78cfce6e63d58f4512cef7e490101599511d95c1",
+    ".github/workflows/footage-provider-api-health.yml": "754234a197b7adee0d278adea9240c4344a106d7360a78b52f6e6cffaac65c09",
+    ".github/workflows/footage-source-validation.yml": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
+    ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
+    ".github/workflows/live-documentary-production-validation.yml": "0f8d7a4f454766fa07f313ec67589517e39fd93aafdeac33d7516b5f2c6b31a5",
+    ".github/workflows/make_longform.yml": "4ab3190e9adc82d3e38e6b78c39352476bbe27db732cbd76e20c198da5bd6ae1",
+    ".github/workflows/make_shorts.yml": "e8ba119f4a4596288322725ec1b8c27a9809542e92a7675d72aa1bfd89e3171b",
+    ".github/workflows/manual-live-documentary-e2e.yml": "cd594ad97a67963ea1945c0ddf8064284be6b5cd815aac573bbd54f4d32e9a9c",
+    ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
+    ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
+    ".github/workflows/news-short-one-click.yml": "d04ec365323d86fbb5f82fb0ebdccdd601a487fae1a8b3929ae18b480355e30e",
+    ".github/workflows/news-short-review-render.yml": "82f34eb2d19cbdecf8e6c80be70b968f1aafadef7e8a8fb777a56e885575d610",
+    ".github/workflows/news-story-review.yml": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
+    ".github/workflows/news-visual-asset-review.yml": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
+    ".github/workflows/openvino-ltx-local-gpu.yml": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
+    ".github/workflows/release_documentary_auto.yml": "c99277a7699d145429ea51bf646d8cc4d8175a6b4c4b99e1e63ffc89e1599fe6",
+    ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
+    ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
+    ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
+    ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
+    ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
+    ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
+    ".github/live-documentary-e2e-v2-trigger.txt": "049477ad63fd6cbf4ffbc6e3e019d027537b82d0f3b70a7ecae279dcf7c4621f",
+    ".github/production-trial-trigger.txt": "88989b0ae05ee3b4fe821bb40dd9618b471a5739a5fb6ca850ab9c51f0fc35e6"
+  },
+  "monitored_files": {
+    "core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "core/analytics.py": "9f9f0f99a0d97b2ea61aea71dbb74ec3c24b9121f4309e56a48c56cd97de67d3",
+    "core/archival_images.py": "ff116db262f3638fc20356cdd4ae17c04f6049b11c1454037ee79373186cc84c",
+    "core/asset_licensing.py": "90effc0dfeb9eff6150bd3e82c681fb918460845f2ddcda4ced306da13fdfd6b",
+    "core/asset_manifest.py": "e7c7099f061db630e9dc5f1f0e97c85a0d08a8942ff2324a9ec2421d4c07fd4f",
+    "core/audio_quality.py": "7cf0191ecbb659e3be6dcc1277fc6b421050f85b294ae7b57626e4e6135ec898",
+    "core/avatar_clip_generation.py": "5b5e8dacff640c9f84abeff8d53517c1e13e8b5315abc25a338f9b7b6ac3db28",
+    "core/channel_profile.py": "8530bdb1f8f718782f9253f8ab965aeb66eb6dbc78d4998cf1220120ca050d53",
+    "core/cinematic_motion.py": "aa95e3d79ebbbc6d67319f9d0a6f6e3cdf87a5935614aec4f6b306b80cbc9738",
+    "core/cinematic_renderer.py": "acbf3004c11c5674a4178e6c295790b54e04305300ebb9342c1299c7b266bc80",
+    "core/cinematic_shot_planner.py": "c05d22bccf9f6e753745c9ad15995455a69466fda7da7911d884f523dc168b78",
+    "core/config.py": "7f585abbcd5a88f41679f6b1ebce336531e51eb8eb0f8821f0e3045d5c71dab7",
+    "core/content_lab.py": "51e52d57e7d7436756181b688108174b393d010ac0d6cd361ce483e7725f2f7f",
+    "core/content_qa.py": "3a0a2ce4a0d33a8b854a0d395dda71716b9239d40eca54fe0d800642c077a4d1",
+    "core/daily_news_pipeline.py": "09c5692fda86e97e809410a6bee6b74e09f922720495eef0016c985f69fb4531",
+    "core/db.py": "e6c2a4baa0ffeaae147cf44c996c06e6b9b4b1e2d18ae5897b33b0789a4c88f7",
+    "core/dedupe.py": "61e03294e6375abb4d266d0c63f6c150a38134d654048fe278077b356e202d1f",
+    "core/documentary_edl.py": "5c3ef0fdc729425a860d920d194294bccfea1981aa5f9d98abf3c875e39fcb4d",
+    "core/documentary_storyboard.py": "c9482d077fc7d42cb8bb853666cc012298d4f7e9f8428e11bc0575193b6efc25",
+    "core/downloads.py": "8df346e8b36dfb3db7848fb4793e1f3fc1de6baa1187ad5b8991cba6e4deb195",
+    "core/editor_longform.py": "b11067d76f4e9fe35f24e2e95a95fa391618e70c97d8b2acc1f3f231f8263547",
+    "core/editor_shorts.py": "531b20bf6d2836f0ca20f05fbb439c61ad5918762dcd5ba0753eea81f408fb13",
+    "core/editorial_review.py": "dcb41407416281a167ae0c9d38dccb9d51a40074bea0447ab9b3b0e41d11b3c5",
+    "core/explainer_cards.py": "49e0b126f9798550e9baa35d559db0df72236184fc3ee5d9c41afa71d1d43f1f",
+    "core/failure_category.py": "fa6e2ce61673d21e22abf699e77b5f53ba402ea33e4f29cf0800d9f66a3cb4d3",
+    "core/ffmpeg_utils.py": "84972bef8e54df0bcd79704f1c27d3f4346654379f846bb697580a184e5f5e7b",
+    "core/fonts.py": "60d80976685df8c50647a62d4a510672312f94701defeff33acab4f071202d58",
+    "core/footage_engine.py": "fab3756cb83b2d44689ee16e071e7926bb65893c25aff7ec5b9f9f58bd1ceb16",
+    "core/footage_licence.py": "6cc615071c80d27aca164c420f534ac8a45b6aebd6cdbe9e7c69ef4ef2b4a7f5",
+    "core/footage_report.py": "f998649be059339db3c8a9f763eddf03c2ae82ce352e55642b05c7bd24472f74",
+    "core/footage_sources.py": "0e5ad0e14a426ae7186290d2c7bbd60a1c89eb1b846aecfe078304b8fb6fcd8a",
+    "core/footage_validation.py": "d44307173da5b6f8865b98ecbc2dc1e5501671eaac74b12630fb9e6a4e7d4d9a",
+    "core/gemini.py": "5cd797a682f028c21b1fa5d93221c96fd79193fd6a0e31912f25a17e42056aae",
+    "core/graphic_scenes.py": "bc8f4785120bcc4f34c99120e4dfbbc9869061e00e2a0b178ef14498427cfe36",
+    "core/health.py": "d90e1e5a52b5e1166ee0afea5a9b9df961ebe2ca519cd16352907bfdab23fd52",
+    "core/images.py": "90d848c3ccb724cf51704185fdd39a63171ff0ff2f018320051888329374a9b3",
+    "core/jobs.py": "7042535a38391ae577c7c34539afa9caf6462013f3c8c15dae449615dae85c09",
+    "core/llm.py": "b96bfec4b28aa9b4fc713975d5edfb536f384727693ff45dd55edf5a2b5dc6e1",
+    "core/local_review.py": "9f44101baf7df488d69970c254ebc82641a426076018ed0ba559ceb1ef4c8972",
+    "core/monitoring.py": "6a2e8854e763a30367ffa44e69e7c6f497f878f657f07e51ff0a6f38f657a6a4",
+    "core/muapi_video.py": "b02ab5d936d5541d3eff88fa440e042a883eae9da0bc3f91d7e1b0bc7504af5d",
+    "core/news_auto.py": "224a65327fb1770e602fab3cae5c7ee326e413962aea7e2bfd7791ca59e954f8",
+    "core/news_editorial.py": "dc45a218e77624a756a41869bd0c5e01f0bccc954b0fce268afccdefd6ee02e1",
+    "core/news_private_release.py": "e4074878d0bbb372ff86c17f7d426786b23b1878f3078fd1a64a73e32d70fb6d",
+    "core/news_research.py": "3f445bbf71deba0d41ebf12f25984b25721a8dc07796b1d0308d4e8f73e1f106",
+    "core/news_semantic_qa.py": "7c47144060a61bf5c41140109118a82ee0cc985ca90761fd8896d20cf4b6b285",
+    "core/news_short_asset_provenance_qa.py": "0bd26e71947dfadb907458424497bf3d2d9ee8377360aa025fb0776dca5460b5",
+    "core/news_short_avatar.py": "187966efabd3a27f3a6e00dab22586f3c0892b91a3f09ceb61385c999a623646",
+    "core/news_short_caption_qa.py": "3598465a023cbcd0baaf8d45ccdad322f67d3519b4374640a2479e01a150d8eb",
+    "core/news_short_presenter_qa.py": "9c2c1aa0a9fe855014b7739deba6d51dc1ead6c936f59a0fa370923fb19e3119",
+    "core/news_short_production.py": "a5da2b0f76a19ca6e7e076e1a619ddc9553716dd232a7bf260bb0bccb4e065c7",
+    "core/news_short_scene_qa.py": "e4084c03ceb24a1482d387ae1bcc705e3caf498dbc9c8283a69c3225f1a03b41",
+    "core/news_shorts_writer.py": "87de99ecdc4aded0368d903f2458ce5c8d9c7f148df678d3e99e4dfb525f83f8",
+    "core/news_source_verification.py": "64ec355843f9fe87c49a3a594e3916746f5a2288214a86d7532358ed659b6875",
+    "core/notify.py": "5000eb5f68d54684c918073f7bead667644abf7adf9be1defb3874b6c14a8797",
+    "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
+    "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
+    "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
+    "core/pipeline.py": "c4806b28402985a86080fb52149294a55ae9301fb22e7c1e020214a66bb519dc",
+    "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
+    "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
+    "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
+    "core/publish.py": "afde7d409a4aa025a55c3a46b66baa0f228b1e1bb970e1b6e38492a3dbdcdb30",
+    "core/quality.py": "9b37de71136c318b0ff02f8bee2d19b81bd492636df7a2b50939da52209ba3a5",
+    "core/recovery.py": "eaae9cc1fb03c105f5865d10f8a7d5f4c34aed1c36beea8deba3fc0448c9bc04",
+    "core/release_certification.py": "f0c4d4fad26d1649f10d7e55fc3575fc161233a80114fd883b7b5f0ce9f742d2",
+    "core/release_gate.py": "fc0ceb166f6d7b612ad3cabc0d0e950479b847704f0f4e8e8e75fe8f415fbd93",
+    "core/render_join.py": "eb813a11cc367ef62566e86dd18ff0a8b64a203465a54198e0ad4b13f72702b8",
+    "core/research_verification.py": "84e3983ea03481f943fa8bca39775c53a28197fb1bac5f9859b83b5aba079d76",
+    "core/review_contract.py": "1180091ee8275df8fdaa04924630a5610137f7efc8ca0fff0488a0c9cae6b891",
+    "core/review_dashboard.py": "cf4245ee257e5f026d709269fa8ecd2b69d5c554ac53014ca5ba78dacee859e0",
+    "core/review_packaging.py": "a56bc462f6bc1f265cc1606b5d016cca5174059ef100e5dcff68972e307ed6c4",
+    "core/run_report.py": "94f344d7c9bd26f03cd929e693603386705d37107d0a636de7217c1758e99a3d",
+    "core/scheduler.py": "20a907f597f9c250e40d0b19b8f399d59750f3d86ad2bdb550aa6b12ecf4915a",
+    "core/script_engine.py": "1e1eb8bcbeef052818243fbc3ffebc41a8227ed2654d56569f65f054651d63c9",
+    "core/seo.py": "b6eb4380865119416bac1d5f29401d2dcc0debdd79753d584fbe679f479b102b",
+    "core/subtitle_translation.py": "cba515164614bfdb9e688072551c28287920850f675162cb7337f0053485e113",
+    "core/subtitles_export.py": "a612dd88a6de033b9543923df2331be6374a6d297adc2d8e36d416d7e1e93077",
+    "core/talking_avatar.py": "f5d1f09503b01765327578def9e2ca9dbd5738ee436f5b91434aaad1b1705d8e",
+    "core/thumbnail.py": "05fc16b7172610c83e5db19770db6abc23952eeebbfde02a805d376560d07b0d",
+    "core/timing.py": "df1033cf855d7faab632b905dc53794618f2915aafc351dd7803426eef846cab",
+    "core/topics.py": "f805ae349e75e8cff9bf03e17b0e7de2ce18e8f94bff6ed9959bd0e2905c9b62",
+    "core/uploader.py": "6f0012e52d1b03ff4120267b9c829c7b27521da125a2c413486e98f1cc04e818",
+    "core/visual_consistency.py": "6308e913f079e1d353047a5cdcfbdc6618d17d1d945fd35a0dd3ef093ee5a81f",
+    "core/visual_production.py": "814cda165f1033a285a660b734ff58f21eeb49ea571c59e9bc9fb38814a3fc0d",
+    "core/visual_semantics.py": "b0d835a54c1b77eb9c52bb9a49100718be2e045b7d902c68c70958e7a5e1c272",
+    "core/voice.py": "3caee720d2d90c992b3479ca6b4f35e350dc11355b0077c5b61cd71f66c3c88b",
+    "core/wan_timeline_adapter.py": "e94ad8165de8a0eb866f7ba0d5b98d52d80191f56cdd9b73e9659ddbaa8684fd",
+    "core/wikimedia_images.py": "42efe28f812e572acbe1ca56e251cee39024acb842f9b24418fec054257eae39",
+    "core/workflow_audit.py": "67e95cc953555624b25ef763e1728bd28504ffab9a3681b480d009b7b84671ce",
+    "scripts/alert_on_failure.py": "020c54750fb6e10f6e56314e73f07bd09d0b992bbcc5bdfc96838ae06147ca59",
+    "scripts/annotate_build_evidence.py": "de0025c66f49f8fd0ca5ff3b5db88b348ab74399726d59e7316f609393ff7706",
+    "scripts/apply_review_decisions.py": "7ab404e0eae5cc05d10fa7a6083b789af35c58dad8fa8945675d027c9d8ef5b8",
+    "scripts/attach_daily_news_assets.py": "72804883432fac62a0bd48e8a9be9043e6273d21ac1021556399431da1821883",
+    "scripts/audit_documentary.py": "70ee8406211ef87e1381100c72588c1bd789e47a108e76156081b5b994ad4e18",
+    "scripts/build_review_dashboard.py": "abdfb71e85ad6ddd26aba0aa5f170898502e7af2f6c6215d71646fdd65389ec0",
+    "scripts/build_with_recovery.py": "2f3f44ed6d6019893d3eba3f4192e7d03cefac34966b4da280fe4347929b9c33",
+    "scripts/certify_release.py": "94d0ea06e3f66b2c6180eb1682a121645c2a181cdad7d18388ae8e9e04496b7a",
+    "scripts/check_footage_sources_live.py": "5b34892304804ac5bdb9c6aa8f251d6679a88c0ebdfe1d8209a23d7929737010",
+    "scripts/check_presenter_clips.py": "92add93c4ce0a76c874d9649f2d286292e3799a03c0eb1786785ad66b91a2a52",
+    "scripts/collect_daily_news.py": "6a3b16a7b414b388cb9d58bd686ed86587deeb1fd29b171751844b60b8721589",
+    "scripts/create_voice_audition.py": "56fe4306daa1258445d04f459f61c75ebddd1e51fe74a1283cbc045ef8172069",
+    "scripts/documentary_topic_queue.py": "e3aeab6e3bf8a9966c45eee55e0f19c4267b68548d250ed253ec65765fe88e40",
+    "scripts/draft_reviewed_news_short.py": "840c8e47d17e0c8c6741252528f7fa252fc4ab9e7f61ebc62f1afa677f92d84f",
+    "scripts/generate_openvino_video.py": "9dec4941a1efe107444810c9fd880e40e07bc67e33c13bd17e9b70b6d1fe7829",
+    "scripts/import_wan_assets.py": "38721305a724ef0be2341e39dcd11a5dc2443d9b35d8abf74e36840a69c7185e",
+    "scripts/map_wan_assets_to_storyboard.py": "e083a30fa2c015a9fbb5a7c8db1655dfb502a3448ee58ac899aa9c7d298132ca",
+    "scripts/package_build_for_review.py": "d56f575dc496f09dfe86ea76149cddf83a3fe9666eca8f6d116cba13062f327f",
+    "scripts/package_daily_news_review.py": "273109db55684936e337d1380d489951184b71eaec4060749c535a1d9e63776f",
+    "scripts/package_longform_review.py": "567e420e0835b73980bcae52911834c31853ef450435c25bb2829b43e4632c83",
+    "scripts/package_standard_short_review.py": "950aba1506e1150903ded2212841ce3fb9acd46b0621f1bc833fb996c74c67c7",
+    "scripts/persist_state.py": "f55020d7ef2d80f79a6693bb507069227ac8217c0c07bf09e6d122e2f3bef175",
+    "scripts/prepare_news_short_assets.py": "18af4ce73a5e9237cc11aa44a194b7b2f5df3587e0daca398023c190f94b7dd4",
+    "scripts/qa_news_short.py": "5bf31449f906b282f9869b7cc176c96e10c08a0f683cd4133d2c245a03f05688",
+    "scripts/register_indian_archive_asset.py": "96af68e15cf951ffd9998afba6fa892fa38824580c8367572ae740ff3d948943",
+    "scripts/register_mixkit_asset.py": "827ef7984a3f827a4b43191d5dc79d79c25be65453ea2cbcc11240ed44fbbbef",
+    "scripts/release_review_package.py": "54040f5f5986ea2b134a7f8b243298e944616514cc70df7db388be1da085eb27",
+    "scripts/render_longform_script.py": "9019fe5e260911d1859bff079ce0b126a086335723d27698241baa6caf7d50a6",
+    "scripts/render_reviewed_news_short.py": "81e77b0d6321c30e6aba052382b878077674888b6bec54a50db3830686b7305b",
+    "scripts/render_standard_short_review.py": "ef66890cd365daf1fc2d72461489d30d87731e4cde09573cccef4c4cdf345b82",
+    "scripts/resolve_documentary_request.py": "edf0270402c2658b05f24624a031a9d53b013714f1191a6575c5a76051555435",
+    "scripts/run_daily_news_short.py": "4befb1a386eb7fa0aa2b542e7c468590440b0bbd0f9d43f9e73f8c48751ba2bb",
+    "scripts/upload_approved_news_short.py": "27bdcd91dabfcde7885650eba7fd20e7debda7d41106d6542c5ed5d873c1db16",
+    "scripts/upload_documentary_artifact.py": "bad73153757de8af9ec36e1d675c891320aa375ed8e09e642d9e02cb3a7f8586",
+    "scripts/validate_archival_video_e2e.py": "51c001398818ac341bfbcac7e95e4c1945931e88ec4109d11db3b5f0fceecfb5",
+    "scripts/validate_review_package.py": "9c4d7076a3d004a8c9e5595b5d9370dcff3640c23e7913e6cc57faa319389f56",
+    "scripts/verify_footage_providers.py": "9676632eea381ac90f9479fb3d606d065ddd777fa6f84583a1f6b51e098e7148",
+    "scripts/verify_rendered_media.py": "832d0c44a70f9f567031cc757c9c859795daebc71c76a6c398c8b8620390bacd",
+    "scripts/verify_source_run.py": "49f809c7f59f2458e02d05bff09008fd8a036b9409d6aa2e27e69ea702071d53",
+    "scripts/write_job_summary.py": "789d0d2409bb4f458aef11ccfba4ff9c0c5d8d217959fbae3df6a0b2e0f559eb",
+    "tests/footage_fake_web.py": "dcd9233bf777284ef66dde26f0150ed613603386b5cec531832749d442504480",
+    "tests/footage_fixture.py": "81e51a90378745c9ead0f5ce8474ff1dbe23b31b437f9e3d5daab7aa8dbebdab",
+    "src/__init__.py": "cada6f619d324bd286ea5aa3dc9bca53a33420d6d8e4a8296f5c7ede2ce8fb55",
+    "src/production_v2/__init__.py": "4c5fad6fe492aa5735aef15dfd4fcdf3cd87df3f9d6da8c72bc1c327bd9297b2",
+    "src/production_v2/artifacts.py": "80582ed530732b06521c1aa0f83834c3bf40d22047f0d750b28a6d7e366f5cf8",
+    "src/production_v2/audio.py": "97ec67925d97b8f8acde9e71bf1ae01fb891e8a4c6478720f855b7fee6ef8e76",
+    "src/production_v2/checkpoints.py": "c273685a6d92d2475dc4307bcec75972de738a06360f548548a2e868f85549d1",
+    "src/production_v2/cli.py": "b1b7030c75814772d6aaa92bdf9b97b9c2f352b9afa58b9a0a68fbb8526ee4c6",
+    "src/production_v2/config.py": "c880a847af4fb5ace585cacf5f075541dcca7486a81dbac9464d12f1592063a5",
+    "src/production_v2/deps.py": "d9e6521f81a9c306bd6cd3a3cddc1d264034fa0b27647abe89246c6201f84ca4",
+    "src/production_v2/editor.py": "e437863bccd9ed9a24f9dd9a4f057eff1e9553d9369580183d1cfc3fdb9c9e50",
+    "src/production_v2/errors.py": "aec3f8403525ce10118df04d59ba2dd3bc99e95cb95205594b1fb0fc5f603514",
+    "src/production_v2/ffmpeg_io.py": "cbbd24ba4e322a27071a95d7fd5f06f8c35d8b57ef759eb8d3d9dcd829490247",
+    "src/production_v2/licenses.py": "dbd2998ff84ef0b0dd991211c2504347889a4a98ae661dae0c7b3ef2ebedd4fe",
+    "src/production_v2/logging.py": "a928cb834d8cd489c3d027beb0b082a643d2e046670f2f99529e7c0a5d014d34",
+    "src/production_v2/models.py": "697d2f99119e32516d066941b12e8842f046dbdba5fd78d876a9bed021d7c75d",
+    "src/production_v2/narration.py": "6c1fc538fd46529c681c3ce315aea2aa9f28868d8220f344e0218648d4ea071c",
+    "src/production_v2/notify.py": "a31fb0e7c35cc182dfccda7fefe42d47134c0085712ee2ab209037670963f2d9",
+    "src/production_v2/pipeline.py": "3c9b513272e4527b9032f9245c13aba180df20a4eb5fc73d7190a3648eb051e2",
+    "src/production_v2/publishing.py": "4637eec48a485df68c974aa7fa1078e4badbcc288da63a7604caf2b2acadd035",
+    "src/production_v2/qa.py": "b55906242d6b39791dc3064bd86b97d0a20325099fd4b5b60d7f47bdfb291c67",
+    "src/production_v2/research.py": "d941215df89a1232263cca5e5105dc748696ff6f7a18554d78966d527e239889",
+    "src/production_v2/retry.py": "ba5f9a7ebcfa3b513c33b336e323f234d515409dcc7c3447ef5bbe4fe8071dc7",
+    "src/production_v2/script_engine.py": "67dcf76ce034a87afd4443526bedb18cd02f7c7d6701e73649aca71a03123a07",
+    "src/production_v2/subtitles.py": "7e2a1ff3f50a6da60594ed1b7bf6a084ddfcfa3e5d15544df988fba9dfc8e94d",
+    "src/production_v2/topics.py": "0a9283bc02f432d6541b91a0e017c2ccd8178bccab31f457ac6723e68e0792f6",
+    "src/production_v2/visuals.py": "7d4186bae1bf7a234a4760d99aee32e20e46288fc3f5326acfc86fc2f71c5bc6",
+    "run.py": "8a5c52df91697615097f9ecd481902fef9f2618d8fc56a1567b7c0e2741e78c1",
+    "run_daily.py": "7827aab6ee0897a93763c6d58fef6b3098ec4b3019b4a64f35f6b6c755105599",
+    "get_refresh_tokens.py": "e261ca10c940d44b7c9e0cf2e2f0bd252c5df5ff22469c3eb44decce569ad88a",
+    "dashboard.py": "ee54cd1e574f36fc3ecf6f03f88c08bf0a2ff94c387270da76ff8f842e173b50",
+    "requirements.txt": "cf107cea25264dd842f897cb03f5b2c078fa8e57d8319379fd2a944dc26f570f",
+    "requirements-ci.txt": "5b221aaf63eb039a3602a2c6be065c8288c3c3c0d6ff3c5f63bb1172cce79871",
+    "requirements-dev.txt": "e7a5c23e17802cb658ee5402f46b386a65b6a21ac1fac6f7d04efeb50bc39b6b",
+    "schemas/production-manifest-v1.schema.json": "21bcb26a4f6d6fee7c51d103d95b8ef710864dc77608ffed7df806b645556490",
+    "schemas/production-manifest-v2.schema.json": "ae3f9eb66b8ff7d574bfec2a5ce9dec08a0fcb01ea185fe8a0c43f63200e13e5",
+    "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
+    "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
+    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb"
+  },
+  "workflows": {
+    "archival-documentary-production-trial.yml": {
+      "sha256": "35f163121b3ea985f6a417313245d6ce609c868b4049f1ccc5ca14e301ac5eee",
+      "display_name": "⚙ Internal — Archival documentary production trial",
+      "on_sha256": "e835a7194214cf1bec3d3088b7cde97353c2ac1ce3699b9dbe8a84f41f0ca088",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "topic": {
+          "default": "Apollo 11: The Mission That Took Humanity to the Moon",
+          "description": "Documentary title/topic",
+          "required": "true",
+          "type": "string"
+        },
+        "category": {
+          "default": "science",
+          "description": "Documentary category",
+          "required": "true",
+          "type": "choice",
+          "options": [
+            "history",
+            "science",
+            "technology",
+            "india",
+            "geopolitics"
+          ]
+        },
+        "minutes": {
+          "default": "10",
+          "description": "Target runtime",
+          "required": "true",
+          "type": "choice",
+          "options": [
+            "10",
+            "12",
+            "15"
+          ]
+        },
+        "archival_query": {
+          "default": "Apollo 11 Saturn V launch 1969 NASA mission footage",
+          "description": "Specific archive-video search phrase",
+          "required": "true",
+          "type": "string"
+        },
+        "period": {
+          "default": "1969",
+          "description": "Historical period to compare against the archive record",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "NARA_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL"
+      ],
+      "artifact_names": [
+        "archival-documentary-production-trial"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-node@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "300"
+      ],
+      "privacy_lines": [
+        "PRIVACY: private"
+      ],
+      "upload_lines": []
+    },
+    "archival-video-e2e-validation.yml": {
+      "sha256": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
+      "display_name": "⚙ Internal — Archival video end-to-end validation",
+      "on_sha256": "767e20b9f3c10e5d7f728b9b3f0de43d2f169894524ac279c4534204aae17dc2",
+      "triggers": [
+        "workflow_dispatch",
+        "pull_request"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "query": {
+          "default": "Chernobyl 1986 evacuation newsreel",
+          "description": "Specific historical subject/event to search",
+          "required": "true",
+          "type": "string"
+        },
+        "period": {
+          "default": "1986",
+          "description": "Requested period to compare against the archive record",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "archival-video-e2e-evidence"
+      ],
+      "actions": [
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "25"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "avatar-studio-browser.yml": {
+      "sha256": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
+      "display_name": "avatar-studio-browser-test",
+      "on_sha256": "0abea898eab6164d317e523aefdc120bc81bf398c48d06fd1ad7ae90ec852b21",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch",
+        "push"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "avatar-studio-browser-test-results",
+        "offline-presenter-render-${{ matrix.gender }}"
+      ],
+      "actions": [
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "15",
+        "45"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "chernobyl-documentary-production.yml": {
+      "sha256": "e36eaab335f184af7db83b229a0dfccb7dae17e9d06d256460acfaaf85ec5503",
+      "display_name": "⚙ Internal — Chernobyl documentary — professional review render",
+      "on_sha256": "617eb8e8d18ee0a0777a4e5e8cf17185d8d4b11807faada731332eef044836c9",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "minutes": {
+          "default": "10",
+          "description": "Target documentary runtime",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "GITHUB_TOKEN",
+        "NARA_API_KEY",
+        "NASA_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL"
+      ],
+      "artifact_names": [
+        "archival-video-e2e-evidence",
+        "chernobyl-documentary-review-copy"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/download-artifact@v8",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "300"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "daily-news-auto-short.yml": {
+      "sha256": "94a87ea3a9ae999a5653775ab76569351db1d83da25e7fcea11d60315634a362",
+      "display_name": "Daily news Short — automatic PRIVATE release",
+      "on_sha256": "3f7c51b1ad35af2dd13e9f8fdb1e71512414f1cd5e997696dc782a4de531b085",
+      "triggers": [
+        "workflow_dispatch",
+        "schedule"
+      ],
+      "schedules": [
+        "45 2 * * *",
+        "45 13 * * *"
+      ],
+      "dispatch_inputs": {
+        "language": {
+          "default": "hinglish",
+          "description": "Narration language",
+          "type": "choice",
+          "options": [
+            "english",
+            "hinglish",
+            "hindi"
+          ]
+        }
+      },
+      "secrets": [
+        "CEREBRAS_API_KEY",
+        "COVERR_API_KEY",
+        "DISCORD_WEBHOOK_URL",
+        "DVIDS_API_KEY",
+        "DVIDS_API_REFERER",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEY",
+        "MISTRAL_API_KEY",
+        "NARA_API_KEY",
+        "OPENROUTER_API_KEY",
+        "OPENVERSE_CLIENT_ID",
+        "OPENVERSE_CLIENT_SECRET",
+        "PIXABAY_API_KEY",
+        "SLACK_WEBHOOK_URL",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "YOUTUBE_API_KEY",
+        "YOUTUBE_DATA_API_KEY",
+        "YT_API_KEY",
+        "YT_CLIENT_ID",
+        "YT_CLIENT_SECRET",
+        "YT_REFRESH_TOKEN"
+      ],
+      "variables": [
+        "BUILD_RECOVERY_ATTEMPTS",
+        "FOOTAGE_CONTACT",
+        "YT_CHANNEL_HANDLE",
+        "YT_CHANNEL_ID"
+      ],
+      "artifact_names": [
+        "news-short-auto-${{ github.run_id }}"
+      ],
+      "actions": [],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "45"
+      ],
+      "privacy_lines": [
+        "ALLOW_PUBLIC_PUBLISH: \"0\"",
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": [
+        "python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload"
+      ]
+    },
+    "daily-news-short-artifact-render.yml": {
+      "sha256": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
+      "display_name": "⚙ Internal — Daily news Short — artifact handoff render",
+      "on_sha256": "a6b41edf65865f3b1e7f88f71effde6b419da24dc5e467d03e764efa58e619b0",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "approved_script_path": {
+          "description": "Repository path to the human-approved script JSON",
+          "required": "true",
+          "type": "string"
+        },
+        "approval_path": {
+          "description": "Repository path to approval JSON with six human sign-offs",
+          "required": "true",
+          "type": "string"
+        },
+        "asset_run_id": {
+          "description": "Run ID of the successful daily-news asset-preparation workflow",
+          "required": "true",
+          "type": "string"
+        },
+        "issue_number": {
+          "description": "Story issue number whose visual-review artifact belongs to asset_run_id",
+          "required": "true",
+          "type": "string"
+        },
+        "language": {
+          "default": "english",
+          "description": "Narration and subtitle language",
+          "required": "true",
+          "type": "choice"
+        },
+        "voice_gender": {
+          "default": "male",
+          "description": "Narration voice",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [
+        "GITHUB_TOKEN"
+      ],
+      "variables": [],
+      "artifact_names": [
+        "${{ steps.asset-source.outputs.artifact_name }}",
+        "daily-news-short-review-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/github-script@v9",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "daily-news-short-asset-prep.yml": {
+      "sha256": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
+      "display_name": "⚙ Internal — Daily news Short — prepare visual review artifact",
+      "on_sha256": "7509486cdd379488bfc9a74c96cdc2cf31a247c002ed7ec90f7eb96fde9f649b",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "script_run_id": {
+          "description": "Run ID of the successful News script draft workflow that contains both reviewed JSON files",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [
+        "COVERR_API_KEY",
+        "GITHUB_TOKEN",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [],
+      "artifact_names": [
+        "daily-news-assets-${{ github.run_id }}",
+        "news-script-draft-${{ inputs.script_run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "daily-news-short-render.yml": {
+      "sha256": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
+      "display_name": "⚙ Internal — Daily news Short — approved render review",
+      "on_sha256": "6f363e8aa6f13b93888bba6c46390b396ef02107c77c19b8254087050f036746",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "script_path": {
+          "description": "Repository path to the human-approved script JSON (4–6 scenes)",
+          "required": "true",
+          "type": "string"
+        },
+        "approval_path": {
+          "description": "Repository path to the separate production approval JSON",
+          "required": "true",
+          "type": "string"
+        },
+        "language": {
+          "default": "english",
+          "description": "Narration and subtitle language",
+          "required": "true",
+          "type": "choice"
+        },
+        "voice_gender": {
+          "default": "male",
+          "description": "Narration voice",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "daily-news-short-review-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "daily-news-shorts.yml": {
+      "sha256": "c161926460b0a6586dadafd9ed24ba2401e5864f45d6ec17951cf949660b3fde",
+      "display_name": "Daily news Shorts — research queue",
+      "on_sha256": "068a4efdf135a049ae470c1a431cd451ee8b535735ac44c495d059523c12e822",
+      "triggers": [
+        "schedule",
+        "workflow_dispatch"
+      ],
+      "schedules": [
+        "30 2 * * *",
+        "30 13 * * *"
+      ],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "daily-news-candidates-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "15"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "documentary-audit.yml": {
+      "sha256": "0aea996b844b5e411b186867eff56715b12c78dd0ffad41ab84d76ff89548334",
+      "display_name": "⚙ Internal — Documentary workflow audit tests",
+      "on_sha256": "118923602a4849976f3472efe3e36701d88e27a2700da86fd0352263bd7f6b3b",
+      "triggers": [
+        "workflow_dispatch",
+        "push",
+        "pull_request"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "10"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "documentary-e2e-smoke.yml": {
+      "sha256": "32847c33716846f32eee9608b5e63a53c5cde804cb6cf14f1e2e571ea6204bc6",
+      "display_name": "⚙ Internal — Documentary end-to-end smoke test",
+      "on_sha256": "b87d7d8bcff6b5b8918b3d34ccf4ec0ce0fb6009827dbcdda9fe4388372d7d1d",
+      "triggers": [
+        "workflow_dispatch",
+        "pull_request"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "documentary-e2e-smoke-evidence"
+      ],
+      "actions": [
+        "FedericoCarboni/setup-ffmpeg@v3",
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "15"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "documentary-voice-audition.yml": {
+      "sha256": "4615133973cc5c3fe69c896b47f95f55ab99e2873e0a3847dcc9bd0da885b2c9",
+      "display_name": "⚙ Internal — Documentary narration voice audition",
+      "on_sha256": "e57b5d3d2f9c79e5149849dca1b4a7b3f4bef4186d4585424f582c4ab281e9ca",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "documentary-voice-audition"
+      ],
+      "actions": [
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "20"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "export_documentary_review.yml": {
+      "sha256": "ea2194738b6b423da76050e46ad3a19866d92956f0679a06783ba5e4603091a2",
+      "display_name": "Export compact documentary review dashboard",
+      "on_sha256": "6823cc3f2765f8e61a93c2021480d6fca5caca2dcdd588dc1dc32adc61cc412c",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "source_run_id": {
+          "description": "Successful documentary build run ID (the run that produced the reviewed video)",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [
+        "GITHUB_TOKEN"
+      ],
+      "variables": [],
+      "artifact_names": [
+        "compact-review-export-${{ inputs.source_run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "45"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "first-documentary-production-trial.yml": {
+      "sha256": "07dc424ab829af6b235e77f77d8b36443263b89ba30aa6dd47b37058fce538f9",
+      "display_name": "⚙ Internal — First documentary production trial",
+      "on_sha256": "d9dde2fdb974e5b1a16e88a769205f4473880e9db05ae49c05467554db2e2fd3",
+      "triggers": [
+        "workflow_dispatch",
+        "push"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL"
+      ],
+      "artifact_names": [
+        "first-documentary-production-trial"
+      ],
+      "actions": [
+        "actions/cache@v6",
+        "actions/checkout@v7",
+        "actions/setup-node@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "180"
+      ],
+      "privacy_lines": [
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": []
+    },
+    "footage-live-verification.yml": {
+      "sha256": "6435f55cd32595888c01068d78cfce6e63d58f4512cef7e490101599511d95c1",
+      "display_name": "⚙ Internal — Live footage provider verification (search, download, ffprobe)",
+      "on_sha256": "5c210f318a9410feecf2a894df7c4bcb304bfef7bc72f495958c47385052a011",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "providers": {
+          "default": "",
+          "description": "Comma-separated provider names; leave empty for all",
+          "required": "false"
+        },
+        "topic": {
+          "default": "",
+          "description": "Optional search phrase tried first for every provider",
+          "required": "false"
+        },
+        "min_verified": {
+          "default": "1",
+          "description": "Fail unless at least this many providers are LIVE-VERIFIED",
+          "required": "false"
+        },
+        "strict": {
+          "default": "false",
+          "description": "Fail if any provider that has a key configured is not LIVE-VERIFIED",
+          "required": "false",
+          "type": "boolean"
+        },
+        "selection": {
+          "default": "true",
+          "description": "Also run a six-scene selection to measure provider diversity",
+          "required": "false",
+          "type": "boolean"
+        }
+      },
+      "secrets": [
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER"
+      ],
+      "artifact_names": [
+        "footage-live-verification"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "45"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "footage-provider-api-health.yml": {
+      "sha256": "754234a197b7adee0d278adea9240c4344a106d7360a78b52f6e6cffaac65c09",
+      "display_name": "⚙ Internal — Live footage provider API health audit",
+      "on_sha256": "563ba4ca64716e0397cb8133757176ee9a7a9c46de8bd777c44379af857faee0",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER"
+      ],
+      "artifact_names": [
+        "footage-provider-api-health"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "20"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "footage-source-validation.yml": {
+      "sha256": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
+      "display_name": "⚙ Internal — Documentary footage source validation",
+      "on_sha256": "a8310ac82851c391f71d0157de615b4f269b1d247a11db6ed148cb16ac40cf20",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER"
+      ],
+      "artifact_names": [],
+      "actions": [],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "20"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "kaggle-wan-video-worker.yml": {
+      "sha256": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
+      "display_name": "⚙ Internal — Kaggle Wan2.1 free GPU video worker",
+      "on_sha256": "2500d47a98e03c0922e1abd9f536d0b0fc17951b65d2851f0b5e6fcdc67f877c",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "prompt": {
+          "description": "Cinematic scene prompt",
+          "required": "false",
+          "type": "string"
+        },
+        "scene_manifest": {
+          "description": "Optional JSON array of up to four scenes with id, title, and prompt",
+          "required": "false",
+          "type": "string"
+        },
+        "size": {
+          "default": "480*832",
+          "description": "Output orientation and resolution",
+          "required": "true",
+          "type": "choice",
+          "options": [
+            "480*832",
+            "832*480"
+          ]
+        },
+        "frame_num": {
+          "default": "9",
+          "description": "Frame count (must be 4n+1)",
+          "required": "true",
+          "type": "choice",
+          "options": [
+            "9",
+            "17",
+            "33"
+          ]
+        },
+        "sample_steps": {
+          "default": "8",
+          "description": "Denoising steps",
+          "required": "true",
+          "type": "choice",
+          "options": [
+            "8",
+            "12"
+          ]
+        }
+      },
+      "secrets": [
+        "KAGGLE_API_TOKEN",
+        "KAGGLE_KEY",
+        "KAGGLE_USERNAME"
+      ],
+      "variables": [
+        "KAGGLE_KERNEL_SLUG"
+      ],
+      "artifact_names": [
+        "wan21-generated-clips"
+      ],
+      "actions": [
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "360"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "live-documentary-production-validation.yml": {
+      "sha256": "0f8d7a4f454766fa07f313ec67589517e39fd93aafdeac33d7516b5f2c6b31a5",
+      "display_name": "⚙ Internal — Live documentary production validation (current main)",
+      "on_sha256": "14a7a2d5c02c3397689846c5e6322806e7cc9eaa845bf9d187eba6a1b358be85",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL"
+      ],
+      "artifact_names": [
+        "live-documentary-production-evidence"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "240"
+      ],
+      "privacy_lines": [
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": []
+    },
+    "make_longform.yml": {
+      "sha256": "4ab3190e9adc82d3e38e6b78c39352476bbe27db732cbd76e20c198da5bd6ae1",
+      "display_name": "2. Build a Documentary — automatic PRIVATE release",
+      "on_sha256": "eb0b9bf4a185b3815b14dbac55e78943e503c52236bff65b767fd4280779efd4",
+      "triggers": [
+        "workflow_dispatch",
+        "schedule",
+        "pull_request"
+      ],
+      "schedules": [
+        "0 13 * * 0"
+      ],
+      "dispatch_inputs": {
+        "topic": {
+          "description": "Video topic",
+          "required": "true"
+        },
+        "category": {
+          "default": "auto",
+          "description": "Category (auto detects from any topic, or enter your own)",
+          "required": "false",
+          "type": "string"
+        },
+        "semantic_review": {
+          "default": "true",
+          "description": "Use Gemini vision to screen sampled shots against narration (extra model usage)",
+          "required": "true",
+          "type": "boolean"
+        },
+        "minutes": {
+          "default": "22",
+          "description": "Target length in minutes",
+          "type": "choice",
+          "options": [
+            "18",
+            "20",
+            "22",
+            "25",
+            "28",
+            "30"
+          ]
+        },
+        "language": {
+          "default": "hinglish",
+          "description": "Narration language (subtitles are always English)",
+          "type": "choice",
+          "options": [
+            "hinglish",
+            "hindi",
+            "english"
+          ]
+        },
+        "channel_profile": {
+          "default": "beyond_science",
+          "description": "Editorial profile for this build",
+          "type": "choice",
+          "options": [
+            "beyond_science",
+            "standard"
+          ]
+        },
+        "voice_gender": {
+          "default": "male",
+          "description": "Narration voice and matching presenter portrait",
+          "type": "choice",
+          "options": [
+            "male",
+            "female"
+          ]
+        },
+        "presenter_mode": {
+          "default": "talking_avatar_auto",
+          "description": "Presenter animation (auto 3D avatar renders each chapter opening from its narration)",
+          "type": "choice",
+          "options": [
+            "talking_avatar_auto",
+            "talking_avatar",
+            "sadtalker",
+            "still_cpu",
+            "off"
+          ]
+        },
+        "visual_mode": {
+          "default": "video_first",
+          "description": "Long-form B-roll source preference",
+          "type": "choice",
+          "options": [
+            "video_first",
+            "image_first"
+          ]
+        }
+      },
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "COVERR_API_KEY",
+        "DISCORD_WEBHOOK_URL",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY",
+        "SLACK_WEBHOOK_URL",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "YT_CLIENT_ID",
+        "YT_CLIENT_SECRET",
+        "YT_REFRESH_TOKEN"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS_LONGFORM",
+        "GEMINI_MODEL_LONGFORM",
+        "YT_CHANNEL_HANDLE",
+        "YT_CHANNEL_ID"
+      ],
+      "artifact_names": [
+        "longform-mp4-${{ github.run_id }}",
+        "longform-private-release-${{ github.run_id }}",
+        "longform-qa-diagnostics-${{ github.run_id }}",
+        "longform-review-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/setup-node@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "360",
+        "5",
+        "90"
+      ],
+      "privacy_lines": [
+        "ALLOW_PUBLIC_PUBLISH: \"0\"",
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": [
+        "python scripts/upload_documentary_artifact.py \\"
+      ]
+    },
+    "make_shorts.yml": {
+      "sha256": "e8ba119f4a4596288322725ec1b8c27a9809542e92a7675d72aa1bfd89e3171b",
+      "display_name": "1. Daily general Shorts — build and package",
+      "on_sha256": "7d7e8c0779f31d83983dab944389ed96efe97b586360f93333108f0fafe0fded",
+      "triggers": [
+        "workflow_dispatch",
+        "schedule"
+      ],
+      "schedules": [
+        "30 3 * * *"
+      ],
+      "dispatch_inputs": {
+        "topic": {
+          "default": "",
+          "description": "Video topic (leave blank to pick the next unused topic automatically)",
+          "required": "false"
+        },
+        "category": {
+          "default": "physics",
+          "description": "Category (used only with a custom topic)",
+          "type": "choice",
+          "options": [
+            "physics",
+            "engineering",
+            "technology",
+            "science",
+            "finance",
+            "markets",
+            "money",
+            "power",
+            "human",
+            "geopolitics",
+            "history",
+            "economics",
+            "international_relations",
+            "india",
+            "world_affairs"
+          ]
+        },
+        "channel_profile": {
+          "default": "beyond_science",
+          "description": "Editorial profile for manually requested Shorts",
+          "type": "choice",
+          "options": [
+            "beyond_science",
+            "standard"
+          ]
+        },
+        "language": {
+          "default": "english",
+          "description": "Voice and subtitle language",
+          "type": "choice",
+          "options": [
+            "english",
+            "hinglish",
+            "hindi"
+          ]
+        },
+        "upload": {
+          "default": "true",
+          "description": "Automatically upload the generated Short to YouTube as PRIVATE after strict machine QA passes",
+          "type": "boolean"
+        },
+        "force": {
+          "default": "false",
+          "description": "Build even if this topic was already produced",
+          "type": "boolean"
+        }
+      },
+      "secrets": [
+        "CEREBRAS_API_KEY",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "DISCORD_WEBHOOK_URL",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEY",
+        "MISTRAL_API_KEY",
+        "OPENROUTER_API_KEY",
+        "PIXABAY_API_KEY",
+        "SLACK_WEBHOOK_URL",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "YT_CLIENT_ID",
+        "YT_CLIENT_SECRET",
+        "YT_REFRESH_TOKEN"
+      ],
+      "variables": [
+        "BUILD_RECOVERY_ATTEMPTS",
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL",
+        "YT_CHANNEL_HANDLE",
+        "YT_CHANNEL_ID"
+      ],
+      "artifact_names": [
+        "shorts-private-release-${{ github.run_id }}",
+        "shorts-review-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "45",
+        "60"
+      ],
+      "privacy_lines": [
+        "ALLOW_PUBLIC_PUBLISH: \"0\"",
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": [
+        "run: python run_daily.py --format shorts --upload-latest --auto-private-release"
+      ]
+    },
+    "manual-live-documentary-e2e.yml": {
+      "sha256": "cd594ad97a67963ea1945c0ddf8064284be6b5cd815aac573bbd54f4d32e9a9c",
+      "display_name": "⚙ Internal — Manual live documentary end-to-end validation",
+      "on_sha256": "95a3979e050f4efb9960ad14532f2a100ba4b101f98ba7cf857a29eaa140bf0f",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "topic": {
+          "default": "The Mystery of India's Disappearing Villages",
+          "description": "Documentary topic",
+          "required": "true",
+          "type": "string"
+        },
+        "category": {
+          "default": "india",
+          "description": "Content category",
+          "required": "true",
+          "type": "string"
+        },
+        "minutes": {
+          "default": "10",
+          "description": "Target runtime (10–15 minutes)",
+          "required": "true",
+          "type": "choice"
+        },
+        "language": {
+          "default": "hinglish",
+          "description": "Narration language",
+          "required": "true",
+          "type": "choice"
+        },
+        "voice_gender": {
+          "default": "female",
+          "description": "Narrator voice",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS_LONGFORM",
+        "GEMINI_MODEL_LONGFORM"
+      ],
+      "artifact_names": [
+        "live-documentary-validation-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-node@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "300"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "manual-youtube-private-upload.yml": {
+      "sha256": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
+      "display_name": "RETIRED: use 'Release approved documentary (Private)'",
+      "on_sha256": "e57b5d3d2f9c79e5149849dca1b4a7b3f4bef4186d4585424f582c4ab281e9ca",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [],
+      "actions": [],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "2"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "news-script-draft.yml": {
+      "sha256": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
+      "display_name": "News script draft — human approval required",
+      "on_sha256": "2e8efa666981248e2658f42966a03479df397e1db704920a7d998b9df36cb63e",
+      "triggers": [
+        "issue_comment"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "GEMINI_API_KEY"
+      ],
+      "variables": [
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL"
+      ],
+      "artifact_names": [
+        "news-script-draft-issue-${{ github.event.issue.number }}"
+      ],
+      "actions": [
+        "actions/github-script@v9",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "20"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "news-short-one-click.yml": {
+      "sha256": "d04ec365323d86fbb5f82fb0ebdccdd601a487fae1a8b3929ae18b480355e30e",
+      "display_name": "⚙ Internal — News Short review-package builder",
+      "on_sha256": "be4e8d689b06122f50c33bc9f268b68d3b6d245870bb161f583469d2ab4ca7ce",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "issue_number": {
+          "description": "Approved news story issue number (for example 46)",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [
+        "COVERR_API_KEY",
+        "GEMINI_API_KEY",
+        "PIXABAY_API_KEY",
+        "REPLICATE_API_TOKEN"
+      ],
+      "variables": [
+        "GEMINI_FALLBACK_MODELS",
+        "GEMINI_MODEL",
+        "REPLICATE_VIDEO_MODEL"
+      ],
+      "artifact_names": [
+        "news-short-review-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/github-script@v9",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "news-short-review-render.yml": {
+      "sha256": "82f34eb2d19cbdecf8e6c80be70b968f1aafadef7e8a8fb777a56e885575d610",
+      "display_name": "⚙ Internal — Render approved news Short — review MP4 only",
+      "on_sha256": "17d6de30b79122289c76fb1b943ffd7cc523e77ab60423bc0d37a31a4b1bcb61",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "issue_number": {
+          "description": "Open News story review issue number",
+          "required": "true",
+          "type": "number"
+        },
+        "visual_run_id": {
+          "description": "Successful visual-review workflow run ID",
+          "required": "true",
+          "type": "string"
+        },
+        "confirmation": {
+          "description": "Type exactly: I approve a review-only MP4 render",
+          "required": "true",
+          "type": "string"
+        },
+        "presenter_gender": {
+          "description": "3D news presenter",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [
+        "GITHUB_TOKEN"
+      ],
+      "variables": [],
+      "artifact_names": [
+        "news-review-mp4-issue-${{ inputs.issue_number }}",
+        "news-visual-review-issue-${{ inputs.issue_number }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/github-script@v9",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "45"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "news-story-review.yml": {
+      "sha256": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
+      "display_name": "⚙ Internal — News story approval — create review request",
+      "on_sha256": "f70cbf3d25768b38993eb94f0b8e32d5595bcec5312d9c495d887850d24e9e30",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "story_id": {
+          "description": "Candidate ID from latest_candidates.json",
+          "required": "true",
+          "type": "string"
+        },
+        "title": {
+          "description": "Exact candidate headline",
+          "required": "true",
+          "type": "string"
+        },
+        "source_url": {
+          "description": "Original source URL",
+          "required": "true",
+          "type": "string"
+        },
+        "publisher": {
+          "description": "Publisher name",
+          "required": "true",
+          "type": "string"
+        },
+        "published": {
+          "description": "Original publication time in ISO-8601, e.g. 2026-10-28T23:11:59Z",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [],
+      "actions": [
+        "actions/github-script@v9"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "5"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "news-visual-asset-review.yml": {
+      "sha256": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
+      "display_name": "News Short visual asset preparation — human review required",
+      "on_sha256": "2e8efa666981248e2658f42966a03479df397e1db704920a7d998b9df36cb63e",
+      "triggers": [
+        "issue_comment"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "COVERR_API_KEY",
+        "GITHUB_TOKEN",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [],
+      "artifact_names": [
+        "news-script-draft-issue-${{ github.event.issue.number }}",
+        "news-visual-review-issue-${{ github.event.issue.number }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/github-script@v9",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "50"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "openvino-ltx-local-gpu.yml": {
+      "sha256": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
+      "display_name": "⚙ Internal — Free local AI video generation — Intel Iris Xe",
+      "on_sha256": "0d90eabf8f5e33352fde281292dbce20c35f1ce69ecc92a1e1c423fa3e9dced6",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "prompt": {
+          "description": "Cinematic scene prompt",
+          "required": "true",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "9:16",
+          "description": "Output composition",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "openvino-ltx-ai-video-review"
+      ],
+      "actions": [
+        "actions/checkout@v4",
+        "actions/upload-artifact@v4"
+      ],
+      "runs_on": [
+        "[self-hosted, Windows, X64, intel-iris-xe]"
+      ],
+      "timeout_minutes": [
+        "300",
+        "360"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "release_documentary_auto.yml": {
+      "sha256": "c99277a7699d145429ea51bf646d8cc4d8175a6b4c4b99e1e63ffc89e1599fe6",
+      "display_name": "Release documentary automatically (Private)",
+      "on_sha256": "474740ecc0e3458cbfdeab4b19083c844e2647a3e531ba58d371651281c02c33",
+      "triggers": [
+        "workflow_run"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "DISCORD_WEBHOOK_URL",
+        "GITHUB_TOKEN",
+        "SLACK_WEBHOOK_URL",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "YT_CLIENT_ID",
+        "YT_CLIENT_SECRET",
+        "YT_REFRESH_TOKEN"
+      ],
+      "variables": [
+        "YT_CHANNEL_HANDLE",
+        "YT_CHANNEL_ID"
+      ],
+      "artifact_names": [
+        "documentary-private-release-${{ github.run_id }}",
+        "longform-mp4-${{ github.event.workflow_run.id }}",
+        "longform-qa-diagnostics-${{ github.event.workflow_run.id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [
+        "ALLOW_PUBLIC_PUBLISH: \"0\"",
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": [
+        "python scripts/upload_documentary_artifact.py \\"
+      ]
+    },
+    "release_documentary_private.yml": {
+      "sha256": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
+      "display_name": "Release approved documentary (Private)",
+      "on_sha256": "52f97c426ea92f213add4c65901c8165b4b34e9f34d83f3f86a358a6bc83c740",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "source_run_id": {
+          "description": "Run ID of the successful build that produced the reviewed package",
+          "required": "true",
+          "type": "string"
+        },
+        "video_sha256": {
+          "description": "MP4 SHA-256 shown at the top of the review dashboard",
+          "required": "true",
+          "type": "string"
+        },
+        "review_decisions": {
+          "description": "Decisions copied from the dashboard ('Copy for the release workflow')",
+          "required": "false",
+          "type": "string"
+        },
+        "review_decisions_path": {
+          "description": "Alternative: path of a committed review_decisions.json (for very large reviews)",
+          "required": "false",
+          "type": "string"
+        },
+        "confirm_private_upload": {
+          "default": "false",
+          "description": "I watched the complete documentary and approve this exact file for PRIVATE upload to Engineering Physics",
+          "required": "true",
+          "type": "boolean"
+        }
+      },
+      "secrets": [
+        "DISCORD_WEBHOOK_URL",
+        "GITHUB_TOKEN",
+        "SLACK_WEBHOOK_URL",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "YT_CLIENT_ID",
+        "YT_CLIENT_SECRET",
+        "YT_REFRESH_TOKEN"
+      ],
+      "variables": [
+        "YT_CHANNEL_HANDLE",
+        "YT_CHANNEL_ID"
+      ],
+      "artifact_names": [
+        "private-release-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [
+        "ALLOW_PUBLIC_PUBLISH: \"0\"",
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": [
+        "python scripts/release_review_package.py \\"
+      ]
+    },
+    "release_shorts_private.yml": {
+      "sha256": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
+      "display_name": "Release approved Short (Private)",
+      "on_sha256": "ffff414387dbb44cec7d73f6ff4512cd34d238f50c68b8eb23c4f4ee512fe474",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "mode": {
+          "description": "Which kind of Short this is",
+          "required": "true",
+          "type": "choice"
+        },
+        "source_run_id": {
+          "description": "Run ID of the successful build that produced the reviewed package",
+          "required": "true",
+          "type": "string"
+        },
+        "video_sha256": {
+          "description": "MP4 SHA-256 shown at the top of the review dashboard",
+          "required": "true",
+          "type": "string"
+        },
+        "review_decisions": {
+          "description": "Decisions copied from the dashboard ('Copy for the release workflow')",
+          "required": "false",
+          "type": "string"
+        },
+        "review_decisions_path": {
+          "description": "Alternative: path of a committed review_decisions.json (for very large reviews)",
+          "required": "false",
+          "type": "string"
+        },
+        "confirm_private_upload": {
+          "default": "false",
+          "description": "I watched the complete MP4 and approve this exact file for PRIVATE upload to Engineering Physics",
+          "required": "true",
+          "type": "boolean"
+        }
+      },
+      "secrets": [
+        "DISCORD_WEBHOOK_URL",
+        "GITHUB_TOKEN",
+        "SLACK_WEBHOOK_URL",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "YT_CLIENT_ID",
+        "YT_CLIENT_SECRET",
+        "YT_REFRESH_TOKEN"
+      ],
+      "variables": [
+        "YT_CHANNEL_HANDLE",
+        "YT_CHANNEL_ID"
+      ],
+      "artifact_names": [
+        "private-release-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/download-artifact@v8",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [
+        "ALLOW_PUBLIC_PUBLISH: \"0\"",
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": [
+        "python scripts/release_review_package.py \\"
+      ]
+    },
+    "standard-shorts-review.yml": {
+      "sha256": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
+      "display_name": "⚙ Internal — Standard Shorts — review render",
+      "on_sha256": "4f3ec9376b52ba3d219be20256a9001f07a1140b2b6025ec8276e5208bb55956",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "script_json": {
+          "description": "Complete scene-based script JSON (title, hook, category, scenes[].say/caption/image/keywords)",
+          "required": "true",
+          "type": "string"
+        },
+        "language": {
+          "default": "english",
+          "description": "Narration language",
+          "required": "true",
+          "type": "choice"
+        },
+        "voice_gender": {
+          "default": "male",
+          "description": "Narration voice",
+          "required": "true",
+          "type": "choice"
+        }
+      },
+      "secrets": [
+        "COVERR_API_KEY",
+        "EUROPEANA_API_KEY",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [],
+      "artifact_names": [
+        "standard-shorts-review-${{ github.run_id }}"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "validate.yml": {
+      "sha256": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
+      "display_name": "validate",
+      "on_sha256": "821160c60cf0ec596f01b036e5543df8ab330c6e857c89c93cea228821c8ea01",
+      "triggers": [
+        "push",
+        "pull_request"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [],
+      "actions": [],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "10",
+        "20",
+        "30"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "wan21-documentary-rerender.yml": {
+      "sha256": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
+      "display_name": "⚙ Internal — Wan2.1 documentary rerender",
+      "on_sha256": "f264fd8cbbfffdfd4fa657ad4c47cb64f8ac0990527317ce7d18bd504b6f35e5",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {
+        "documentary_run_id": {
+          "description": "Actions run ID that produced the longform-review-package artifact (must be rendered after PR #171)",
+          "required": "true",
+          "type": "string"
+        },
+        "wan_worker_run_id": {
+          "description": "Actions run ID that produced the wan21-generated-clips artifact",
+          "required": "true",
+          "type": "string"
+        },
+        "job_id": {
+          "description": "Original documentary job ID (for example, 42)",
+          "required": "true",
+          "type": "string"
+        },
+        "mapping_json": {
+          "description": "Explicit JSON, e.g. {\"mappings\":[{\"scene_id\":\"opening\",\"shot_id\":\"shot_0001\"}]}",
+          "required": "true",
+          "type": "string"
+        }
+      },
+      "secrets": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "COVERR_API_KEY",
+        "DVIDS_API_KEY",
+        "EUROPEANA_API_KEY",
+        "GEMINI_API_KEY",
+        "GITHUB_TOKEN",
+        "NARA_API_KEY",
+        "PIXABAY_API_KEY"
+      ],
+      "variables": [
+        "DVIDS_API_REFERER",
+        "GEMINI_FALLBACK_MODELS_LONGFORM",
+        "GEMINI_MODEL_LONGFORM"
+      ],
+      "artifact_names": [
+        "longform-review-package",
+        "wan21-documentary-review",
+        "wan21-generated-clips"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/download-artifact@v8",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "180"
+      ],
+      "privacy_lines": [
+        "PRIVACY: \"private\""
+      ],
+      "upload_lines": []
+    }
+  }
+}
