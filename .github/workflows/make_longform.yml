@@ -148,13 +148,33 @@ jobs:
               print("WARNING: No keyed general visual provider is configured; archival/context graphics and keyless fallback may be needed.")
           PY
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng
+      - name: Install system dependencies (bounded retries)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update &&
+               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg fonts-noto-core espeak-ng; then
+              break
+            fi
+            [ "$attempt" -lt 3 ] || { echo "::error::System dependency installation failed after 3 attempts."; exit 1; }
+            sleep $((attempt * 15))
+          done
+          ffmpeg -version | head -n 1
 
       # This workflow runs on GitHub-hosted CPU runners. Chatterbox v3
       # inference is too slow there for dependable long-form production.
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - name: Install Python dependencies (bounded retries)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if python -m pip install --retries 5 --timeout 60 -r requirements.txt; then
+              break
+            fi
+            [ "$attempt" -lt 3 ] || { echo "::error::Python dependency installation failed after 3 attempts."; exit 1; }
+            sleep $((attempt * 10))
+          done
 
       - name: Set up Python for SadTalker CPU inference
         if: ${{ needs.request.outputs.presenter_mode == 'sadtalker' }}
@@ -419,11 +439,28 @@ jobs:
           esac
           echo "Verified same-run build dependency and artifact context for run $GITHUB_RUN_ID."
 
-      - name: Install FFmpeg and uploader dependencies
+      - name: Install FFmpeg and uploader dependencies (bounded retries)
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install -r requirements-ci.txt
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            for attempt in 1 2 3; do
+              if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update &&
+                 sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg; then
+                break
+              fi
+              [ "$attempt" -lt 3 ] || { echo "::error::FFmpeg installation failed after 3 attempts."; exit 1; }
+              sleep $((attempt * 15))
+            done
+          fi
+          ffmpeg -version | head -n 1
+          for attempt in 1 2 3; do
+            if python -m pip install --retries 5 --timeout 60 -r requirements-ci.txt; then
+              break
+            fi
+            [ "$attempt" -lt 3 ] || { echo "::error::Uploader dependencies failed to install after 3 attempts."; exit 1; }
+            sleep $((attempt * 10))
+          done
 
       - name: Download the documentary artifact from this exact run
         uses: actions/download-artifact@v8

@@ -1,13 +1,4 @@
-"""Operator notifications: console always, plus every configured channel.
-
-Channels (all optional, all free): Telegram (``TELEGRAM_BOT_TOKEN`` +
-``TELEGRAM_CHAT_ID``), Discord (``DISCORD_WEBHOOK_URL``), Slack
-(``SLACK_WEBHOOK_URL``), a generic JSON webhook (``NOTIFY_WEBHOOK_URL``), and the
-GitHub Actions job summary (automatic on a runner). Every message is also
-appended to ``<log dir>/notifications.jsonl`` so alerts survive a missing or
-failing channel. Delivery failures never raise into the pipeline and never
-print credentials.
-"""
+"""Operator notifications with requests optional and a stdlib fallback."""
 from __future__ import annotations
 
 import json
@@ -16,37 +7,70 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-import requests
+try:
+    import requests
+except ImportError:  # keep alerts working during failed dependency installs
+    requests = None
 
 from core.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
-_SECRET = re.compile(r"(bot\d+:[A-Za-z0-9_-]+|hooks\.slack\.com/services/\S+|"
-                     r"discord(?:app)?\.com/api/webhooks/\S+|(?:key|token)=[^&\s]+)", re.I)
+_SECRET = re.compile(
+    r"(bot\d+:[A-Za-z0-9_-]+|hooks\.slack\.com/services/\S+|"
+    r"discord(?:app)?\.com/api/webhooks/\S+|(?:key|token)=[^&\s]+)", re.I
+)
 
 
 def _safe(text) -> str:
     return _SECRET.sub("[REDACTED]", str(text))
 
 
+def _stdlib_post(url, *, data=None, json_body=None, timeout=20):
+    if json_body is not None:
+        payload = json.dumps(json_body).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+    elif data is not None:
+        payload = urlencode(data).encode("utf-8")
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    else:
+        payload, headers = b"", {}
+    request = Request(url, data=payload, headers=headers, method="POST")
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.status, dict(response.headers)
+    except HTTPError as exc:
+        return exc.code, dict(exc.headers or {})
+    except URLError as exc:
+        raise OSError(type(exc.reason).__name__) from exc
+
+
 def _post(name, url, attempts=3, **kwargs):
     """POST with bounded retry on network errors, 429 and 5xx."""
     last = ""
-    for attempt in range(attempts):
+    for attempt in range(max(1, attempts)):
+        delay = 2.0 * (attempt + 1)
         try:
-            response = requests.post(url, timeout=20, **kwargs)
-            if response.status_code < 300:
+            if requests is not None:
+                response = requests.post(url, timeout=20, **kwargs)
+                status, headers = response.status_code, response.headers
+            else:
+                status, headers = _stdlib_post(
+                    url, timeout=20, data=kwargs.get("data"), json_body=kwargs.get("json")
+                )
+            if status < 300:
                 return True
-            last = f"HTTP {response.status_code}"
-            if response.status_code != 429 and response.status_code < 500:
+            last = f"HTTP {status}"
+            if status != 429 and status < 500:
                 break
             try:
-                delay = min(float(response.headers.get("Retry-After", "")), 15.0)
+                delay = min(float(headers.get("Retry-After", "")), 15.0)
             except (TypeError, ValueError):
-                delay = 2.0 * (attempt + 1)
-        except requests.RequestException as exc:
+                pass
+        except Exception as exc:
             last = type(exc).__name__
-            delay = 2.0 * (attempt + 1)
         if attempt < attempts - 1:
             time.sleep(delay)
     print(f"{name} notification failed: {_safe(last)}")
@@ -80,7 +104,7 @@ def _level(msg: str) -> str:
 
 
 def send(msg: str, level: str | None = None) -> dict:
-    """Deliver ``msg`` to every configured channel; returns per-channel results."""
+    """Deliver msg to every configured channel; returns per-channel results."""
     msg = str(msg)
     level = level or _level(msg)
     print("NOTIFY:", msg[:200])

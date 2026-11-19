@@ -29,6 +29,16 @@ def _text(name):
     return (WORKFLOW_DIR / name).read_text(encoding="utf-8")
 
 
+def _job_block(text, job_name):
+    """Extract one top-level job block without matching comments or step names."""
+    marker = re.compile(r"^  " + re.escape(job_name) + r":\s*$", re.MULTILINE)
+    match = marker.search(text)
+    if not match:
+        raise AssertionError(f"workflow job {job_name!r} not found")
+    next_job = re.compile(r"^  [A-Za-z0-9_-]+:\s*$", re.MULTILINE).search(text, match.end())
+    return text[match.start():next_job.start() if next_job else len(text)]
+
+
 def _steps(text):
     """Split a workflow into step blocks (indentation based, no YAML dependency)."""
     blocks, current = [], None
@@ -70,8 +80,8 @@ class ActionVersionTests(unittest.TestCase):
 
     def test_standard_shorts_build_is_isolated_and_scheduled_release_is_private(self):
         text = _text("make_shorts.yml")
-        build = text[text.index("  build:"):text.index("  release:")]
-        release = text[text.index("  release:"):]
+        build = _job_block(text, "build")
+        release = _job_block(text, "release")
         self.assertNotIn("run_daily.py --format shorts --upload-latest", build)
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
@@ -202,7 +212,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                 self.assertIn("build/job_*/", artifact)                # the package lives inside the build dir
                 self.assertIn("if: always()", artifact)
                 if name == "make_shorts.yml":
-                    build_workflow = text[text.index("  build:"):text.index("  release:")]
+                    build_workflow = _job_block(text, "build")
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
                 elif name == "make_longform.yml":
