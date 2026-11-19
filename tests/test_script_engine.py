@@ -50,6 +50,7 @@ class GeminiFailoverTests(unittest.TestCase):
         self.assertIn('"title"', prompt)
         self.assertIn('"sections"', prompt)
         self.assertIn("How Black Holes Bend Space and Time", prompt)
+        self.assertIn("unmistakably spoken", prompt)
 
     def test_parser_accepts_json_fence_and_trailing_commas(self):
         result = script_engine._parse('''```json
@@ -102,6 +103,8 @@ class GeminiFailoverTests(unittest.TestCase):
             self.assertIn(expected, prompt)
             self.assertIn("Engineering Physics", prompt)
             self.assertIn("The science of black holes", prompt)
+            self.assertIn("real human host", prompt)
+            self.assertIn("brisk but comfortable pace", prompt)
             self.assertIn('"scenes"', prompt)
 
     def test_shorts_generator_rejects_unknown_language(self):

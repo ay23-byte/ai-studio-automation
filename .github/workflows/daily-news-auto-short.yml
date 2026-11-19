@@ -98,6 +98,9 @@ jobs:
           DVIDS_API_REFERER: ${{ secrets.DVIDS_API_REFERER }}
           FOOTAGE_CONTACT: ${{ vars.FOOTAGE_CONTACT }}
           TTS_ENGINE: "edge"
+          TTS_RATE: "+7%"
+          TTS_OPENING_RATE: "+5%"
+          TTS_CLOSING_RATE: "+6%"
           NEWS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           WANT_UPLOAD: "true"
           # No generic template fallback: if a newsroom-quality script cannot be

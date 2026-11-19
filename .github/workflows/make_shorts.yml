@@ -115,6 +115,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           TTS_ENGINE: "edge"
+          TTS_RATE: "+7%"
+          TTS_OPENING_RATE: "+5%"
+          TTS_CLOSING_RATE: "+6%"
           ALLOW_CHATTERBOX_ON_CI: "false"
           SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
           TOPIC_CATEGORIES: "physics,engineering,technology,science"

@@ -252,6 +252,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TTS_ENGINE: "edge"
+          TTS_RATE: "+7%"
+          TTS_OPENING_RATE: "+5%"
+          TTS_CLOSING_RATE: "+6%"
           ALLOW_CHATTERBOX_ON_CI: "false"
           CHATTERBOX_TORCH_THREADS: "2"
           PRESENTER_ENABLED: ${{ needs.request.outputs.presenter_mode == 'off' && '0' || '1' }}
