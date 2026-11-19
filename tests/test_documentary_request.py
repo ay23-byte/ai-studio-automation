@@ -149,13 +149,20 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertTrue(problems(base="develop"))
         self.assertTrue(problems(pull_requests=[]))
 
-    def test_only_the_separate_release_job_can_upload(self):
-        build = WORKFLOW[WORKFLOW.index("  build:\n"):WORKFLOW.index("  release:\n")]
-        release = WORKFLOW[WORKFLOW.index("  release:\n"):]
+    def test_only_the_separate_release_workflow_can_upload(self):
+        build = WORKFLOW[WORKFLOW.index("  build:"):]
+        release = (ROOT / ".github/workflows/release_documentary_auto.yml").read_text(encoding="utf-8")
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
-        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertNotIn("YT_CLIENT_ID", build)
         self.assertIn('UPLOAD_REQUESTED: "false"', build)
+        self.assertIn("workflow_run:", release)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", release)
+        self.assertIn("github.event.workflow_run.event == 'workflow_dispatch'", release)
+        self.assertIn("github.event.workflow_run.event == 'schedule'", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertIn('PRIVACY: "private"', release)
         self.assertNotIn("contents: write", WORKFLOW)
 
 
