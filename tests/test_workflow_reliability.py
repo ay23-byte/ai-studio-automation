@@ -315,7 +315,7 @@ class WorkflowStructureTests(unittest.TestCase):
         # Daily news has its own fail-closed automated PRIVATE release path; no public publish path.
         news = _text("daily-news-auto-short.yml")
         self.assertIn("core.news_private_release", (ROOT / "core" / "news_auto.py").read_text(encoding="utf-8"))
-        self.assertNotIn('ALLOW_PUBLIC_PUBLISH', news)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', news)
         self.assertNotIn("--upload-after-recovery", news)
 
     def test_state_is_saved_even_when_the_build_fails(self):
