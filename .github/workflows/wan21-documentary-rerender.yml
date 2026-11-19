@@ -62,11 +62,9 @@ jobs:
 
       - name: Install FFmpeg and Python dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core espeak-ng
+          bash scripts/ci/install_apt_packages.sh ffmpeg fonts-noto-core espeak-ng
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Restore original job and validate inputs
         env:
           JOB_ID: ${{ inputs.job_id }}
