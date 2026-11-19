@@ -19,7 +19,7 @@ class GeminiRequestError(RuntimeError):
 
 SHORTS_PROMPT = """Write ONE polished YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
 
-LANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write conversational Hindi-English code-mixing in Roman script (Latin letters), the way an Indian creator naturally speaks. Do not turn Hinglish into formal Hindi or pure English. Keep technical terms in English where natural. Spoken narration, captions, title, hook and labels must use the selected language consistently.
+DELIVERY: Write for a real human host speaking directly to one curious viewer. Use contractions in English, everyday phrasing, varied sentence lengths, natural breath points and smooth spoken transitions. Sound curious, warm, confident and specific—not like an essay, textbook, advertisement or AI summary. Avoid clichés such as “in today’s world”, “let’s dive in”, “in conclusion” and repeated “here’s the thing”. Use rhetorical questions sparingly and answer them with evidence. Keep every line easy to say aloud at a brisk but comfortable pace.\n\nLANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write conversational Hindi-English code-mixing in Roman script (Latin letters), the way an Indian creator naturally speaks. Do not turn Hinglish into formal Hindi or pure English. Keep technical terms in English where natural. Spoken narration, captions, title, hook and labels must use the selected language consistently.
 
 RULES:
 - 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
@@ -78,7 +78,7 @@ RUNTIME & NARRATION:
 - Write natural spoken narration in the requested language. For Hindi, use conversational Devanagari Hindi. For Hinglish, use natural Hindi-English code-mixing in Roman script (Latin letters), not formal Hindi and not pure English. Keep technical terms in English where natural.
 - First-person host narration is welcome ("मैंने इस रिपोर्ट में...", "जब मैंने आंकड़े देखे...") only when it describes the research process, not a fictional real-world visit, call, interview or firsthand observation.
 - No headings, bullets, markdown, camera directions or production notes inside narration.
-- Vary sentence length, use transitions and resolve open loops.
+- Vary sentence length, use transitions and resolve open loops.\n- Make narration sound unmistakably spoken: contractions where natural, short emphatic lines mixed with fuller explanatory sentences, human curiosity and restrained emotion.\n- Avoid robotic cadence, repeated sentence openings, generic AI phrases, overexplaining and unnatural lists. Read every paragraph aloud mentally; rewrite anything that feels stiff or difficult to say.\n- Keep the delivery brisk and engaging, but leave room for important facts, names and technical explanations to land.
 
 CINEMATIC VISUAL STORYBOARD:
 - Each chapter should contain 4-5 structured visual beats in chronological order (use 6-8 only for genuinely short chapters). Each beat needs an exact short narration_anchor copied verbatim from that chapter's narration, a distinct visual_prompt, and 2-4 precise stock keywords.
