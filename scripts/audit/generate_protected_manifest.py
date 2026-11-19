@@ -218,7 +218,8 @@ def build_manifest() -> dict[str, Any]:
     immutable = {str(p.relative_to(ROOT)): _file_sha(str(p.relative_to(ROOT))) for p in [*workflow_paths, *configs]}
 
     monitored: dict[str, str] = {}
-    for pattern in ("core/*.py", "scripts/*.py", "tests/footage_*.py"):
+    for pattern in ("core/*.py", "scripts/*.py", "tests/footage_*.py",
+                    "src/__init__.py", "src/production_v2/*.py"):
         for path in sorted(ROOT.glob(pattern)):
             if path.name == "__init__.py" and pattern == "tests/footage_*.py":
                 continue

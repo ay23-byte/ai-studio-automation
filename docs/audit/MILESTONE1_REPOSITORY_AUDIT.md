@@ -8,6 +8,10 @@
 **Working tree:** clean at the start of the audit  
 **Production behaviour changes in this milestone:** none
 
+> **Continuation:** Milestones 2–9 have since been implemented as isolated, opt-in v2 components.
+> See [`docs/production_v2/IMPLEMENTATION_REPORT.md`](../production_v2/IMPLEMENTATION_REPORT.md)
+> for what was built and what still requires live verification. No protected workflow was changed.
+
 This is the Milestone 1 deliverable requested in the master engineering brief. It records the
 existing production surface, protects it with a machine-readable manifest and regression tests,
 and lists verified blockers and unresolved questions. No workflow YAML, secret name, trigger,
