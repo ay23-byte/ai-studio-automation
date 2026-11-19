@@ -476,6 +476,9 @@ jobs:
           YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
           YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
           YT_CHANNEL_VERIFY: "1"
+          PRIVACY: "private"
+          ALLOW_PUBLIC_PUBLISH: "0"
+          PUBLISH_AT_IST: ""
           CHANNEL_NAME: "Engineering Physics"
         run: |
           set -euo pipefail

@@ -481,7 +481,7 @@ class WorkflowHygieneTests(unittest.TestCase):
     def test_automatic_workflows_upload_privately_and_never_push_to_main(self):
         for name in ("make_shorts.yml", "daily-news-auto-short.yml"):
             text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
-            self.assertNotIn("ALLOW_PUBLIC_PUBLISH", text)
+            self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', text)
             self.assertNotIn("HEAD:main", text)
             self.assertIn("persist_state.py restore", text)
             self.assertIn("persist_state.py save", text)

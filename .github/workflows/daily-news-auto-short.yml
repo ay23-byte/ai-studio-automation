@@ -86,6 +86,7 @@ jobs:
           YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
           YT_CHANNEL_VERIFY: "1"
           PRIVACY: "private"
+          ALLOW_PUBLIC_PUBLISH: "0"
           PUBLISH_AT_IST: ""
           OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
           OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
