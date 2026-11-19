@@ -177,38 +177,42 @@ class RunDailyTests(_StateSandbox):
 
 class NotifyTests(_StateSandbox):
     def test_without_channels_the_message_is_still_logged(self):
-        with patch("core.notify.requests.post") as post:
+        with patch("urllib.request.urlopen") as post:
             self.assertEqual(notify.send("✅ hello"), {})
         post.assert_not_called()
         line = json.loads((self.root / "logs" / "notifications.jsonl").read_text(encoding="utf-8").splitlines()[-1])
         self.assertEqual((line["message"], line["level"]), ("✅ hello", "info"))
 
     def test_every_configured_channel_receives_the_message(self):
-        ok = MagicMock(status_code=200, headers={})
+        ok = MagicMock(status=200, headers={})
+        ok.__enter__.return_value = ok
         env = {"TELEGRAM_BOT_TOKEN": "123:abc", "TELEGRAM_CHAT_ID": "9",
                "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1/x",
                "SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/a/b/c",
                "NOTIFY_WEBHOOK_URL": "https://example.org/hook"}
-        with patch.dict(os.environ, env), patch("core.notify.requests.post", return_value=ok) as post:
+        with patch.dict(os.environ, env), patch("urllib.request.urlopen", return_value=ok) as post:
             delivered = notify.send("❌ render failed")
         self.assertEqual(delivered, {"telegram": True, "discord": True, "slack": True, "webhook": True})
         self.assertEqual(post.call_count, 4)
 
     def test_transient_errors_are_retried_and_never_raise(self):
-        responses = [MagicMock(status_code=500, headers={}), MagicMock(status_code=200, headers={})]
+        from urllib.error import HTTPError, URLError
+        from io import BytesIO
+        ok = MagicMock(status=200, headers={})
+        ok.__enter__.return_value = ok
+        transient = HTTPError("https://example.invalid", 503, "temporary", {}, BytesIO(b""))
         env = {"DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1/secret"}
         with patch.dict(os.environ, env), patch("core.notify.time.sleep"), \
-                patch("core.notify.requests.post", side_effect=responses) as post:
+                patch("urllib.request.urlopen", side_effect=[transient, ok]) as post:
             self.assertTrue(notify.send("x")["discord"])
         self.assertEqual(post.call_count, 2)
-        import requests
         with patch.dict(os.environ, env), patch("core.notify.time.sleep"), \
-                patch("core.notify.requests.post", side_effect=requests.ConnectionError("down")):
+                patch("urllib.request.urlopen", side_effect=URLError("down")):
             self.assertFalse(notify.send("x")["discord"])
 
     def test_secrets_are_redacted(self):
         self.assertNotIn("123:abcDEF", notify._safe("https://api.telegram.org/bot123:abcDEF/sendMessage"))
-        self.assertNotIn("T0/B0/xyz", notify._safe("post to hooks.slack.com/services/T0/B0/xyz failed"))
+        self.assertNotIn("T0/B0/xyz", notify._safe("post to hooks.slack.com/services/T0/B0/xyz"))
 
 
 def _candidate(title, publisher, publisher_url, hours=2, summary=""):
