@@ -262,6 +262,12 @@ Local baseline verification on 2026-11-19:
 The new protected-workflow tests are stdlib-only and were also run with the bare system Python:
 12 tests passed without installing any dependency.
 
+GitHub Actions verification for this audit PR (#262, run `44617033559`): all three `validate`
+jobs completed successfully — `unit-tests`, `news-collect-minimal-env` and `ffmpeg-smoke`. The
+last job ran real-FFmpeg render/review smoke tests, including uploader paths with a fake uploader.
+That confirms the regression baseline on a runner; it is still **not** evidence of a real
+production render or YouTube upload.
+
 ---
 
 ## 6. GitHub state
