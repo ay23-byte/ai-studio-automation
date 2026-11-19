@@ -62,7 +62,7 @@ def _post(name, url, attempts=3, **kwargs):
                 response = requests.post(url, timeout=20, **kwargs)
                 status, headers = response.status_code, response.headers
             else:
-                status, headers = _stdlib_post(url, timeout=20, **kwargs)
+                status, headers = _stdlib_post(url, timeout=20, data=kwargs.get("data"), json_body=kwargs.get("json"))
             if status < 300:
                 return True
             last = f"HTTP {status}"
