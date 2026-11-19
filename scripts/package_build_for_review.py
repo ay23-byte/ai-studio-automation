@@ -4,10 +4,10 @@
     python scripts/package_build_for_review.py --mode daily_news --allow-no-build
     python scripts/package_build_for_review.py --mode longform
 
-Finds the single ``build/job_<id>`` directory and its rendered MP4, calls the
-packager for that mode, and writes the outcome to the run summary.  It never
-uploads.  Exit codes: 0 a package awaits human review (or, with
-``--allow-no-build``, nothing was built); 2 the package was written but fails
+Finds the single build/job_<id> directory and its rendered MP4, calls the
+packager for that mode, and writes the outcome to the run summary. It never
+uploads. Exit codes: 0 a package awaits human review (or, with
+--allow-no-build, nothing was built); 2 the package was written but fails
 automated QA and cannot be approved; 1 no package could be built.
 """
 from __future__ import annotations
@@ -39,9 +39,13 @@ def summary_markdown(mode: str, package: Path | None, summary: dict | None, mess
         lines.append(message or "No review package was produced.")
         return "\n".join(lines) + "\n"
     status = summary.get("status")
-    headline = {"REVIEW_REQUIRED": "Awaiting human review. Nothing was uploaded.",
-                "FAIL": "NOT APPROVABLE: automated QA failed. Nothing was uploaded.",
-                }.get(status, f"Unexpected status {status}.")
+    if status == "REVIEW_REQUIRED":
+        headline = ("Human review is required before public release. Check the run report for private-upload status."
+                    if mode == "daily_news" else "Awaiting human review. Nothing was uploaded.")
+    elif status == "FAIL":
+        headline = "NOT APPROVABLE: automated QA failed. Nothing was uploaded."
+    else:
+        headline = f"Unexpected status {status}."
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     lines += [f"**{headline}**", "",
               f"- Job: `{summary.get('job_id')}` ({mode})", f"- Topic: {summary.get('topic')}",
