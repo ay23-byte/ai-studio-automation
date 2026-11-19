@@ -35,7 +35,7 @@ def _job_block(text, job_name):
     match = marker.search(text)
     if not match:
         raise AssertionError(f"workflow job {job_name!r} not found")
-    next_job = re.compile(r"^  [A-Za-z0-9_-]+:\\s*$", re.MULTILINE).search(text, match.end())
+    next_job = re.compile(r"^  [A-Za-z0-9_-]+:\s*$", re.MULTILINE).search(text, match.end())
     return text[match.start():next_job.start() if next_job else len(text)]
 
 
