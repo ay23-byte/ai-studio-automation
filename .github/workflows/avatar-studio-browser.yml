@@ -64,8 +64,7 @@ jobs:
           python-version: "3.11"
       - name: Install FFmpeg, a speech synthesiser for the test narration, and NumPy
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg espeak-ng
+          bash scripts/ci/install_apt_packages.sh ffmpeg espeak-ng
           pip install "numpy>=1.24"
       - name: Install the pinned browser packages
         working-directory: avatar_studio
