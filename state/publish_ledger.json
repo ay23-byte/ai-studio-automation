@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-18T22:44:11+00:00",
+  "updated_at": "2026-11-19T12:15:35+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -244,6 +244,16 @@
       "job_id": 7,
       "youtube_id": "wwCWm_reMnU",
       "privacy_status": "private"
+    },
+    {
+      "kind": "shorts",
+      "key": "0e65a04fafca0e3ce8caa968",
+      "created_at": "2026-11-19T12:15:35+00:00",
+      "title": "Why Hot Water Freezes Faster Than Cold Water",
+      "status": "built",
+      "updated_at": "2026-11-19T12:15:35+00:00",
+      "topic": "Why Does Hot Water Sometimes Freeze Faster Than Cold Water?",
+      "job_id": 7
     }
   ]
 }
