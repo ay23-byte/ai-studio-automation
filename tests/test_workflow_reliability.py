@@ -31,7 +31,7 @@ def _text(name):
 
 def _job_block(text, job_name):
     """Extract one top-level job block without matching comments or step names."""
-    marker = re.compile(r"^  " + re.escape(job_name) + r":\\s*$", re.MULTILINE)
+    marker = re.compile(r"^  " + re.escape(job_name) + r":\s*$", re.MULTILINE)
     match = marker.search(text)
     if not match:
         raise AssertionError(f"workflow job {job_name!r} not found")
