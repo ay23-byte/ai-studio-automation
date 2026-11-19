@@ -84,19 +84,8 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: python scripts/verify_source_run.py --run-id "$SOURCE_RUN_ID" --mode "$MODE" --ref "$GITHUB_REF_NAME"
 
-      - name: Install FFmpeg (bounded retries) and the uploader dependencies
-        run: |
-          set -euo pipefail
-          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
-            for attempt in 1 2 3; do
-              if sudo apt-get update && sudo apt-get install -y ffmpeg; then break; fi
-              [[ "$attempt" -lt 3 ]] && sleep $((attempt * 15))
-            done
-          fi
-          command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null \
-            || { echo "::error::FFmpeg/FFprobe could not be installed; the video cannot be verified"; exit 1; }
-          python -m pip install -r requirements-ci.txt
-
+      - name: Install FFmpeg
+        run: bash scripts/ci/install_apt_packages.sh ffmpeg
       - name: Download the artifacts of exactly that run
         uses: actions/download-artifact@v8
         with:
