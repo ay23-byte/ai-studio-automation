@@ -31,21 +31,37 @@ def _safe(text) -> str:
 
 
 def _post(name, url, attempts=3, **kwargs):
-    """POST with bounded retry on network errors, 429 and 5xx."""
+    """POST using only the standard library; retry transient HTTP/network failures."""
     last = ""
     for attempt in range(attempts):
         try:
-            response = requests.post(url, timeout=20, **kwargs)
-            if response.status_code < 300:
-                return True
-            last = f"HTTP {response.status_code}"
-            if response.status_code != 429 and response.status_code < 500:
+            payload = kwargs.get("json")
+            data = kwargs.get("data")
+            headers = dict(kwargs.get("headers") or {})
+            if payload is not None:
+                data = json.dumps(payload).encode("utf-8")
+                headers.setdefault("Content-Type", "application/json")
+            elif isinstance(data, dict):
+                from urllib.parse import urlencode
+                data = urlencode(data).encode("utf-8")
+                headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+            request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+            with urllib.request.urlopen(request, timeout=20) as response:
+                if response.status < 300:
+                    return True
+                last = f"HTTP {response.status}"
+                if response.status != 429 and response.status < 500:
+                    break
+                delay = min(float(response.headers.get("Retry-After", "2")), 15.0)
+        except urllib.error.HTTPError as exc:
+            last = f"HTTP {exc.code}"
+            if exc.code != 429 and exc.code < 500:
                 break
             try:
-                delay = min(float(response.headers.get("Retry-After", "")), 15.0)
+                delay = min(float(exc.headers.get("Retry-After", "2")), 15.0)
             except (TypeError, ValueError):
                 delay = 2.0 * (attempt + 1)
-        except requests.RequestException as exc:
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
             last = type(exc).__name__
             delay = 2.0 * (attempt + 1)
         if attempt < attempts - 1:
