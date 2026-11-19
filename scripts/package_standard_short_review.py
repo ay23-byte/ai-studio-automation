@@ -1,8 +1,8 @@
 """Assemble the shared review package for a pipeline-built Short.
 
 Used for standard Shorts and for automatically built daily-news Shorts: both
-are rendered by ``core.pipeline.build_shorts`` and leave the same build
-directory.  The package is review-only; nothing here uploads.
+are rendered by core.pipeline.build_shorts and leave the same build directory.
+The package is review-only; nothing here uploads.
 
     python scripts/package_standard_short_review.py \
         --build-dir build/job_7 --video output/shorts_7.mp4 --mode shortform
@@ -66,7 +66,7 @@ def _timing(build: Path) -> list[dict]:
 
 
 def _research(script: dict, build: Path, mode: str) -> dict:
-    """Sources the reviewer must open.  News carries the corroboration record."""
+    """Sources the reviewer must open. News carries the corroboration record."""
     verification = packaging.load_json(build / "verification.json")
     rows = verification.get("sources") if isinstance(verification.get("sources"), list) else None
     if rows is None:
@@ -95,11 +95,10 @@ def _research(script: dict, build: Path, mode: str) -> dict:
 
 def create_review_package(script: dict, build_dir, render_dir=None, *, video=None, mode: str = "shortform",
                           output_dir=None, pipeline_job_id=None, language: str | None = None) -> Path:
-    """Build ``shared_review_package`` and return its path.
+    """Build shared_review_package and return its path.
 
-    ``render_dir`` (legacy call style) is a folder holding ``video.mp4`` and
-    ``captions.ass``; alternatively pass ``video`` and the captions are taken
-    from the build directory.
+    render_dir (legacy call style) is a folder holding video.mp4 and captions.ass;
+    alternatively pass video and the captions are taken from the build directory.
     """
     if mode not in SHORT_MODES:
         raise ValueError(f"mode must be one of {SHORT_MODES}; got {mode!r}.")
@@ -148,9 +147,10 @@ def create_review_package(script: dict, build_dir, render_dir=None, *, video=Non
         else:
             relative = packaging.copy_into(media, root, f"assets/scene_{index + 1:02d}{media.suffix.lower()}")
             provenance, rights = packaging.describe_asset(
-                packaging.load_sidecar(media), prompt=str(scene.get("image") or scene.get("visual") or ""))
+                packaging.load_sidecar(media), prompt=str(scene.get("image") or scene.get("visual") or "")
+            )
             assets.append({"path": relative, "asset_type": packaging.asset_type_of(media),
-                           "provenance": provenance, "rights": rights})
+                          "provenance": provenance, "rights": rights})
         row = timing[index] if index < len(timing) and isinstance(timing[index], dict) else {}
         scenes.append({"scene_id": f"scene-{index + 1:02d}",
                        "narration": str(scene.get("say") or scene.get("narration") or ""),
@@ -202,52 +202,4 @@ def create_review_package(script: dict, build_dir, render_dir=None, *, video=Non
 
     title = str(script.get("title") or "Untitled Short").strip()
     row = {"title": title, "format": "news_short" if mode == "daily_news" else "shorts",
-           "language": language or script.get("language"), "category": script.get("category")}
-    try:
-        from core.publish import build_metadata
-        meta = build_metadata(row, script, build)
-        publish = packaging.publish_metadata(meta["title"], meta["description"], meta["tags"])
-        publish["category_id"] = meta.get("category_id")
-    except Exception as exc:  # metadata is fixed at build time; say so if it could not be derived
-        publish = packaging.publish_metadata(title, script.get("description") or "", script.get("tags") or [])
-        publish["note"] = f"Derived from the script only ({type(exc).__name__})."
-    manifest = contract.build_manifest(
-        root, mode=mode, topic=title, title=publish["title"] or title, scenes=scenes,
-        pipeline_job_id=pipeline_job_id, research=_research(script, build, mode),
-        narration=narration, script=packaging.script_metadata(script),
-        extra={"publish": publish, "evidence_dir": "evidence"})
-    summary = contract.write_package(root, manifest, checklist_title="Short: human review required",
-                                     checklist_items=CHECKLIST)
-    print(f"Review package: {root}")
-    print(f"Status: {summary['status']}. Nothing was uploaded.")
-    for line in summary["errors"]:
-        print(f"  BLOCKING: {line}")
-    return root
-
-
-def _job_id_from(build: Path):
-    name = build.name
-    return int(name[4:]) if name.startswith("job_") and name[4:].isdigit() else None
-
-
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--build-dir", required=True, help="build/job_<id> left by the pipeline")
-    parser.add_argument("--video", required=True, help="The rendered MP4, e.g. output/shorts_<id>.mp4")
-    parser.add_argument("--mode", choices=SHORT_MODES, default="shortform")
-    parser.add_argument("--output-dir", default=None, help="Default: <build-dir>/shared_review_package")
-    args = parser.parse_args(argv)
-    build = Path(args.build_dir)
-    try:
-        script = json.loads((build / "script.json").read_text(encoding="utf-8"))
-        package = create_review_package(script, build, video=args.video, mode=args.mode,
-                                        output_dir=args.output_dir, pipeline_job_id=_job_id_from(build.resolve()))
-    except (OSError, ValueError, contract.ContractError) as exc:
-        print(f"::error::Could not build the review package: {exc}")
-        return 1
-    status = json.loads((package / "package_summary.json").read_text(encoding="utf-8"))["status"]
-    return 0 if status == "REVIEW_REQUIRED" else 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+           "language": language or script.get("language"), "category": script.get("category)}
