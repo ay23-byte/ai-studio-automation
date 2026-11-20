@@ -1,60 +1,120 @@
-"""Create comparable female documentary narration audition tracks."""
+"""Create a same-script English news narration comparison: Edge TTS vs Chatterbox.
+
+The two tracks use identical wording and are rendered separately. Chatterbox is
+marked unsuccessful if the voice provider silently falls back to Edge/espeak.
+"""
 from __future__ import annotations
-
-import sys as _sys
-from pathlib import Path as _Path
-
-if __package__ in (None, ""):  # run as "python scripts/<name>.py": make the repo importable
-    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 
 import argparse
 import json
 import os
 import shutil
+import sys
+import time
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.voice import synthesise
 
-TEXT = """26 अप्रैल 1986 की रात, चेरनोबिल न्यूक्लियर पावर प्लांट में एक ऐसा हादसा हुआ जिसने पूरी दुनिया को हिला दिया। लेकिन यह कहानी सिर्फ़ एक विस्फोट की नहीं है। यह कहानी है उन फैसलों की, जिनकी कीमत हज़ारों लोगों ने चुकाई। रात के समय, Reactor Number Four पर एक safety test चल रहा था। कुछ ही मिनटों में हालात नियंत्रण से बाहर हो गए। शहर के लोगों को शुरुआत में बताया गया कि सब कुछ सामान्य है। लेकिन हवा में फैल चुका radioactive material सीमाओं को पार कर रहा था। सवाल यह है: एक आधुनिक nuclear power plant में ऐसा कैसे हुआ? और जब अधिकारियों को सच्चाई पता चली, तब उन्होंने दुनिया को बताने में इतनी देर क्यों की? इस documentary में हम समझेंगे कि reactor के अंदर क्या हुआ, Pripyat को कैसे खाली कराया गया, और आज भी Chernobyl हमें nuclear safety के बारे में क्या सिखाता है।"""
+TEXT = """Breaking news. India's northern states are preparing for a sharp change in weather this week, with forecasts warning of heavy rain in some areas and a fresh spell of snowfall in the higher Himalayas. Officials are asking residents and travellers to check local advisories before setting out. The key question is how quickly conditions could change, especially on mountain roads where visibility and temperatures can drop within hours. We will continue tracking verified updates as authorities release more information."""
 
-VOICES = [
-    ("swara_hindi", "hi-IN-SwaraNeural", "Hindi female"),
-    ("neerja_indian_english", "en-IN-NeerjaNeural", "Indian English female"),
-    ("sonia_british_english", "en-GB-SoniaNeural", "British English female"),
+CANDIDATES = [
+    {
+        "id": "edge_indian_english",
+        "engine": "edge",
+        "voice": "en-IN-PrabhatNeural",
+        "description": "Microsoft Edge Neural, Indian English male",
+        "gender": "male",
+    },
+    {
+        "id": "chatterbox_multilingual",
+        "engine": "chatterbox",
+        "voice": "Chatterbox multilingual default",
+        "description": "Chatterbox multilingual model, CPU inference",
+        "gender": "male",
+    },
 ]
+
+
+def render_candidate(candidate: dict, root: Path) -> dict:
+    folder = root / candidate["id"]
+    if folder.exists():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+    os.environ["TTS_ENGINE"] = candidate["engine"]
+    os.environ["TTS_VOICE"] = candidate["voice"] if candidate["engine"] == "edge" else ""
+    os.environ["TTS_RATE"] = "+13%"
+    os.environ["TTS_OPENING_RATE"] = "+12%"
+    os.environ["TTS_CLOSING_RATE"] = "+10%"
+    os.environ["TTS_PAUSE_SCALE"] = "0.55"
+    os.environ["TTS_REJECT_ROBOTIC_FALLBACK"] = "1"
+    os.environ["CHATTERBOX_TORCH_THREADS"] = "2"
+    os.environ["CHATTERBOX_PLAYBACK_SPEED"] = "1.04"
+    os.environ["ALLOW_CHATTERBOX_ON_CI"] = "true"
+
+    started = time.perf_counter()
+    result = {
+        "id": candidate["id"],
+        "requested_engine": candidate["engine"],
+        "description": candidate["description"],
+        "voice": candidate["voice"],
+        "status": "failed",
+    }
+    try:
+        audio, _ = synthesise(TEXT, folder, language="english", gender=candidate["gender"])
+        report_path = folder / "narration_synthesis_report.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        actual = report.get("actual_engine")
+        result.update({
+            "status": "success" if actual == candidate["engine"] else "failed_provider_fallback",
+            "actual_engine": actual,
+            "audio": str(audio),
+            "audio_bytes": audio.stat().st_size if audio.exists() else 0,
+            "duration_seconds": report.get("assembled_duration_seconds"),
+            "speech_words_per_minute": report.get("speech_words_per_minute"),
+            "speech_seconds": report.get("speech_seconds"),
+            "runtime_seconds": round(time.perf_counter() - started, 2),
+            "report": str(report_path),
+            "fallback_reason": report.get("fallback_reason"),
+        })
+    except Exception as exc:
+        result.update({
+            "error": f"{type(exc).__name__}: {exc}",
+            "runtime_seconds": round(time.perf_counter() - started, 2),
+        })
+    return result
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", default="voice_audition",
-                        help="Folder for the audition tracks (default: ./voice_audition)")
+    parser.add_argument("--output-dir", default="daily_news_voice_audition")
     args = parser.parse_args(argv)
     root = Path(args.output_dir)
     root.mkdir(parents=True, exist_ok=True)
-    rows = []
-    for label, voice, description in VOICES:
-        folder = root / label
-        if folder.exists():
-            shutil.rmtree(folder)
-        folder.mkdir(parents=True)
-        os.environ["TTS_ENGINE"] = "edge"
-        os.environ["TTS_VOICE"] = voice
-        os.environ["TTS_RATE"] = "-5%"
-        os.environ["TTS_PITCH"] = "+0Hz"
-        audio, _ = synthesise(TEXT, folder, language="hinglish", gender="female")
-        report = json.loads((folder / "narration_synthesis_report.json").read_text(encoding="utf-8"))
-        rows.append({
-            "id": label, "description": description, "voice": voice,
-            "audio": str(audio), "duration_seconds": report["assembled_duration_seconds"],
-            "report": str(folder / "narration_synthesis_report.json"),
-        })
-    (root / "audition_index.json").write_text(json.dumps({
-        "topic": "Chernobyl documentary narration comparison",
-        "script_language": "Hinglish", "script": TEXT, "candidates": rows,
-        "human_selection_required": True,
-        "notice": "Choose by listening. No candidate is certified professional without human approval.",
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps(rows, ensure_ascii=False, indent=2))
+
+    results = [render_candidate(candidate, root) for candidate in CANDIDATES]
+    index = {
+        "topic": "English daily-news narration comparison",
+        "script_language": "English",
+        "script": TEXT,
+        "same_script_for_all_candidates": True,
+        "candidates": results,
+        "selection_guidance": "Listen to both complete WAV files. Compare pronunciation, naturalness, pacing, clarity and fatigue. Runtime is measured on the GitHub Actions CPU runner.",
+        "limitations": [
+            "Technical metrics cannot judge whether a voice sounds human or emotionally convincing.",
+            "Chatterbox may be slower or fail under the memory limits of a hosted CPU runner.",
+            "No production voice setting is changed by this audition."
+        ],
+    }
+    (root / "audition_index.json").write_text(
+        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(json.dumps(index, ensure_ascii=False, indent=2))
+    # Preserve the artifact even if Chatterbox cannot run; the report records that honestly.
+    if not any(row["status"] == "success" for row in results):
+        raise SystemExit("No narration candidate completed successfully; inspect audition_index.json")
 
 
 if __name__ == "__main__":
