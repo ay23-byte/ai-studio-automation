@@ -78,8 +78,8 @@ def test_real_automatic_animations_in_full_demo_pipeline(content_type):
         result = run_pipeline(content_type, data["topic"], dossier_from_dict(data), config)
         assert result["video_ready"], result.get("error")
         assert result["state"] == "QUALITY_REJECTED"
-        assert result["quality"]["visual_quality"] == "FAIL"
-        assert result["quality"]["upload_eligibility"] == "FAIL"
+        assert result["quality"]["visual_quality"] == "PASS"
+        assert result["quality"]["upload_eligibility"] == "FAIL"\n        assert not any("human review" in issue.lower() for issue in result["quality_issues"])
         root = Path(result["artifact_dir"])
         choices = json.loads((root / "visual_selection.json").read_text())
         assert {item["type"] for item in choices.values()} == {"manim_wave", "blender_orbit"}
