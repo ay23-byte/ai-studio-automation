@@ -116,8 +116,6 @@ class SyntheticVisualGenerator:
         return output
 
 
-AUTO_UNREVIEWED = "AUTOMATIC_SELECTION_UNREVIEWED"  # legacy manifest marker; no longer a human-approval gate
-
 
 def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
     """Conservative draft selection; human review remains mandatory before upload.
