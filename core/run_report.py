@@ -261,6 +261,10 @@ def _qa_section(row: dict, quality: dict, gate: dict) -> dict:
 def _upload_section(row: dict, build_dir: Path, gate: dict, quality: dict,
                     external_result=None, external_failure=None) -> dict:
     result = _load(build_dir / "upload_result.json")
+    if not result:
+        # The daily-news pipeline records its private YouTube result separately
+        # from the generic Shorts uploader; include it in the same run report.
+        result = _load(build_dir / "automatic_private_release.json")
     if not result and external_result:
         # Result file of the documentary artifact uploader.  It records the privacy
         # that was requested; it does not read the stored status back from YouTube.
@@ -271,7 +275,20 @@ def _upload_section(row: dict, build_dir: Path, gate: dict, quality: dict,
                       "warnings": ([] if legacy.get("processing_status") in (None, "ok") else
                                    [f"YouTube processing status: {legacy.get('processing_status')}"])}
     failure = _load(external_failure) if external_failure else {}
-    youtube_id = result.get("youtube_id") or row.get("youtube_id")
+    youtube_id = result.get("youtube_id") or result.get("video_id") or row.get("youtube_id")
+    result_status = str(result.get("status") or "").strip().lower()
+    if result_status in {"verification_failed", "unverified", "upload_failed", "failed"}:
+        details = result.get("verification_problems") or []
+        reason = "; ".join(map(str, details)) if details else str(result.get("error") or
+                  "The private upload did not complete verification.")
+        return {
+            "status": "unverified" if youtube_id else "failed",
+            "youtube_id": youtube_id,
+            "url": result.get("url") or (f"https://youtu.be/{youtube_id}" if youtube_id else None),
+            "privacy": result.get("privacy"),
+            "privacy_verified": False,
+            "reason": _redact(reason)[:500],
+        }
     if youtube_id:
         verified = result.get("privacy_verified")
         return {

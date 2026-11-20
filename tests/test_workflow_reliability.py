@@ -87,6 +87,12 @@ class ActionVersionTests(unittest.TestCase):
         self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertIn("UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}", build)
         self.assertIn("shorts-review-${{ github.run_id }}", build)
+        self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', build)
+        self.assertIn("Acquire::Retries=3", build)
+        self.assertIn("--fix-missing ffmpeg espeak-ng libraqm0", build)
+        self.assertIn("command -v ffprobe", build)
+        self.assertIn("pip install --retries 5 --timeout 60", build)
+        self.assertIn("pip install --retries 5 --timeout 60", release)
         self.assertIn("needs: build", release)
         self.assertIn("github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload)", release)
         self.assertIn("default: true", text[text.index("      upload:"):text.index("      force:")])
@@ -115,6 +121,8 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn('YT_CHANNEL_VERIFY: "1"', text)
         self.assertIn('UPLOAD_REQUESTED: "true"', text)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
+        self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', text)
+        self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', text)
 
 
 RELEASE_WORKFLOWS = ("release_shorts_private.yml", "release_documentary_private.yml")
@@ -186,6 +194,23 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                 with self.subTest(workflow=name, step=block.splitlines()[0].strip()):
                     self.assertNotRegex(script, r"\$\{\{\s*(inputs|github\.event)\.")
 
+    def test_documentary_build_and_private_release_are_separate_and_trusted(self):
+        build = _text("make_longform.yml")
+        release = _text("release_documentary_auto.yml")
+        self.assertNotRegex(build, r"(?m)^  release:\s*$")
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn("workflow_run:", release)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", release)
+        self.assertIn("github.event.workflow_run.repository.full_name == github.repository", release)
+        self.assertIn("scripts/verify_source_run.py --run-id \"$SOURCE_RUN_ID\" --mode longform --ref \"$RELEASE_REF\"", release)
+        self.assertIn("run-id: ${{ github.event.workflow_run.id }}", release)
+        self.assertIn('PRIVACY: "private"', release)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
+        self.assertIn("scripts/upload_documentary_artifact.py", release)
+
     def test_release_evidence_is_kept_for_every_outcome(self):
         for name in RELEASE_WORKFLOWS:
             steps = _steps(_text(name))
@@ -217,7 +242,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
                 elif name == "make_longform.yml":
-                    build_workflow = text[text.index("  build:"):text.index("  release:")]
+                    build_workflow = _job_block(text, "build")
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
                 elif name != "daily-news-auto-short.yml":
@@ -229,7 +254,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_longform.yml", "make_shorts.yml", "release_documentary_auto.yml")))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_shorts.yml", "release_documentary_auto.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
@@ -600,32 +625,28 @@ if __name__ == "__main__":
 
 
 class LongformAutomaticPrivateReleaseTests(unittest.TestCase):
-    def test_documentary_build_has_a_separate_machine_gated_private_release(self):
-        text = _text("make_longform.yml")
-        build = text[text.index("  build:"):text.index("  release:")]
-        release = text[text.index("  release:"):]
+    def test_documentary_build_is_review_only_and_separate_release_is_machine_gated(self):
+        build = _text("make_longform.yml")
+        release = _text("release_documentary_auto.yml")
+        self.assertNotRegex(build, r"(?m)^  release:\s*$")
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
-        self.assertIn("needs: [request, build]", release)
-        self.assertIn("needs.build.result == 'success'", release)
-        self.assertIn("github.event_name == 'workflow_dispatch'", release)
-        self.assertIn("github.event_name == 'schedule'", release)
-        self.assertIn("github.event_name == 'pull_request'", release)
-        self.assertIn("github.event.pull_request.base.ref == 'main'", release)
-        self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", release)
-        self.assertIn("EVENT_NAME: ${{ github.event_name }}", release)
-        self.assertIn('test "$REF_NAME" = "main"', release)
-        self.assertIn('test "$PR_BASE_REF" = "main"', release)
-        self.assertIn('test "$PR_HEAD_REPOSITORY" = "$REPOSITORY"', release)
-        self.assertIn("longform-review-${{ github.run_id }}", release)
-        self.assertIn("actions/download-artifact@v8", release)
+        self.assertIn("longform-review-${{ github.run_id }}", build)
+        self.assertIn("longform-qa-diagnostics-${{ github.run_id }}", build)
+        self.assertIn("longform-mp4-${{ github.run_id }}", build)
+        self.assertIn("workflow_run:", release)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", release)
+        self.assertIn("github.event.workflow_run.repository.full_name == github.repository", release)
+        self.assertIn("verify_source_run.py --run-id", release)
+        self.assertIn("longform-qa-diagnostics-${{ github.event.workflow_run.id }}", release)
+        self.assertIn("longform-mp4-${{ github.event.workflow_run.id }}", release)
         self.assertIn("upload_documentary_artifact.py", release)
         self.assertIn("--machine-only", release)
         self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
         self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
+        self.assertIn('PRIVACY: "private"', release)
         self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
-        self.assertIn("longform-private-release-${{ github.run_id }}", release)
-        self.assertNotIn("verify_source_run.py --run-id", release)
-        self.assertIn("GitHub reports the parent run as in_progress", release)
-        self.assertIn("privacy_status=\"private\"", (ROOT / "scripts" / "upload_documentary_artifact.py").read_text(encoding="utf-8"))
-        self.assertNotIn("ALLOW_PUBLIC_PUBLISH: \"1\"", release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
+        self.assertIn("documentary-private-release-${{ github.run_id }}", release)
+        self.assertIn('privacy_status="private"', (ROOT / "scripts" / "upload_documentary_artifact.py").read_text(encoding="utf-8"))

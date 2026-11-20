@@ -142,7 +142,7 @@ class ReleaseGateTests(_Sandbox):
             "status": "PASS", "visual_count": 4, "fallback_card_count": 0,
             "fallback_card_share": 0.0}), encoding="utf-8")
         (job_dir / "audio_quality_report.json").write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
-        (job_dir / "subs.ass").write_text("[Script Info]\\n", encoding="utf-8")
+        (job_dir / "subs.ass").write_text("[Script Info]\n", encoding="utf-8")
         self.review.update(ok=False, detail="No human review exists.", reviewer=None)
         report = release_gate.evaluate(row, require_human_review=False)
         self.assertEqual(report["status"], "PASS", report["blocking"])
@@ -217,6 +217,49 @@ class PublishJobTests(_Sandbox):
             self.addCleanup(item.stop)
         return started
 
+
+    def _prepare_machine_only_short(self):
+        job_id = self.make_job()
+        job_dir = config.BUILD_DIR / f"job_{job_id}"
+        (job_dir / "visual_fallback_report.json").write_text(json.dumps({
+            "status": "PASS", "visual_count": 4, "fallback_card_count": 0,
+            "fallback_card_share": 0.0}), encoding="utf-8")
+        (job_dir / "audio_quality_report.json").write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
+        (job_dir / "subs.ass").write_text("[Script Info]\\n", encoding="utf-8")
+        self.review.update(ok=False, detail="No human review exists.", reviewer=None)
+        return job_id
+
+    def test_automated_upload_is_not_recorded_until_private_readback_passes(self):
+        job_id = self._prepare_machine_only_short()
+        with patch("core.uploader.upload", return_value="yt_new"), \
+             patch("core.uploader.verify_channel", return_value={"verified": True, "id": "UC_test"}), \
+             patch("core.uploader.get_video_status", return_value={
+                 "found": True, "privacy_status": "public", "publish_at": None, "channel_id": "UC_test"}), \
+             patch("core.uploader.set_video_privacy"), \
+             patch("core.uploader.add_to_playlist"):
+            with self.assertRaisesRegex(RuntimeError, "not verified"):
+                publish.publish_job(job_id, notify=False, automated=True, wait=False)
+        row = self.db.get_video(job_id)
+        self.assertIsNone(row["youtube_id"])
+        self.assertEqual(row["status"], "done")
+        result = json.loads((config.BUILD_DIR / f"job_{job_id}" / "upload_result.json").read_text())
+        self.assertEqual(result["status"], "verification_failed")
+        self.assertFalse(result["privacy_verified"])
+
+    def test_automated_upload_records_success_only_after_private_channel_readback(self):
+        job_id = self._prepare_machine_only_short()
+        with patch("core.uploader.upload", return_value="yt_new"), \
+             patch("core.uploader.verify_channel", return_value={"verified": True, "id": "UC_test"}), \
+             patch("core.uploader.get_video_status", return_value={
+                 "found": True, "privacy_status": "private", "publish_at": None, "channel_id": "UC_test"}), \
+             patch("core.uploader.add_to_playlist"):
+            result = publish.publish_job(job_id, notify=False, automated=True, wait=False)
+        row = self.db.get_video(job_id)
+        self.assertEqual(row["youtube_id"], "yt_new")
+        self.assertEqual(row["status"], "uploaded")
+        self.assertTrue(result["privacy_verified"])
+        self.assertEqual(result["privacy"], "private")
+
     def test_upload_is_private_recorded_and_idempotent(self):
         mocks = self._uploader()
         job_id = self.make_job()
@@ -283,6 +326,61 @@ class PublishJobTests(_Sandbox):
                 publish.publish_job(self.make_job(title=f"Unreviewed video {len(kwargs)}"), notify=False, **kwargs)
             self.assertIn("human_review", str(caught.exception))
         mocks["upload"].assert_not_called()
+
+    def test_upload_request_failure_without_video_id_is_reported_as_failed(self):
+        from core import run_report
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "automatic_private_release.json").write_text(json.dumps({
+                "job_id": 9, "status": "upload_failed", "privacy_verified": False,
+                "error": "YouTube OAuth refresh failed."
+            }), encoding="utf-8")
+            section = run_report._upload_section({}, root, {}, {})
+        self.assertEqual(section["status"], "failed")
+        self.assertIsNone(section["youtube_id"])
+        self.assertIn("OAuth refresh failed", section["reason"])
+
+    def test_daily_news_private_release_failure_is_not_reported_as_uploaded(self):
+        from core import run_report
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "automatic_private_release.json").write_text(json.dumps({
+                "job_id": 9, "youtube_id": "yt_news", "status": "verification_failed",
+                "privacy": "public", "privacy_verified": False,
+                "verification_problems": ["YouTube privacy read-back was 'public', not 'private'."]
+            }), encoding="utf-8")
+            section = run_report._upload_section({}, root, {}, {})
+        self.assertEqual(section["status"], "unverified")
+        self.assertEqual(section["youtube_id"], "yt_news")
+        self.assertFalse(section["privacy_verified"])
+
+    def test_daily_news_private_release_success_is_reported_as_verified(self):
+        from core import run_report
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "automatic_private_release.json").write_text(json.dumps({
+                "job_id": 9, "youtube_id": "yt_news", "status": "uploaded",
+                "privacy": "private", "privacy_verified": True,
+            }), encoding="utf-8")
+            section = run_report._upload_section({}, root, {}, {})
+        self.assertEqual(section["status"], "uploaded")
+        self.assertEqual(section["youtube_id"], "yt_news")
+        self.assertTrue(section["privacy_verified"])
+
+    def test_automated_verification_failure_is_not_reported_as_uploaded(self):
+        from core import run_report
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "upload_result.json").write_text(json.dumps({
+                "job_id": 9, "youtube_id": "yt_new", "status": "verification_failed",
+                "privacy": "public", "privacy_verified": False,
+                "verification_problems": ["YouTube privacy read-back was 'public', not 'private'."]
+            }), encoding="utf-8")
+            section = run_report._upload_section({}, root, {}, {})
+        self.assertEqual(section["status"], "unverified")
+        self.assertEqual(section["youtube_id"], "yt_new")
+        self.assertIs(section["privacy_verified"], False)
+        self.assertIn("privacy read-back", section["reason"])
 
     def test_upload_description_names_the_reviewed_file(self):
         mocks = self._uploader()

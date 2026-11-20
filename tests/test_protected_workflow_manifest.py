@@ -54,7 +54,7 @@ EXPECTED_TRIGGERS = {
     "manual-youtube-private-upload.yml": ["workflow_dispatch"],
 }
 UPLOAD_WORKFLOWS = {
-    "daily-news-auto-short.yml", "make_longform.yml", "make_shorts.yml",
+    "daily-news-auto-short.yml", "make_shorts.yml",
     "release_documentary_auto.yml", "release_documentary_private.yml",
     "release_shorts_private.yml",
 }
@@ -158,7 +158,7 @@ class ProtectedWorkflowManifestTests(unittest.TestCase):
                 self.assertNotIn("PRIVACY: unlisted", text)
 
     def test_release_workflows_still_target_the_configured_channel(self):
-        release_workflows = ["make_shorts.yml", "make_longform.yml", "daily-news-auto-short.yml",
+        release_workflows = ["make_shorts.yml", "daily-news-auto-short.yml",
                              "release_documentary_auto.yml", "release_documentary_private.yml",
                              "release_shorts_private.yml"]
         for name in release_workflows:
