@@ -18,6 +18,21 @@ _ORBIT = re.compile(r"\bcircular orbit\b", re.I)
 _ALLOWED_VISUALS = {"diagram", "animation", "map", "news_graphic"}
 
 
+def select_animation_kind(narration: str, visual_type: str, visual_prompt: str = "") -> str | None:
+    """Conservative concept matcher; never interprets a negated or ambiguous phrase."""
+    narration = str(narration or "").strip()
+    kind = str(visual_type or "").strip().lower().replace("-", "_")
+    prompt = str(visual_prompt or "").strip().lower()
+    if kind not in _ALLOWED_VISUALS and not any(
+        x in prompt for x in ("diagram", "animation", "scientific illustration")
+    ):
+        return None
+    wave, orbit = bool(_WAVE.search(narration)), bool(_ORBIT.search(narration))
+    if wave == orbit or _NEGATION.search(narration):
+        return None
+    return "manim_wave" if wave else "blender_orbit"
+
+
 def render_animation(*, narration: str, visual_type: str, visual_prompt: str,
                      output_dir: str | Path, scene_id: str,
                      content_type: str = "physics_short") -> dict | None:
@@ -31,12 +46,10 @@ def render_animation(*, narration: str, visual_type: str, visual_prompt: str,
         return None
     narration = str(narration or "").strip()
     kind = str(visual_type or "").strip().lower().replace("-", "_")
-    prompt = str(visual_prompt or "").strip().lower()
-    if kind not in _ALLOWED_VISUALS and not any(x in prompt for x in ("diagram", "animation", "scientific illustration")):
+    selected = select_animation_kind(narration, kind, visual_prompt)
+    if not selected:
         return None
-    wave, orbit = bool(_WAVE.search(narration)), bool(_ORBIT.search(narration))
-    if wave == orbit or _NEGATION.search(narration):
-        return None
+    wave = selected == "manim_wave"
 
     from src.production_v2.config import V2Config
     from src.production_v2.ffmpeg_io import probe
