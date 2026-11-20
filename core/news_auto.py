@@ -457,13 +457,31 @@ def build_script(story: dict, language: str = "hinglish") -> dict:
     script["format"] = KIND
     script["category"] = "news"
     script["language"] = language
-    script["sources"] = [{"title": s["title"], "publisher": s["publisher"],
-                          "url": s.get("link") or s.get("url"), "published": s.get("published"),
-                          "tier": s.get("tier")} for s in story["sources"]]
-    script["description"] = (
-        f"{script.get('title', story['headline'])}\n\nA short, sourced news summary. "
-        "Visuals are illustrative and do not show the actual event. "
-        "This report is based only on the publishers listed below and may be updated as they report more.")
+    script["sources"] = [{"title": s.get("title") or "Source report",
+                          "publisher": s.get("publisher") or "Publisher",
+                          "url": s.get("link") or s.get("url") or s.get("publisher_url"),
+                          "published": s.get("published"), "tier": s.get("tier")}
+                         for s in story["sources"]]
+    # Put every source actually used for this report at the very end of the
+    # YouTube description. Keep narration clean: URLs and publisher names are
+    # metadata, never spoken by the presenter.
+    source_lines = []
+    seen_source_urls = set()
+    for source in script["sources"]:
+        source_url = str(source.get("url") or "").strip()
+        if not source_url or source_url in seen_source_urls:
+            continue
+        seen_source_urls.add(source_url)
+        publisher = str(source.get("publisher") or "Publisher").strip()
+        title = str(source.get("title") or "Source report").strip()
+        source_lines.append(f"- {publisher} — {title}\\n  {source_url}")
+    sources_section = ("\\n\\nSources & Further Reading\\n" + "\\n".join(source_lines)
+                       if source_lines else
+                       "\\n\\nSources & Further Reading\\nSource links were not available in the collected report metadata.")
+    base_description = (
+        f"{script.get('title', story['headline'])}\\n\\n"
+        "A sourced news summary. Visuals are illustrative and do not show the actual event.")
+    script["description"] = base_description + sources_section
     return script
 
 
