@@ -315,7 +315,7 @@ def validate_news_script(script: dict, story: dict, language: str = "english") -
     if not any(marker in lowered for marker in ATTRIBUTION_MARKERS):
         problems.append("Narration never attributes the report to its sources.")
     if re.search(r"(?:https?://|www\\.)|\\b(?:[a-z0-9-]+\\.)+(?:com|org|net|in|co|gov|edu)\\b", spoken, re.I):
-        problems.append("Narration contains a URL or website domain; source links belong in metadata, not speech.")
+    if re.search(r"(?:https?://|www\.)|\b(?:[a-z0-9-]+\.)+(?:com|org|net|in|co|gov|edu)\b", spoken, re.I):
     evidence = " ".join(f"{s['title']} {s.get('text_snippet', '')}" for s in story["sources"])
     invented = sorted(_numbers(everything) - _numbers(evidence))
     if invented:
