@@ -733,7 +733,7 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         state = {"ai_video_failed": False, "image_failures": 0,
                  "image_failure_limit": max(1, int(os.getenv("IMAGE_PROVIDER_FAILURE_LIMIT", "2")))}
         for i, sc in enumerate(scenes):
-            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat)
+            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat, sc.get("visual_type"), os.getenv("PV2_ANIMATION_MODE", "off"), "animation-v1")
             record = checkpoint.get(f"visual_{i}") or {}
             stored = record.get("result") or {}
             was_card = stored.get("provider") == "fallback_card"
