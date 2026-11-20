@@ -541,7 +541,7 @@
     "daily-news-auto-short.yml": {
       "sha256": "edef91c000e6c52448023bf6afa33382a74cc489fa899d1b46209a1605a215f2",
       "display_name": "Daily news Short — automatic PRIVATE release",
-      "on_sha256": "3f7c51b1ad35af2dd13e9f8fdb1e71512414f1cd5e997696dc782a4de531b085",
+      "on_sha256": "a916ce043807257e147bcf7355918c5a87b8a037981c82bba1fd73c4b9e18e25",
       "triggers": [
         "workflow_dispatch",
         "schedule"
