@@ -8,7 +8,8 @@ privacy setting, channel target or existing upload path was modified.
 
 > **Visual integration update:** an opt-in reviewed Commons file adapter and a single
 > conceptual Manim wave and Blender orbit renderer have been added on the current branch.
-> Live Commons retrieval and real Manim/Blender rendering remain unverified.
+> Real Manim and Blender render/probe tests passed in GitHub Actions run 44716249833;
+> live Commons retrieval remains unverified.
 > See [visual asset instructions](VISUAL_ASSETS.md).
 
 This report continues the work requested in the master engineering brief after the
@@ -60,7 +61,7 @@ so later changes to them require a deliberate manifest update.
 | 2 — Reliability foundation | **Complete (isolated)** | deps/retry/logging/notify/checkpoints/artifact integrity modules + 14 reliability tests |
 | 3 — Research and fact-checking | **Complete (isolated)** | dossier validation, source tiers, claim-to-source mapping, bibliography, topic dedupe + 15 tests |
 | 4 — Narration and subtitles | **Complete (isolated)** | free adapter chain, English-only SRT/ASS from final narration, audio checks + 15 tests |
-| 5 — Documentary v2 | **Offline test render complete** | 1920×1080 H.264/AAC demo documentary rendered and inspected; opt-in Commons, conceptual Manim wave and Blender orbit paths exist; live verification remains outstanding |
+| 5 — Documentary v2 | **Offline test render complete** | 1920×1080 H.264/AAC demo documentary rendered and inspected; opt-in Commons and two renderer examples exist; real Manim/Blender smoke tests pass, Commons live verification remains outstanding |
 | 6 — News Shorts v2 | **Offline test render complete** | 1080×1920 source-attributed script, labelled news graphics, 27 s render |
 | 7 — Physics Shorts v2 | **Offline test render complete** | 1080×1920 concept script, animated diagram graphics, 26 s render |
 | 8 — Private publishing | **Complete with fake uploader** | private-only adapter, channel check, marker idempotency, read-back verification, all failure states tested; **no live upload performed** |
@@ -71,7 +72,7 @@ so later changes to them require a deliberate manifest update.
 Milestones 5–7 are **not** a claim that professional documentary quality has been achieved. The
 renderer produces structurally correct, purpose-labelled illustrative explainer videos with
 motion, narration, subtitles, credits and QA evidence. A reviewed-file Wikimedia Commons adapter, a conceptual Manim wave and a Blender orbit
-are now available opt-in, but none has been live-verified. NASA assets, additional
+are now available opt-in; the animation examples have passed real render/probe tests, while Commons remains live-unverified. NASA assets, additional
 scientific animations and lip-sync presenters remain follow-on work.
 
 Milestone 9 cannot be fully completed without owner-run credentials and live evidence. This

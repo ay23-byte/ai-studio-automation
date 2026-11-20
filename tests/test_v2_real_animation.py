@@ -10,10 +10,12 @@ from pathlib import Path
 
 import pytest
 
+from src.production_v2.artifacts import ArtifactStore
 from src.production_v2.config import V2Config
+from src.production_v2.editor import Editor
 from src.production_v2.ffmpeg_io import probe, resolve_ffmpeg
 from src.production_v2.licenses import AssetLibrary
-from src.production_v2.models import Scene, VisualSpec
+from src.production_v2.models import NarrationSegment, Scene, VisualSpec
 from src.production_v2.visuals import plan_visuals
 
 
@@ -28,9 +30,28 @@ def test_real_animation_render_and_probe(kind):
         config = V2Config.from_env({**os.environ, "PV2_VISUAL_MANIFEST": str(manifest)})
         config.rules["physics_short"] = replace(config.rules["physics_short"], width=320, height=240, fps=5)
         assert resolve_ffmpeg(config), "real integration test requires FFmpeg"
-        assets = plan_visuals([Scene("test_scene", "test", VisualSpec("diagram", "animation"))],
-                              root, AssetLibrary(), config, "physics_short")
+        scene = Scene("test_scene", "test", VisualSpec("diagram", "animation", duration=2))
+        assets = plan_visuals([scene], root, AssetLibrary(), config, "physics_short")
         assert assets[0].image_path.stat().st_size > 1000
         media = probe(assets[0].image_path, config)
         assert any(s.get("codec_type") == "video" and s.get("width") == 320 and s.get("height") == 240
                    for s in media["streams"])
+
+        # Exercise the real editor with the produced clip, audio, and subtitle stream.
+        import wave
+        wav = root / "speech.wav"
+        with wave.open(str(wav), "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(16000)
+            audio.writeframes(b"\0\0" * 32000)
+        srt = root / "captions.srt"
+        srt.write_text("1\n00:00:00,000 --> 00:00:01,500\nTest caption.\n", encoding="utf-8")
+        store = ArtifactStore(root, "editing")
+        segment = NarrationSegment("test_scene", "Test caption.", 0, 2, str(wav), "test")
+        edited = Editor().render(scenes=[scene], assets=assets, segments=[segment], mixed_audio=wav,
+                                 subtitles=srt, store=store, config=config, content_type="physics_short")
+        final = probe(Path(edited["video"]), config)
+        types = {stream.get("codec_type") for stream in final["streams"]}
+        assert {"video", "audio", "subtitle"}.issubset(types)
+        assert not edited["warnings"]

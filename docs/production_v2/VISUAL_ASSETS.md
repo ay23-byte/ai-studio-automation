@@ -32,16 +32,17 @@ is available only for diagram/animation scenes.
 `blender_orbit` renders a labelled idealized circular orbit, not to scale. Select it
 only for an appropriate diagram/animation scene. Install Blender 4.2 or newer with its
 background renderer and FFmpeg; `PV2_BLENDER_BINARY` optionally specifies the Blender
-executable (default `blender`). Blender renders to temporary PNG frames which are encoded
+executable (default `blender`). Alternatively, set `PV2_BLENDER_BACKEND=bpy` when the
+official `bpy` package is installed in the same Python environment (CI uses version 4.2.23). Blender renders to temporary PNG frames which are encoded
 to H.264 and removed. An absent tool or incomplete render fails the run. Rendering at
 1080p is CPU/memory intensive; measure runtime and budget before any production use.
 No arbitrary scripts, blend files, third-party code or scene parameters are accepted.
 The two examples are not a general scientific animation library: additional models,
 scientific validation and artist review remain necessary.
 
-The Commons adapter and both renderer invocations have offline mocked tests; a real FFmpeg
-video segment was rendered locally. Live Wikimedia retrieval, real Manim and Blender
-renders, and a full archival documentary have **not been verified** in this sandbox.
+The Commons adapter has offline mocked tests. Real Manim 0.19 and Blender 4.2.23
+render-and-probe tests passed on GitHub Actions in run 44716249833. Live Wikimedia
+retrieval, final-video human inspection and a full archival documentary remain unverified.
 Once Blender, Manim, and FFmpeg are installed, run
 `PV2_TEST_REAL_ANIMATIONS=1 python -m pytest tests/test_v2_real_animation.py -q` to run
 real, small renderer integration tests (the opt-in test fails if tools are missing). A human must review
