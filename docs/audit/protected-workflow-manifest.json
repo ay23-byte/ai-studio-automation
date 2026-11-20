@@ -539,7 +539,7 @@
       "upload_lines": []
     },
     "daily-news-auto-short.yml": {
-      "sha256": "46cf7c61e5dac703a83edd22ed31160b60f535fa9612928baee79d96704a7dcc",
+      "sha256": "edef91c000e6c52448023bf6afa33382a74cc489fa899d1b46209a1605a215f2",
       "display_name": "Daily news Short — automatic PRIVATE release",
       "on_sha256": "3f7c51b1ad35af2dd13e9f8fdb1e71512414f1cd5e997696dc782a4de531b085",
       "triggers": [
@@ -552,9 +552,9 @@
       ],
       "dispatch_inputs": {
         "language": {
-          "default": "hinglish",
           "description": "Narration language",
           "type": "choice",
+          "default": "english",
           "options": [
             "english",
             "hinglish",
