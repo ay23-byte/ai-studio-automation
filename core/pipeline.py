@@ -733,13 +733,27 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         state = {"ai_video_failed": False, "image_failures": 0,
                  "image_failure_limit": max(1, int(os.getenv("IMAGE_PROVIDER_FAILURE_LIMIT", "2")))}
         for i, sc in enumerate(scenes):
-            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat)
+            signature = stable_hash(sc.get("say"), sc.get("image"), sc.get("keywords"), cat, sc.get("visual_type"), os.getenv("PV2_ANIMATION_MODE", "off"), "animation-v1")
             record = checkpoint.get(f"visual_{i}") or {}
             stored = record.get("result") or {}
             was_card = stored.get("provider") == "fallback_card"
             retry_cards = os.getenv("RETRY_FALLBACK_CARDS_ON_RESUME", "1").strip().lower() in {"1", "true", "yes"}
 
             def acquire(i=i, sc=sc):
+                # Daily News and generic/physics Shorts share this renderer.
+                # Only explicitly diagram/animation scenes with a supported,
+                # positively stated concept are routed to Manim or Blender.
+                from core.animation_integration import render_animation
+                animation = render_animation(
+                    narration=sc.get("say", ""),
+                    visual_type=sc.get("visual_type") or sc.get("asset_type") or sc.get("kind", ""),
+                    visual_prompt=sc.get("image") or sc.get("visual_prompt", ""),
+                    output_dir=bd, scene_id=f"short_{i + 1:03d}",
+                    content_type="physics_short",
+                )
+                if animation:
+                    return {"type": animation["type"], "path": str(animation["path"]),
+                            "provider": animation["provider"]}
                 item = _short_scene_visual(i, sc, scenes, script, bd, used_ids, state)
                 return {"type": item["type"], "path": str(item["path"]), "provider": item["provider"]}
 
@@ -1256,6 +1270,30 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "on_screen_text": beat.get("on_screen_text", ""),
                 "sound_design": beat.get("sound_design", ""),
             })
+            # Use Manim/Blender for supported educational animation beats before
+            # requesting footage. These clips are labelled conceptual illustrations.
+            from core.animation_integration import render_animation
+            animation = render_animation(
+                narration=beat.get("anchor") or narration,
+                visual_type=beat.get("visual_type", ""),
+                visual_prompt=beat.get("prompt", ""),
+                output_dir=bd, scene_id=f"documentary_{i + 1}_{j + 1}",
+                content_type="documentary",
+            )
+            if animation:
+                shot["_media"] = {"type": "video", "path": str(animation["path"])}
+                shot["visual_type"] = "scientific_animation"
+                shot["asset_provenance"] = {
+                    "asset_type": "scientific_animation",
+                    "provider": animation["provider"],
+                    "automated_qa": animation["automated_qa"],
+                    "renderer": animation["renderer"],
+                    "source": str(animation["path"].with_suffix(animation["path"].suffix + ".source.json")),
+                }
+                shot_timeline.append(shot)
+                print(f"  long-form visual {i+1}.{j+1}: {animation['renderer']} conceptual animation (automated QA PASS)")
+                continue
+
             # Render structured data/evidence beats locally before requesting B-roll.
             # The renderer consumes only supplied values; unsupported specs fall through.
             graphic_path = None

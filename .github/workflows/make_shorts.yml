@@ -69,7 +69,7 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3; do
             if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update &&
-               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg espeak-ng libraqm0; then
+               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg espeak-ng libraqm0 libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri; then
               break
             fi
             [[ "$attempt" -lt 3 ]] || { echo "::error::Could not install FFmpeg/FFprobe after 3 attempts."; exit 1; }
@@ -84,7 +84,8 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if python -m pip install --retries 5 --timeout 60 -r requirements-ci.txt; then
+            if python -m pip install --retries 5 --timeout 60 -r requirements-ci.txt &&
+               python -m pip install --retries 5 --timeout 60 -r requirements-animation.txt; then
               break
             fi
             [[ "$attempt" -lt 3 ]] || { echo "::error::Python dependencies failed after 3 attempts."; exit 1; }
@@ -126,6 +127,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          PV2_ANIMATION_MODE: "auto_strict"
+          PV2_BLENDER_BACKEND: "bpy"
           TTS_ENGINE: "edge"
           TTS_RATE: "+7%"
           TTS_OPENING_RATE: "+5%"

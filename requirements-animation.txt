@@ -1,0 +1,4 @@
+# Open-source, CPU-capable scientific animation renderers used by all three
+# production paths. No hosted API or paid service is required.
+manim==0.19.0
+bpy==4.2.23

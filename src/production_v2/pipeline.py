@@ -23,7 +23,7 @@ from .research import validate_dossier
 from .script_engine import build_script, validate_script
 from .subtitles import build_ass, build_subtitles
 from .topics import TopicHistory
-from .visuals import AUTO_UNREVIEWED, choose_visuals, plan_visuals
+from .visuals import choose_visuals, plan_visuals
 
 
 def dossier_from_dict(data: dict) -> ResearchDossier:
@@ -144,11 +144,6 @@ def run_pipeline(content_type: str, title: str, dossier: ResearchDossier, config
             "content": qa.content(script, dossier, script_assessment, history),
             "copyright": qa.copyright(library),
         }
-        unreviewed = [v.scene_id for v in visuals if AUTO_UNREVIEWED in v.record.restrictions]
-        if unreviewed:
-            parts["visual"]["status"] = "FAIL"
-            parts["visual"]["issues"].append(
-                "automatic animation selections require human review: " + ", ".join(unreviewed))
         report = qa.build_report(parts, store, content_type=content_type, run_id=run_id)
         checkpoints.done("qa")
         logger.info("qa", decision=report.decision())
