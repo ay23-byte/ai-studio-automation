@@ -150,7 +150,7 @@
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
-    ".github/workflows/v2-animation-integration.yml": "cd9395cb28608f8a6b6c69a1a7f88f0b7f87416b3182d66237454eebab4fd70a",
+    ".github/workflows/v2-animation-integration.yml": "a790c7fa8f6ca458c36ea154d8ec7a326d5d60697b957d1066487487529eaf18",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
     ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
     ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
@@ -298,7 +298,7 @@
     "src/production_v2/blender_orbit.py": "154cb9f0ab5ecf6685e8622abb9efe4e4251235339d9f193c29d922f316e28c4",
     "src/production_v2/checkpoints.py": "c273685a6d92d2475dc4307bcec75972de738a06360f548548a2e868f85549d1",
     "src/production_v2/cli.py": "b1b7030c75814772d6aaa92bdf9b97b9c2f352b9afa58b9a0a68fbb8526ee4c6",
-    "src/production_v2/config.py": "08d073361a3f42c6eb2aaee272d13c4a56809b7c0515ea97df2763827b761aa8",
+    "src/production_v2/config.py": "c183d056e4a395aaa3501918bba365cae3df0d3f2ad221a16f84579be20b14ce",
     "src/production_v2/deps.py": "d9e6521f81a9c306bd6cd3a3cddc1d264034fa0b27647abe89246c6201f84ca4",
     "src/production_v2/editor.py": "c5ced1bf0fe76e367f5301270d78c7250f41e934e13e9c2777289dff31f51202",
     "src/production_v2/errors.py": "aec3f8403525ce10118df04d59ba2dd3bc99e95cb95205594b1fb0fc5f603514",
@@ -317,7 +317,7 @@
     "src/production_v2/script_engine.py": "67dcf76ce034a87afd4443526bedb18cd02f7c7d6701e73649aca71a03123a07",
     "src/production_v2/subtitles.py": "7e2a1ff3f50a6da60594ed1b7bf6a084ddfcfa3e5d15544df988fba9dfc8e94d",
     "src/production_v2/topics.py": "0a9283bc02f432d6541b91a0e017c2ccd8178bccab31f457ac6723e68e0792f6",
-    "src/production_v2/visuals.py": "d958087be637f02c827fd67219d34306cd00539c5dadc132b00d0c068f49b365",
+    "src/production_v2/visuals.py": "45285f591ed4a27135a8edd51a392107848ba361bf93c503a377526375fb41dd",
     "run.py": "8a5c52df91697615097f9ecd481902fef9f2618d8fc56a1567b7c0e2741e78c1",
     "run_daily.py": "7827aab6ee0897a93763c6d58fef6b3098ec4b3019b4a64f35f6b6c755105599",
     "get_refresh_tokens.py": "e261ca10c940d44b7c9e0cf2e2f0bd252c5df5ff22469c3eb44decce569ad88a",
@@ -2047,7 +2047,7 @@
       "upload_lines": []
     },
     "v2-animation-integration.yml": {
-      "sha256": "cd9395cb28608f8a6b6c69a1a7f88f0b7f87416b3182d66237454eebab4fd70a",
+      "sha256": "a790c7fa8f6ca458c36ea154d8ec7a326d5d60697b957d1066487487529eaf18",
       "display_name": "V2 animation integration (opt-in validation)",
       "on_sha256": "b7819b485ff753852e9f6f7da14a93eab20095cf49c1ab6da66bb54bf96fd025",
       "triggers": [

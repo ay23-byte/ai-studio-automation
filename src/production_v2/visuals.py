@@ -165,9 +165,15 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 # Use an isolated directory so a previous render cannot be mistaken for success.
                 media_dir = Path(tempfile.mkdtemp(prefix=f"blender_{scene.id}_", dir=store_root))
                 frames = media_dir / "frame_"
-                run([config.blender_binary, "--background", "--factory-startup", "--python",
-                     str(Path(__file__).with_name("blender_orbit.py")), "--", "--output", str(frames),
-                     "--width", str(rules.width), "--height", str(rules.height), "--fps", str(rules.fps)],
+                script = str(Path(__file__).with_name("blender_orbit.py"))
+                if config.blender_backend == "blender":
+                    command = [config.blender_binary, "--background", "--factory-startup", "--python", script]
+                elif config.blender_backend == "bpy":
+                    command = [sys.executable, script]
+                else:
+                    raise ValueError("unsupported Blender backend")
+                run([*command, "--", "--output", str(frames), "--width", str(rules.width),
+                     "--height", str(rules.height), "--fps", str(rules.fps)],
                     timeout=config.ffmpeg_timeout_seconds)
                 expected = rules.fps * 4
                 if any(not (media_dir / f"frame_{index:04d}.png").is_file()

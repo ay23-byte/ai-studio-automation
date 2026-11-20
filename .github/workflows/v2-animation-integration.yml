@@ -26,24 +26,23 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - name: Install free renderer system dependencies
+      - name: Install renderer system dependencies (bounded)
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in 1 2 3; do
-            if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update &&
-               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends \
-                 blender ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core; then
-              break
-            fi
-            [ "$attempt" -lt 3 ] || { echo '::error::Renderer installation failed'; exit 1; }
-            sleep $((attempt * 10))
-          done
-          blender --version | head -n 1
-          ffmpeg -version | head -n 1
+          # Prefer the runner's existing package lists; bound every network operation.
+          if ! timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
+              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core; then
+            timeout 120s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+            timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
+              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core
+          fi
+          command -v ffmpeg
+          command -v ffprobe
       - name: Install Manim and test dependencies
-        run: python -m pip install --retries 5 --timeout 60 'manim==0.19.0' 'pytest>=8,<10' 'Pillow>=10'
+        run: python -m pip install --retries 5 --timeout 60 'manim==0.19.0' 'bpy==4.2.23' 'pytest>=8,<10' 'Pillow>=10'
       - name: Run real Blender and Manim rendering tests
         env:
           PV2_TEST_REAL_ANIMATIONS: '1'
+          PV2_BLENDER_BACKEND: bpy
         run: python -m pytest tests/test_v2_real_animation.py tests/test_v2_archive_animation.py -q

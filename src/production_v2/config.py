@@ -60,6 +60,7 @@ class V2Config:
     target_lufs: float = -16.0
     true_peak_dbfs: float = -1.5
     blender_binary: str = "blender"
+    blender_backend: str = "blender"
     visual_manifest: str = ""
     failure_webhook: str = ""
     request_timeout_seconds: float = 20.0
@@ -87,12 +88,15 @@ class V2Config:
             tts_voice=e.get("PV2_TTS_VOICE", "en-IN-PrabhatNeural"),
             pronunciation_map=pronunciation if isinstance(pronunciation, dict) else {},
             blender_binary=e.get("PV2_BLENDER_BINARY", "blender"),
+            blender_backend=e.get("PV2_BLENDER_BACKEND", "blender"),
             visual_manifest=e.get("PV2_VISUAL_MANIFEST", ""),
             failure_webhook=e.get("PV2_FAILURE_WEBHOOK", ""),
         )
 
     def assert_safe(self) -> None:
         """Fail closed on any configuration that could violate the brief."""
+        if self.blender_backend not in {"blender", "bpy"}:
+            raise ValueError("unsupported Blender backend")
         if self.provider not in ALLOWED_PROVIDERS:
             raise ValueError(f"provider {self.provider!r} is not in the free/mock allow-list")
         if self.subtitle_language != "english":
