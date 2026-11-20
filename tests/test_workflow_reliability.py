@@ -623,7 +623,7 @@ class LongformAutomaticPrivateReleaseTests(unittest.TestCase):
     def test_documentary_build_is_review_only_and_separate_release_is_machine_gated(self):
         build = _text("make_longform.yml")
         release = _text("release_documentary_auto.yml")
-        self.assertNotRegex(build, r"(?m)^  release:\\s*$")
+        self.assertNotRegex(build, r"(?m)^  release:\s*$")
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertIn("longform-review-${{ github.run_id }}", build)
