@@ -14,6 +14,16 @@ class ReviewSummaryUploadStatusTests(unittest.TestCase):
         self.assertIn("private-upload status", text)
         self.assertNotIn("Nothing was uploaded", text)
 
+    def test_daily_news_failure_does_not_claim_nothing_was_uploaded(self):
+        summary = {
+            "status": "FAIL", "job_id": 7, "topic": "Example news",
+            "video_sha256": "abc123", "qa_statuses": {"technical": "FAIL"},
+        }
+        text = summary_markdown("daily_news", Path("shared_review_package"), summary)
+        self.assertIn("private-upload status", text)
+        self.assertIn("nothing was made public", text)
+        self.assertNotIn("Nothing was uploaded", text)
+
     def test_standard_short_review_still_says_no_upload(self):
         summary = {
             "status": "REVIEW_REQUIRED", "job_id": 7, "topic": "Example short",
