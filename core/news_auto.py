@@ -420,7 +420,11 @@ def build_script(story: dict, language: str = "hinglish") -> dict:
     except Exception as exc:  # no model configured / every provider down
         last = f"{type(exc).__name__}: {str(exc)[:200]}"
     if script is None:
-        if os.getenv("NEWS_TEMPLATE_FALLBACK", "").strip().lower() in {"1", "true", "yes"}:
+        # Last-resort deterministic fallback; it must pass the same grounding and safety checks.
+        # Explicit false disables it, while an unset/blank setting enables safe recovery.
+        fallback_setting = os.getenv("NEWS_TEMPLATE_FALLBACK")
+        fallback_enabled = fallback_setting is None or fallback_setting.strip().lower() not in {"0", "false", "no", "off"}
+        if fallback_enabled:
             script = template_script(story)
             language = "english"
             problems = validate_news_script(script, story, language)
