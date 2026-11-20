@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3; do
             if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update &&
-               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg fonts-noto-core espeak-ng; then
+               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg fonts-noto-core espeak-ng libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri; then
               break
             fi
             [ "$attempt" -lt 3 ] || { echo "::error::System dependency installation failed after 3 attempts."; exit 1; }
@@ -169,7 +169,8 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if python -m pip install --retries 5 --timeout 60 -r requirements.txt; then
+            if python -m pip install --retries 5 --timeout 60 -r requirements.txt
+            python -m pip install --retries 5 --timeout 60 -r requirements-animation.txt; then
               break
             fi
             [ "$attempt" -lt 3 ] || { echo "::error::Python dependency installation failed after 3 attempts."; exit 1; }
@@ -251,6 +252,8 @@ jobs:
           AI_VIDEO_PROVIDER: "disabled"
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PV2_ANIMATION_MODE: "auto_strict"
+          PV2_BLENDER_BACKEND: "bpy"
           TTS_ENGINE: "edge"
           TTS_RATE: "+7%"
           TTS_OPENING_RATE: "+5%"
