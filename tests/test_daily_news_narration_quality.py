@@ -41,6 +41,25 @@ class NewsNarrationEditorialTests(unittest.TestCase):
         with patch.dict(os.environ, {"TTS_VOICE": "en-US-AndrewNeural"}):
             self.assertEqual(voice.pick_voice("english", "male"), "en-US-AndrewNeural")
 
+    def test_all_report_sources_are_at_the_end_of_youtube_description(self):
+        sources = [
+            {"publisher": "Example News", "title": "First report",
+             "url": "https://example.com/first"},
+            {"publisher": "World Journal", "title": "Independent report",
+             "url": "https://world.example.org/story"},
+            {"publisher": "Example News", "title": "Duplicate link",
+             "url": "https://example.com/first"},
+        ]
+        description = news_auto._build_news_description("News headline", sources)
+        self.assertIn("Sources & Further Reading", description)
+        self.assertIn("Example News — First report", description)
+        self.assertIn("https://example.com/first", description)
+        self.assertIn("World Journal — Independent report", description)
+        self.assertIn("https://world.example.org/story", description)
+        self.assertEqual(description.count("https://example.com/first"), 1)
+        self.assertGreater(description.index("Sources & Further Reading"), description.index("A sourced news summary"))
+        self.assertTrue(description.rstrip().endswith("https://world.example.org/story"))
+
 
 if __name__ == "__main__":
     unittest.main()
