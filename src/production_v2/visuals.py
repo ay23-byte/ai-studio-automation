@@ -118,7 +118,7 @@ class SyntheticVisualGenerator:
 
 
 def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
-    """Conservative draft selection; human review remains mandatory before upload.
+    """Conservative draft selection; automatic choices are limited to explicit concepts and final-video machine QA.
 
     A keyword match cannot establish scientific correctness. The only automated
     choices are explicit sine-wave and circular-orbit phrases; ambiguity and
