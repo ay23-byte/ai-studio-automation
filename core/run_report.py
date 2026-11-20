@@ -261,6 +261,10 @@ def _qa_section(row: dict, quality: dict, gate: dict) -> dict:
 def _upload_section(row: dict, build_dir: Path, gate: dict, quality: dict,
                     external_result=None, external_failure=None) -> dict:
     result = _load(build_dir / "upload_result.json")
+    if not result:
+        # The daily-news pipeline records its private YouTube result separately
+        # from the generic Shorts uploader; include it in the same run report.
+        result = _load(build_dir / "automatic_private_release.json")
     if not result and external_result:
         # Result file of the documentary artifact uploader.  It records the privacy
         # that was requested; it does not read the stored status back from YouTube.
