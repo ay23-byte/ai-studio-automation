@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
           # Prefer the runner's existing package lists; bound every network operation.
           if ! timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
-              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core; then
+              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri; then
             timeout 120s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
             timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
               ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core
@@ -45,6 +45,8 @@ jobs:
         env:
           PV2_TEST_REAL_ANIMATIONS: '1'
           PV2_BLENDER_BACKEND: bpy
+          EGL_PLATFORM: surfaceless
+          LIBGL_ALWAYS_SOFTWARE: "1"
         shell: bash
         run: |
           set +e
