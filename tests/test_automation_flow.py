@@ -281,6 +281,17 @@ class NewsAutoTests(_StateSandbox):
         self.assertEqual(news_auto.validate_news_script(script, story, "english"), [])
         self.assertEqual(len(script["scenes"]), 5)
 
+    def test_long_rss_summary_cannot_overflow_a_fallback_scene(self):
+        story, _ = news_auto.select_story(CORROBORATED)
+        story["sources"][0]["text_snippet"] = " ".join(
+            ["The agency confirmed the test and said the vehicle completed its planned landing sequence."] * 10
+        )
+        script = news_auto.template_script(story)
+        scene_counts = [len(scene["say"].split()) for scene in script["scenes"]]
+        self.assertTrue(all(count <= 40 for count in scene_counts), scene_counts)
+        self.assertTrue(all(count <= 24 for count in scene_counts), scene_counts)
+        self.assertEqual(news_auto.validate_news_script(script, story, "english"), [])
+
     def test_explicitly_disabled_template_fallback_still_fails_closed(self):
         story, _ = news_auto.select_story(CORROBORATED)
         with patch.dict(os.environ, {"NEWS_TEMPLATE_FALLBACK": "0"}, clear=False):

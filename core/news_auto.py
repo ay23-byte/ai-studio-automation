@@ -353,35 +353,65 @@ def _publisher_mentioned(name: str, text: str) -> bool:
     return len(head) >= 3 and re.search(rf"(?<![a-z]){re.escape(head)}(?![a-z])", text_l) is not None
 
 
+def _concise_evidence_sentence(value: str, max_words: int = 16) -> str:
+    """Keep fallback narration short without inventing or paraphrasing source facts."""
+    value = re.sub(r"\\s+", " ", str(value or "")).strip()
+    if not value:
+        return ""
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\\s+", value) if part.strip()]
+    candidate = next((part for part in sentences if len(part.split()) <= max_words), "")
+    if not candidate:
+        candidate = (sentences[0] if sentences else value)
+        words = candidate.split()
+        candidate = " ".join(words[:max_words]).rstrip(" ,;:") + "…"
+    return candidate
+
+
+def _bounded_narration(value: str, max_words: int = 22) -> str:
+    """Hard cap a generated fallback scene before it reaches content QA."""
+    words = str(value or "").split()
+    if len(words) <= max_words:
+        return " ".join(words)
+    return " ".join(words[:max_words]).rstrip(" ,;:") + "…"
+
+
 def template_script(story: dict) -> dict:
-    """Model-free English script that only restates the corroborated headline."""
+    """Model-free English script grounded in short excerpts, never entire RSS summaries."""
     sources = story["sources"]
     names = list(dict.fromkeys(s["publisher"] for s in sources if s.get("publisher")))
+    if not names:
+        raise NoPublishableStory("Template fallback has no named corroborating publishers.")
     first, second = names[0], (names[1] if len(names) > 1 else names[0])
-    headline = story["headline"].rstrip(".")
-    other = next((s["title"].rstrip(".") for s in sources[1:] if s["title"].rstrip(".") != headline), "")
-    detail = next((str(s.get("text_snippet") or "").strip() for s in sources
-                   if str(s.get("text_snippet") or "").strip()), "")
-    second_headline = other if other else headline
+    headline = _concise_evidence_sentence(story.get("headline", ""), max_words=18).rstrip(".…")
+    if not headline:
+        raise NoPublishableStory("Template fallback has no usable corroborated headline.")
+    other = next((s["title"].rstrip(".") for s in sources[1:]
+                  if s.get("title") and s["title"].rstrip(".") != story.get("headline", "").rstrip(".")), "")
+    detail = next((_concise_evidence_sentence(s.get("text_snippet", ""), 16) for s in sources
+                   if _concise_evidence_sentence(s.get("text_snippet", ""), 16)), "")
+    second_headline = _concise_evidence_sentence(other or headline, 16).rstrip(".…")
+    if detail:
+        detail_line = f"{first} reports: {detail}"
+    else:
+        detail_line = f"{first} confirms the headline; the available source provides no further detail."
     scenes = [
-        {"say": f"{headline}. {first} is reporting the development.",
+        {"say": _bounded_narration(f"{headline}. According to {first}, this is the reported development.", 24),
          "label": "The lead",
          "image": "A restrained editorial visual directly illustrating the subject described in the verified headline",
          "keywords": ["editorial B-roll", "verified news subject"]},
-        {"say": (f"{first} reports this additional detail: {detail}" if detail
-                 else f"The available report from {first} confirms the headline, but provides no further verified detail."),
+        {"say": _bounded_narration(detail_line, 24),
          "label": "The details",
          "image": "A close, factual illustrative visual related to the specific detail in the report",
          "keywords": ["news detail", "relevant subject B-roll"]},
-        {"say": f"{second} has also reported the story. Its headline describes the development as: {second_headline}.",
+        {"say": _bounded_narration(f"{second} also reports the story. Its headline states: {second_headline}.", 24),
          "label": "Corroboration",
          "image": "A second editorial visual showing the subject from a different factual angle",
          "keywords": ["independent reporting", "subject context"]},
-        {"say": "The information available in these reports does not establish details beyond what has been stated. We will not speculate.",
+        {"say": "The available reports do not establish details beyond these statements. We will not speculate.",
          "label": "What is known",
          "image": "A clean editorial graphic separating confirmed information from unanswered questions",
          "keywords": ["verified facts", "editorial graphic"]},
-        {"say": f"That is the confirmed information from {first} and {second}. Follow for further verified updates.",
+        {"say": _bounded_narration(f"That is the information reported by {first} and {second}. Follow for verified updates.", 22),
          "label": "The close",
          "image": "A minimal, professional newsroom closing shot without logos or fabricated event footage",
          "keywords": ["news bulletin close", "newsroom"]},
