@@ -160,7 +160,7 @@
   "monitored_files": {
     "core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "core/analytics.py": "9f9f0f99a0d97b2ea61aea71dbb74ec3c24b9121f4309e56a48c56cd97de67d3",
-    "core/animation_integration.py": "fd0593bf0ffbb981b306e65f526765429a8396b9df6870706638fe37cf5c0143",
+    "core/animation_integration.py": "f3599fd6863d751f22dc4cdf3d6b5d876184139091abf722a2e706dbaa9e763d",
     "core/archival_images.py": "ff116db262f3638fc20356cdd4ae17c04f6049b11c1454037ee79373186cc84c",
     "core/asset_licensing.py": "90effc0dfeb9eff6150bd3e82c681fb918460845f2ddcda4ced306da13fdfd6b",
     "core/asset_manifest.py": "e7c7099f061db630e9dc5f1f0e97c85a0d08a8942ff2324a9ec2421d4c07fd4f",
@@ -330,8 +330,7 @@
     "schemas/production-manifest-v2.schema.json": "ae3f9eb66b8ff7d574bfec2a5ce9dec08a0fcb01ea185fe8a0c43f63200e13e5",
     "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
     "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
-    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
-    "core/animation_integration.py": "f3599fd6863d751f22dc4cdf3d6b5d876184139091abf722a2e706dbaa9e763d"
+    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
