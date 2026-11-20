@@ -137,7 +137,7 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "0f8d7a4f454766fa07f313ec67589517e39fd93aafdeac33d7516b5f2c6b31a5",
     ".github/workflows/make_longform.yml": "1a06ad179cb8db43b4e6ad8c8c11a4c8918480e0f2afbbbd25466508d76e6221",
-    ".github/workflows/make_shorts.yml": "0997e81bf848a3c4126e89affd34cfa4e6e65918abe0bd2cf9ad751618c16f0d",
+    ".github/workflows/make_shorts.yml": "21de46169e952807b8f4d62e6ff9f4ee7a58884e7b624c4e0e0f970d3e1a4e96",
     ".github/workflows/manual-live-documentary-e2e.yml": "cd594ad97a67963ea1945c0ddf8064284be6b5cd815aac573bbd54f4d32e9a9c",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
     ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
@@ -264,10 +264,10 @@
     "scripts/generate_openvino_video.py": "9dec4941a1efe107444810c9fd880e40e07bc67e33c13bd17e9b70b6d1fe7829",
     "scripts/import_wan_assets.py": "38721305a724ef0be2341e39dcd11a5dc2443d9b35d8abf74e36840a69c7185e",
     "scripts/map_wan_assets_to_storyboard.py": "e083a30fa2c015a9fbb5a7c8db1655dfb502a3448ee58ac899aa9c7d298132ca",
-    "scripts/package_build_for_review.py": "41fa59251027d41e64742bb27f72e6bcd5b7e6dff24ecb4e9c95e29ef628e258",
+    "scripts/package_build_for_review.py": "6c8dbd0f9538cec99055f3d93442355bfcefa62b49a05007aeb1581bf3d537ea",
     "scripts/package_daily_news_review.py": "273109db55684936e337d1380d489951184b71eaec4060749c535a1d9e63776f",
     "scripts/package_longform_review.py": "567e420e0835b73980bcae52911834c31853ef450435c25bb2829b43e4632c83",
-    "scripts/package_standard_short_review.py": "85fcbefa2f9e5d3e281131e346d967c9238e5bb49c2dfdfef87d7e63781b3142",
+    "scripts/package_standard_short_review.py": "8f4b63f604808c6bcdc3598daceee616795b3acd19dc613ce36b31f52bf0bc89",
     "scripts/persist_state.py": "f55020d7ef2d80f79a6693bb507069227ac8217c0c07bf09e6d122e2f3bef175",
     "scripts/prepare_news_short_assets.py": "18af4ce73a5e9237cc11aa44a194b7b2f5df3587e0daca398023c190f94b7dd4",
     "scripts/qa_news_short.py": "5bf31449f906b282f9869b7cc176c96e10c08a0f683cd4133d2c245a03f05688",
@@ -1336,7 +1336,7 @@
       "upload_lines": []
     },
     "make_shorts.yml": {
-      "sha256": "0997e81bf848a3c4126e89affd34cfa4e6e65918abe0bd2cf9ad751618c16f0d",
+      "sha256": "21de46169e952807b8f4d62e6ff9f4ee7a58884e7b624c4e0e0f970d3e1a4e96",
       "display_name": "1. Daily general Shorts — build and package",
       "on_sha256": "7d7e8c0779f31d83983dab944389ed96efe97b586360f93333108f0fafe0fded",
       "triggers": [
