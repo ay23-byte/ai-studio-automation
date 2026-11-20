@@ -20,6 +20,7 @@ class UploaderAdapter(Protocol):
     def upload(self, video: Path, title: str, description: str, tags: list,
                *, privacy_status: str, disable_scheduling: bool, marker: str) -> str: ...
     def get_video_status(self, video_id: str) -> dict: ...
+    def find_private_video_by_marker(self, marker: str) -> str | None: ...
 
 
 class ExistingUploaderAdapter:
@@ -39,6 +40,10 @@ class ExistingUploaderAdapter:
         from core import uploader
         return uploader.get_video_status(video_id)
 
+    def find_private_video_by_marker(self, marker: str) -> str | None:
+        from core import uploader
+        return uploader.find_private_video_by_marker(marker)
+
 
 class PrivatePublisher:
     def __init__(self, ledger_path: Path, config: V2Config):
@@ -55,15 +60,11 @@ class PrivatePublisher:
                 content_hash: str = "") -> UploadResult:
         if PRIVACY_STATUS != "private":
             raise RuntimeError("v2 privacy constant must remain private")
+        if not Path(video).is_file():
+            return UploadResult(state="UPLOAD_FAILED", error="video file is missing")
         content_hash = content_hash or sha256_file(video)
         marker = f"PV2-CONTENT:{content_hash[:16]}:{version}"
         ledger = self._load()
-        for record in ledger:
-            if record.get("marker") == marker and record.get("video_id"):
-                return UploadResult(state="UPLOADED_PRIVATE", video_id=record["video_id"],
-                                    privacy="private", marker=marker, content_hash=content_hash,
-                                    version=version, reused_existing_upload=True,
-                                    evidence={"idempotent_reuse": True})
         if quality.upload_eligibility != "PASS":
             return UploadResult(state="QUALITY_REJECTED", marker=marker, content_hash=content_hash,
                                 version=version, error="quality decision is not PASS",
@@ -71,18 +72,44 @@ class PrivatePublisher:
         if not self.config.upload_enabled:
             return UploadResult(state="SKIPPED", marker=marker, content_hash=content_hash,
                                 version=version, error="PV2_UPLOAD is not enabled")
-        if not Path(video).is_file():
-            return UploadResult(state="UPLOAD_FAILED", marker=marker, content_hash=content_hash,
-                                version=version, error="video file is missing")
 
         adapter = uploader or ExistingUploaderAdapter()
+        video_id = ""
+        reused = False
         try:
             channel = adapter.verify_channel()
-            channel_id = channel.get("id") if isinstance(channel, dict) else None
-            video_id = adapter.upload(
-                Path(video), str(metadata.get("title", ""))[:100],
-                str(metadata.get("description", ""))[:4900], list(metadata.get("tags") or []),
-                privacy_status="private", disable_scheduling=True, marker=marker)
+            if not isinstance(channel, dict) or not channel.get("verified") or not channel.get("id"):
+                raise RuntimeError("authenticated channel could not be verified")
+            channel_id = channel["id"]
+            handle = str(channel.get("handle") or "").lower().lstrip("@")
+            if handle and handle != CHANNEL_HANDLE.lower().lstrip("@"):
+                raise RuntimeError("authenticated channel handle does not match the target")
+            # A previous attempt may have created a video even when read-back failed.
+            previous = next((r for r in reversed(ledger)
+                             if r.get("marker") == marker and r.get("video_id")), None)
+            if previous:
+                video_id = previous["video_id"]
+                reused = True
+            else:
+                video_id = adapter.find_private_video_by_marker(marker) or ""
+                reused = bool(video_id)
+                if not video_id:
+                    # Persist intent before the network call. An interrupted/ambiguous
+                    # request must be reconciled manually rather than retried blindly.
+                    if any(r.get("marker") == marker and r.get("state") == "UPLOAD_PENDING" for r in ledger):
+                        raise RuntimeError("previous upload outcome is unknown; reconcile the marker before retrying")
+                    ledger.append({"marker": marker, "state": "UPLOAD_PENDING"})
+                    write_json(self.ledger_path, ledger)
+                    video_id = adapter.upload(
+                        Path(video), str(metadata.get("title", ""))[:100],
+                        str(metadata.get("description", ""))[:4900], list(metadata.get("tags") or []),
+                        privacy_status="private", disable_scheduling=True, marker=marker)
+                    if not video_id:
+                        raise RuntimeError("upload did not return a video ID")
+                    # Record the ID before read-back so failed verification cannot
+                    # cause a second upload on retry.
+                    ledger.append({"marker": marker, "state": "UPLOAD_UNVERIFIED", "video_id": video_id})
+                    write_json(self.ledger_path, ledger)
             stored = adapter.get_video_status(video_id)
             problems = []
             if not stored.get("found"):
@@ -91,18 +118,19 @@ class PrivatePublisher:
                 problems.append(f"privacy read-back was {stored.get('privacy_status')!r}")
             if stored.get("publish_at"):
                 problems.append("video has a scheduled publish time")
-            if channel_id and stored.get("channel_id") and stored["channel_id"] != channel_id:
-                problems.append("uploaded video is on the wrong channel")
+            if stored.get("channel_id") != channel_id:
+                problems.append("uploaded video channel is missing or does not match the verified channel")
             if problems:
                 raise RuntimeError("; ".join(problems))
             result = UploadResult(
                 state="UPLOADED_PRIVATE", video_id=video_id, privacy="private",
                 uploaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), marker=marker,
-                content_hash=content_hash, version=version,
+                content_hash=content_hash, version=version, reused_existing_upload=reused,
                 evidence={"readback": redact(stored), "channel_handle": CHANNEL_HANDLE})
-        except Exception as exc:  # noqa: BLE001 - any upload error must be reported, never hidden
-            result = UploadResult(state="UPLOAD_FAILED", marker=marker, content_hash=content_hash,
-                                  version=version, error=redact(str(exc))[:1000])
+        except Exception as exc:  # Any upload error must be reported, never hidden.
+            result = UploadResult(state="UPLOAD_FAILED", video_id=video_id, marker=marker,
+                                  content_hash=content_hash, version=version,
+                                  error=redact(str(exc))[:1000])
         ledger.append(result.__dict__)
         write_json(self.ledger_path, ledger)
         write_json(self.ledger_path.with_name("last_upload_result.json"), result.__dict__)

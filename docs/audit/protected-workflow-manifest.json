@@ -307,7 +307,7 @@
     "src/production_v2/narration.py": "6c1fc538fd46529c681c3ce315aea2aa9f28868d8220f344e0218648d4ea071c",
     "src/production_v2/notify.py": "a31fb0e7c35cc182dfccda7fefe42d47134c0085712ee2ab209037670963f2d9",
     "src/production_v2/pipeline.py": "3c9b513272e4527b9032f9245c13aba180df20a4eb5fc73d7190a3648eb051e2",
-    "src/production_v2/publishing.py": "4637eec48a485df68c974aa7fa1078e4badbcc288da63a7604caf2b2acadd035",
+    "src/production_v2/publishing.py": "5933398b0bf3ef26662e83d51d1d6ef83aaed098b86e1881efd4f07dcd37b5c6",
     "src/production_v2/qa.py": "b55906242d6b39791dc3064bd86b97d0a20325099fd4b5b60d7f47bdfb291c67",
     "src/production_v2/research.py": "d941215df89a1232263cca5e5105dc748696ff6f7a18554d78966d527e239889",
     "src/production_v2/retry.py": "ba5f9a7ebcfa3b513c33b336e323f234d515409dcc7c3447ef5bbe4fe8071dc7",

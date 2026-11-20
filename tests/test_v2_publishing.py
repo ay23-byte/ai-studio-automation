@@ -31,6 +31,9 @@ class FakeUploader:
             raise RuntimeError("quota exceeded")
         return "VIDEO123"
 
+    def find_private_video_by_marker(self, marker: str) -> str | None:
+        return None
+
     def get_video_status(self, video_id: str) -> dict:
         return {"found": True, "privacy_status": self.privacy, "publish_at": self.publish_at,
                 "channel_id": self.channel_id, "title": "t"}
@@ -107,6 +110,69 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(second.state, "UPLOADED_PRIVATE")
         self.assertTrue(second.reused_existing_upload)
         self.assertEqual(uploader.calls, 1)
+
+    def test_unverified_channel_never_uploads(self):
+        uploader = FakeUploader()
+        uploader.verify_channel = lambda: {"verified": False, "id": "wrong"}
+        result = self.publisher().publish(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        self.assertEqual(result.state, "UPLOAD_FAILED")
+        self.assertEqual(uploader.calls, 0)
+
+    def test_retry_checks_privacy_again_and_keeps_video_id(self):
+        uploader = FakeUploader()
+        publisher = self.publisher()
+        args = dict(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        self.assertEqual(publisher.publish(**args).state, "UPLOADED_PRIVATE")
+        uploader.privacy = "public"
+        result = publisher.publish(**args)
+        self.assertEqual(result.state, "UPLOAD_FAILED")
+        self.assertEqual(result.video_id, "VIDEO123")
+        self.assertEqual(uploader.calls, 1)
+
+    def test_failed_readback_retries_without_second_upload(self):
+        uploader = FakeUploader(privacy="public")
+        publisher = self.publisher()
+        args = dict(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        self.assertEqual(publisher.publish(**args).state, "UPLOAD_FAILED")
+        uploader.privacy = "private"
+        self.assertEqual(publisher.publish(**args).state, "UPLOADED_PRIVATE")
+        self.assertEqual(uploader.calls, 1)
+
+    def test_ambiguous_upload_failure_does_not_retry_blindly(self):
+        uploader = FakeUploader(fail=True)
+        publisher = self.publisher()
+        args = dict(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        publisher.publish(**args)
+        uploader.fail = False
+        result = publisher.publish(**args)
+        self.assertEqual(result.state, "UPLOAD_FAILED")
+        self.assertIn("unknown", result.error)
+        self.assertEqual(uploader.calls, 1)
+
+    def test_missing_video_channel_blocks_success(self):
+        uploader = FakeUploader()
+        uploader.get_video_status = lambda _: {"found": True, "privacy_status": "private"}
+        result = self.publisher().publish(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        self.assertEqual(result.state, "UPLOAD_FAILED")
+        self.assertEqual(result.video_id, "VIDEO123")
+
+    def test_remote_marker_is_reused_and_verified(self):
+        uploader = FakeUploader()
+        uploader.find_private_video_by_marker = lambda _: "REMOTE123"
+        result = self.publisher().publish(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        self.assertEqual(result.state, "UPLOADED_PRIVATE")
+        self.assertEqual(result.video_id, "REMOTE123")
+        self.assertTrue(result.reused_existing_upload)
+        self.assertEqual(uploader.calls, 0)
+
+    def test_marker_lookup_failure_never_uploads(self):
+        uploader = FakeUploader()
+        def fail_lookup(_):
+            raise RuntimeError("lookup unavailable")
+        uploader.find_private_video_by_marker = fail_lookup
+        result = self.publisher().publish(video=self.video, metadata={}, quality=quality(), uploader=uploader)
+        self.assertEqual(result.state, "UPLOAD_FAILED")
+        self.assertEqual(uploader.calls, 0)
 
     def test_upload_exception_is_recorded_without_hiding_video(self):
         uploader = FakeUploader(fail=True)
