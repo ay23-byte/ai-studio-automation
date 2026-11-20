@@ -54,7 +54,7 @@ EXPECTED_TRIGGERS = {
     "manual-youtube-private-upload.yml": ["workflow_dispatch"],
 }
 UPLOAD_WORKFLOWS = {
-    "daily-news-auto-short.yml", "make_longform.yml", "make_shorts.yml",
+    "daily-news-auto-short.yml", "make_shorts.yml",
     "release_documentary_auto.yml", "release_documentary_private.yml",
     "release_shorts_private.yml",
 }
