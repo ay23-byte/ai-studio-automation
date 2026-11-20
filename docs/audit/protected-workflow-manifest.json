@@ -150,7 +150,7 @@
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
-    ".github/workflows/v2-animation-integration.yml": "a0f60fec99adaa1158cf55172b2cd29b29095b8ee47d3d11f115e9c801e979f9",
+    ".github/workflows/v2-animation-integration.yml": "2da86ff64ea3364618148b0e154b35db780fd0f6970405473ad2e19a2b66b925",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
     ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
     ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
@@ -2047,7 +2047,7 @@
       "upload_lines": []
     },
     "v2-animation-integration.yml": {
-      "sha256": "a0f60fec99adaa1158cf55172b2cd29b29095b8ee47d3d11f115e9c801e979f9",
+      "sha256": "2da86ff64ea3364618148b0e154b35db780fd0f6970405473ad2e19a2b66b925",
       "display_name": "V2 animation integration (opt-in validation)",
       "on_sha256": "b7819b485ff753852e9f6f7da14a93eab20095cf49c1ab6da66bb54bf96fd025",
       "triggers": [

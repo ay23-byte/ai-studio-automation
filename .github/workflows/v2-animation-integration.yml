@@ -35,7 +35,7 @@ jobs:
               ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri; then
             timeout 120s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
             timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
-              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core
+              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri
           fi
           command -v ffmpeg
           command -v ffprobe
