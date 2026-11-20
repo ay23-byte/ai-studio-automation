@@ -59,6 +59,7 @@ class V2Config:
     pronunciation_map: dict[str, str] = field(default_factory=dict)
     target_lufs: float = -16.0
     true_peak_dbfs: float = -1.5
+    blender_binary: str = "blender"
     visual_manifest: str = ""
     failure_webhook: str = ""
     request_timeout_seconds: float = 20.0
@@ -85,6 +86,7 @@ class V2Config:
             ffprobe_binary=e.get("FFPROBE_BINARY", "ffprobe"),
             tts_voice=e.get("PV2_TTS_VOICE", "en-IN-PrabhatNeural"),
             pronunciation_map=pronunciation if isinstance(pronunciation, dict) else {},
+            blender_binary=e.get("PV2_BLENDER_BINARY", "blender"),
             visual_manifest=e.get("PV2_VISUAL_MANIFEST", ""),
             failure_webhook=e.get("PV2_FAILURE_WEBHOOK", ""),
         )

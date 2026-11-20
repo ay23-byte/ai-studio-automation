@@ -6,7 +6,8 @@ To replace specific v2 scenes, create a JSON file and set `PV2_VISUAL_MANIFEST` 
 ```json
 {
   "scene_01": {"type": "commons", "title": "File:Example.webm", "reviewed": true},
-  "scene_02": {"type": "manim_wave", "reviewed": true}
+  "scene_02": {"type": "manim_wave", "reviewed": true},
+  "scene_03": {"type": "blender_orbit", "reviewed": true}
 }
 ```
 
@@ -26,10 +27,22 @@ audio. Review final output and any loop/repeated footage.
 illustration of an arbitrary physics claim. Select it only when relevant. Manim Community
 and its system dependencies must be installed separately in the same Python environment;
 there is no paid API. Missing Manim is a hard failure, not a silent fallback. This option
-is available only for diagram/animation scenes. Blender integration and additional
-scientific simulations are **not implemented**.
+is available only for diagram/animation scenes.
 
-The Commons adapter and Manim invocation have offline mocked tests; a real FFmpeg video
-segment was rendered locally. Live Wikimedia retrieval, a real Manim render, and a full
-archival documentary have **not been verified** in this sandbox. A human must review
+`blender_orbit` renders a labelled idealized circular orbit, not to scale. Select it
+only for an appropriate diagram/animation scene. Install Blender 4.2 or newer with its
+background renderer and FFmpeg; `PV2_BLENDER_BINARY` optionally specifies the Blender
+executable (default `blender`). Blender renders to temporary PNG frames which are encoded
+to H.264 and removed. An absent tool or incomplete render fails the run. Rendering at
+1080p is CPU/memory intensive; measure runtime and budget before any production use.
+No arbitrary scripts, blend files, third-party code or scene parameters are accepted.
+The two examples are not a general scientific animation library: additional models,
+scientific validation and artist review remain necessary.
+
+The Commons adapter and both renderer invocations have offline mocked tests; a real FFmpeg
+video segment was rendered locally. Live Wikimedia retrieval, real Manim and Blender
+renders, and a full archival documentary have **not been verified** in this sandbox.
+Once Blender, Manim, and FFmpeg are installed, run
+`PV2_TEST_REAL_ANIMATIONS=1 python -m pytest tests/test_v2_real_animation.py -q` to run
+real, small renderer integration tests (the opt-in test fails if tools are missing). A human must review
 assets and the complete film, and private upload still requires separate live verification.

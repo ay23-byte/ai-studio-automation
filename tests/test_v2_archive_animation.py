@@ -60,13 +60,57 @@ class ArchiveAnimationTests(unittest.TestCase):
             config = V2Config.from_env({"PV2_VISUAL_MANIFEST": str(manifest)})
             def render(cmd, timeout):
                 self.assertIn("manim", cmd)
-                output = root / "manim_s" / "videos" / "WaveIllustration.mp4"
+                output = Path(cmd[cmd.index("--media_dir") + 1]) / "videos" / "WaveIllustration.mp4"
                 output.parent.mkdir(parents=True)
                 output.write_bytes(b"video")
             with patch("src.production_v2.ffmpeg_io.run", side_effect=render):
                 assets = plan_visuals([Scene("s", "n", VisualSpec("wave", "animation"))], root, AssetLibrary(), config, "physics_short")
             self.assertEqual(assets[0].record.media_type, "video")
             self.assertTrue(assets[0].record.synthetic)
+
+    def test_blender_orbit_renders_frames_and_registers_video(self):
+        from dataclasses import replace
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = root / "visuals.json"
+            manifest.write_text(json.dumps({"s": {"type": "blender_orbit", "reviewed": True}}))
+            config = V2Config.from_env({"PV2_VISUAL_MANIFEST": str(manifest)})
+            config.rules["physics_short"] = replace(config.rules["physics_short"], fps=1)
+            def render(cmd, timeout):
+                if "--background" in cmd:
+                    prefix = Path(cmd[cmd.index("--output") + 1])
+                    for i in range(1, 5):
+                        prefix.with_name(prefix.name + f"{i:04d}.png").write_bytes(b"frame")
+                else:
+                    Path(cmd[-1]).write_bytes(b"video")
+            with patch("src.production_v2.ffmpeg_io.run", side_effect=render), \
+                 patch("src.production_v2.ffmpeg_io.resolve_ffmpeg", return_value="ffmpeg"):
+                assets = plan_visuals([Scene("s", "n", VisualSpec("orbit", "animation"))], root, AssetLibrary(), config, "physics_short")
+            self.assertEqual(assets[0].record.media_type, "video")
+            self.assertIn("not to scale", assets[0].record.restrictions)
+            self.assertFalse(list(assets[0].image_path.parent.glob("frame_*.png")))
+
+    def test_blender_missing_frames_fails_closed(self):
+        from dataclasses import replace
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = root / "visuals.json"
+            manifest.write_text(json.dumps({"s": {"type": "blender_orbit", "reviewed": True}}))
+            config = V2Config.from_env({"PV2_VISUAL_MANIFEST": str(manifest)})
+            config.rules["physics_short"] = replace(config.rules["physics_short"], fps=1)
+            with patch("src.production_v2.ffmpeg_io.run"), \
+                 patch("src.production_v2.ffmpeg_io.resolve_ffmpeg", return_value="ffmpeg"):
+                with self.assertRaisesRegex(ValueError, "every expected"):
+                    plan_visuals([Scene("s", "n", VisualSpec("orbit", "diagram"))], root, AssetLibrary(), config, "physics_short")
+
+    def test_blender_cannot_be_selected_for_unrelated_scene_types(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = root / "visuals.json"
+            manifest.write_text(json.dumps({"s": {"type": "blender_orbit", "reviewed": True}}))
+            config = V2Config.from_env({"PV2_VISUAL_MANIFEST": str(manifest)})
+            with self.assertRaisesRegex(ValueError, "only allowed"):
+                plan_visuals([Scene("s", "n", VisualSpec("title", "illustrative"))], root, AssetLibrary(), config, "documentary")
 
     def test_video_uses_looping_video_input_not_image_loop(self):
         cmd = _segment_command("ffmpeg", Path("asset.webm"), Path("speech.wav"), Path("out.mp4"), 3, 1080, 1920, 30, is_video=True)

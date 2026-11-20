@@ -6,6 +6,7 @@ import math
 import json
 import re
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -140,13 +141,13 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 if scene.visual.kind not in {"animation", "diagram"}:
                     raise ValueError("wave animation is only allowed for diagram/animation scenes")
                 from .ffmpeg_io import run
-                media_dir = store_root / f"manim_{scene.id}"
+                media_dir = Path(tempfile.mkdtemp(prefix=f"manim_{scene.id}_", dir=store_root))
                 run([sys.executable, "-m", "manim", "render", "--disable_caching", "--media_dir", str(media_dir),
                      "-r", f"{rules.width},{rules.height}", "--fps", str(rules.fps),
                      str(Path(__file__).with_name("manim_wave.py")), "WaveIllustration"],
                     timeout=config.ffmpeg_timeout_seconds)
                 candidates = list(media_dir.rglob("WaveIllustration.mp4"))
-                if len(candidates) != 1:
+                if len(candidates) != 1 or candidates[0].stat().st_size == 0:
                     raise ValueError("Manim did not produce the expected wave video")
                 image = candidates[0]
                 record = AssetRecord(id=f"visual_{scene.id}", source_url="generated-locally://manim-wave",
@@ -154,6 +155,38 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
                     media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
                     used_in=scene.id, restrictions="Conceptual sine wave; verify relevance and scientific meaning.")
+            elif choice.get("type") == "blender_orbit":
+                if scene.visual.kind not in {"animation", "diagram"}:
+                    raise ValueError("orbit animation is only allowed for diagram/animation scenes")
+                from .ffmpeg_io import resolve_ffmpeg, run
+                ffmpeg = resolve_ffmpeg(config)
+                if not ffmpeg:
+                    raise ValueError("FFmpeg is required to encode Blender frames")
+                # Use an isolated directory so a previous render cannot be mistaken for success.
+                media_dir = Path(tempfile.mkdtemp(prefix=f"blender_{scene.id}_", dir=store_root))
+                frames = media_dir / "frame_"
+                run([config.blender_binary, "--background", "--factory-startup", "--python",
+                     str(Path(__file__).with_name("blender_orbit.py")), "--", "--output", str(frames),
+                     "--width", str(rules.width), "--height", str(rules.height), "--fps", str(rules.fps)],
+                    timeout=config.ffmpeg_timeout_seconds)
+                expected = rules.fps * 4
+                if any(not (media_dir / f"frame_{index:04d}.png").is_file()
+                       for index in range(1, expected + 1)):
+                    raise ValueError("Blender did not produce every expected animation frame")
+                image = media_dir / "orbit.mp4"
+                run([ffmpeg, "-y", "-hide_banner", "-loglevel", "warning", "-framerate", str(rules.fps),
+                     "-start_number", "1", "-i", str(media_dir / "frame_%04d.png"), "-frames:v", str(expected),
+                     "-c:v", "libx264", "-pix_fmt", "yuv420p", str(image)],
+                    timeout=config.ffmpeg_timeout_seconds)
+                if not image.is_file() or image.stat().st_size == 0:
+                    raise ValueError("Blender orbit video encoding failed")
+                for index in range(1, expected + 1):
+                    (media_dir / f"frame_{index:04d}.png").unlink()
+                record = AssetRecord(id=f"visual_{scene.id}", source_url="generated-locally://blender-orbit",
+                    creator="Engineering Physics v2", license="synthetic demonstration graphic",
+                    downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
+                    media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
+                    used_in=scene.id, restrictions="Idealized circular orbit, not to scale; verify relevance and accuracy.")
             else:
                 raise ValueError(f"unsupported visual type for {scene.id}")
             library.add(record)
