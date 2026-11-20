@@ -217,6 +217,49 @@ class PublishJobTests(_Sandbox):
             self.addCleanup(item.stop)
         return started
 
+
+    def _prepare_machine_only_short(self):
+        job_id = self.make_job()
+        job_dir = config.BUILD_DIR / f"job_{job_id}"
+        (job_dir / "visual_fallback_report.json").write_text(json.dumps({
+            "status": "PASS", "visual_count": 4, "fallback_card_count": 0,
+            "fallback_card_share": 0.0}), encoding="utf-8")
+        (job_dir / "audio_quality_report.json").write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
+        (job_dir / "subs.ass").write_text("[Script Info]\\n", encoding="utf-8")
+        self.review.update(ok=False, detail="No human review exists.", reviewer=None)
+        return job_id
+
+    def test_automated_upload_is_not_recorded_until_private_readback_passes(self):
+        job_id = self._prepare_machine_only_short()
+        with patch("core.uploader.upload", return_value="yt_new"), \\
+             patch("core.uploader.verify_channel", return_value={"verified": True, "id": "UC_test"}), \\
+             patch("core.uploader.get_video_status", return_value={
+                 "found": True, "privacy_status": "public", "publish_at": None, "channel_id": "UC_test"}), \\
+             patch("core.uploader.set_video_privacy"), \\
+             patch("core.uploader.add_to_playlist"):
+            with self.assertRaisesRegex(RuntimeError, "not verified"):
+                publish.publish_job(job_id, notify=False, automated=True, wait=False)
+        row = self.db.get_video(job_id)
+        self.assertIsNone(row["youtube_id"])
+        self.assertEqual(row["status"], "done")
+        result = json.loads((config.BUILD_DIR / f"job_{job_id}" / "upload_result.json").read_text())
+        self.assertEqual(result["status"], "verification_failed")
+        self.assertFalse(result["privacy_verified"])
+
+    def test_automated_upload_records_success_only_after_private_channel_readback(self):
+        job_id = self._prepare_machine_only_short()
+        with patch("core.uploader.upload", return_value="yt_new"), \\
+             patch("core.uploader.verify_channel", return_value={"verified": True, "id": "UC_test"}), \\
+             patch("core.uploader.get_video_status", return_value={
+                 "found": True, "privacy_status": "private", "publish_at": None, "channel_id": "UC_test"}), \\
+             patch("core.uploader.add_to_playlist"):
+            result = publish.publish_job(job_id, notify=False, automated=True, wait=False)
+        row = self.db.get_video(job_id)
+        self.assertEqual(row["youtube_id"], "yt_new")
+        self.assertEqual(row["status"], "uploaded")
+        self.assertTrue(result["privacy_verified"])
+        self.assertEqual(result["privacy"], "private")
+
     def test_upload_is_private_recorded_and_idempotent(self):
         mocks = self._uploader()
         job_id = self.make_job()
