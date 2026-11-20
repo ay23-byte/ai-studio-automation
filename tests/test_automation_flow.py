@@ -272,6 +272,22 @@ class NewsAutoTests(_StateSandbox):
         self.assertTrue(any("attribut" in p or "publisher" in p
                             for p in news_auto.validate_news_script(unattributed, story)))
 
+    def test_grounded_template_is_used_when_all_script_models_fail(self):
+        story, _ = news_auto.select_story(CORROBORATED)
+        with patch.dict(os.environ, {"NEWS_TEMPLATE_FALLBACK": ""}, clear=False), \\
+             patch("core.script_engine._ask_gemini", side_effect=RuntimeError("Gemini unavailable")):
+            script = news_auto.build_script(story, language="hinglish")
+        self.assertEqual(script["language"], "english")
+        self.assertEqual(news_auto.validate_news_script(script, story, "english"), [])
+        self.assertEqual(len(script["scenes"]), 5)
+
+    def test_explicitly_disabled_template_fallback_still_fails_closed(self):
+        story, _ = news_auto.select_story(CORROBORATED)
+        with patch.dict(os.environ, {"NEWS_TEMPLATE_FALLBACK": "0"}, clear=False), \\
+             patch("core.script_engine._ask_gemini", side_effect=RuntimeError("Gemini unavailable")):
+            with self.assertRaises(news_auto.NoPublishableStory):
+                news_auto.build_script(story, language="english")
+
     def test_generic_newsroom_filler_is_rejected(self):
         story, _ = news_auto.select_story(CORROBORATED)
         script = news_auto.template_script(story)
