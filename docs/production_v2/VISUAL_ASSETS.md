@@ -1,6 +1,6 @@
 # Opt-in reviewed visual assets
 
-V2 defaults to labelled synthetic stills, and existing production workflows are unchanged.
+V2 defaults to labelled synthetic stills. The three existing production workflows now enable the shared Manim/Blender bridge for eligible diagram scenes.
 To replace specific v2 scenes, create a JSON file and set `PV2_VISUAL_MANIFEST` to its path:
 
 ```json
@@ -37,16 +37,15 @@ official `bpy` package is installed in the same Python environment (CI uses vers
 to H.264 and removed. An absent tool or incomplete render fails the run. Rendering at
 1080p is CPU/memory intensive; measure runtime and budget before any production use.
 No arbitrary scripts, blend files, third-party code or scene parameters are accepted.
-The two examples are not a general scientific animation library: additional models,
-scientific validation and artist review remain necessary.
+The two examples are not a general scientific animation library: additional models and
+scientific validation are needed before using animations for other concepts.
 
 The Commons adapter has offline mocked tests. Real Manim 0.19 and Blender 4.2.23
-render-and-probe tests passed on GitHub Actions in run 44716249833. Live Wikimedia
-retrieval, final-video human inspection and a full archival documentary remain unverified.
-Once Blender, Manim, and FFmpeg are installed, run
-`PV2_TEST_REAL_ANIMATIONS=1 python -m pytest tests/test_v2_real_animation.py -q` to run
-real, small renderer integration tests (the opt-in test fails if tools are missing). A human must review
-assets and the complete film, and private upload still requires separate live verification.
+render-and-probe tests passed on GitHub Actions in run 44716249833. The production
+workflows install the pinned open-source renderers and run technical validation before
+editing. Live Wikimedia retrieval and full archival documentary production still need
+separate verification. To repeat the small renderer integration tests, run
+`PV2_TEST_REAL_ANIMATIONS=1 python -m pytest tests/test_v2_real_animation.py -q`.
 
 ## Automatic draft selection (opt-in)
 
