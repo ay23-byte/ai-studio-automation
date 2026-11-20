@@ -102,6 +102,7 @@ jobs:
           TTS_OPENING_RATE: "+5%"
           TTS_CLOSING_RATE: "+6%"
           NEWS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          SHORTS_SUBTITLE_LANGUAGE: "english"
           WANT_UPLOAD: "true"
           # No generic template fallback: if a newsroom-quality script cannot be
           # generated and validated, skip production rather than publish filler.

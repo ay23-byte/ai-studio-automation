@@ -39,9 +39,14 @@ def summary_markdown(mode: str, package: Path | None, summary: dict | None, mess
         lines.append(message or "No review package was produced.")
         return "\n".join(lines) + "\n"
     status = summary.get("status")
-    headline = {"REVIEW_REQUIRED": "Awaiting human review. Nothing was uploaded.",
-                "FAIL": "NOT APPROVABLE: automated QA failed. Nothing was uploaded.",
-                }.get(status, f"Unexpected status {status}.")
+    if mode == "daily_news" and status == "REVIEW_REQUIRED":
+        headline = "Human review is required before public release. Check the run report for private-upload status."
+    elif mode == "daily_news" and status == "FAIL":
+        headline = "Automated QA or private release failed. Check the run report for private-upload status; nothing was made public."
+    else:
+        headline = {"REVIEW_REQUIRED": "Awaiting human review. Nothing was uploaded.",
+                    "FAIL": "NOT APPROVABLE: automated QA failed. Nothing was uploaded.",
+                    }.get(status, f"Unexpected status {status}.")
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     lines += [f"**{headline}**", "",
               f"- Job: `{summary.get('job_id')}` ({mode})", f"- Topic: {summary.get('topic')}",

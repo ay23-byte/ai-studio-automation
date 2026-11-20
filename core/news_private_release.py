@@ -101,31 +101,65 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
             "; ".join(content.get("issues", []) + content.get("warnings", []))[:1200])
 
     from core import uploader
-    channel = uploader.verify_channel(force=True)
+    try:
+        channel = uploader.verify_channel(force=True)
+    except Exception as exc:
+        failure = {"job_id": job_id, "status": "upload_failed", "privacy_verified": False,
+                   "error": f"{type(exc).__name__}: {exc}"[:800]}
+        (build_dir / "automatic_private_release.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+        record_stage(job_id, "upload", "failed", error=failure["error"])
+        raise NewsAutoReleaseBlocked("YouTube channel verification failed: " + failure["error"]) from exc
     if not channel.get("verified"):
+        failure = {"job_id": job_id, "status": "upload_failed", "privacy_verified": False,
+                   "error": "YouTube channel identity is not verified."}
+        (build_dir / "automatic_private_release.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+        record_stage(job_id, "upload", "failed", error=failure["error"])
         raise NewsAutoReleaseBlocked(
             "YouTube channel identity is not verified; configure YT_CHANNEL_ID or YT_CHANNEL_HANDLE.")
     expected_handle = str(os.getenv("YT_CHANNEL_HANDLE") or "@engineeringphysics-n5g").lower().lstrip("@")
     actual_handle = str(channel.get("handle") or "").lower().lstrip("@")
     if expected_handle and actual_handle and actual_handle != expected_handle:
-        raise NewsAutoReleaseBlocked(
-            f"Authenticated channel @{actual_handle} does not match @{expected_handle}.")
+        failure = {"job_id": job_id, "status": "upload_failed", "privacy_verified": False,
+                   "error": f"Authenticated channel @{actual_handle} does not match @{expected_handle}."}
+        (build_dir / "automatic_private_release.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+        record_stage(job_id, "upload", "failed", error=failure["error"])
+        raise NewsAutoReleaseBlocked(failure["error"])
 
     metadata = build_metadata(row, script, build_dir)
     marker = upload_marker(row)
-    existing = uploader.find_private_video_by_marker(marker)
-    if existing:
-        video_id = existing
-        reused = True
-    else:
-        video_id = uploader.upload(
-            video, metadata["title"], metadata["description"], metadata["tags"],
-            category_id=metadata["category_id"], contains_synthetic=True,
-            privacy_status="private", disable_scheduling=True, marker=marker)
-        reused = False
+    try:
+        existing = uploader.find_private_video_by_marker(marker)
+        if existing:
+            video_id = existing
+            reused = True
+        else:
+            video_id = uploader.upload(
+                video, metadata["title"], metadata["description"], metadata["tags"],
+                category_id=metadata["category_id"], contains_synthetic=True,
+                privacy_status="private", disable_scheduling=True, marker=marker)
+            reused = False
+    except Exception as exc:
+        failure = {"job_id": job_id, "status": "upload_failed", "privacy_verified": False,
+                   "error": f"{type(exc).__name__}: {exc}"[:800]}
+        (build_dir / "automatic_private_release.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+        record_stage(job_id, "upload", "failed", error=failure["error"])
+        raise NewsAutoReleaseBlocked("YouTube upload request failed: " + failure["error"]) from exc
 
-    processing = uploader.wait_processed(video_id) if wait else None
-    stored = uploader.get_video_status(video_id)
+    try:
+        processing = uploader.wait_processed(video_id) if wait else None
+        stored = uploader.get_video_status(video_id)
+    except Exception as exc:
+        failure = {"job_id": job_id, "youtube_id": video_id, "status": "verification_failed",
+                   "privacy_verified": False, "error": f"{type(exc).__name__}: {exc}"[:800]}
+        (build_dir / "automatic_private_release.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+        record_stage(job_id, "upload", "unverified", error=failure["error"])
+        raise NewsAutoReleaseBlocked("YouTube upload was created but verification failed: "
+                                     + failure["error"]) from exc
     problems = []
     if not stored.get("found"):
         problems.append("YouTube did not return the uploaded video.")
@@ -148,6 +182,7 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
         "automated_checks": {"release_gate": checks, "source_verification": "PASS",
                              "technical_qa": "PASS", "script_qa": "PASS"},
         "verification_problems": problems,
+        "status": "verification_failed" if problems else "uploaded",
     }
     (build_dir / "automatic_private_release.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -66,18 +66,30 @@ jobs:
       - name: Install system dependencies (bounded retries)
         shell: bash
         run: |
-          set -u
+          set -euo pipefail
           for attempt in 1 2 3; do
-            if sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng libraqm0; then
+            if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update &&
+               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends --fix-missing ffmpeg espeak-ng libraqm0; then
               break
             fi
-            [ "$attempt" -lt 3 ] || { echo "::error::Could not install FFmpeg after 3 attempts."; exit 1; }
-            sleep $((attempt * 10))
+            [[ "$attempt" -lt 3 ]] || { echo "::error::Could not install FFmpeg/FFprobe after 3 attempts."; exit 1; }
+            sleep $((attempt * 15))
           done
+          command -v ffmpeg >/dev/null
+          command -v ffprobe >/dev/null
           ffmpeg -version | head -n 1
 
-      - name: Install Python dependencies
-        run: python -m pip install -r requirements-ci.txt
+      - name: Install Python dependencies (bounded retries)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if python -m pip install --retries 5 --timeout 60 -r requirements-ci.txt; then
+              break
+            fi
+            [[ "$attempt" -lt 3 ]] || { echo "::error::Python dependencies failed after 3 attempts."; exit 1; }
+            sleep $((attempt * 10))
+          done
 
       - name: Validate Python syntax
         run: python -m compileall -q core run.py run_daily.py scripts
@@ -120,6 +132,7 @@ jobs:
           TTS_CLOSING_RATE: "+6%"
           ALLOW_CHATTERBOX_ON_CI: "false"
           SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
+          SHORTS_SUBTITLE_LANGUAGE: "english"
           TOPIC_CATEGORIES: "physics,engineering,technology,science"
           CHANNEL_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.channel_profile || 'standard' }}
           # Inputs travel through the environment and are never interpolated
@@ -225,8 +238,17 @@ jobs:
           command -v ffprobe
           ffmpeg -version | head -n 1
 
-      - name: Install Python dependencies
-        run: python -m pip install -r requirements-ci.txt
+      - name: Install Python dependencies (bounded retries)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if python -m pip install --retries 5 --timeout 60 -r requirements-ci.txt; then
+              break
+            fi
+            [[ "$attempt" -lt 3 ]] || { echo "::error::Release dependencies failed after 3 attempts."; exit 1; }
+            sleep $((attempt * 10))
+          done
 
       - name: Download this run's exact build artifact
         uses: actions/download-artifact@v8

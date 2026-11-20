@@ -193,33 +193,91 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
             privacy_status="private", disable_scheduling=not uploader.public_publish_allowed(),
             marker=marker)
     except Exception as exc:
+        failure = {"job_id": job_id, "status": "upload_failed",
+                   "privacy_verified": False, "error": f"{type(exc).__name__}: {exc}"[:800]}
+        (build_dir / "upload_result.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
         record_stage(job_id, "upload", "failed", error=f"{type(exc).__name__}: {exc}"[:800])
         if notify:
             send(f"❌ Upload failed for '{metadata['title']}': {str(exc)[:300]}")
         raise
 
-    # Read back what YouTube stored; never trust the request alone.
+    # For automated release, do not mark the job uploaded until YouTube has
+    # confirmed processing, privacy, schedule state and channel ownership.
     privacy, publish_at = "private", None
-    # True only if YouTube answered with a stored privacy value.  Reports use this
-    # to say "verified" instead of assuming the requested privacy was applied.
     privacy_verified = False
-    try:
-        stored = uploader.get_video_status(video_id)
-        privacy_verified = bool(stored.get("privacy_status"))
-        privacy = stored.get("privacy_status") or privacy
-        publish_at = stored.get("publish_at")
-        if privacy != "private" and not uploader.public_publish_allowed():
-            uploader.set_video_privacy(video_id, "private")
-            privacy = "private"
-            if notify:
-                send(f"⚠️ {video_id} was not private after upload; it has been set back to private.")
-    except Exception as exc:
-        print(f"WARNING: could not read back the stored privacy for {video_id}: {exc}")
+    processing = None
+    channel = None
+    if automated:
+        try:
+            if wait:
+                processing = uploader.wait_processed(video_id)
+            channel = uploader.verify_channel(force=True)
+            stored = uploader.get_video_status(video_id)
+            problems = []
+            if processing is not None and processing != "ok":
+                problems.append(f"YouTube processing status was {processing!r}, not 'ok'.")
+            if not channel.get("verified") or not channel.get("id"):
+                problems.append("The authenticated Engineering Physics channel could not be verified.")
+            if not stored.get("found"):
+                problems.append("YouTube did not return the uploaded video.")
+            else:
+                if stored.get("privacy_status") != "private":
+                    # A private-only workflow may correct visibility, but it must read
+                    # the correction back before it can record success.
+                    if not uploader.public_publish_allowed():
+                        uploader.set_video_privacy(video_id, "private")
+                        stored = uploader.get_video_status(video_id)
+                if stored.get("privacy_status") != "private":
+                    problems.append(f"YouTube privacy read-back was {stored.get('privacy_status')!r}, not 'private'.")
+                if stored.get("publish_at"):
+                    problems.append("YouTube returned a scheduled publish time; automated release never schedules.")
+                if channel.get("id") and stored.get("channel_id") != channel.get("id"):
+                    problems.append("The uploaded video is not on the verified Engineering Physics channel.")
+            if problems:
+                record_stage(job_id, "upload", "unverified", error="; ".join(problems)[:800])
+                failure = {
+                    "job_id": job_id, "youtube_id": video_id, "status": "verification_failed",
+                    "privacy": stored.get("privacy_status") if isinstance(stored, dict) else None,
+                    "privacy_verified": False, "publish_at": stored.get("publish_at") if isinstance(stored, dict) else None,
+                    "processing": processing, "verification_problems": problems,
+                }
+                (build_dir / "upload_result.json").write_text(
+                    json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+                raise RuntimeError("Automated private upload was not verified: " + "; ".join(problems))
+            privacy = stored.get("privacy_status")
+            publish_at = stored.get("publish_at")
+            privacy_verified = True
+        except Exception as exc:
+            if not (build_dir / "upload_result.json").is_file():
+                record_stage(job_id, "upload", "unverified", error=f"{type(exc).__name__}: {exc}"[:800])
+                failure = {"job_id": job_id, "youtube_id": video_id, "status": "verification_failed",
+                           "privacy_verified": False, "processing": processing,
+                           "error": f"{type(exc).__name__}: {exc}"[:800]}
+                (build_dir / "upload_result.json").write_text(
+                    json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+            raise
+    else:
+        # Human-reviewed uploads retain the existing best-effort read-back
+        # behaviour, but the report explicitly records whether YouTube answered.
+        try:
+            stored = uploader.get_video_status(video_id)
+            privacy_verified = bool(stored.get("privacy_status"))
+            privacy = stored.get("privacy_status") or privacy
+            publish_at = stored.get("publish_at")
+            if privacy != "private" and not uploader.public_publish_allowed():
+                uploader.set_video_privacy(video_id, "private")
+                privacy = "private"
+                if notify:
+                    send(f"⚠️ {video_id} was not private after upload; it has been set back to private.")
+        except Exception as exc:
+            print(f"WARNING: could not read back the stored privacy for {video_id}: {exc}")
 
+    # Bookkeeping happens only after strict automated verification has passed.
     update_video(job_id, youtube_id=video_id, status="uploaded", privacy_status=privacy,
                  uploaded_at=_now(), error=None)
-    ledger.record(fmt, str(row.get("title") or metadata["title"]), key=str(row.get("topic_key") or ""),
-                  job_id=job_id, youtube_id=video_id, privacy_status=privacy, status="uploaded",
+    ledger.record(fmt, str(row.get("title") or metadata["title"]), key=str(row.get("topic_key") or ""), job_id=job_id,
+                  youtube_id=video_id, privacy_status=privacy, status="uploaded",
                   source_refs=[r for r in str(row.get("source_ref") or "").split(",") if r])
     record_stage(job_id, "upload", "done", detail={"youtube_id": video_id, "privacy": privacy})
 
@@ -245,25 +303,13 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
             uploader.post_comment(video_id, metadata["pinned_comment"])
         except Exception as exc:
             warnings.append(f"comment: {str(exc)[:160]}")
-    processing = None
-    if wait:
+    if wait and not automated:
         processing = uploader.wait_processed(video_id)
         if processing != "ok":
             update_video(job_id, status=f"youtube_{processing}")
             if notify:
                 send(f"❌ YouTube processing did not complete ({processing}) for: {metadata['title']}")
             raise RuntimeError(f"YouTube processing did not complete: {processing}")
-    if automated:
-        channel = uploader.verify_channel(force=True)
-        final_status = uploader.get_video_status(video_id)
-        if not channel.get("verified") or not final_status.get("found"):
-            raise RuntimeError("Automated release could not verify the uploaded video and authenticated channel.")
-        if final_status.get("privacy_status") != "private" or final_status.get("publish_at"):
-            raise RuntimeError("Automated release read-back is not private-only (privacy must be private and publishAt empty).")
-        if final_status.get("channel_id") != channel.get("id"):
-            raise RuntimeError("Automated release read-back channel ID does not match the verified Engineering Physics channel.")
-        if wait and processing != "ok":
-            raise RuntimeError(f"Automated release processing status is {processing!r}, not 'ok'.")
     url = _url(fmt, video_id)
     result = {"job_id": job_id, "youtube_id": video_id, "url": url, "privacy": privacy,
               "privacy_verified": privacy_verified,

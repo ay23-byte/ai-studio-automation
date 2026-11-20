@@ -149,14 +149,23 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertTrue(problems(base="develop"))
         self.assertTrue(problems(pull_requests=[]))
 
-    def test_only_the_separate_release_job_can_upload(self):
-        build = WORKFLOW[WORKFLOW.index("  build:\n"):WORKFLOW.index("  release:\n")]
-        release = WORKFLOW[WORKFLOW.index("  release:\n"):]
+    def test_documentary_build_is_credential_isolated_and_auto_release_is_separate(self):
+        build = WORKFLOW[WORKFLOW.index("  build:\n"):]
+        release = (ROOT / ".github" / "workflows" / "release_documentary_auto.yml").read_text(encoding="utf-8")
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertNotIn("YT_CLIENT_ID", build)
+        self.assertNotIn("  release:\n", build)
+        self.assertIn("workflow_run:", release)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", release)
+        self.assertIn("scripts/verify_source_run.py", release)
         self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
-        self.assertIn('UPLOAD_REQUESTED: "false"', build)
+        self.assertIn('PRIVACY: "private"', release)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
         self.assertNotIn("contents: write", WORKFLOW)
+
 
 
 if __name__ == "__main__":

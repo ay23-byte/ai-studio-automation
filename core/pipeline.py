@@ -789,11 +789,19 @@ def build_shorts(script: dict, job_id: int, build_dir: Path = None, language: st
         hook = script.get("hook","")
         cta = str(script.get("cta") or os.getenv("SHORTS_CTA", "").strip()
                   or "Follow for more engineering and science videos")
+        from core.subtitle_translation import shorts_subtitle_language, translate_short_subtitles
+        subtitle_target = shorts_subtitle_language(os.getenv("SHORTS_SUBTITLE_LANGUAGE", "english"))
+        caption_items, labels, hook, cta, subtitle_report = translate_short_subtitles(
+            caption_items, labels, hook, cta, target_language=subtitle_target,
+            source_language=language)
+        (bd / "subtitle_translation.json").write_text(
+            json.dumps(subtitle_report, ensure_ascii=False, indent=2), encoding="utf-8")
         ass = bd / "subs.ass"
         _make_ass_shorts(caption_items, hook, cta, total, labels, ass, disclaimer)
         try:
-            from core.subtitles_export import write_sidecars, LANGUAGE_CODES
-            write_sidecars(timings, bd, "captions", LANGUAGE_CODES.get(str(language).lower(), ""))
+            from core.subtitles_export import write_sidecars
+            sidecar_language = "en" if subtitle_target == "english" else str(language).lower()
+            write_sidecars(caption_items, bd, "captions", sidecar_language)
         except Exception as exc:
             print(f"WARNING: SRT/VTT caption sidecars could not be written: {exc}")
 

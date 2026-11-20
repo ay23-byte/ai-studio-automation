@@ -1,4 +1,4 @@
-"""English-only subtitle translation for long-form documentaries.
+"""English-only subtitle translation for Shorts and long-form documentaries.
 
 Translation is deliberately separate from TTS: it never changes the narration audio,
 sentence timing, research text, or source claims.
@@ -105,7 +105,7 @@ def _translate_batch(items: list[dict[str, Any]], target: str = "english") -> di
     payload = [{"id": int(item["id"]), "text": str(item["text"])} for item in items]
     description, script_rule = _TARGETS[target]
     prompt = (
-        f"Translate the following documentary subtitle strings into {description}. "
+        f"Translate the following video subtitle strings into {description}. "
         "The source may be Hindi, Hinglish, or English. "
         "Return ONLY JSON in the exact shape {\"translations\":[{\"id\":0,\"text\":\"...\"}]}. "
         "Preserve names, dates, numbers, technical terms, uncertainty, and meaning. "
@@ -159,6 +159,81 @@ def needs_translation(texts, target_language: str, source_language: str | None) 
     if has_devanagari:
         return True
     return source != target
+
+
+
+
+def shorts_subtitle_language(requested="english", policy: str | None = None) -> str:
+    """Resolve the Short subtitle language; channel production is English-only by default."""
+    import os
+
+    target = normalize_subtitle_language(requested)
+    policy = str(policy if policy is not None else os.getenv("SHORTS_SUBTITLE_POLICY", "english_only")).strip().lower()
+    if policy != "any" and target != "english":
+        raise ValueError(
+            f"Shorts subtitles are English only; '{target}' subtitles were requested. "
+            "Narration can remain Hindi or Hinglish. Set SHORTS_SUBTITLE_LANGUAGE=english."
+        )
+    return target
+
+
+def translate_short_subtitles(
+    captions: list[tuple[float, float, str]],
+    labels: list[tuple[float, float, str]],
+    hook: str = "",
+    cta: str = "",
+    target_language: str = "english",
+    source_language: str | None = None,
+) -> tuple[list[tuple[float, float, str]], list[tuple[float, float, str]], str, str, dict[str, Any]]:
+    """Translate every visible Short caption while preserving its original timing."""
+    target = normalize_subtitle_language(target_language)
+    caption_texts = [str(item[2] or "") for item in captions]
+    label_texts = [str(item[2] or "") for item in labels]
+    all_texts = caption_texts + label_texts + [str(hook or ""), str(cta or "")]
+    should_translate = needs_translation(all_texts, target, source_language)
+    # The requested spoken language may be Hinglish while the script already
+    # supplies English on-screen captions. Avoid a needless model call when the
+    # actual visible text passes the English-only check.
+    if target == "english" and english_subtitle_report(all_texts)["status"] == "PASS":
+        should_translate = False
+    translated: dict[int, str] = {}
+    entries: list[dict[str, Any]] = []
+    ids: list[int | None] = []
+    for value in all_texts:
+        if str(value or "").strip():
+            ids.append(len(entries))
+            entries.append({"id": len(entries), "text": str(value)})
+        else:
+            ids.append(None)
+    if should_translate:
+        for offset in range(0, len(entries), _BATCH_SIZE):
+            translated.update(_translate_batch(entries[offset:offset + _BATCH_SIZE], target))
+    values = [translated.get(item_id, str(value or "")) if item_id is not None else ""
+              for value, item_id in zip(all_texts, ids)]
+    caption_count, label_count = len(captions), len(labels)
+    translated_captions = [
+        (start, end, values[index]) for index, (start, end, _text) in enumerate(captions)
+    ]
+    translated_labels = [
+        (start, end, values[caption_count + index])
+        for index, (start, end, _text) in enumerate(labels)
+    ]
+    translated_hook = values[caption_count + label_count]
+    translated_cta = values[caption_count + label_count + 1]
+    check = None
+    if target == "english":
+        check = english_subtitle_report([value for value in values if value.strip()])
+        if check["status"] != "PASS":
+            raise RuntimeError("Short subtitles are not English and were not rendered: "
+                               + " ".join(check["issues"]))
+    report = {
+        "status": "PASS", "target_language": target, "source_language": source_language,
+        "mode": "translated" if should_translate else "already_target_language",
+        "caption_count": len(captions), "label_count": len(labels),
+        "hook_present": bool(str(hook or "").strip()), "cta_present": bool(str(cta or "").strip()),
+        "english_check": check,
+    }
+    return translated_captions, translated_labels, translated_hook, translated_cta, report
 
 
 def translate_longform_subtitles(
