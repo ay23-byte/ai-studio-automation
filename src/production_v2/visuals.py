@@ -116,20 +116,49 @@ class SyntheticVisualGenerator:
         return output
 
 
-def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
-                 config: V2Config, content_type: str) -> list[VisualAsset]:
-    """Generate one purpose-built visual per scene and register its provenance."""
-    rules = config.rules_for(content_type)
-    assets: list[VisualAsset] = []
+AUTO_UNREVIEWED = "AUTOMATIC_SELECTION_UNREVIEWED"
+
+
+def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
+    """Conservative draft selection; human review remains mandatory before upload.
+
+    A keyword match cannot establish scientific correctness. The only automated
+    choices are explicit sine-wave and circular-orbit phrases; ambiguity and
+    unsupported claim scenes fail closed rather than using unrelated footage.
+    """
     choices = {}
     if config.visual_manifest:
         choices = json.loads(Path(config.visual_manifest).read_text(encoding="utf-8"))
         if not isinstance(choices, dict) or set(choices) - {scene.id for scene in scenes}:
             raise ValueError("visual manifest must map known scene IDs to choices")
+        for choice in choices.values():
+            if not isinstance(choice, dict) or choice.get("reviewed") is not True or "automatic" in choice:
+                raise ValueError("visual manifest choices require explicit review")
+    if config.animation_mode not in {"off", "auto_strict"}:
+        raise ValueError("animation mode must be off or auto_strict")
+    if config.animation_mode == "auto_strict":
+        for scene in scenes:
+            if scene.id in choices or scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
+                continue
+            text = scene.narration.lower()
+            wave = bool(re.search(r"\b(?:sinusoidal|sine) waves?\b", text))
+            orbit = bool(re.search(r"\bcircular orbits?\b", text))
+            if wave == orbit or re.search(r"\b(?:not|never|without|neither|no)\b", text):
+                raise ValueError(f"scene {scene.id}: unsupported or ambiguous scientific animation; provide reviewed visual")
+            choices[scene.id] = {"type": "manim_wave" if wave else "blender_orbit", "automatic": True}
+    return choices
+
+
+def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
+                 config: V2Config, content_type: str) -> list[VisualAsset]:
+    """Generate visuals with explicit provenance and review status."""
+    rules = config.rules_for(content_type)
+    assets: list[VisualAsset] = []
+    choices = choose_visuals(scenes, config)
     for scene in scenes:
         choice = choices.get(scene.id)
         if choice is not None:
-            if not isinstance(choice, dict) or choice.get("reviewed") is not True:
+            if not isinstance(choice, dict) or (choice.get("reviewed") is not True and not choice.get("automatic")):
                 raise ValueError(f"scene {scene.id} requires explicit visual review")
             if not re.fullmatch(r"[A-Za-z0-9_-]+", scene.id):
                 raise ValueError("unsafe scene ID")
@@ -138,8 +167,8 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 image, record = download_commons(choice.get("title", ""), store_root / f"visual_{scene.id}", scene.id,
                                                  timeout=config.request_timeout_seconds)
             elif choice.get("type") == "manim_wave":
-                if scene.visual.kind not in {"animation", "diagram"}:
-                    raise ValueError("wave animation is only allowed for diagram/animation scenes")
+                if scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
+                    raise ValueError("wave animation is only allowed for claim-bearing visual scenes")
                 from .ffmpeg_io import run
                 media_dir = Path(tempfile.mkdtemp(prefix=f"manim_{scene.id}_", dir=store_root))
                 run([sys.executable, "-m", "manim", "render", "--disable_caching", "--media_dir", str(media_dir),
@@ -156,8 +185,8 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
                     used_in=scene.id, restrictions="Conceptual sine wave; verify relevance and scientific meaning.")
             elif choice.get("type") == "blender_orbit":
-                if scene.visual.kind not in {"animation", "diagram"}:
-                    raise ValueError("orbit animation is only allowed for diagram/animation scenes")
+                if scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
+                    raise ValueError("orbit animation is only allowed for claim-bearing visual scenes")
                 from .ffmpeg_io import resolve_ffmpeg, run
                 ffmpeg = resolve_ffmpeg(config)
                 if not ffmpeg:
@@ -195,6 +224,8 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     used_in=scene.id, restrictions="Idealized circular orbit, not to scale; verify relevance and accuracy.")
             else:
                 raise ValueError(f"unsupported visual type for {scene.id}")
+            if choice.get("automatic"):
+                record.restrictions += "; " + AUTO_UNREVIEWED
             library.add(record)
             assets.append(VisualAsset(scene.id, image, scene.visual.kind, scene.visual.description, record))
             continue

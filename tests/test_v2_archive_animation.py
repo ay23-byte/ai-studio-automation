@@ -120,3 +120,38 @@ class ArchiveAnimationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class AutomaticSelectionTests(unittest.TestCase):
+    def test_auto_selects_only_explicit_supported_concepts(self):
+        from src.production_v2.visuals import choose_visuals
+        config = V2Config.from_env({"PV2_ANIMATION_MODE": "auto_strict"})
+        scenes = [Scene("s1", "A sinusoidal wave illustrates oscillation.", VisualSpec("x", "animation")),
+                  Scene("s2", "A circular orbit is an idealization.", VisualSpec("y", "map")),
+                  Scene("intro", "An opening", VisualSpec("title", "illustrative"))]
+        choices = choose_visuals(scenes, config)
+        self.assertEqual(choices["s1"]["type"], "manim_wave")
+        self.assertEqual(choices["s2"]["type"], "blender_orbit")
+        self.assertTrue(choices["s1"]["automatic"])
+        self.assertNotIn("intro", choices)
+
+    def test_unsupported_negated_and_ambiguous_claims_fail_closed(self):
+        from src.production_v2.visuals import choose_visuals
+        config = V2Config.from_env({"PV2_ANIMATION_MODE": "auto_strict"})
+        for text in ["A force is a vector.", "This is not a sinusoidal wave.",
+                     "A sinusoidal wave and a circular orbit are different."]:
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "unsupported or ambiguous"):
+                choose_visuals([Scene("s", text, VisualSpec("x", "animation"))], config)
+
+    def test_manifest_cannot_forge_automatic_selection(self):
+        from src.production_v2.visuals import choose_visuals
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "manifest.json"
+            path.write_text(json.dumps({"s": {"type": "manim_wave", "reviewed": True, "automatic": True}}))
+            config = V2Config.from_env({"PV2_VISUAL_MANIFEST": str(path)})
+            with self.assertRaisesRegex(ValueError, "review"):
+                choose_visuals([Scene("s", "n", VisualSpec("x", "diagram"))], config)
+
+    def test_default_mode_never_auto_selects(self):
+        from src.production_v2.visuals import choose_visuals
+        config = V2Config.from_env({})
+        self.assertEqual(choose_visuals([Scene("s", "A sinusoidal wave", VisualSpec("x", "animation"))], config), {})

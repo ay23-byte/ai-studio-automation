@@ -55,3 +55,34 @@ def test_real_animation_render_and_probe(kind):
         types = {stream.get("codec_type") for stream in final["streams"]}
         assert {"video", "audio", "subtitle"}.issubset(types)
         assert not edited["warnings"]
+
+
+@pytest.mark.skipif(os.environ.get("PV2_TEST_REAL_ANIMATIONS") != "1", reason="real animation tools are opt-in")
+@pytest.mark.parametrize("content_type", ["physics_short", "news_short", "documentary"])
+def test_real_automatic_animations_in_full_demo_pipeline(content_type):
+    import copy
+    import json
+    from src.production_v2.cli import DEMO_DOSSIERS
+    from src.production_v2.pipeline import dossier_from_dict, run_pipeline
+
+    with tempfile.TemporaryDirectory() as temp:
+        data = copy.deepcopy(DEMO_DOSSIERS[content_type])
+        claims = data["claims"]
+        claims[0]["text"] = "A sinusoidal wave illustrates a periodic change."
+        claims[1]["text"] = "A circular orbit is an idealized path around a central body."
+        if len(claims) > 2:
+            claims[2]["text"] = "A sinusoidal wave can be represented as a smooth curve."
+        config = V2Config.from_env({**os.environ, "PV2_OUTPUT_DIR": temp,
+                                    "PV2_ANIMATION_MODE": "auto_strict", "PV2_UPLOAD": "0"})
+        config.rules[content_type] = replace(config.rules[content_type], width=320, height=240, fps=5)
+        result = run_pipeline(content_type, data["topic"], dossier_from_dict(data), config)
+        assert result["video_ready"], result.get("error")
+        assert result["state"] == "QUALITY_REJECTED"
+        assert result["quality"]["visual_quality"] == "FAIL"
+        assert result["quality"]["upload_eligibility"] == "FAIL"
+        root = Path(result["artifact_dir"])
+        choices = json.loads((root / "visual_selection.json").read_text())
+        assert {item["type"] for item in choices.values()} == {"manim_wave", "blender_orbit"}
+        assert all(item["automatic"] for item in choices.values())
+        video = probe(root / "final.mp4", config)
+        assert {"video", "audio", "subtitle"}.issubset({s.get("codec_type") for s in video["streams"]})

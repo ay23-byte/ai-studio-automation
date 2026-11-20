@@ -47,3 +47,21 @@ Once Blender, Manim, and FFmpeg are installed, run
 `PV2_TEST_REAL_ANIMATIONS=1 python -m pytest tests/test_v2_real_animation.py -q` to run
 real, small renderer integration tests (the opt-in test fails if tools are missing). A human must review
 assets and the complete film, and private upload still requires separate live verification.
+
+## Automatic draft selection (opt-in)
+
+Set `PV2_ANIMATION_MODE=auto_strict` to select a renderer from the generated scene
+narration in any v2 pipeline. Exact phrases `sinusoidal wave` / `sine wave` select
+Manim; `circular orbit` selects Blender. These keyword matches are not scientific
+validation. Unsupported, negated or ambiguous claim scenes fail before narration; they
+never silently receive an unrelated animation. Intro/outro graphics remain illustrative.
+Existing explicitly reviewed manifest choices take priority. Choices are recorded in
+`visual_selection.json` and the asset manifest.
+
+**Automatically selected animations block visual QA and upload eligibility** until a
+human reviews the science and final visual. An operator can supply a reviewed manifest
+for the scenes and rerun, but a manifest is an attestation, not proof of review of the
+exact rendered output. A complete film still needs human inspection before release.
+The automatic catalogue is limited to these two concepts; it does not yet cover arbitrary
+physics, research claims or scientific simulations. Defaults and production workflows are
+unchanged; `PV2_ANIMATION_MODE=off` remains the default.

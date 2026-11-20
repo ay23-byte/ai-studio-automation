@@ -23,7 +23,7 @@ from .research import validate_dossier
 from .script_engine import build_script, validate_script
 from .subtitles import build_ass, build_subtitles
 from .topics import TopicHistory
-from .visuals import plan_visuals
+from .visuals import AUTO_UNREVIEWED, choose_visuals, plan_visuals
 
 
 def dossier_from_dict(data: dict) -> ResearchDossier:
@@ -91,6 +91,8 @@ def run_pipeline(content_type: str, title: str, dossier: ResearchDossier, config
         if not script_assessment.accepted:
             raise ValidationError("script failed validation: " + "; ".join(script_assessment.issues[:8]))
         checkpoints.done("script")
+        # Refuse unsupported automatic scene selections before narration or rendering.
+        store.write_json("visual_selection.json", choose_visuals(script.scenes, config))
 
         backend = narrator or select_narrator(config)[0]
         segments = backend.synthesize(script, store.path("audio"), config)
@@ -142,6 +144,11 @@ def run_pipeline(content_type: str, title: str, dossier: ResearchDossier, config
             "content": qa.content(script, dossier, script_assessment, history),
             "copyright": qa.copyright(library),
         }
+        unreviewed = [v.scene_id for v in visuals if AUTO_UNREVIEWED in v.record.restrictions]
+        if unreviewed:
+            parts["visual"]["status"] = "FAIL"
+            parts["visual"]["issues"].append(
+                "automatic animation selections require human review: " + ", ".join(unreviewed))
         report = qa.build_report(parts, store, content_type=content_type, run_id=run_id)
         checkpoints.done("qa")
         logger.info("qa", decision=report.decision())
