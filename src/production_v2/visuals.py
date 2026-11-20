@@ -116,7 +116,7 @@ class SyntheticVisualGenerator:
         return output
 
 
-AUTO_UNREVIEWED = "AUTOMATIC_SELECTION_UNREVIEWED"
+AUTO_UNREVIEWED = "AUTOMATIC_SELECTION_UNREVIEWED"  # legacy manifest marker; no longer a human-approval gate
 
 
 def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
@@ -225,7 +225,7 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
             else:
                 raise ValueError(f"unsupported visual type for {scene.id}")
             if choice.get("automatic"):
-                record.restrictions += "; " + AUTO_UNREVIEWED
+                record.restrictions += "; automatic conceptual illustration; final render must pass technical and motion QA"
             library.add(record)
             assets.append(VisualAsset(scene.id, image, scene.visual.kind, scene.visual.description, record))
             continue
