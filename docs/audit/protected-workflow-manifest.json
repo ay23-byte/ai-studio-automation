@@ -121,7 +121,7 @@
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
     ".github/workflows/chernobyl-documentary-production.yml": "e36eaab335f184af7db83b229a0dfccb7dae17e9d06d256460acfaaf85ec5503",
-    ".github/workflows/daily-news-auto-short.yml": "46cf7c61e5dac703a83edd22ed31160b60f535fa9612928baee79d96704a7dcc",
+    ".github/workflows/daily-news-auto-short.yml": "edef91c000e6c52448023bf6afa33382a74cc489fa899d1b46209a1605a215f2",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
     ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
     ".github/workflows/daily-news-short-render.yml": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
