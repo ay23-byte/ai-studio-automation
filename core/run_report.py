@@ -271,7 +271,7 @@ def _upload_section(row: dict, build_dir: Path, gate: dict, quality: dict,
                       "warnings": ([] if legacy.get("processing_status") in (None, "ok") else
                                    [f"YouTube processing status: {legacy.get('processing_status')}"])}
     failure = _load(external_failure) if external_failure else {}
-    youtube_id = result.get("youtube_id") or row.get("youtube_id")
+    youtube_id = result.get("youtube_id") or result.get("video_id") or row.get("youtube_id")
     result_status = str(result.get("status") or "").strip().lower()
     if youtube_id and result_status in {"verification_failed", "unverified", "upload_failed", "failed"}:
         details = result.get("verification_problems") or []
