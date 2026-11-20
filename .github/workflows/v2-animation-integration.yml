@@ -45,4 +45,18 @@ jobs:
         env:
           PV2_TEST_REAL_ANIMATIONS: '1'
           PV2_BLENDER_BACKEND: bpy
-        run: python -m pytest tests/test_v2_real_animation.py tests/test_v2_archive_animation.py -q
+        shell: bash
+        run: |
+          set +e
+          python -m pytest tests/test_v2_real_animation.py tests/test_v2_archive_animation.py -q > animation-test.log 2>&1
+          result=$?
+          cat animation-test.log
+          if [ "$result" -ne 0 ]; then
+            python - <<'PYCODE'
+          from pathlib import Path
+          text = Path('animation-test.log').read_text(errors='replace')[-10000:]
+          text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print('::error title=Animation test failure::' + text)
+          PYCODE
+          fi
+          exit "$result"
