@@ -220,7 +220,7 @@ def create_review_package(script: dict, build_dir, render_dir=None, *, video=Non
                                      checklist_items=CHECKLIST)
     print(f"Review package: {root}")
     if mode == "daily_news":
-        print("Status: REVIEW_REQUIRED. Human review is required before public release; private-upload status is reported separately.")
+        print(f"Status: {summary['status']}. Human review is required before public release; private-upload status is reported separately.")
     else:
         print(f"Status: {summary['status']}. Nothing was uploaded.")
     for line in summary["errors"]:
