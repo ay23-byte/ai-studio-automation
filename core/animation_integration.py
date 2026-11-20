@@ -104,7 +104,7 @@ def render_animation(*, narration: str, visual_type: str, visual_prompt: str,
         "licence": "Project-created original conceptual animation",
         "automated_qa": {"status": "PASS", "resolution": f"{rules.width}x{rules.height}",
                          "duration_seconds": round(duration, 3), "video_stream": True},
-        "human_review": "not_required_for_technical_animation_gate",
+        "approval_policy": "automatic_after_machine_qa",
     }
     path.with_suffix(path.suffix + ".source.json").write_text(
         json.dumps(provenance, ensure_ascii=False, indent=2), encoding="utf-8")
