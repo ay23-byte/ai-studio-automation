@@ -9,7 +9,7 @@ permissions:
 jobs:
   voice-audition:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -24,12 +24,16 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Test narration voice selection
         run: python -m unittest discover -s tests -p 'test_voice_selection.py' -v
-      - name: Generate three comparable narration samples
+      - name: Generate three comparable documentary narration samples
         run: python -m scripts.create_voice_audition
-      - name: Upload audition tracks and synthesis reports
+      - name: Generate same-script Daily News Edge and Chatterbox samples
+        run: python -m scripts.create_daily_news_voice_audition
+      - name: Upload documentary and Daily News audition tracks and reports
         uses: actions/upload-artifact@v7
         with:
           name: documentary-voice-audition
-          path: voice_audition/**
+          path: |
+            voice_audition/**
+            daily_news_voice_audition/**
           if-no-files-found: error
           retention-days: 14
