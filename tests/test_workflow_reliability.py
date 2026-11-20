@@ -87,6 +87,7 @@ class ActionVersionTests(unittest.TestCase):
         self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertIn("UPLOAD_REQUESTED: ${{ github.event_name == 'schedule' || inputs.upload }}", build)
         self.assertIn("shorts-review-${{ github.run_id }}", build)
+        self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', build)
         self.assertIn("needs: build", release)
         self.assertIn("github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload)", release)
         self.assertIn("default: true", text[text.index("      upload:"):text.index("      force:")])
@@ -115,6 +116,7 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn('YT_CHANNEL_VERIFY: "1"', text)
         self.assertIn('UPLOAD_REQUESTED: "true"', text)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
+        self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', text)
 
 
 RELEASE_WORKFLOWS = ("release_shorts_private.yml", "release_documentary_private.yml")
