@@ -189,7 +189,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_documentary_build_and_private_release_are_separate_and_trusted(self):
         build = _text("make_longform.yml")
         release = _text("release_documentary_auto.yml")
-        self.assertNotIn("\\n  release:\\n", build)
+        self.assertNotRegex(build, r"(?m)^  release:\\s*$")
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertIn("workflow_run:", release)
