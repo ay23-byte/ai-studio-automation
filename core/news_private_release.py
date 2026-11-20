@@ -121,8 +121,12 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
     expected_handle = str(os.getenv("YT_CHANNEL_HANDLE") or "@engineeringphysics-n5g").lower().lstrip("@")
     actual_handle = str(channel.get("handle") or "").lower().lstrip("@")
     if expected_handle and actual_handle and actual_handle != expected_handle:
-        raise NewsAutoReleaseBlocked(
-            f"Authenticated channel @{actual_handle} does not match @{expected_handle}.")
+        failure = {"job_id": job_id, "status": "upload_failed", "privacy_verified": False,
+                   "error": f"Authenticated channel @{actual_handle} does not match @{expected_handle}."}
+        (build_dir / "automatic_private_release.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
+        record_stage(job_id, "upload", "failed", error=failure["error"])
+        raise NewsAutoReleaseBlocked(failure["error"])
 
     metadata = build_metadata(row, script, build_dir)
     marker = upload_marker(row)
