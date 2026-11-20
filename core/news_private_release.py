@@ -148,6 +148,7 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
         "automated_checks": {"release_gate": checks, "source_verification": "PASS",
                              "technical_qa": "PASS", "script_qa": "PASS"},
         "verification_problems": problems,
+        "status": "verification_failed" if problems else "uploaded",
     }
     (build_dir / "automatic_private_release.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
