@@ -193,6 +193,10 @@ def publish_job(job_id: int, *, wait: bool = False, notify: bool = True, dry_run
             privacy_status="private", disable_scheduling=not uploader.public_publish_allowed(),
             marker=marker)
     except Exception as exc:
+        failure = {"job_id": job_id, "status": "upload_failed",
+                   "privacy_verified": False, "error": f"{type(exc).__name__}: {exc}"[:800]}
+        (build_dir / "upload_result.json").write_text(
+            json.dumps(failure, ensure_ascii=False, indent=2), encoding="utf-8")
         record_stage(job_id, "upload", "failed", error=f"{type(exc).__name__}: {exc}"[:800])
         if notify:
             send(f"❌ Upload failed for '{metadata['title']}': {str(exc)[:300]}")
