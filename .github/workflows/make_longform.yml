@@ -47,9 +47,9 @@ on:
         default: video_first
   schedule:
     - cron: "0 13 * * 0"  # Every Sunday at 18:30 IST; topic is selected automatically.
-  # Same-repository PRs targeting main may request a production documentary run.
-  # The request job requires [documentary-run]; release then applies the strict machine-only
-  # QA gate and uploads PRIVATE only. Fork PRs are excluded from both build and release.
+  # Same-repository PRs targeting main may request a documentary review build.
+  # PR builds produce review artifacts only and never receive YouTube credentials.
+  # Automatic PRIVATE release is limited to successful main-branch schedule/dispatch runs.
   pull_request:
     branches: [main]
     paths: [".github/documentary-production-request.json"]
