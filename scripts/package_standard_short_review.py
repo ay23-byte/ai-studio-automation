@@ -219,7 +219,10 @@ def create_review_package(script: dict, build_dir, render_dir=None, *, video=Non
     summary = contract.write_package(root, manifest, checklist_title="Short: human review required",
                                      checklist_items=CHECKLIST)
     print(f"Review package: {root}")
-    print(f"Status: {summary['status']}. Nothing was uploaded.")
+    if mode == "daily_news":
+        print("Status: REVIEW_REQUIRED. Human review is required before public release; private-upload status is reported separately.")
+    else:
+        print(f"Status: {summary['status']}. Nothing was uploaded.")
     for line in summary["errors"]:
         print(f"  BLOCKING: {line}")
     return root
