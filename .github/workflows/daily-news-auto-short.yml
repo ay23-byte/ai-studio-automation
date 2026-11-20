@@ -102,6 +102,13 @@ jobs:
           TTS_OPENING_RATE: "+5%"
           TTS_CLOSING_RATE: "+6%"
           NEWS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          # If Gemini is unavailable or returns an ungrounded draft, use the
+          # deterministic English template only after the existing source,
+          # independence, freshness and sensitivity gates have passed.
+          NEWS_TEMPLATE_FALLBACK: "1"
+          # One AI drafting pass avoids repeating a full model chain during an outage;
+          # the grounded model-free fallback then keeps eligible news production moving.
+          NEWS_SCRIPT_ATTEMPTS: "1"
           SHORTS_SUBTITLE_LANGUAGE: "english"
           WANT_UPLOAD: "true"
           # No generic template fallback: if a newsroom-quality script cannot be
