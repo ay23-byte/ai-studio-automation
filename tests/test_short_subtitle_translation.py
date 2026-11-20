@@ -37,6 +37,15 @@ class EnglishShortSubtitleTests(unittest.TestCase):
         self.assertEqual(report["mode"], "already_target_language")
 
     @patch("core.subtitle_translation._ask_gemini")
+    def test_hinglish_narration_with_already_english_captions_does_not_need_translation(self, ask):
+        captions, labels, hook, cta, report = translate_short_subtitles(
+            [(0, 2, "The river is changing.")], [], "What happens next?",
+            "Follow for more science", source_language="hinglish")
+        ask.assert_not_called()
+        self.assertEqual(captions[0][2], "The river is changing.")
+        self.assertEqual(report["mode"], "already_target_language")
+
+    @patch("core.subtitle_translation._ask_gemini")
     def test_rejects_latin_script_hinglish_left_in_english_subtitles(self, ask):
         ask.return_value = '{"translations":[{"id":0,"text":"Yeh gaon ab dheere dheere badal raha hai aur log"}]}'
         with self.assertRaisesRegex(RuntimeError, "not English"):
