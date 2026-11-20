@@ -1,4 +1,4 @@
-name: '⚙ Internal — Documentary narration voice audition'
+name: '⚙ Internal — Daily News voice audition'
 
 on:
   workflow_dispatch:
@@ -9,31 +9,27 @@ permissions:
 jobs:
   voice-audition:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install audio dependencies
+      - name: Install minimal pipeline dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --yes ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-      - name: Test narration voice selection
-        run: python -m unittest discover -s tests -p 'test_voice_selection.py' -v
-      - name: Generate three comparable documentary narration samples
-        run: python -m scripts.create_voice_audition
+          python -m pip install -r requirements-ci.txt
+      - name: Install optional Chatterbox engine
+        run: python -m pip install chatterbox-tts
       - name: Generate same-script Daily News Edge and Chatterbox samples
         run: python -m scripts.create_daily_news_voice_audition
-      - name: Upload documentary and Daily News audition tracks and reports
+      - name: Upload Daily News audition tracks and reports
         uses: actions/upload-artifact@v7
         with:
-          name: documentary-voice-audition
-          path: |
-            voice_audition/**
-            daily_news_voice_audition/**
+          name: daily-news-voice-audition
+          path: daily_news_voice_audition/**
           if-no-files-found: error
           retention-days: 14
