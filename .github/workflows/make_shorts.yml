@@ -120,6 +120,7 @@ jobs:
           TTS_CLOSING_RATE: "+6%"
           ALLOW_CHATTERBOX_ON_CI: "false"
           SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
+          SHORTS_SUBTITLE_LANGUAGE: "english"
           TOPIC_CATEGORIES: "physics,engineering,technology,science"
           CHANNEL_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.channel_profile || 'standard' }}
           # Inputs travel through the environment and are never interpolated
