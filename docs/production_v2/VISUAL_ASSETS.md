@@ -50,17 +50,18 @@ separate verification. To repeat the small renderer integration tests, run
 ## Automatic draft selection (opt-in)
 
 Set `PV2_ANIMATION_MODE=auto_strict` to select a renderer from the generated scene
-narration in any v2 pipeline. Exact phrases `sinusoidal wave` / `sine wave` select
-Manim; `circular orbit` selects Blender. These keyword matches are not scientific
-validation. Unsupported, negated or ambiguous claim scenes fail before narration; they
-never silently receive an unrelated animation. Intro/outro graphics remain illustrative.
-Existing explicitly reviewed manifest choices take priority. Choices are recorded in
-`visual_selection.json` and the asset manifest.
+narration. Exact phrases `sinusoidal wave` / `sine wave` select Manim; `circular orbit`
+selects Blender. These narrow phrase matches are not scientific validation. Unsupported,
+negated or ambiguous claim scenes are not animated; they never silently receive an
+unrelated animation. Intro/outro graphics remain illustrative. Existing explicitly
+reviewed manifest choices take priority. Choices are recorded in `visual_selection.json`
+and the asset manifest.
 
-**Automatically selected animations block visual QA and upload eligibility** until a
-human reviews the science and final visual. An operator can supply a reviewed manifest
-for the scenes and rerun, but a manifest is an attestation, not proof of review of the
-exact rendered output. A complete film still needs human inspection before release.
-The automatic catalogue is limited to these two concepts; it does not yet cover arbitrary
-physics, research claims or scientific simulations. Defaults and production workflows are
-unchanged; `PV2_ANIMATION_MODE=off` remains the default.
+Automatically selected animations do not require a human-approval flag. They are
+eligible only when narration positively names one supported concept and the storyboard
+requests a diagram/animation. Rendered clips are probed for a valid video stream,
+resolution and duration; the final video still passes the pipeline's technical, motion,
+audio, subtitle, research and rights checks. These are machine checks, not a guarantee
+that software can establish scientific truth. The automatic catalogue remains limited to
+sine waves and idealized circular orbits. The isolated v2 stack keeps
+`PV2_ANIMATION_MODE=off` by default; the three production workflows enable it explicitly.
