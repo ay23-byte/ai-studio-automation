@@ -327,6 +327,21 @@ class PublishJobTests(_Sandbox):
             self.assertIn("human_review", str(caught.exception))
         mocks["upload"].assert_not_called()
 
+    def test_automated_verification_failure_is_not_reported_as_uploaded(self):
+        from core import run_report
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "upload_result.json").write_text(json.dumps({
+                "job_id": 9, "youtube_id": "yt_new", "status": "verification_failed",
+                "privacy": "public", "privacy_verified": False,
+                "verification_problems": ["YouTube privacy read-back was 'public', not 'private'."]
+            }), encoding="utf-8")
+            section = run_report._upload_section({}, root, {}, {})
+        self.assertEqual(section["status"], "unverified")
+        self.assertEqual(section["youtube_id"], "yt_new")
+        self.assertIs(section["privacy_verified"], False)
+        self.assertIn("privacy read-back", section["reason"])
+
     def test_upload_description_names_the_reviewed_file(self):
         mocks = self._uploader()
         publish.publish_job(self.make_job(), notify=False)
