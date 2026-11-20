@@ -327,6 +327,19 @@ class PublishJobTests(_Sandbox):
             self.assertIn("human_review", str(caught.exception))
         mocks["upload"].assert_not_called()
 
+    def test_upload_request_failure_without_video_id_is_reported_as_failed(self):
+        from core import run_report
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "automatic_private_release.json").write_text(json.dumps({
+                "job_id": 9, "status": "upload_failed", "privacy_verified": False,
+                "error": "YouTube OAuth refresh failed."
+            }), encoding="utf-8")
+            section = run_report._upload_section({}, root, {}, {})
+        self.assertEqual(section["status"], "failed")
+        self.assertIsNone(section["youtube_id"])
+        self.assertIn("OAuth refresh failed", section["reason"])
+
     def test_daily_news_private_release_failure_is_not_reported_as_uploaded(self):
         from core import run_report
         with tempfile.TemporaryDirectory() as tmp:
