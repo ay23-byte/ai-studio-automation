@@ -128,7 +128,7 @@
     ".github/workflows/daily-news-shorts.yml": "c161926460b0a6586dadafd9ed24ba2401e5864f45d6ec17951cf949660b3fde",
     ".github/workflows/documentary-audit.yml": "0aea996b844b5e411b186867eff56715b12c78dd0ffad41ab84d76ff89548334",
     ".github/workflows/documentary-e2e-smoke.yml": "32847c33716846f32eee9608b5e63a53c5cde804cb6cf14f1e2e571ea6204bc6",
-    ".github/workflows/documentary-voice-audition.yml": "4615133973cc5c3fe69c896b47f95f55ab99e2873e0a3847dcc9bd0da885b2c9",
+    ".github/workflows/documentary-voice-audition.yml": "0d2ff355a89cc81d6526056bc78acd3eff06aed5e04d24633649e78c0a0e1a08",
     ".github/workflows/export_documentary_review.yml": "ea2194738b6b423da76050e46ad3a19866d92956f0679a06783ba5e4603091a2",
     ".github/workflows/first-documentary-production-trial.yml": "07dc424ab829af6b235e77f77d8b36443263b89ba30aa6dd47b37058fce538f9",
     ".github/workflows/footage-live-verification.yml": "6435f55cd32595888c01068d78cfce6e63d58f4512cef7e490101599511d95c1",
@@ -260,7 +260,7 @@
     "scripts/check_footage_sources_live.py": "5b34892304804ac5bdb9c6aa8f251d6679a88c0ebdfe1d8209a23d7929737010",
     "scripts/check_presenter_clips.py": "92add93c4ce0a76c874d9649f2d286292e3799a03c0eb1786785ad66b91a2a52",
     "scripts/collect_daily_news.py": "6a3b16a7b414b388cb9d58bd686ed86587deeb1fd29b171751844b60b8721589",
-    "scripts/create_voice_audition.py": "803bf2281896bb198f304b9531ecd6b0b0d5a0e8bd7dd5633d2b2556df4c91f3",
+    "scripts/create_voice_audition.py": "56fe4306daa1258445d04f459f61c75ebddd1e51fe74a1283cbc045ef8172069",
     "scripts/documentary_topic_queue.py": "e3aeab6e3bf8a9966c45eee55e0f19c4267b68548d250ed253ec65765fe88e40",
     "scripts/draft_reviewed_news_short.py": "840c8e47d17e0c8c6741252528f7fa252fc4ab9e7f61ebc62f1afa677f92d84f",
     "scripts/generate_openvino_video.py": "9dec4941a1efe107444810c9fd880e40e07bc67e33c13bd17e9b70b6d1fe7829",
@@ -330,7 +330,8 @@
     "schemas/production-manifest-v2.schema.json": "ae3f9eb66b8ff7d574bfec2a5ce9dec08a0fcb01ea185fe8a0c43f63200e13e5",
     "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
     "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
-    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb"
+    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
+    "scripts/create_daily_news_voice_audition.py": "245324c57097dc62dd81a981bd903c426552d68419b3c6c3f760ad2a24c8ef45"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
@@ -852,7 +853,7 @@
       "upload_lines": []
     },
     "documentary-voice-audition.yml": {
-      "sha256": "4615133973cc5c3fe69c896b47f95f55ab99e2873e0a3847dcc9bd0da885b2c9",
+      "sha256": "0d2ff355a89cc81d6526056bc78acd3eff06aed5e04d24633649e78c0a0e1a08",
       "display_name": "⚙ Internal — Documentary narration voice audition",
       "on_sha256": "e57b5d3d2f9c79e5149849dca1b4a7b3f4bef4186d4585424f582c4ab281e9ca",
       "triggers": [
@@ -872,7 +873,7 @@
         "ubuntu-latest"
       ],
       "timeout_minutes": [
-        "20"
+        "60"
       ],
       "privacy_lines": [],
       "upload_lines": []
