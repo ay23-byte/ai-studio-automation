@@ -200,7 +200,7 @@
     "core/local_review.py": "9f44101baf7df488d69970c254ebc82641a426076018ed0ba559ceb1ef4c8972",
     "core/monitoring.py": "6a2e8854e763a30367ffa44e69e7c6f497f878f657f07e51ff0a6f38f657a6a4",
     "core/muapi_video.py": "b02ab5d936d5541d3eff88fa440e042a883eae9da0bc3f91d7e1b0bc7504af5d",
-    "core/news_auto.py": "b7e86cd7dca390dd54cd54fe150643943b0e20fe1505446e55f8c902fdc9c3fe",
+    "core/news_auto.py": "38f2f0562e3864e766781d0c5979555058747cace9bfca84bb5c9c7cc1f5358e",
     "core/news_editorial.py": "dc45a218e77624a756a41869bd0c5e01f0bccc954b0fce268afccdefd6ee02e1",
     "core/news_private_release.py": "debeafaafda962ebb57a29a912c49e07df593e0860e31e9b6343c7ab8ea11466",
     "core/news_research.py": "3f445bbf71deba0d41ebf12f25984b25721a8dc07796b1d0308d4e8f73e1f106",
