@@ -317,7 +317,7 @@
     "src/production_v2/script_engine.py": "67dcf76ce034a87afd4443526bedb18cd02f7c7d6701e73649aca71a03123a07",
     "src/production_v2/subtitles.py": "7e2a1ff3f50a6da60594ed1b7bf6a084ddfcfa3e5d15544df988fba9dfc8e94d",
     "src/production_v2/topics.py": "0a9283bc02f432d6541b91a0e017c2ccd8178bccab31f457ac6723e68e0792f6",
-    "src/production_v2/visuals.py": "cff23f25a4e753a00e2563616d23ffc9d770461f0e02c2a0ae2af4c816412e25",
+    "src/production_v2/visuals.py": "855b0986ac0fcb00c0e5fa56c1f44bccd26a4f8f0daff5e5b0b4069c8b05c61e",
     "run.py": "8a5c52df91697615097f9ecd481902fef9f2618d8fc56a1567b7c0e2741e78c1",
     "run_daily.py": "7827aab6ee0897a93763c6d58fef6b3098ec4b3019b4a64f35f6b6c755105599",
     "get_refresh_tokens.py": "e261ca10c940d44b7c9e0cf2e2f0bd252c5df5ff22469c3eb44decce569ad88a",
@@ -330,7 +330,7 @@
     "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
     "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
     "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
-    "core/animation_integration.py": "51e7f97934b17df3099ee9055151b274342c4d8082023b58e5a94a6f5d9ddcbe"
+    "core/animation_integration.py": "f3599fd6863d751f22dc4cdf3d6b5d876184139091abf722a2e706dbaa9e763d"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
