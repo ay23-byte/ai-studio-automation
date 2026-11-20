@@ -186,6 +186,23 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                 with self.subTest(workflow=name, step=block.splitlines()[0].strip()):
                     self.assertNotRegex(script, r"\$\{\{\s*(inputs|github\.event)\.")
 
+    def test_documentary_build_and_private_release_are_separate_and_trusted(self):
+        build = _text("make_longform.yml")
+        release = _text("release_documentary_auto.yml")
+        self.assertNotIn("\\n  release:\\n", build)
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn("workflow_run:", release)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", release)
+        self.assertIn("github.event.workflow_run.repository.full_name == github.repository", release)
+        self.assertIn("scripts/verify_source_run.py --run-id \"$SOURCE_RUN_ID\" --mode longform --ref \"$RELEASE_REF\"", release)
+        self.assertIn("run-id: ${{ github.event.workflow_run.id }}", release)
+        self.assertIn('PRIVACY: "private"', release)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
+        self.assertIn("scripts/upload_documentary_artifact.py", release)
+
     def test_release_evidence_is_kept_for_every_outcome(self):
         for name in RELEASE_WORKFLOWS:
             steps = _steps(_text(name))
@@ -217,7 +234,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
                 elif name == "make_longform.yml":
-                    build_workflow = text[text.index("  build:"):text.index("  release:")]
+                    build_workflow = _job_block(text, "build")
                     for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
                         self.assertNotIn(secret, build_workflow)
                 elif name != "daily-news-auto-short.yml":
@@ -229,7 +246,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_longform.yml", "make_shorts.yml", "release_documentary_auto.yml")))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_shorts.yml", "release_documentary_auto.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
