@@ -1,0 +1,49 @@
+name: "V2 animation integration (opt-in validation)"
+
+# Validation only: no schedules, production configuration, credentials or uploads.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/v2-animation-integration.yml'
+      - 'src/production_v2/blender_orbit.py'
+      - 'src/production_v2/manim_wave.py'
+      - 'src/production_v2/visuals.py'
+      - 'src/production_v2/editor.py'
+      - 'src/production_v2/config.py'
+      - 'tests/test_v2_real_animation.py'
+      - 'tests/test_v2_archive_animation.py'
+
+permissions:
+  contents: read
+
+jobs:
+  animation-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install free renderer system dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update &&
+               sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends \
+                 blender ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core; then
+              break
+            fi
+            [ "$attempt" -lt 3 ] || { echo '::error::Renderer installation failed'; exit 1; }
+            sleep $((attempt * 10))
+          done
+          blender --version | head -n 1
+          ffmpeg -version | head -n 1
+      - name: Install Manim and test dependencies
+        run: python -m pip install --retries 5 --timeout 60 'manim==0.19.0' 'pytest>=8,<10' 'Pillow>=10'
+      - name: Run real Blender and Manim rendering tests
+        env:
+          PV2_TEST_REAL_ANIMATIONS: '1'
+        run: python -m pytest tests/test_v2_real_animation.py tests/test_v2_archive_animation.py -q

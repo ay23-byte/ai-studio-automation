@@ -113,7 +113,11 @@ class ProtectedWorkflowManifestTests(unittest.TestCase):
 
     def test_schedules_are_exactly_the_baseline_schedules(self):
         self.assertEqual(self.manifest["schedules"], EXPECTED_SCHEDULES)
-        self.assertEqual(self.manifest["invariants"]["protected_workflow_count"], 35)
+        # One additive, unscheduled v2 renderer validation workflow is allowed.
+        self.assertEqual(self.manifest["invariants"]["protected_workflow_count"], 36)
+        self.assertEqual(self.manifest["workflows"]["v2-animation-integration.yml"]["schedules"], [])
+        self.assertEqual(set(self.manifest["workflows"]["v2-animation-integration.yml"]["triggers"]),
+                         {"workflow_dispatch", "pull_request"})
 
     def test_secret_and_variable_names_are_unchanged(self):
         self.assertEqual(set(self.manifest["secrets"]), EXPECTED_SECRETS)

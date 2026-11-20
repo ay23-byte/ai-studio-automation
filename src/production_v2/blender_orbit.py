@@ -21,7 +21,7 @@ if not (64 <= args.width <= 3840 and 64 <= args.height <= 3840 and 1 <= args.fps
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
 scene = bpy.context.scene
-scene.render.engine = 'BLENDER_EEVEE_NEXT'
+scene.render.engine = 'BLENDER_EEVEE_NEXT' if bpy.app.version >= (4, 2, 0) else 'BLENDER_EEVEE'
 scene.render.resolution_x = args.width
 scene.render.resolution_y = args.height
 scene.render.resolution_percentage = 100

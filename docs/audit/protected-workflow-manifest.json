@@ -11,7 +11,7 @@
     "production_privacy_status": "private",
     "public_publish_allowed_in_protected_workflows": false,
     "automatic_public_release": false,
-    "protected_workflow_count": 35,
+    "protected_workflow_count": 36,
     "protected_config_count": 3
   },
   "schedules": {
@@ -150,6 +150,7 @@
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
+    ".github/workflows/v2-animation-integration.yml": "cd9395cb28608f8a6b6c69a1a7f88f0b7f87416b3182d66237454eebab4fd70a",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
     ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
     ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
@@ -294,7 +295,7 @@
     "src/production_v2/archive.py": "fb01a0da64f2355ec1d8f8a97866d3c35dbd82f11e94aabb72c855778d6c0ded",
     "src/production_v2/artifacts.py": "80582ed530732b06521c1aa0f83834c3bf40d22047f0d750b28a6d7e366f5cf8",
     "src/production_v2/audio.py": "97ec67925d97b8f8acde9e71bf1ae01fb891e8a4c6478720f855b7fee6ef8e76",
-    "src/production_v2/blender_orbit.py": "2feba546225db2668c560cb9f14b5ace5196375f438b3240a7829292d8b76af9",
+    "src/production_v2/blender_orbit.py": "154cb9f0ab5ecf6685e8622abb9efe4e4251235339d9f193c29d922f316e28c4",
     "src/production_v2/checkpoints.py": "c273685a6d92d2475dc4307bcec75972de738a06360f548548a2e868f85549d1",
     "src/production_v2/cli.py": "b1b7030c75814772d6aaa92bdf9b97b9c2f352b9afa58b9a0a68fbb8526ee4c6",
     "src/production_v2/config.py": "08d073361a3f42c6eb2aaee272d13c4a56809b7c0515ea97df2763827b761aa8",
@@ -2041,6 +2042,29 @@
       ],
       "timeout_minutes": [
         "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "v2-animation-integration.yml": {
+      "sha256": "cd9395cb28608f8a6b6c69a1a7f88f0b7f87416b3182d66237454eebab4fd70a",
+      "display_name": "V2 animation integration (opt-in validation)",
+      "on_sha256": "b7819b485ff753852e9f6f7da14a93eab20095cf49c1ab6da66bb54bf96fd025",
+      "triggers": [
+        "workflow_dispatch",
+        "pull_request"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [],
+      "actions": [],
+      "runs_on": [
+        "ubuntu-24.04"
+      ],
+      "timeout_minutes": [
+        "25"
       ],
       "privacy_lines": [],
       "upload_lines": []
