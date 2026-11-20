@@ -169,8 +169,8 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if python -m pip install --retries 5 --timeout 60 -r requirements.txt
-            python -m pip install --retries 5 --timeout 60 -r requirements-animation.txt; then
+            if python -m pip install --retries 5 --timeout 60 -r requirements.txt; then
+              python -m pip install --retries 5 --timeout 60 -r requirements-animation.txt
               break
             fi
             [ "$attempt" -lt 3 ] || { echo "::error::Python dependency installation failed after 3 attempts."; exit 1; }
