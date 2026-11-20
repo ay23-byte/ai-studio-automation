@@ -249,9 +249,9 @@ EDITORIAL STANDARD
 - Sound like an experienced news anchor: direct, composed, precise, fluent when read aloud. Use natural spoken {language_rule}
 - Lead with the most important verified development. Answer what happened, who or what is involved, and where only when the supplied evidence establishes those details.
 - Build a coherent story, not a sequence of paraphrased headlines. Each scene must add a distinct piece of verified information.
-- Attribute claims naturally at the point they are made. Name the publisher in speech, but do not repeat source names in every sentence.
+- Attribute claims naturally without reading out publisher names, website names, URLs, domains, RSS labels or citation metadata. Use conversational phrases such as "according to the reports" or "the available reporting says". Keep publisher names and clickable source URLs in the video description and source metadata only.
 - Explain context or significance only when the supplied evidence supports it. If it does not, say what the available reporting has not established. Never manufacture context to fill time.
-- Distinguish confirmed facts from claims, estimates and unknowns. Preserve qualifiers such as "the agency says" or "according to the report".
+- Distinguish confirmed facts from claims, estimates and unknowns. Preserve qualifiers such as "the agency says" or "according to the report". Never say "dot com", "visit this website", a URL, or a source-domain name aloud.
 - Use a restrained, factual tone. No hype, clickbait, emotional manipulation, speculation, editorial opinion, prediction or unsupported cause-and-effect.
 - Do not call a story "breaking" or "developing" unless the source evidence explicitly establishes that status.
 - Do not use filler such as "the same development", "more details are expected", "stay tuned", "here is what you need to know", or "this is a developing report".
@@ -314,8 +314,8 @@ def validate_news_script(script: dict, story: dict, language: str = "english") -
     publishers = [str(s["publisher"]) for s in story["sources"] if s.get("publisher")]
     if not any(marker in lowered for marker in ATTRIBUTION_MARKERS):
         problems.append("Narration never attributes the report to its sources.")
-    if publishers and not any(_publisher_mentioned(name, spoken) for name in publishers):
-        problems.append("Narration does not name any of the corroborating publishers.")
+    if re.search(r"(?:https?://|www\.)|\b(?:[a-z0-9-]+\.)+(?:com|org|net|in|co|gov|edu)\b", spoken, re.I):
+        problems.append("Narration contains a website URL or domain.")
     evidence = " ".join(f"{s['title']} {s.get('text_snippet', '')}" for s in story["sources"])
     invented = sorted(_numbers(everything) - _numbers(evidence))
     if invented:
@@ -376,42 +376,34 @@ def _bounded_narration(value: str, max_words: int = 22) -> str:
 
 
 def template_script(story: dict) -> dict:
-    """Model-free English script grounded in short excerpts, never entire RSS summaries."""
+    """Model-free English script grounded in source excerpts, with no spoken website credits."""
     sources = story["sources"]
-    names = list(dict.fromkeys(s["publisher"] for s in sources if s.get("publisher")))
-    if not names:
-        raise NoPublishableStory("Template fallback has no named corroborating publishers.")
-    first, second = names[0], (names[1] if len(names) > 1 else names[0])
+    if not sources:
+        raise NoPublishableStory("Template fallback has no corroborating sources.")
     headline = _concise_evidence_sentence(story.get("headline", ""), max_words=18).rstrip(".…")
     if not headline:
         raise NoPublishableStory("Template fallback has no usable corroborated headline.")
-    other = next((s["title"].rstrip(".") for s in sources[1:]
-                  if s.get("title") and s["title"].rstrip(".") != story.get("headline", "").rstrip(".")), "")
     detail = next((_concise_evidence_sentence(s.get("text_snippet", ""), 16) for s in sources
                    if _concise_evidence_sentence(s.get("text_snippet", ""), 16)), "")
-    second_headline = _concise_evidence_sentence(other or headline, 16).rstrip(".…")
-    if detail:
-        detail_line = f"{first} reports: {detail}"
-    else:
-        detail_line = f"{first} confirms the headline; the available source provides no further detail."
     scenes = [
-        {"say": _bounded_narration(f"{headline}. According to {first}, this is the reported development.", 24),
+        {"say": _bounded_narration(f"{headline}. According to corroborating reports, this is the latest reported development.", 24),
          "label": "The lead",
          "image": "A restrained editorial visual directly illustrating the subject described in the verified headline",
          "keywords": ["editorial B-roll", "verified news subject"]},
-        {"say": _bounded_narration(detail_line, 24),
+        {"say": _bounded_narration(f"One report adds this detail: {detail}" if detail else
+                                   "The available reports confirm the headline but provide no further detail.", 24),
          "label": "The details",
          "image": "A close, factual illustrative visual related to the specific detail in the report",
          "keywords": ["news detail", "relevant subject B-roll"]},
-        {"say": _bounded_narration(f"{second} also reports the story. Its headline states: {second_headline}.", 24),
+        {"say": "A separate report independently corroborates the central development.",
          "label": "Corroboration",
          "image": "A second editorial visual showing the subject from a different factual angle",
          "keywords": ["independent reporting", "subject context"]},
-        {"say": "The available reports do not establish details beyond these statements. We will not speculate.",
+        {"say": "The available reporting does not establish further details. We will not speculate.",
          "label": "What is known",
-         "image": "A clean editorial graphic separating confirmed information from unanswered questions",
+         "image": "A clean editorial graphic separating confirmed facts from unanswered questions",
          "keywords": ["verified facts", "editorial graphic"]},
-        {"say": _bounded_narration(f"That is the information reported by {first} and {second}. Follow for verified updates.", 22),
+        {"say": "That is what the available reporting establishes. Follow for verified updates.",
          "label": "The close",
          "image": "A minimal, professional newsroom closing shot without logos or fabricated event footage",
          "keywords": ["news bulletin close", "newsroom"]},
@@ -419,6 +411,26 @@ def template_script(story: dict) -> dict:
     for scene in scenes:
         scene["caption"] = scene["say"]
     return {"title": headline[:80], "hook": headline[:50], "category": "news", "scenes": scenes}
+
+def _build_news_description(title: str, sources: list[dict]) -> str:
+    """Build a YouTube description with all used sources listed at the very end."""
+    source_lines = []
+    seen_source_urls = set()
+    for source in sources:
+        source_url = str(source.get("url") or "").strip()
+        if not source_url or source_url in seen_source_urls:
+            continue
+        seen_source_urls.add(source_url)
+        publisher = str(source.get("publisher") or "Publisher").strip()
+        source_title = str(source.get("title") or "Source report").strip()
+        source_lines.append(f"- {publisher} — {source_title}\\n  {source_url}")
+    sources_section = ("\\n\\nSources & Further Reading\\n" + "\\n".join(source_lines)
+                       if source_lines else
+                       "\\n\\nSources & Further Reading\\nSource links were not available in the collected report metadata.")
+    base_description = (
+        f"{title}\\n\\n"
+        "A sourced news summary. Visuals are illustrative and do not show the actual event.")
+    return base_description + sources_section
 
 
 def build_script(story: dict, language: str = "hinglish") -> dict:
@@ -466,13 +478,13 @@ def build_script(story: dict, language: str = "hinglish") -> dict:
     script["format"] = KIND
     script["category"] = "news"
     script["language"] = language
-    script["sources"] = [{"title": s["title"], "publisher": s["publisher"],
-                          "url": s.get("link") or s.get("url"), "published": s.get("published"),
-                          "tier": s.get("tier")} for s in story["sources"]]
-    script["description"] = (
-        f"{script.get('title', story['headline'])}\n\nA short, sourced news summary. "
-        "Visuals are illustrative and do not show the actual event. "
-        "This report is based only on the publishers listed below and may be updated as they report more.")
+    script["sources"] = [{"title": s.get("title") or "Source report",
+                          "publisher": s.get("publisher") or "Publisher",
+                          "url": s.get("link") or s.get("url") or s.get("publisher_url"),
+                          "published": s.get("published"), "tier": s.get("tier")}
+                         for s in story["sources"]]
+    script["description"] = _build_news_description(
+        script.get("title", story["headline"]), script["sources"])
     return script
 
 

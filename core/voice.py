@@ -144,17 +144,23 @@ def _apply_pronunciation_map(text, mapping=None):
 
 
 def _pause_after(chunk):
-    """Natural pause after a phrase; chunk tails are trimmed before joining."""
+    """Natural pause after a phrase; optionally tighten pauses for fast news delivery."""
     ending = (chunk or "").rstrip()[-1:]
     if ending in ("?", "؟"):
-        return 0.30
-    if ending == "!":
-        return 0.28
-    if ending in (".", "।", "…"):
-        return 0.26
-    if ending in (",", ";", ":", "،"):
-        return 0.18
-    return 0.12
+        base = 0.30
+    elif ending == "!":
+        base = 0.28
+    elif ending in (".", "।", "…"):
+        base = 0.26
+    elif ending in (",", ";", ":", "،"):
+        base = 0.18
+    else:
+        base = 0.12
+    try:
+        scale = max(0.25, min(float(os.getenv("TTS_PAUSE_SCALE", "1.0") or 1.0), 1.5))
+    except ValueError:
+        scale = 1.0
+    return round(base * scale, 3)
 
 def _prosody(i, n, sentence):
     # Keep one voice across the video; make openings and sentence endings clearer.
@@ -522,6 +528,12 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             print("WARNING: " + fallback_reason)
             wavs = _synth_all_espeak(sentences, language, build_dir)
             engine = "espeak-ng"
+
+    # News releases must never silently fall back to the highly robotic offline voice.
+    # A failed neural provider blocks this news build instead of publishing poor audio.
+    if engine == "espeak-ng" and os.getenv("TTS_REJECT_ROBOTIC_FALLBACK", "").strip().lower() in {"1", "true", "yes"}:
+        raise VoiceProviderUnavailable(
+            "Daily news narration refused: neural TTS was unavailable and the offline robotic voice is disabled.")
 
     # Chatterbox has no native rate argument in this integration. Apply a
     # subtle 4% tempo lift only to that engine; Edge already receives TTS_RATE.
