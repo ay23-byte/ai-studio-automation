@@ -30,7 +30,7 @@ class NewsNarrationEditorialTests(unittest.TestCase):
         script = news_auto.template_script(self.story)
         script["scenes"][0]["say"] += " Visit example.com for details."
         problems = news_auto.validate_news_script(script, self.story, "english")
-        self.assertTrue(any("URL or website domain" in issue for issue in problems), problems)
+        self.assertTrue(any("website URL or domain" in issue for issue in problems), problems)
 
     def test_fast_news_profile_tightens_sentence_pauses(self):
         with patch.dict(os.environ, {"TTS_PAUSE_SCALE": "0.55"}):
