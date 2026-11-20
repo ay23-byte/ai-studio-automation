@@ -101,7 +101,7 @@ jobs:
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
           TTS_ENGINE: "edge"
-          TTS_VOICE: "en-US-AndrewNeural"
+          TTS_VOICE: ${{ inputs.language == 'hindi' && 'hi-IN-MadhurNeural' || inputs.language == 'hinglish' && 'hi-IN-MadhurNeural' || 'en-US-AndrewNeural' }}
           TTS_PAUSE_SCALE: "0.55"
           TTS_REJECT_ROBOTIC_FALLBACK: "1"
           TTS_RATE: "+13%"
