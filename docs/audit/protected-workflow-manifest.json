@@ -260,7 +260,7 @@
     "scripts/check_footage_sources_live.py": "5b34892304804ac5bdb9c6aa8f251d6679a88c0ebdfe1d8209a23d7929737010",
     "scripts/check_presenter_clips.py": "92add93c4ce0a76c874d9649f2d286292e3799a03c0eb1786785ad66b91a2a52",
     "scripts/collect_daily_news.py": "6a3b16a7b414b388cb9d58bd686ed86587deeb1fd29b171751844b60b8721589",
-    "scripts/create_voice_audition.py": "56fe4306daa1258445d04f459f61c75ebddd1e51fe74a1283cbc045ef8172069",
+    "scripts/create_voice_audition.py": "803bf2281896bb198f304b9531ecd6b0b0d5a0e8bd7dd5633d2b2556df4c91f3",
     "scripts/documentary_topic_queue.py": "e3aeab6e3bf8a9966c45eee55e0f19c4267b68548d250ed253ec65765fe88e40",
     "scripts/draft_reviewed_news_short.py": "840c8e47d17e0c8c6741252528f7fa252fc4ab9e7f61ebc62f1afa677f92d84f",
     "scripts/generate_openvino_video.py": "9dec4941a1efe107444810c9fd880e40e07bc67e33c13bd17e9b70b6d1fe7829",
