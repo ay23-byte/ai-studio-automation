@@ -412,6 +412,27 @@ def template_script(story: dict) -> dict:
         scene["caption"] = scene["say"]
     return {"title": headline[:80], "hook": headline[:50], "category": "news", "scenes": scenes}
 
+def _build_news_description(title: str, sources: list[dict]) -> str:
+    """Build a YouTube description with all used sources listed at the very end."""
+    source_lines = []
+    seen_source_urls = set()
+    for source in sources:
+        source_url = str(source.get("url") or "").strip()
+        if not source_url or source_url in seen_source_urls:
+            continue
+        seen_source_urls.add(source_url)
+        publisher = str(source.get("publisher") or "Publisher").strip()
+        source_title = str(source.get("title") or "Source report").strip()
+        source_lines.append(f"- {publisher} — {source_title}\\n  {source_url}")
+    sources_section = ("\\n\\nSources & Further Reading\\n" + "\\n".join(source_lines)
+                       if source_lines else
+                       "\\n\\nSources & Further Reading\\nSource links were not available in the collected report metadata.")
+    base_description = (
+        f"{title}\\n\\n"
+        "A sourced news summary. Visuals are illustrative and do not show the actual event.")
+    return base_description + sources_section
+
+
 def build_script(story: dict, language: str = "hinglish") -> dict:
     """Write and validate the script; fails closed when it cannot be grounded."""
     language = language if language in _LANGUAGE_RULES else "english"
@@ -462,26 +483,8 @@ def build_script(story: dict, language: str = "hinglish") -> dict:
                           "url": s.get("link") or s.get("url") or s.get("publisher_url"),
                           "published": s.get("published"), "tier": s.get("tier")}
                          for s in story["sources"]]
-    # Put every source actually used for this report at the very end of the
-    # YouTube description. Keep narration clean: URLs and publisher names are
-    # metadata, never spoken by the presenter.
-    source_lines = []
-    seen_source_urls = set()
-    for source in script["sources"]:
-        source_url = str(source.get("url") or "").strip()
-        if not source_url or source_url in seen_source_urls:
-            continue
-        seen_source_urls.add(source_url)
-        publisher = str(source.get("publisher") or "Publisher").strip()
-        title = str(source.get("title") or "Source report").strip()
-        source_lines.append(f"- {publisher} — {title}\\n  {source_url}")
-    sources_section = ("\\n\\nSources & Further Reading\\n" + "\\n".join(source_lines)
-                       if source_lines else
-                       "\\n\\nSources & Further Reading\\nSource links were not available in the collected report metadata.")
-    base_description = (
-        f"{script.get('title', story['headline'])}\\n\\n"
-        "A sourced news summary. Visuals are illustrative and do not show the actual event.")
-    script["description"] = base_description + sources_section
+    script["description"] = _build_news_description(
+        script.get("title", story["headline"]), script["sources"])
     return script
 
 
