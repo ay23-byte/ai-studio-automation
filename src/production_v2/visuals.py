@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import datetime as dt
 import math
+import json
+import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -117,7 +120,45 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
     """Generate one purpose-built visual per scene and register its provenance."""
     rules = config.rules_for(content_type)
     assets: list[VisualAsset] = []
+    choices = {}
+    if config.visual_manifest:
+        choices = json.loads(Path(config.visual_manifest).read_text(encoding="utf-8"))
+        if not isinstance(choices, dict) or set(choices) - {scene.id for scene in scenes}:
+            raise ValueError("visual manifest must map known scene IDs to choices")
     for scene in scenes:
+        choice = choices.get(scene.id)
+        if choice is not None:
+            if not isinstance(choice, dict) or choice.get("reviewed") is not True:
+                raise ValueError(f"scene {scene.id} requires explicit visual review")
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", scene.id):
+                raise ValueError("unsafe scene ID")
+            if choice.get("type") == "commons":
+                from .archive import download_commons
+                image, record = download_commons(choice.get("title", ""), store_root / f"visual_{scene.id}", scene.id,
+                                                 timeout=config.request_timeout_seconds)
+            elif choice.get("type") == "manim_wave":
+                if scene.visual.kind not in {"animation", "diagram"}:
+                    raise ValueError("wave animation is only allowed for diagram/animation scenes")
+                from .ffmpeg_io import run
+                media_dir = store_root / f"manim_{scene.id}"
+                run([sys.executable, "-m", "manim", "render", "--disable_caching", "--media_dir", str(media_dir),
+                     "-r", f"{rules.width},{rules.height}", "--fps", str(rules.fps),
+                     str(Path(__file__).with_name("manim_wave.py")), "WaveIllustration"],
+                    timeout=config.ffmpeg_timeout_seconds)
+                candidates = list(media_dir.rglob("WaveIllustration.mp4"))
+                if len(candidates) != 1:
+                    raise ValueError("Manim did not produce the expected wave video")
+                image = candidates[0]
+                record = AssetRecord(id=f"visual_{scene.id}", source_url="generated-locally://manim-wave",
+                    creator="Engineering Physics v2", license="synthetic demonstration graphic",
+                    downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
+                    media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
+                    used_in=scene.id, restrictions="Conceptual sine wave; verify relevance and scientific meaning.")
+            else:
+                raise ValueError(f"unsupported visual type for {scene.id}")
+            library.add(record)
+            assets.append(VisualAsset(scene.id, image, scene.visual.kind, scene.visual.description, record))
+            continue
         image = SyntheticVisualGenerator().draw(scene, rules,
                                                 store_root / f"visual_{scene.id}.png")
         record = AssetRecord(
