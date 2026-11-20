@@ -272,6 +272,19 @@ def _upload_section(row: dict, build_dir: Path, gate: dict, quality: dict,
                                    [f"YouTube processing status: {legacy.get('processing_status')}"])}
     failure = _load(external_failure) if external_failure else {}
     youtube_id = result.get("youtube_id") or row.get("youtube_id")
+    result_status = str(result.get("status") or "").strip().lower()
+    if youtube_id and result_status in {"verification_failed", "unverified", "upload_failed", "failed"}:
+        details = result.get("verification_problems") or []
+        reason = "; ".join(map(str, details)) if details else str(result.get("error") or
+                  "YouTube upload exists but private/channel verification did not pass.")
+        return {
+            "status": "unverified",
+            "youtube_id": youtube_id,
+            "url": result.get("url") or f"https://youtu.be/{youtube_id}",
+            "privacy": result.get("privacy"),
+            "privacy_verified": False,
+            "reason": _redact(reason)[:500],
+        }
     if youtube_id:
         verified = result.get("privacy_verified")
         return {
