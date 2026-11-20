@@ -347,7 +347,7 @@ class NewsAutoTests(_StateSandbox):
             {"say": f"Shocking news number {i}, the rocket cost 900 crore and exploded twice",
              "caption": "c", "label": "l", "image": "i", "keywords": ["k"]} for i in range(4)]})
         with patch("core.script_engine._ask_gemini", return_value=bad), \
-                patch.dict(os.environ, {"NEWS_TEMPLATE_FALLBACK": ""}):
+                patch.dict(os.environ, {"NEWS_TEMPLATE_FALLBACK": "0"}):
             with self.assertRaises(news_auto.NoPublishableStory):
                 news_auto.build_script(story, "english")
 
