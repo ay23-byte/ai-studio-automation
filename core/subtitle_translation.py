@@ -191,6 +191,11 @@ def translate_short_subtitles(
     label_texts = [str(item[2] or "") for item in labels]
     all_texts = caption_texts + label_texts + [str(hook or ""), str(cta or "")]
     should_translate = needs_translation(all_texts, target, source_language)
+    # The requested spoken language may be Hinglish while the script already
+    # supplies English on-screen captions. Avoid a needless model call when the
+    # actual visible text passes the English-only check.
+    if target == "english" and english_subtitle_report(all_texts)["status"] == "PASS":
+        should_translate = False
     translated: dict[int, str] = {}
     entries: list[dict[str, Any]] = []
     ids: list[int | None] = []
