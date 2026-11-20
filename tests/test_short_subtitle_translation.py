@@ -38,7 +38,7 @@ class EnglishShortSubtitleTests(unittest.TestCase):
 
     @patch("core.subtitle_translation._ask_gemini")
     def test_rejects_latin_script_hinglish_left_in_english_subtitles(self, ask):
-        ask.return_value = '{"translations":[{"id":0,"text":"Yeh gaon dheere dheere badal raha hai"}]}'
+        ask.return_value = '{"translations":[{"id":0,"text":"Yeh gaon ab dheere dheere badal raha hai aur log"}]}'
         with self.assertRaisesRegex(RuntimeError, "not English"):
             translate_short_subtitles([(0, 2, "यह गाँव बदल रहा है")], [], source_language="hindi")
 
