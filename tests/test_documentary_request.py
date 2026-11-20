@@ -150,12 +150,12 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertTrue(problems(pull_requests=[]))
 
     def test_documentary_build_is_credential_isolated_and_auto_release_is_separate(self):
-        build = WORKFLOW[WORKFLOW.index("  build:\\n"):]
+        build = WORKFLOW[WORKFLOW.index("  build:\n"):]
         release = (ROOT / ".github" / "workflows" / "release_documentary_auto.yml").read_text(encoding="utf-8")
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
         self.assertNotIn("YT_CLIENT_ID", build)
-        self.assertNotIn("  release:\\n", build)
+        self.assertNotIn("  release:\n", build)
         self.assertIn("workflow_run:", release)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", release)
