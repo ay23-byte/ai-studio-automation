@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import datetime as dt
 import math
+import json
+import re
+import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -112,12 +116,119 @@ class SyntheticVisualGenerator:
         return output
 
 
+AUTO_UNREVIEWED = "AUTOMATIC_SELECTION_UNREVIEWED"
+
+
+def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
+    """Conservative draft selection; human review remains mandatory before upload.
+
+    A keyword match cannot establish scientific correctness. The only automated
+    choices are explicit sine-wave and circular-orbit phrases; ambiguity and
+    unsupported claim scenes fail closed rather than using unrelated footage.
+    """
+    choices = {}
+    if config.visual_manifest:
+        choices = json.loads(Path(config.visual_manifest).read_text(encoding="utf-8"))
+        if not isinstance(choices, dict) or set(choices) - {scene.id for scene in scenes}:
+            raise ValueError("visual manifest must map known scene IDs to choices")
+        for choice in choices.values():
+            if not isinstance(choice, dict) or choice.get("reviewed") is not True or "automatic" in choice:
+                raise ValueError("visual manifest choices require explicit review")
+    if config.animation_mode not in {"off", "auto_strict"}:
+        raise ValueError("animation mode must be off or auto_strict")
+    if config.animation_mode == "auto_strict":
+        for scene in scenes:
+            if scene.id in choices or scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
+                continue
+            text = scene.narration.lower()
+            wave = bool(re.search(r"\b(?:sinusoidal|sine) waves?\b", text))
+            orbit = bool(re.search(r"\bcircular orbits?\b", text))
+            if wave == orbit or re.search(r"\b(?:not|never|without|neither|no)\b", text):
+                raise ValueError(f"scene {scene.id}: unsupported or ambiguous scientific animation; provide reviewed visual")
+            choices[scene.id] = {"type": "manim_wave" if wave else "blender_orbit", "automatic": True}
+    return choices
+
+
 def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                  config: V2Config, content_type: str) -> list[VisualAsset]:
-    """Generate one purpose-built visual per scene and register its provenance."""
+    """Generate visuals with explicit provenance and review status."""
     rules = config.rules_for(content_type)
     assets: list[VisualAsset] = []
+    choices = choose_visuals(scenes, config)
     for scene in scenes:
+        choice = choices.get(scene.id)
+        if choice is not None:
+            if not isinstance(choice, dict) or (choice.get("reviewed") is not True and not choice.get("automatic")):
+                raise ValueError(f"scene {scene.id} requires explicit visual review")
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", scene.id):
+                raise ValueError("unsafe scene ID")
+            if choice.get("type") == "commons":
+                from .archive import download_commons
+                image, record = download_commons(choice.get("title", ""), store_root / f"visual_{scene.id}", scene.id,
+                                                 timeout=config.request_timeout_seconds)
+            elif choice.get("type") == "manim_wave":
+                if scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
+                    raise ValueError("wave animation is only allowed for claim-bearing visual scenes")
+                from .ffmpeg_io import run
+                media_dir = Path(tempfile.mkdtemp(prefix=f"manim_{scene.id}_", dir=store_root))
+                run([sys.executable, "-m", "manim", "render", "--disable_caching", "--media_dir", str(media_dir),
+                     "-r", f"{rules.width},{rules.height}", "--fps", str(rules.fps),
+                     str(Path(__file__).with_name("manim_wave.py")), "WaveIllustration"],
+                    timeout=config.ffmpeg_timeout_seconds)
+                candidates = list(media_dir.rglob("WaveIllustration.mp4"))
+                if len(candidates) != 1 or candidates[0].stat().st_size == 0:
+                    raise ValueError("Manim did not produce the expected wave video")
+                image = candidates[0]
+                record = AssetRecord(id=f"visual_{scene.id}", source_url="generated-locally://manim-wave",
+                    creator="Engineering Physics v2", license="synthetic demonstration graphic",
+                    downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
+                    media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
+                    used_in=scene.id, restrictions="Conceptual sine wave; verify relevance and scientific meaning.")
+            elif choice.get("type") == "blender_orbit":
+                if scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
+                    raise ValueError("orbit animation is only allowed for claim-bearing visual scenes")
+                from .ffmpeg_io import resolve_ffmpeg, run
+                ffmpeg = resolve_ffmpeg(config)
+                if not ffmpeg:
+                    raise ValueError("FFmpeg is required to encode Blender frames")
+                # Use an isolated directory so a previous render cannot be mistaken for success.
+                media_dir = Path(tempfile.mkdtemp(prefix=f"blender_{scene.id}_", dir=store_root))
+                frames = media_dir / "frame_"
+                script = str(Path(__file__).with_name("blender_orbit.py"))
+                if config.blender_backend == "blender":
+                    command = [config.blender_binary, "--background", "--factory-startup", "--python", script]
+                elif config.blender_backend == "bpy":
+                    command = [sys.executable, script]
+                else:
+                    raise ValueError("unsupported Blender backend")
+                run([*command, "--", "--output", str(frames), "--width", str(rules.width),
+                     "--height", str(rules.height), "--fps", str(rules.fps)],
+                    timeout=config.ffmpeg_timeout_seconds)
+                expected = rules.fps * 4
+                if any(not (media_dir / f"frame_{index:04d}.png").is_file()
+                       for index in range(1, expected + 1)):
+                    raise ValueError("Blender did not produce every expected animation frame")
+                image = media_dir / "orbit.mp4"
+                run([ffmpeg, "-y", "-hide_banner", "-loglevel", "warning", "-framerate", str(rules.fps),
+                     "-start_number", "1", "-i", str(media_dir / "frame_%04d.png"), "-frames:v", str(expected),
+                     "-c:v", "libx264", "-pix_fmt", "yuv420p", str(image)],
+                    timeout=config.ffmpeg_timeout_seconds)
+                if not image.is_file() or image.stat().st_size == 0:
+                    raise ValueError("Blender orbit video encoding failed")
+                for index in range(1, expected + 1):
+                    (media_dir / f"frame_{index:04d}.png").unlink()
+                record = AssetRecord(id=f"visual_{scene.id}", source_url="generated-locally://blender-orbit",
+                    creator="Engineering Physics v2", license="synthetic demonstration graphic",
+                    downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
+                    media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
+                    used_in=scene.id, restrictions="Idealized circular orbit, not to scale; verify relevance and accuracy.")
+            else:
+                raise ValueError(f"unsupported visual type for {scene.id}")
+            if choice.get("automatic"):
+                record.restrictions += "; " + AUTO_UNREVIEWED
+            library.add(record)
+            assets.append(VisualAsset(scene.id, image, scene.visual.kind, scene.visual.description, record))
+            continue
         image = SyntheticVisualGenerator().draw(scene, rules,
                                                 store_root / f"visual_{scene.id}.png")
         record = AssetRecord(

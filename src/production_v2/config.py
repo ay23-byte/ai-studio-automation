@@ -59,6 +59,10 @@ class V2Config:
     pronunciation_map: dict[str, str] = field(default_factory=dict)
     target_lufs: float = -16.0
     true_peak_dbfs: float = -1.5
+    blender_binary: str = "blender"
+    blender_backend: str = "blender"
+    visual_manifest: str = ""
+    animation_mode: str = "off"
     failure_webhook: str = ""
     request_timeout_seconds: float = 20.0
     ffmpeg_timeout_seconds: float = 300.0
@@ -84,11 +88,19 @@ class V2Config:
             ffprobe_binary=e.get("FFPROBE_BINARY", "ffprobe"),
             tts_voice=e.get("PV2_TTS_VOICE", "en-IN-PrabhatNeural"),
             pronunciation_map=pronunciation if isinstance(pronunciation, dict) else {},
+            blender_binary=e.get("PV2_BLENDER_BINARY", "blender"),
+            blender_backend=e.get("PV2_BLENDER_BACKEND", "blender"),
+            visual_manifest=e.get("PV2_VISUAL_MANIFEST", ""),
+            animation_mode=e.get("PV2_ANIMATION_MODE", "off").strip().lower(),
             failure_webhook=e.get("PV2_FAILURE_WEBHOOK", ""),
         )
 
     def assert_safe(self) -> None:
         """Fail closed on any configuration that could violate the brief."""
+        if self.animation_mode not in {"off", "auto_strict"}:
+            raise ValueError("animation mode must be off or auto_strict")
+        if self.blender_backend not in {"blender", "bpy"}:
+            raise ValueError("unsupported Blender backend")
         if self.provider not in ALLOWED_PROVIDERS:
             raise ValueError(f"provider {self.provider!r} is not in the free/mock allow-list")
         if self.subtitle_language != "english":

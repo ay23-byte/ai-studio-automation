@@ -12,11 +12,12 @@ from .visuals import VisualAsset
 
 
 def _segment_command(ffmpeg: str, image: Path, audio: Path, output: Path,
-                     duration: float, width: int, height: int, fps: int) -> list[str]:
+                     duration: float, width: int, height: int, fps: int, *, is_video: bool = False) -> list[str]:
     fade_out = max(0.0, duration - 0.5)
     return [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "warning",
-        "-loop", "1", "-framerate", str(fps), "-i", str(image), "-i", str(audio),
+        *(["-stream_loop", "-1"] if is_video else ["-loop", "1", "-framerate", str(fps)]),
+        "-i", str(image), "-i", str(audio),
         "-t", f"{duration:.3f}",
         "-filter_complex",
         (f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
@@ -51,7 +52,8 @@ class Editor:
                 raise RenderError(f"missing narration audio for {scene.id}")
             target = work / f"segment_{index:02d}.mp4"
             run(_segment_command(ffmpeg, asset.image_path, audio, target,
-                                 scene.visual.duration, rules.width, rules.height, rules.fps),
+                                 scene.visual.duration, rules.width, rules.height, rules.fps,
+                                 is_video=asset.record.media_type == "video"),
                 timeout=config.ffmpeg_timeout_seconds)
             segment_files.append(target)
 

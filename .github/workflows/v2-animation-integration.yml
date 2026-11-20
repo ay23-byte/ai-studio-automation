@@ -1,0 +1,67 @@
+name: "V2 animation integration (opt-in validation)"
+
+# Validation only: no schedules, production configuration, credentials or uploads.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/v2-animation-integration.yml'
+      - 'src/production_v2/blender_orbit.py'
+      - 'src/production_v2/manim_wave.py'
+      - 'src/production_v2/visuals.py'
+      - 'src/production_v2/editor.py'
+      - 'src/production_v2/pipeline.py'
+      - 'src/production_v2/script_engine.py'
+      - 'src/production_v2/qa.py'
+      - 'src/production_v2/config.py'
+      - 'tests/test_v2_real_animation.py'
+      - 'tests/test_v2_archive_animation.py'
+
+permissions:
+  contents: read
+
+jobs:
+  animation-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install renderer system dependencies (bounded)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Prefer the runner's existing package lists; bound every network operation.
+          if ! timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
+              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri; then
+            timeout 120s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+            timeout 180s sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends \
+              ffmpeg libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core libegl1 libgl1 libgl1-mesa-dri
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+      - name: Install Manim and test dependencies
+        run: python -m pip install --retries 5 --timeout 60 'manim==0.19.0' 'bpy==4.2.23' 'pytest>=8,<10' 'Pillow>=10'
+      - name: Run real Blender and Manim rendering tests
+        env:
+          PV2_TEST_REAL_ANIMATIONS: '1'
+          PV2_BLENDER_BACKEND: bpy
+          EGL_PLATFORM: surfaceless
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        shell: bash
+        run: |
+          set +e
+          python -m pytest tests/test_v2_real_animation.py tests/test_v2_archive_animation.py -q > animation-test.log 2>&1
+          result=$?
+          cat animation-test.log
+          if [ "$result" -ne 0 ]; then
+            python - <<'PYCODE'
+          from pathlib import Path
+          text = Path('animation-test.log').read_text(errors='replace')[-10000:]
+          text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print('::error title=Animation test failure::' + text)
+          PYCODE
+          fi
+          exit "$result"
