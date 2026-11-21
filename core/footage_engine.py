@@ -213,7 +213,10 @@ def _vision_candidate_problem(path: Path, scene_prompt: str) -> str | None:
         return None
     from core.config import GEMINI_API_KEY
     if not GEMINI_API_KEY:
-        return "GEMINI_API_KEY is not configured for candidate visual screening"
+        # Non-release/offline runs may still build diagnostics. The final
+        # autonomous release gate independently requires every shot to have
+        # confirmed semantic screening, so this can never authorize upload.
+        return None
     import tempfile
     import subprocess
     from core.ffmpeg_utils import ffmpeg_bin
