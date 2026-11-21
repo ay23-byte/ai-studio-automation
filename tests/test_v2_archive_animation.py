@@ -83,9 +83,12 @@ class ArchiveAnimationTests(unittest.TestCase):
                         prefix.with_name(prefix.name + f"{i:04d}.png").write_bytes(b"frame")
                 else:
                     Path(cmd[-1]).write_bytes(b"video")
-            with patch("src.production_v2.ffmpeg_io.run", side_effect=render), \
+            with patch("src.production_v2.ffmpeg_io.run", side_effect=render) as run_mock, \
                  patch("src.production_v2.ffmpeg_io.resolve_ffmpeg", return_value="ffmpeg"):
                 assets = plan_visuals([Scene("s", "n", VisualSpec("orbit", "animation"))], root, AssetLibrary(), config, "physics_short")
+            blender_command = run_mock.call_args_list[0].args[0]
+            self.assertIn("--scene-kind", blender_command)
+            self.assertIn("blender_orbit", blender_command)
             self.assertEqual(assets[0].record.media_type, "video")
             self.assertIn("not to scale", assets[0].record.restrictions)
             self.assertFalse(list(assets[0].image_path.parent.glob("frame_*.png")))
