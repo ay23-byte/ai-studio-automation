@@ -571,7 +571,8 @@ class EngineTests(_Temp):
             _lead("P", "beach", "Semiconductor beach holiday footage", "https://a/beach.mp4")
         ])
         def relevance(query, metadata):
-            return 0.7 if query == "semiconductor" else 0.05
+            # A broad query can score highly while the actual shot match is weak.
+            return 0.7 if query == "semiconductor" else 0.25
         ok = acquire(["semiconductor"], self.tmp / "scene.mp4", set(),
                      scene_prompt="silicon wafer inside a semiconductor cleanroom",
                      providers=[provider], download=download, relevance=relevance,
