@@ -175,6 +175,10 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     "manim_wave": "WaveIllustration",
                     "manim_projectile": "ProjectileMotion",
                     "manim_vectors": "VectorAddition",
+                    "manim_calculus": "CalculusExplainer",
+                    "manim_field_lines": "FieldLinesExplainer",
+                    "manim_fourier": "FourierExplainer",
+                    "manim_neural_network": "NeuralNetworkExplainer",
                 }
                 scene_type = choice["type"]
                 if scene_type not in scene_names:
@@ -203,7 +207,8 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     raise ValueError("FFmpeg is required to encode Blender frames")
                 # Use an isolated directory so a previous render cannot be mistaken for success.
                 scene_type = choice["type"]
-                if scene_type not in {"blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon"}:
+                if scene_type not in {"blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon",
+                                      "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine"}:
                     raise ValueError(f"unsupported Blender scene: {scene_type}")
                 media_dir = Path(tempfile.mkdtemp(prefix=f"blender_{scene.id}_", dir=store_root))
                 frames = media_dir / "frame_"
