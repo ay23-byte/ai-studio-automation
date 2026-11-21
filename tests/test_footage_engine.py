@@ -94,6 +94,29 @@ class MediaValidationTests(_Temp):
                 self.assertTrue(result["reason"])
 
 
+class CandidateVisionScreeningTests(_Temp):
+    @needs_ffmpeg
+    @patch("core.visual_semantics.verify_shot_semantics")
+    @patch("core.config.GEMINI_API_KEY", "test-key")
+    def test_rejects_candidate_when_pixels_do_not_match_scene(self, verify):
+        from core.footage_engine import _vision_candidate_problem
+        clip = make_clip(self.tmp / "candidate.mp4", audio=False)
+        verify.return_value = {"status": "mismatch", "match_score": 0.1,
+                               "concerns": ["wrong subject"]}
+        reason = _vision_candidate_problem(clip, "Lake Nyos crater lake in Cameroon")
+        self.assertIn("candidate vision mismatch", reason)
+        self.assertIn("wrong subject", reason)
+
+    @needs_ffmpeg
+    @patch("core.visual_semantics.verify_shot_semantics")
+    @patch("core.config.GEMINI_API_KEY", "test-key")
+    def test_accepts_candidate_only_when_visual_model_confirms_match(self, verify):
+        from core.footage_engine import _vision_candidate_problem
+        clip = make_clip(self.tmp / "candidate.mp4", audio=False)
+        verify.return_value = {"status": "match", "match_score": 0.91}
+        self.assertIsNone(_vision_candidate_problem(clip, "A clearly described scene"))
+
+
 class LicencePolicyTests(unittest.TestCase):
     def state(self, **metadata):
         return classify_licence(metadata)["state"]
