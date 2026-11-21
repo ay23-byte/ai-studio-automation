@@ -35,6 +35,14 @@ def select_animation_kind(narration: str, visual_type: str, visual_prompt: str =
         (r"\b(?:atom|atomic model|electrons? orbit(?:ing)? the nucleus)\b", "blender_atom"),
         (r"\b(?:earth[- ]moon system|moon orbit(?:s|ing)? (?:the )?earth)\b", "blender_earth_moon"),
         (r"\bcircular orbits?\b", "blender_orbit"),
+        (r"\b(?:rotating earth|earth globe|global geography|geographic globe|planet earth)\b", "blender_earth_globe"),
+        (r"\b(?:volcano eruption|volcanic eruption|magma chamber)\b", "blender_volcano"),
+        (r"\b(?:satellite orbit|spacecraft orbit|satellite deployment)\b", "blender_satellite"),
+        (r"\b(?:wind turbine|turbine rotor|turbine blades?)\b", "blender_turbine"),
+        (r"\b(?:calculus|derivative of|integral of|tangent slope)\b", "manim_calculus"),
+        (r"\b(?:electric field lines?|magnetic field lines?|electromagnetic field)\b", "manim_field_lines"),
+        (r"\b(?:fourier series|fourier transform|harmonic decomposition)\b", "manim_fourier"),
+        (r"\b(?:neural network|artificial neural network)\b", "manim_neural_network"),
     )
     matches = [name for pattern, name in concepts if re.search(pattern, narration, re.I)]
     return matches[0] if len(matches) == 1 else None
