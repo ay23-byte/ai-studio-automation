@@ -141,7 +141,8 @@ def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
             # Reuse the same conservative matcher as the legacy Shorts/documentary
             # renderer so both production stacks make identical scene choices.
             from core.animation_integration import select_animation_kind
-            selected = select_animation_kind(scene.narration, scene.visual.kind, scene.visual.description)
+            selector_kind = "animation" if scene.visual.kind in {"map", "news_graphic"} else scene.visual.kind
+            selected = select_animation_kind(scene.narration, selector_kind, scene.visual.description)
             if selected:
                 choices[scene.id] = {"type": selected, "automatic": True}
             else:
