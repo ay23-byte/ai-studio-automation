@@ -91,9 +91,7 @@ def capture_source_screenshot(source: dict, output_dir: str | Path, *, node: str
     try:
         from PIL import Image, ImageDraw, ImageFont
         image = Image.open(image_path).convert("RGB")
-        footer_height = 112
-        canvas = Image.new("RGB", (image.width, image.height + footer_height), (14, 18, 25))
-        canvas.paste(image, (0, 0))
+        canvas = image.copy()
         draw = ImageDraw.Draw(canvas)
         regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -104,13 +102,15 @@ def capture_source_screenshot(source: dict, output_dir: str | Path, *, node: str
             title_font, url_font = ImageFont.load_default(), ImageFont.load_default()
         publisher = str(source.get("publisher") or "Original source")
         published = str(source.get("published_at") or "Date not stated")
-        draw.text((28, image.height + 12), f"SOURCE  |  {publisher}  |  {published}",
+        footer_top = max(0, image.height - 112)
+        draw.rectangle((0, footer_top, image.width, image.height), fill=(14, 18, 25))
+        draw.text((28, footer_top + 12), f"SOURCE  |  {publisher}  |  {published}",
                   fill=(245, 247, 250), font=title_font)
         url_text = url
         max_width = image.width - 56
-        while url_font.size > 10 and draw.textbbox((0, 0), url_text, font=url_font)[2] > max_width:
+        while getattr(url_font, "size", 10) > 10 and draw.textbbox((0, 0), url_text, font=url_font)[2] > max_width:
             url_font = ImageFont.truetype(regular, max(10, url_font.size - 1))
-        draw.text((28, image.height + 58), url_text, fill=(170, 205, 240), font=url_font)
+        draw.text((28, footer_top + 58), url_text, fill=(170, 205, 240), font=url_font)
         canvas.save(image_path, format="PNG", optimize=True)
         sidecar = json.loads(metadata_path.read_text(encoding="utf-8"))
         sidecar["editorial_footer"] = {
