@@ -7,7 +7,7 @@ from manim import (
 
 
 def title(text):
-    return Text(text, font_size=min(30, max(18, float(config.frame_width) * 5)).to_edge(UP)
+    return Text(text, font_size=min(30, max(18, float(config.frame_width) * 5))).to_edge(UP)
 
 
 class WaveIllustration(Scene):
