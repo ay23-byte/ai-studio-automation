@@ -213,7 +213,7 @@ def _vision_candidate_problem(path: Path, scene_prompt: str) -> str | None:
         return None
     from core.config import GEMINI_API_KEY
     if not GEMINI_API_KEY:
-        return None  # the final documentary screening still fails closed
+        return "GEMINI_API_KEY is not configured for candidate visual screening"
     import tempfile
     import subprocess
     from core.ffmpeg_utils import ffmpeg_bin
@@ -309,8 +309,15 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
     ranked.sort(key=lambda item: -item["rank"]["rank_score"])
 
     attempts = int(max(1, _number("FOOTAGE_MAX_DOWNLOAD_ATTEMPTS", 6)))
+    # Vision calls are deliberately bounded: each scene screens at most two
+    # downloaded candidates by default. Unscreened candidates are never silently
+    # accepted; if neither candidate matches, the scene remains unresolved and
+    # the existing release gate blocks the upload.
+    vision_enabled = os.getenv("FOOTAGE_CANDIDATE_VISION_SCREENING", "1").strip().lower() not in {"0", "false", "no", "off"}
+    vision_limit = int(max(1, _number("FOOTAGE_CANDIDATE_VISION_MAX_PER_SCENE", 2))) if vision_enabled and scene_prompt else attempts
+    candidate_limit = min(attempts, vision_limit)
     tried = []
-    for candidate in ranked[:attempts]:
+    for candidate in ranked[:candidate_limit]:
         provider, metadata, url = candidate["provider"], candidate["metadata"], candidate["url"]
         metadata["relevance_score"] = round(candidate["relevance"], 3)
         metadata["rank_details"] = candidate["rank"]
