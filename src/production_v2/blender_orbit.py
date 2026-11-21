@@ -10,7 +10,7 @@ parser.add_argument("--output", required=True)
 parser.add_argument("--width", type=int, required=True)
 parser.add_argument("--height", type=int, required=True)
 parser.add_argument("--fps", type=int, required=True)
-parser.add_argument("--scene-kind", choices=("blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon"), default="blender_orbit")
+parser.add_argument("--scene-kind", choices=("blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon", "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine"), default="blender_orbit")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 if not (64 <= args.width <= 3840 and 64 <= args.height <= 3840 and 1 <= args.fps <= 60):
     raise ValueError("Unsupported render dimensions or frame rate")
@@ -129,11 +129,107 @@ def build_earth_moon():
     animate_orbit(moon, 2.0, tilt=0.18)
 
 
+
+def build_earth_globe():
+    earth = sphere("Earth globe (schematic)", 1.45, (0, 0, 0), (0.035, 0.22, 0.72), metallic=0.12)
+    # Raised, simplified landmasses are illustrative, not a geographic dataset.
+    for name, location, scale in (
+        ("North America", (-0.55, -0.95, 0.48), (0.48, 0.16, 0.32)),
+        ("South America", (-0.25, -0.85, -0.62), (0.20, 0.14, 0.52)),
+        ("Africa", (0.45, -0.98, -0.10), (0.30, 0.15, 0.42)),
+        ("Eurasia", (0.55, -0.78, 0.62), (0.66, 0.14, 0.30)),
+        ("Australia", (1.02, -0.50, -0.58), (0.25, 0.12, 0.16)),
+    ):
+        land = sphere(name, 0.5, location, (0.12, 0.48, 0.24), emission=0.03)
+        land.scale = scale
+        land.parent = earth
+    for radius, tilt in ((1.48, 0.0), (1.49, 0.75), (1.49, 1.35)):
+        orbit_curve("Globe guide", radius, color=(0.12, 0.42, 0.65), tilt=tilt)
+    earth.rotation_euler[2] = 0
+    earth.keyframe_insert(data_path="rotation_euler", frame=1)
+    earth.rotation_euler[2] = 2 * math.pi
+    earth.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
+
+
+def build_volcano():
+    bpy.ops.mesh.primitive_cone_add(vertices=64, radius1=1.85, radius2=0.35, depth=2.6, location=(0, 0, 0.3))
+    cone = bpy.context.object
+    cone.name = "Volcano cross-section (schematic)"
+    cone.data.materials.append(material("Volcanic rock", (0.22, 0.12, 0.09), metallic=0.05))
+    sphere("Magma chamber", 0.72, (0, 0, -1.05), (0.95, 0.12, 0.015), emission=0.8)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.22, depth=1.1, location=(0, 0, 1.25))
+    vent = bpy.context.object
+    vent.name = "Magma vent"
+    vent.data.materials.append(material("Molten lava", (1.0, 0.18, 0.015), emission=1.4))
+    for index in range(7):
+        drop = sphere(f"Lava plume {index + 1}", 0.07 + 0.015 * (index % 3),
+                      (0.12 * math.sin(index), 0.10 * math.cos(index), 1.9),
+                      (1.0, 0.24, 0.015), emission=1.0)
+        for frame, z in ((1, 1.8), (scene.frame_end, 2.4 + 0.18 * index)):
+            drop.location.z = z
+            drop.keyframe_insert(data_path="location", frame=frame)
+
+
+def build_satellite():
+    sphere("Earth", 1.05, (0, 0, 0), (0.035, 0.22, 0.72), metallic=0.12)
+    orbit_curve("Satellite orbital path", 2.55, tilt=0.25)
+    root = bpy.data.objects.new("Satellite assembly", None)
+    bpy.context.collection.objects.link(root)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+    body = bpy.context.object
+    body.name = "Satellite bus"
+    body.scale = (0.42, 0.32, 0.32)
+    body.data.materials.append(material("Satellite gold", (0.82, 0.58, 0.18), metallic=0.7))
+    body.parent = root
+    for side in (-1, 1):
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, side * 0.9, 0))
+        panel = bpy.context.object
+        panel.name = "Solar panel"
+        panel.scale = (0.08, 0.55, 0.42)
+        panel.data.materials.append(material("Solar panel blue", (0.025, 0.16, 0.42), metallic=0.6))
+        panel.parent = root
+    animate_orbit(root, 2.55, tilt=0.25)
+
+
+def build_turbine():
+    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=0.12, depth=2.6, location=(0, 0, 0.65))
+    tower = bpy.context.object
+    tower.name = "Wind turbine tower"
+    tower.data.materials.append(material("Turbine tower", (0.72, 0.78, 0.82), metallic=0.45))
+    root = bpy.data.objects.new("Turbine rotor", None)
+    bpy.context.collection.objects.link(root)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=0.24, location=(0, 0, 2.0))
+    hub = bpy.context.object
+    hub.name = "Rotor hub"
+    hub.data.materials.append(material("Rotor hub material", (0.8, 0.84, 0.88), metallic=0.6))
+    hub.parent = root
+    for index in range(3):
+        angle = 2 * math.pi * index / 3
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 2.0))
+        blade = bpy.context.object
+        blade.name = f"Rotor blade {index + 1}"
+        blade.scale = (0.10, 0.12, 1.15)
+        blade.location.x = math.sin(angle) * 0.65
+        blade.location.z = 2.0 + math.cos(angle) * 0.65
+        blade.rotation_euler[1] = angle
+        blade.data.materials.append(material("Blade material", (0.82, 0.87, 0.9), metallic=0.35))
+        blade.parent = root
+    root.location = (0, 0, 2.0)
+    root.rotation_euler[1] = 0
+    root.keyframe_insert(data_path="rotation_euler", frame=1)
+    root.rotation_euler[1] = 2 * math.pi
+    root.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
+
+
 builders = {
     "blender_orbit": build_simple_orbit,
     "blender_solar_system": build_solar_system,
     "blender_atom": build_atom,
     "blender_earth_moon": build_earth_moon,
+    "blender_earth_globe": build_earth_globe,
+    "blender_volcano": build_volcano,
+    "blender_satellite": build_satellite,
+    "blender_turbine": build_turbine,
 }
 builders[args.scene_kind]()
 
@@ -154,6 +250,10 @@ label.data.body = {
     "blender_solar_system": "SOLAR SYSTEM MODEL — NOT TO SCALE",
     "blender_atom": "ATOMIC MODEL — SCHEMATIC",
     "blender_earth_moon": "EARTH–MOON MODEL — SCHEMATIC",
+    "blender_earth_globe": "EARTH GLOBE — SIMPLIFIED GEOGRAPHY",
+    "blender_volcano": "VOLCANO CROSS-SECTION — SCHEMATIC",
+    "blender_satellite": "SATELLITE ORBIT — CONCEPTUAL MODEL",
+    "blender_turbine": "WIND TURBINE — CONCEPTUAL MODEL",
 }[args.scene_kind]
 label.data.size = 0.20
 label.data.materials.append(material("Label", (0.8, 0.9, 1.0), emission=0.8))
