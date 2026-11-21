@@ -92,6 +92,9 @@ jobs:
             sleep $((attempt * 10))
           done
 
+      - name: Install Chatterbox multilingual narration (CPU)
+        run: python -m pip install --retries 5 --timeout 120 chatterbox-tts
+
       - name: Validate Python syntax
         run: python -m compileall -q core run.py run_daily.py scripts
 
@@ -129,11 +132,11 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
-          TTS_ENGINE: "edge"
-          TTS_RATE: "+7%"
-          TTS_OPENING_RATE: "+5%"
-          TTS_CLOSING_RATE: "+6%"
-          ALLOW_CHATTERBOX_ON_CI: "false"
+          TTS_ENGINE: "chatterbox"
+          TTS_REQUIRE_ENGINE: "chatterbox"
+          ALLOW_CHATTERBOX_ON_CI: "true"
+          CHATTERBOX_TORCH_THREADS: "2"
+          CHATTERBOX_PLAYBACK_SPEED: "1.04"
           SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
           SHORTS_SUBTITLE_LANGUAGE: "english"
           TOPIC_CATEGORIES: "physics,engineering,technology,science"

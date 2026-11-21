@@ -34,6 +34,21 @@ class VoiceFallbackTests(unittest.TestCase):
             self.assertEqual(report["actual_engine"], "espeak-ng")
             self.assertIn("NoAudioReceived", report["fallback_reason"])
 
+
+    def test_required_chatterbox_failure_blocks_edge_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict("os.environ", {
+                 "TTS_ENGINE": "chatterbox",
+                 "TTS_REQUIRE_ENGINE": "chatterbox",
+                 "ALLOW_CHATTERBOX_ON_CI": "true",
+                 "CI": "true",
+             }), \
+             patch.object(voice, "_synth_all_chatterbox", side_effect=RuntimeError("model unavailable")), \
+             patch.object(voice, "_synth_all_edge") as edge:
+            with self.assertRaisesRegex(voice.VoiceProviderUnavailable, "Required narration engine 'chatterbox' failed"):
+                voice._synthesise_raw("Physics explains the world.", Path(tmp), language="english")
+            edge.assert_not_called()
+
     def test_edge_voice_candidates_include_independent_providers_voices(self):
         with patch.dict("os.environ", {"TTS_VOICE": "en-IN-NeerjaNeural"}):
             voices = voice._edge_voice_candidates("english", "female")

@@ -77,13 +77,11 @@ jobs:
       EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
       FREE_ONLY_MODE: "1"
       AI_VIDEO_ENABLED: "0"
-      # Use the stable neural Edge voice on GitHub's CPU runner. Chatterbox
-      # remains available in GPU/local-capable workflows, but CPU sampling
-      # previously exhausted the live validation job's time budget.
-      TTS_ENGINE: edge
-      TTS_VOICE: "en-IN-NeerjaNeural"
-      ALLOW_CHATTERBOX_ON_CI: "false"
+      TTS_ENGINE: chatterbox
+      TTS_REQUIRE_ENGINE: chatterbox
+      ALLOW_CHATTERBOX_ON_CI: "true"
       CHATTERBOX_TORCH_THREADS: "2"
+      CHATTERBOX_PLAYBACK_SPEED: "1.04"
       PRESENTER_ENABLED: "1"
       PRESENTER_MODE: talking_avatar_auto
       PRESENTER_IMAGE: assets/presenter/presenter_female.png
