@@ -1280,6 +1280,16 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 try:
                     from core.source_evidence import cited_source_records, capture_source_screenshot
                     cited = cited_source_records(beat, script.get("research_sources", []))
+                    explicit_refs = list(beat.get("source_refs") or [])
+                    explicit_refs.extend((beat.get("chart_spec") or {}).get("source_refs") or [])
+                    for event in beat.get("timeline_events") or []:
+                        explicit_refs.extend(event.get("source_refs") or [])
+                    if explicit_refs and not cited:
+                        source_evidence_capture_records.append({
+                            "status": "FAILED",
+                            "reason": "No valid HTTP(S) research source matched the evidence beat's source_refs.",
+                            "source_refs": list(dict.fromkeys(str(ref) for ref in explicit_refs)),
+                        })
                     for source in cited:
                         source_id = source["source_id"]
                         if source_id not in source_evidence_cache:
@@ -1506,6 +1516,17 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         f"Source webpage screenshots: {source_evidence_report['capture_count']} captured, "
         f"{source_evidence_report['failure_count']} unavailable."
     )
+    if (os.getenv("SOURCE_EVIDENCE_REQUIRE_SCREENSHOT", "0").strip().lower() in {"1", "true", "yes"}
+            and source_evidence_report["failure_count"]):
+        failures = [
+            f"{row.get('source_id') or row.get('source_refs') or 'source'}: {row.get('reason') or 'capture failed'}"
+            for row in source_evidence_capture_records if row.get("status") != "CAPTURED"
+        ]
+        raise RuntimeError(
+            "Required real source-page screenshot evidence is unavailable for one or more data/document beats. "
+            "Refusing a documentary that displays sourced claims without their original source-page screenshot: "
+            + "; ".join(failures[:6])
+        )
 
     # Optional second-pass Wan2.1 handoff: mapped review shots replace the
     # corresponding generated visuals before the EDL, review manifest and render.
