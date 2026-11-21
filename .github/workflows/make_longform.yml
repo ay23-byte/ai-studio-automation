@@ -162,8 +162,6 @@ jobs:
           done
           ffmpeg -version | head -n 1
 
-      # This workflow runs on GitHub-hosted CPU runners. Chatterbox v3
-      # inference is too slow there for dependable long-form production.
       - name: Install Python dependencies (bounded retries)
         shell: bash
         run: |
@@ -254,12 +252,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
-          TTS_ENGINE: "edge"
-          TTS_RATE: "+7%"
-          TTS_OPENING_RATE: "+5%"
-          TTS_CLOSING_RATE: "+6%"
-          ALLOW_CHATTERBOX_ON_CI: "false"
+          TTS_ENGINE: "chatterbox"
+          TTS_REQUIRE_ENGINE: "chatterbox"
+          ALLOW_CHATTERBOX_ON_CI: "true"
           CHATTERBOX_TORCH_THREADS: "2"
+          CHATTERBOX_PLAYBACK_SPEED: "1.04"
           PRESENTER_ENABLED: ${{ needs.request.outputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ needs.request.outputs.presenter_mode }}
           LONGFORM_VISUAL_MODE: ${{ needs.request.outputs.visual_mode }}
