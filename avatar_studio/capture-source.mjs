@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import net from "node:net";
+import dns from "node:dns/promises";
 import { chromium } from "playwright";
 
 const chunks = [];
@@ -14,11 +15,30 @@ if (!["http:", "https:"].includes(target.protocol) || !target.hostname ||
     ["localhost", "127.0.0.1", "::1"].includes(target.hostname.toLowerCase())) {
   throw new Error("Refusing a non-public or unsupported source URL.");
 }
-const ipVersion = net.isIP(target.hostname);
-if (ipVersion === 4 && (target.hostname.startsWith("10.") || target.hostname.startsWith("192.168.") ||
-    target.hostname.startsWith("169.254.") || target.hostname.startsWith("127.") ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(target.hostname))) {
-  throw new Error("Refusing a private-network source URL.");
+async function isPublicHost(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  if (!host || host === "localhost" || host.endsWith(".localhost") ||
+      host.endsWith(".local") || host.endsWith(".internal")) return false;
+  let addresses;
+  if (net.isIP(host)) addresses = [{ address: host }];
+  else addresses = await dns.lookup(host, { all: true, verbatim: true });
+  if (!addresses.length) return false;
+  return addresses.every(({ address }) => {
+    if (net.isIPv4(address)) {
+      const p = address.split(".").map(Number);
+      return !(p[0] === 0 || p[0] === 10 || p[0] === 127 || p[0] >= 224 ||
+        (p[0] === 169 && p[1] === 254) || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) ||
+        (p[0] === 192 && p[1] === 168) || (p[0] === 100 && p[1] >= 64 && p[1] <= 127) ||
+        (p[0] === 198 && (p[1] === 18 || p[1] === 19)));
+    }
+    const v6 = address.toLowerCase();
+    return !(v6 === "::1" || v6.startsWith("fc") || v6.startsWith("fd") ||
+      v6.startsWith("fe80:") || v6.startsWith("::ffff:127.") ||
+      v6.startsWith("::ffff:10.") || v6.startsWith("::ffff:192.168."));
+  });
+}
+if (!(await isPublicHost(target.hostname))) {
+  throw new Error("Refusing a private-network or unresolved source URL.");
 }
 const output = path.resolve(record.image_path);
 const metadata = path.resolve(record.metadata_path);
@@ -34,6 +54,19 @@ try {
     deviceScaleFactor: 1,
     colorScheme: "light",
     reducedMotion: "reduce",
+  });
+  await page.route("**/*", async route => {
+    try {
+      const requestUrl = new URL(route.request().url());
+      if (!["http:", "https:"].includes(requestUrl.protocol) ||
+          !(await isPublicHost(requestUrl.hostname))) {
+        await route.abort("blockedbyclient");
+      } else {
+        await route.continue();
+      }
+    } catch {
+      await route.abort("blockedbyclient");
+    }
   });
   page.setDefaultNavigationTimeout(30000);
   page.setDefaultTimeout(10000);
