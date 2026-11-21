@@ -66,6 +66,11 @@ jobs:
             sleep $((attempt * 10))
           done
 
+      - name: Install Chatterbox multilingual narration (CPU)
+        run: |
+          set -euo pipefail
+          python -m pip install --retries 5 --timeout 120 chatterbox-tts
+
       - name: Preflight image provenance and licence checks
         run: python -m unittest discover -s tests -p "test_image_provenance.py" -v
 
@@ -100,7 +105,11 @@ jobs:
           FOOTAGE_CONTACT: ${{ vars.FOOTAGE_CONTACT }}
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
-          TTS_ENGINE: "edge"
+          TTS_ENGINE: "chatterbox"
+          TTS_REQUIRE_ENGINE: "chatterbox"
+          ALLOW_CHATTERBOX_ON_CI: "true"
+          CHATTERBOX_TORCH_THREADS: "2"
+          CHATTERBOX_PLAYBACK_SPEED: "1.04"
           TTS_VOICE: ${{ inputs.language == 'hindi' && 'hi-IN-MadhurNeural' || inputs.language == 'hinglish' && 'hi-IN-MadhurNeural' || 'en-US-AndrewNeural' }}
           TTS_PAUSE_SCALE: "0.55"
           TTS_REJECT_ROBOTIC_FALLBACK: "1"
