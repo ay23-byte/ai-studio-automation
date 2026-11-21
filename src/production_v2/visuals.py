@@ -120,9 +120,9 @@ class SyntheticVisualGenerator:
 def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
     """Conservative draft selection; automatic choices are limited to explicit concepts and final-video machine QA.
 
-    A keyword match cannot establish scientific correctness. The only automated
-    choices are explicit sine-wave and circular-orbit phrases; ambiguity and
-    unsupported claim scenes fail closed rather than using unrelated footage.
+    A keyword match cannot establish scientific correctness. Only the small,
+    explicit concept library is auto-selected; ambiguity and unsupported claim
+    scenes fail closed rather than using unrelated footage.
     """
     choices = {}
     if config.visual_manifest:
@@ -144,6 +144,8 @@ def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
             selected = select_animation_kind(scene.narration, scene.visual.kind, scene.visual.description)
             if selected:
                 choices[scene.id] = {"type": selected, "automatic": True}
+            else:
+                raise ValueError(f"scene {scene.id}: unsupported or ambiguous scientific animation; provide reviewed visual")
     return choices
 
 
@@ -231,7 +233,7 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     creator="Engineering Physics v2", license="synthetic demonstration graphic",
                     downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
                     media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
-                    used_in=scene.id, restrictions=f"{scene_type} is a conceptual 3D illustration, not event footage; verify relevance and accuracy.")
+                    used_in=scene.id, restrictions=f"{scene_type} is a conceptual 3D illustration; sizes and distances are not to scale; not event footage; verify relevance and accuracy.")
             else:
                 raise ValueError(f"unsupported visual type for {scene.id}")
             if choice.get("automatic"):
