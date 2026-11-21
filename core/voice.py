@@ -437,6 +437,10 @@ def _synth_all_chatterbox(sentences, language, build_dir):
         heartbeat_thread.start()
         try:
             _synth_chatterbox(sentence, language, temporary)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            metadata_temporary.unlink(missing_ok=True)
+            raise
         finally:
             heartbeat_stop.set()
             heartbeat_thread.join(timeout=2.0)
