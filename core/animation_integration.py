@@ -1,8 +1,8 @@
-"""Optional, strictly matched Manim/Blender scenes shared by all legacy pipelines.
+"""Strictly matched local Manim/Blender explainers shared by production pipelines.
 
-Only two reviewed-in-code conceptual animations are supported. A renderer is
-never substituted for archival footage or an unrelated scene. Rendered clips
-are independently probed before they can enter an edit.
+These are original conceptual illustrations, never substitutes for archival
+footage or evidence screenshots. Unsupported/ambiguous narration stays on the
+normal footage path.
 """
 from __future__ import annotations
 
@@ -11,15 +11,12 @@ import os
 import re
 from pathlib import Path
 
-
 _NEGATION = re.compile(r"\b(?:not|never|without|neither|no)\b", re.I)
-_WAVE = re.compile(r"\b(?:sinusoidal|sine) wave\b", re.I)
-_ORBIT = re.compile(r"\bcircular orbit\b", re.I)
 _ALLOWED_VISUALS = {"diagram", "animation"}
 
 
 def select_animation_kind(narration: str, visual_type: str, visual_prompt: str = "") -> str | None:
-    """Conservative concept matcher; never interprets a negated or ambiguous phrase."""
+    """Select only a positively stated, unambiguous concept requested as a diagram."""
     narration = str(narration or "").strip()
     kind = str(visual_type or "").strip().lower().replace("-", "_")
     prompt = str(visual_prompt or "").strip().lower()
@@ -27,29 +24,32 @@ def select_animation_kind(narration: str, visual_type: str, visual_prompt: str =
         x in prompt for x in ("diagram", "animation", "scientific illustration")
     ):
         return None
-    wave, orbit = bool(_WAVE.search(narration)), bool(_ORBIT.search(narration))
-    if wave == orbit or _NEGATION.search(narration):
+    if not narration or _NEGATION.search(narration):
         return None
-    return "manim_wave" if wave else "blender_orbit"
+
+    concepts = (
+        (r"\b(?:sinusoidal|sine) waves?\b", "manim_wave"),
+        (r"\bprojectile motion\b", "manim_projectile"),
+        (r"\bvector addition\b", "manim_vectors"),
+        (r"\b(?:solar system|planets? orbit(?:ing)? the sun)\b", "blender_solar_system"),
+        (r"\b(?:atom|atomic model|electrons? orbit(?:ing)? the nucleus)\b", "blender_atom"),
+        (r"\b(?:earth[- ]moon system|moon orbit(?:s|ing)? (?:the )?earth)\b", "blender_earth_moon"),
+        (r"\bcircular orbits?\b", "blender_orbit"),
+    )
+    matches = [name for pattern, name in concepts if re.search(pattern, narration, re.I)]
+    return matches[0] if len(matches) == 1 else None
 
 
 def render_animation(*, narration: str, visual_type: str, visual_prompt: str,
                      output_dir: str | Path, scene_id: str,
                      content_type: str = "physics_short") -> dict | None:
-    """Return a verified animation media record, or None when the scene is ineligible.
-
-    Eligibility is deliberately narrow: the narration must positively state one
-    supported concept and the storyboard must request an explanatory visual.
-    Missing renderers or failed renders raise; they never silently become filler.
-    """
+    """Render and probe one matched 4-second animation; never silently use filler."""
     if os.getenv("PV2_ANIMATION_MODE", "off").strip().lower() != "auto_strict":
         return None
-    narration = str(narration or "").strip()
     kind = str(visual_type or "").strip().lower().replace("-", "_")
     selected = select_animation_kind(narration, kind, visual_prompt)
     if not selected:
         return None
-    wave = selected == "manim_wave"
 
     from src.production_v2.config import V2Config
     from src.production_v2.ffmpeg_io import probe
@@ -65,7 +65,7 @@ def render_animation(*, narration: str, visual_type: str, visual_prompt: str,
     config = V2Config.from_env(env)
     scene = Scene(
         id=safe_id,
-        narration=narration,
+        narration=str(narration or "").strip(),
         visual=VisualSpec(
             description=(str(visual_prompt or narration)[:500] +
                          " — conceptual educational animation, not event footage"),
@@ -92,16 +92,12 @@ def render_animation(*, narration: str, visual_type: str, visual_prompt: str,
     duration = float((media.get("format") or {}).get("duration") or 0)
     if not 3.0 <= duration <= 5.0:
         raise RuntimeError(f"animation duration {duration:.2f}s is outside the 3–5s QA range")
-    renderer = "manim" if wave else "blender"
+    renderer = "manim" if selected.startswith("manim_") else "blender"
     provenance = {
-        "provider": f"local-{renderer}",
-        "asset_type": "scientific_animation",
-        "renderer": renderer,
-        "concept": "sine_wave" if wave else "circular_orbit",
-        "narration_anchor": narration[:500],
-        "visual_type": kind or "diagram",
-        "ai_generated": False,
-        "licence": "Project-created original conceptual animation",
+        "provider": f"local-{renderer}", "asset_type": "scientific_animation",
+        "renderer": renderer, "concept": selected.removeprefix("manim_").removeprefix("blender_"),
+        "narration_anchor": str(narration)[:500], "visual_type": kind or "diagram",
+        "ai_generated": False, "licence": "Project-created original conceptual animation",
         "automated_qa": {"status": "PASS", "resolution": f"{rules.width}x{rules.height}",
                          "duration_seconds": round(duration, 3), "video_stream": True},
         "approval_policy": "automatic_after_machine_qa",
