@@ -31,12 +31,16 @@ jobs:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
           python scripts/audit/generate_protected_manifest.py
+          cp docs/audit/protected-workflow-manifest.json "$RUNNER_TEMP/protected-workflow-manifest.json"
+          git fetch origin "$BRANCH_NAME"
+          git checkout -B "$BRANCH_NAME" "origin/$BRANCH_NAME"
+          cp "$RUNNER_TEMP/protected-workflow-manifest.json" docs/audit/protected-workflow-manifest.json
           if ! git diff --quiet -- docs/audit/protected-workflow-manifest.json; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add docs/audit/protected-workflow-manifest.json
             git commit -m "Refresh protected workflow audit manifest"
-            git push origin "HEAD:$BRANCH_NAME"
+            git push origin "$BRANCH_NAME"
           fi
       - name: Run automated unit tests
         run: python -m unittest discover -s tests -v
