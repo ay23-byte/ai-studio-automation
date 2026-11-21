@@ -20,7 +20,12 @@ from src.production_v2.visuals import plan_visuals
 
 
 @pytest.mark.skipif(os.environ.get("PV2_TEST_REAL_ANIMATIONS") != "1", reason="real animation tools are opt-in")
-@pytest.mark.parametrize("kind", ["manim_wave", "blender_orbit"])
+@pytest.mark.parametrize("kind", [
+    "manim_wave", "manim_projectile", "manim_vectors", "manim_calculus",
+    "manim_field_lines", "manim_fourier", "manim_neural_network",
+    "blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon",
+    "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine",
+])
 def test_real_animation_render_and_probe(kind):
     import json
     with tempfile.TemporaryDirectory() as temp:
