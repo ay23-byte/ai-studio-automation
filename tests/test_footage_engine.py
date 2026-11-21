@@ -108,10 +108,11 @@ class CandidateVisionScreeningTests(_Temp):
         self.assertIn("wrong subject", reason)
 
     @patch("core.config.GEMINI_API_KEY", "")
-    def test_missing_gemini_key_rejects_candidate_screening(self):
+    def test_missing_gemini_key_leaves_release_gate_to_fail_closed(self):
         from core.footage_engine import _vision_candidate_problem
-        self.assertIn("GEMINI_API_KEY is not configured",
-                      _vision_candidate_problem(self.tmp / "not-downloaded.mp4", "A described scene"))
+        # Offline/non-release footage acquisition remains usable; the final
+        # machine-only uploader independently rejects unverified visual reports.
+        self.assertIsNone(_vision_candidate_problem(self.tmp / "not-downloaded.mp4", "A described scene"))
 
     @needs_ffmpeg
     @patch("core.visual_semantics.verify_shot_semantics")
