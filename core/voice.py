@@ -1,9 +1,12 @@
 import asyncio
+import hashlib
 import inspect
 import json
 import os
 import re
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 from core.config import VOICE_HINDI, VOICE_ENGLISH, VOICE_FEMALE, VOICE_ENGLISH_FEMALE
@@ -318,7 +321,14 @@ def _get_chatterbox():
     if _CHATTERBOX_MODEL is None:
         import torch
         from chatterbox.mtl_tts import ChatterboxMultilingualTTS
-        torch.set_num_threads(max(1, int(os.getenv("CHATTERBOX_TORCH_THREADS", "2"))))
+        torch.set_num_threads(max(1, int(os.getenv("CHATTERBOX_TORCH_THREADS", "4"))))
+        # Keep inter-op parallelism bounded; repeated tiny worker pools can slow
+        # CPU-only inference and oversubscribe GitHub's hosted runner.
+        try:
+            torch.set_num_interop_threads(max(1, int(os.getenv("CHATTERBOX_TORCH_INTEROP_THREADS", "1"))))
+        except RuntimeError:
+            # PyTorch only permits setting this before its first inter-op work.
+            pass
         # PyPI releases of chatterbox-tts may not expose the newer t3_model
         # parameter. Pass it only when the installed version supports it.
         loader = ChatterboxMultilingualTTS.from_pretrained
@@ -340,12 +350,134 @@ def _synth_chatterbox(text, language, path):
     audio = model.generate(text, language_id=language_id)
     torchaudio.save(str(path), audio.detach().cpu(), model.sr)
 
+def _chatterbox_phrase_signature(sentence, language):
+    """Stable cache key for one completed Chatterbox phrase."""
+    payload = {
+        "schema": 1,
+        "model": os.getenv("CHATTERBOX_CACHE_MODEL_TAG", "multilingual-v3"),
+        "language": "en" if language in {"english", "hinglish"} else "hi",
+        "text": str(sentence),
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _chatterbox_cached_phrase(audio_path, metadata_path, signature):
+    """Return cached duration only when both the phrase fingerprint and WAV agree."""
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata.get("signature") != signature:
+            return None
+        if not audio_path.is_file() or audio_path.stat().st_size < 1024:
+            return None
+        if int(metadata.get("size_bytes") or -1) != audio_path.stat().st_size:
+            return None
+        duration = float(metadata.get("duration_seconds") or 0)
+        return duration if 0.2 <= duration <= 120.0 else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def _synth_all_chatterbox(sentences, language, build_dir):
+    """Synthesize with per-phrase atomic caching and visible progress.
+
+    A documentary can take hours on a CPU-only runner. Persisting each completed
+    phrase means an interrupted/retried Actions run does not repeat hours of TTS.
+    The cache key includes the exact text, language and model tag; partial WAVs
+    are never treated as completed audio.
+    """
+    cache_setting = os.getenv("CHATTERBOX_CACHE_DIR", "").strip()
+    cache_dir = Path(cache_setting) if cache_setting else Path(build_dir) / "chatterbox_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
     wavs = []
-    for i, sentence in enumerate(sentences):
-        wav = build_dir / f"s{i}.wav"
-        _synth_chatterbox(sentence, language, wav)
+    reused = 0
+    total = len(sentences)
+    try:
+        heartbeat_seconds = max(10.0, float(os.getenv("CHATTERBOX_HEARTBEAT_SECONDS", "60") or 60))
+    except ValueError:
+        heartbeat_seconds = 60.0
+
+    for i, sentence in enumerate(sentences, start=1):
+        signature = _chatterbox_phrase_signature(sentence, language)
+        wav = cache_dir / f"{signature}.wav"
+        metadata_path = cache_dir / f"{signature}.json"
+        cached_duration = _chatterbox_cached_phrase(wav, metadata_path, signature)
+        if cached_duration is not None:
+            reused += 1
+            print(
+                f"Chatterbox narration {i}/{total}: reused cached phrase "
+                f"({cached_duration:.1f}s; {reused}/{i} cached).",
+                flush=True,
+            )
+            wavs.append(wav)
+            continue
+
+        temporary = cache_dir / f".{signature}.{os.getpid()}.partial.wav"
+        metadata_temporary = cache_dir / f".{signature}.{os.getpid()}.partial.json"
+        temporary.unlink(missing_ok=True)
+        metadata_temporary.unlink(missing_ok=True)
+        started = time.monotonic()
+        heartbeat_stop = threading.Event()
+
+        def heartbeat():
+            while not heartbeat_stop.wait(heartbeat_seconds):
+                elapsed = time.monotonic() - started
+                print(
+                    f"Chatterbox narration {i}/{total}: still synthesizing "
+                    f"({len(str(sentence))} characters; {elapsed / 60.0:.1f} min elapsed).",
+                    flush=True,
+                )
+
+        heartbeat_thread = threading.Thread(target=heartbeat, daemon=True)
+        print(
+            f"Chatterbox narration {i}/{total}: starting phrase "
+            f"({len(str(sentence))} characters).",
+            flush=True,
+        )
+        heartbeat_thread.start()
+        try:
+            _synth_chatterbox(sentence, language, temporary)
+        finally:
+            heartbeat_stop.set()
+            heartbeat_thread.join(timeout=2.0)
+
+        try:
+            duration = _dur(temporary)
+            size_bytes = temporary.stat().st_size
+            if duration < 0.2 or duration > 120.0 or size_bytes < 1024:
+                raise RuntimeError(
+                    f"Chatterbox phrase {i}/{total} produced invalid audio "
+                    f"({duration:.2f}s, {size_bytes} bytes)."
+                )
+            os.replace(temporary, wav)
+            metadata_temporary.write_text(
+                json.dumps({
+                    "schema": 1,
+                    "signature": signature,
+                    "duration_seconds": round(duration, 3),
+                    "size_bytes": wav.stat().st_size,
+                }, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            os.replace(metadata_temporary, metadata_path)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            metadata_temporary.unlink(missing_ok=True)
+            raise
+
+        elapsed = time.monotonic() - started
+        print(
+            f"Chatterbox narration {i}/{total}: completed in {elapsed / 60.0:.1f} min "
+            f"({duration:.1f}s audio; cache {reused}/{i}).",
+            flush=True,
+        )
         wavs.append(wav)
+
+    print(
+        f"Chatterbox narration complete: {total} phrases; "
+        f"{reused} reused from cache; {total - reused} synthesized.",
+        flush=True,
+    )
     return wavs
 
 # Alternatives when the configured Edge voice is unavailable. Every list holds one gender only:
