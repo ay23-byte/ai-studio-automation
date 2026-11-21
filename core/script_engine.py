@@ -89,8 +89,10 @@ CINEMATIC VISUAL STORYBOARD:
 - Prefer real scene-matched stock footage, verified archival material, accurate maps, period-specific art, document close-ups, macro details, environmental wides, process shots, evidence boards and purposeful presenter moments.
 - For charts, provide chart_spec with chart_title, unit, labels, values, source_refs and notes. Only populate numeric values when supported by cited research. Otherwise request a qualitative graphic with no fabricated data.
 - For timelines, provide timeline_events with date, event and source_refs. Never invent dates.
+- For every material statistic, data point or specific reported event, attach source_refs that exactly match the top-level research_sources IDs. Do not leave sourced data visuals uncited.
+- When discussing a specific news report, published article, official announcement or report, include a document/evidence visual beat with the exact source_refs so production can show a real screenshot of that source page at that narration moment.
 - For maps, specify named locations and the relevant historical/current boundary context; do not invent borders.
-- For documents, use only verified source material; never create fake readable headlines, court records, contracts, screenshots or quotations.
+- For documents, use only verified source material; never create fake readable headlines, court records, contracts, screenshots or quotations. The production system captures the real cited webpage; never ask an image model to recreate a news article or website.
 - Archival material must be labelled archival only when its provenance is verified. Before photography, prefer period paintings, engravings, maps, artifacts or a clearly disclosed AI reconstruction.
 - AI reconstructions must be disclosed and must never impersonate real people or be passed off as documentary evidence.
 - Interview scenes must use supplied genuine recordings only. Without supplied recordings, render a question card, research note or presenter narration—not a fake talking expert.
