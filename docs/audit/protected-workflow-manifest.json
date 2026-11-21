@@ -298,7 +298,7 @@
     "src/production_v2/archive.py": "fb01a0da64f2355ec1d8f8a97866d3c35dbd82f11e94aabb72c855778d6c0ded",
     "src/production_v2/artifacts.py": "80582ed530732b06521c1aa0f83834c3bf40d22047f0d750b28a6d7e366f5cf8",
     "src/production_v2/audio.py": "97ec67925d97b8f8acde9e71bf1ae01fb891e8a4c6478720f855b7fee6ef8e76",
-    "src/production_v2/blender_orbit.py": "118de0f0066d518eac1cb49103eef3e65d3d9909f309f1125d2381278a54d190",
+    "src/production_v2/blender_orbit.py": "87a985bef4d73761724183eb3f3d57f79afc0e30f43dc0f34193541a7dc39ec8",
     "src/production_v2/checkpoints.py": "c273685a6d92d2475dc4307bcec75972de738a06360f548548a2e868f85549d1",
     "src/production_v2/cli.py": "b1b7030c75814772d6aaa92bdf9b97b9c2f352b9afa58b9a0a68fbb8526ee4c6",
     "src/production_v2/config.py": "54bb3dcceeeebdcd712c3fcc8d30cbb592053b7aa7723bed0958846a38b2fe48",
