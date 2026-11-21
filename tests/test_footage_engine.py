@@ -107,6 +107,12 @@ class CandidateVisionScreeningTests(_Temp):
         self.assertIn("candidate vision mismatch", reason)
         self.assertIn("wrong subject", reason)
 
+    @patch("core.config.GEMINI_API_KEY", "")
+    def test_missing_gemini_key_rejects_candidate_screening(self):
+        from core.footage_engine import _vision_candidate_problem
+        self.assertIn("GEMINI_API_KEY is not configured",
+                      _vision_candidate_problem(self.tmp / "not-downloaded.mp4", "A described scene"))
+
     @needs_ffmpeg
     @patch("core.visual_semantics.verify_shot_semantics")
     @patch("core.config.GEMINI_API_KEY", "test-key")
