@@ -17,11 +17,15 @@ class ChatterboxPhraseCacheTests(unittest.TestCase):
                 calls.append((text, language))
                 path.write_bytes(b"RIFF" + b"0" * 2048)
 
-            with patch.dict(os.environ, {"CHATTERBOX_CACHE_DIR": str(cache)}), \\
-                 patch.object(voice, "_synth_chatterbox", side_effect=fake_synth), \\
-                 patch.object(voice, "_dur", return_value=2.5):
-                first = voice._synth_all_chatterbox(["First sentence.", "Second sentence."], "english", Path(tmp))
-                second = voice._synth_all_chatterbox(["First sentence.", "Second sentence."], "english", Path(tmp))
+            with patch.dict(os.environ, {"CHATTERBOX_CACHE_DIR": str(cache)}):
+                with patch.object(voice, "_synth_chatterbox", side_effect=fake_synth):
+                    with patch.object(voice, "_dur", return_value=2.5):
+                        first = voice._synth_all_chatterbox(
+                            ["First sentence.", "Second sentence."], "english", Path(tmp)
+                        )
+                        second = voice._synth_all_chatterbox(
+                            ["First sentence.", "Second sentence."], "english", Path(tmp)
+                        )
 
             self.assertEqual(len(calls), 2)
             self.assertEqual(first, second)
@@ -36,11 +40,11 @@ class ChatterboxPhraseCacheTests(unittest.TestCase):
                 calls.append(text)
                 path.write_bytes(b"RIFF" + b"0" * 2048)
 
-            with patch.dict(os.environ, {"CHATTERBOX_CACHE_DIR": str(cache)}), \\
-                 patch.object(voice, "_synth_chatterbox", side_effect=fake_synth), \\
-                 patch.object(voice, "_dur", return_value=2.5):
-                voice._synth_all_chatterbox(["Original sentence."], "english", Path(tmp))
-                voice._synth_all_chatterbox(["Changed sentence."], "english", Path(tmp))
+            with patch.dict(os.environ, {"CHATTERBOX_CACHE_DIR": str(cache)}):
+                with patch.object(voice, "_synth_chatterbox", side_effect=fake_synth):
+                    with patch.object(voice, "_dur", return_value=2.5):
+                        voice._synth_all_chatterbox(["Original sentence."], "english", Path(tmp))
+                        voice._synth_all_chatterbox(["Changed sentence."], "english", Path(tmp))
 
             self.assertEqual(calls, ["Original sentence.", "Changed sentence."])
 
@@ -51,12 +55,12 @@ class ChatterboxPhraseCacheTests(unittest.TestCase):
             def fake_synth(text, language, path):
                 path.write_bytes(b"RIFF" + b"0" * 2048)
 
-            with patch.dict(os.environ, {"CHATTERBOX_CACHE_DIR": str(cache)}), \\
-                 patch.object(voice, "_synth_chatterbox", side_effect=fake_synth) as synth, \\
-                 patch.object(voice, "_dur", return_value=2.5):
-                paths = voice._synth_all_chatterbox(["A sentence."], "english", Path(tmp))
-                paths[0].write_bytes(b"corrupt")
-                voice._synth_all_chatterbox(["A sentence."], "english", Path(tmp))
+            with patch.dict(os.environ, {"CHATTERBOX_CACHE_DIR": str(cache)}):
+                with patch.object(voice, "_synth_chatterbox", side_effect=fake_synth) as synth:
+                    with patch.object(voice, "_dur", return_value=2.5):
+                        paths = voice._synth_all_chatterbox(["A sentence."], "english", Path(tmp))
+                        paths[0].write_bytes(b"corrupt")
+                        voice._synth_all_chatterbox(["A sentence."], "english", Path(tmp))
 
             self.assertEqual(synth.call_count, 2)
 
