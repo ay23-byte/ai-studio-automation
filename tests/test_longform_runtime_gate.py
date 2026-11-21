@@ -1,6 +1,8 @@
+import os
 import unittest
+from unittest.mock import patch
 
-from core.script_engine import count_longform_narration_words, validate_longform_runtime
+from core.script_engine import count_longform_narration_words, longform_target_wpm, validate_longform_runtime
 
 
 class LongformRuntimeGateTests(unittest.TestCase):
@@ -23,6 +25,18 @@ class LongformRuntimeGateTests(unittest.TestCase):
         script = {"sections": [{"narration": " ".join(["short"] * 1349)}]}
         with self.assertRaisesRegex(ValueError, "1349 spoken words"):
             validate_longform_runtime(script, target_minutes=10)
+
+    def test_default_wpm_matches_measured_chatterbox_delivery(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(longform_target_wpm(), 185)
+
+    def test_wpm_override_is_supported_and_bounded(self):
+        with patch.dict(os.environ, {"LONGFORM_TARGET_WPM": "190"}):
+            self.assertEqual(longform_target_wpm(), 190)
+        with patch.dict(os.environ, {"LONGFORM_TARGET_WPM": "240"}):
+            self.assertEqual(longform_target_wpm(), 200)
+        with patch.dict(os.environ, {"LONGFORM_TARGET_WPM": "invalid"}):
+            self.assertEqual(longform_target_wpm(), 185)
 
     def test_rejects_invalid_runtime_configuration(self):
         with self.assertRaises(ValueError):
