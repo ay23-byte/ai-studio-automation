@@ -332,7 +332,7 @@
     "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
     "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
     "scripts/create_daily_news_voice_audition.py": "245324c57097dc62dd81a981bd903c426552d68419b3c6c3f760ad2a24c8ef45",
-    "core/source_evidence.py": "d9c507b5204a5e53b1c8d69e2ef751fb56b9b6fe01baf1b3710ef9169e7fafd7"
+    "core/source_evidence.py": "02b38eb2d727315f680922d3d7d8790932baf858b587616391d71b1226927909"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
