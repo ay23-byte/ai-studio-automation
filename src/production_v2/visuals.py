@@ -120,9 +120,9 @@ class SyntheticVisualGenerator:
 def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
     """Conservative draft selection; automatic choices are limited to explicit concepts and final-video machine QA.
 
-    A keyword match cannot establish scientific correctness. The only automated
-    choices are explicit sine-wave and circular-orbit phrases; ambiguity and
-    unsupported claim scenes fail closed rather than using unrelated footage.
+    A keyword match cannot establish scientific correctness. Only the small,
+    explicit concept library is auto-selected; ambiguity and unsupported claim
+    scenes fail closed rather than using unrelated footage.
     """
     choices = {}
     if config.visual_manifest:
@@ -138,12 +138,15 @@ def choose_visuals(scenes: list[Scene], config: V2Config) -> dict[str, dict]:
         for scene in scenes:
             if scene.id in choices or scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
                 continue
-            text = scene.narration.lower()
-            wave = bool(re.search(r"\b(?:sinusoidal|sine) waves?\b", text))
-            orbit = bool(re.search(r"\bcircular orbits?\b", text))
-            if wave == orbit or re.search(r"\b(?:not|never|without|neither|no)\b", text):
+            # Reuse the same conservative matcher as the legacy Shorts/documentary
+            # renderer so both production stacks make identical scene choices.
+            from core.animation_integration import select_animation_kind
+            selector_kind = "animation" if scene.visual.kind in {"map", "news_graphic"} else scene.visual.kind
+            selected = select_animation_kind(scene.narration, selector_kind, scene.visual.description)
+            if selected:
+                choices[scene.id] = {"type": selected, "automatic": True}
+            else:
                 raise ValueError(f"scene {scene.id}: unsupported or ambiguous scientific animation; provide reviewed visual")
-            choices[scene.id] = {"type": "manim_wave" if wave else "blender_orbit", "automatic": True}
     return choices
 
 
@@ -164,25 +167,38 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 from .archive import download_commons
                 image, record = download_commons(choice.get("title", ""), store_root / f"visual_{scene.id}", scene.id,
                                                  timeout=config.request_timeout_seconds)
-            elif choice.get("type") == "manim_wave":
+            elif str(choice.get("type", "")).startswith("manim_"):
                 if scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
-                    raise ValueError("wave animation is only allowed for claim-bearing visual scenes")
+                    raise ValueError("Manim animation is only allowed for explanatory visual scenes")
                 from .ffmpeg_io import run
+                scene_names = {
+                    "manim_wave": "WaveIllustration",
+                    "manim_projectile": "ProjectileMotion",
+                    "manim_vectors": "VectorAddition",
+                    "manim_calculus": "CalculusExplainer",
+                    "manim_field_lines": "FieldLinesExplainer",
+                    "manim_fourier": "FourierExplainer",
+                    "manim_neural_network": "NeuralNetworkExplainer",
+                }
+                scene_type = choice["type"]
+                if scene_type not in scene_names:
+                    raise ValueError(f"unsupported Manim scene: {scene_type}")
+                class_name = scene_names[scene_type]
                 media_dir = Path(tempfile.mkdtemp(prefix=f"manim_{scene.id}_", dir=store_root))
                 run([sys.executable, "-m", "manim", "render", "--disable_caching", "--media_dir", str(media_dir),
                      "-r", f"{rules.width},{rules.height}", "--fps", str(rules.fps),
-                     str(Path(__file__).with_name("manim_wave.py")), "WaveIllustration"],
+                     str(Path(__file__).with_name("manim_wave.py")), class_name],
                     timeout=config.ffmpeg_timeout_seconds)
-                candidates = list(media_dir.rglob("WaveIllustration.mp4"))
+                candidates = list(media_dir.rglob(f"{class_name}.mp4"))
                 if len(candidates) != 1 or candidates[0].stat().st_size == 0:
-                    raise ValueError("Manim did not produce the expected wave video")
+                    raise ValueError(f"Manim did not produce the expected {class_name} video")
                 image = candidates[0]
-                record = AssetRecord(id=f"visual_{scene.id}", source_url="generated-locally://manim-wave",
-                    creator="Engineering Physics v2", license="synthetic demonstration graphic",
+                record = AssetRecord(id=f"visual_{scene.id}", source_url=f"generated-locally://{scene_type}",
+                    creator="Engineering Physics v2", license="Project-created conceptual animation",
                     downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
                     media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
-                    used_in=scene.id, restrictions="Conceptual sine wave; verify relevance and scientific meaning.")
-            elif choice.get("type") == "blender_orbit":
+                    used_in=scene.id, restrictions="Conceptual Manim explainer; not documentary event footage.")
+            elif str(choice.get("type", "")).startswith("blender_"):
                 if scene.visual.kind not in {"animation", "diagram", "map", "news_graphic"}:
                     raise ValueError("orbit animation is only allowed for claim-bearing visual scenes")
                 from .ffmpeg_io import resolve_ffmpeg, run
@@ -190,6 +206,10 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 if not ffmpeg:
                     raise ValueError("FFmpeg is required to encode Blender frames")
                 # Use an isolated directory so a previous render cannot be mistaken for success.
+                scene_type = choice["type"]
+                if scene_type not in {"blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon",
+                                      "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine"}:
+                    raise ValueError(f"unsupported Blender scene: {scene_type}")
                 media_dir = Path(tempfile.mkdtemp(prefix=f"blender_{scene.id}_", dir=store_root))
                 frames = media_dir / "frame_"
                 script = str(Path(__file__).with_name("blender_orbit.py"))
@@ -200,7 +220,7 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 else:
                     raise ValueError("unsupported Blender backend")
                 run([*command, "--", "--output", str(frames), "--width", str(rules.width),
-                     "--height", str(rules.height), "--fps", str(rules.fps)],
+                     "--height", str(rules.height), "--fps", str(rules.fps), "--scene-kind", scene_type],
                     timeout=config.ffmpeg_timeout_seconds)
                 expected = rules.fps * 4
                 if any(not (media_dir / f"frame_{index:04d}.png").is_file()
@@ -219,7 +239,7 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                     creator="Engineering Physics v2", license="synthetic demonstration graphic",
                     downloaded_at=dt.datetime.now(dt.timezone.utc).isoformat(), sha256=sha256_file(image),
                     media_type="video", resolution=f"{rules.width}x{rules.height}", synthetic=True,
-                    used_in=scene.id, restrictions="Idealized circular orbit, not to scale; verify relevance and accuracy.")
+                    used_in=scene.id, restrictions=f"{scene_type} is a conceptual 3D illustration; sizes and distances are not to scale; not event footage; verify relevance and accuracy.")
             else:
                 raise ValueError(f"unsupported visual type for {scene.id}")
             if choice.get("automatic"):

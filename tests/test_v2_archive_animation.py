@@ -83,9 +83,12 @@ class ArchiveAnimationTests(unittest.TestCase):
                         prefix.with_name(prefix.name + f"{i:04d}.png").write_bytes(b"frame")
                 else:
                     Path(cmd[-1]).write_bytes(b"video")
-            with patch("src.production_v2.ffmpeg_io.run", side_effect=render), \
+            with patch("src.production_v2.ffmpeg_io.run", side_effect=render) as run_mock, \
                  patch("src.production_v2.ffmpeg_io.resolve_ffmpeg", return_value="ffmpeg"):
                 assets = plan_visuals([Scene("s", "n", VisualSpec("orbit", "animation"))], root, AssetLibrary(), config, "physics_short")
+            blender_command = run_mock.call_args_list[0].args[0]
+            self.assertIn("--scene-kind", blender_command)
+            self.assertIn("blender_orbit", blender_command)
             self.assertEqual(assets[0].record.media_type, "video")
             self.assertIn("not to scale", assets[0].record.restrictions)
             self.assertFalse(list(assets[0].image_path.parent.glob("frame_*.png")))
@@ -125,13 +128,31 @@ class AutomaticSelectionTests(unittest.TestCase):
     def test_auto_selects_only_explicit_supported_concepts(self):
         from src.production_v2.visuals import choose_visuals
         config = V2Config.from_env({"PV2_ANIMATION_MODE": "auto_strict"})
-        scenes = [Scene("s1", "A sinusoidal wave illustrates oscillation.", VisualSpec("x", "animation")),
-                  Scene("s2", "A circular orbit is an idealization.", VisualSpec("y", "map")),
-                  Scene("intro", "An opening", VisualSpec("title", "illustrative"))]
+        scenes = [
+            Scene("s1", "A sinusoidal wave illustrates oscillation.", VisualSpec("x", "animation")),
+            Scene("s2", "A circular orbit is an idealization.", VisualSpec("y", "map")),
+            Scene("s3", "Projectile motion follows a parabolic path.", VisualSpec("z", "diagram")),
+            Scene("s4", "Vector addition combines two forces.", VisualSpec("v", "diagram")),
+            Scene("s5", "The solar system has planets orbiting the Sun.", VisualSpec("solar", "animation")),
+            Scene("s6", "An atom contains electrons orbiting the nucleus.", VisualSpec("atom", "diagram")),
+            Scene("s7", "The Earth-Moon system has a stable orbital relationship.", VisualSpec("moon", "animation")),
+            Scene("s8", "The rotating Earth globe illustrates global geography.", VisualSpec("globe", "map")),
+            Scene("s9", "A volcanic eruption releases magma from the magma chamber.", VisualSpec("volcano", "animation")),
+            Scene("s10", "The satellite orbit carries a spacecraft around Earth.", VisualSpec("satellite", "diagram")),
+            Scene("s11", "Wind turbine blades rotate as the rotor turns.", VisualSpec("turbine", "animation")),
+            Scene("s12", "Calculus uses the derivative of a function and the integral of its area.", VisualSpec("calculus", "diagram")),
+            Scene("s13", "Electric field lines show the direction of the force.", VisualSpec("field", "diagram")),
+            Scene("s14", "A Fourier series reconstructs a signal from harmonic components.", VisualSpec("fourier", "animation")),
+            Scene("s15", "A neural network has input, hidden and output layers.", VisualSpec("network", "diagram")),
+            Scene("intro", "An opening", VisualSpec("title", "illustrative")),
+        ]
         choices = choose_visuals(scenes, config)
-        self.assertEqual(choices["s1"]["type"], "manim_wave")
-        self.assertEqual(choices["s2"]["type"], "blender_orbit")
-        self.assertTrue(choices["s1"]["automatic"])
+        expected = ["manim_wave", "blender_orbit", "manim_projectile", "manim_vectors",
+                    "blender_solar_system", "blender_atom", "blender_earth_moon",
+                    "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine",
+                    "manim_calculus", "manim_field_lines", "manim_fourier", "manim_neural_network"]
+        self.assertEqual([choices[f"s{i}"]["type"] for i in range(1, 16)], expected)
+        self.assertTrue(all(choices[f"s{i}"]["automatic"] for i in range(1, 16)))
         self.assertNotIn("intro", choices)
 
     def test_unsupported_negated_and_ambiguous_claims_fail_closed(self):
