@@ -8,7 +8,21 @@ import tempfile
 from dataclasses import replace
 from pathlib import Path
 
-import pytest
+try:
+    import pytest
+except ModuleNotFoundError:
+    # unittest discovery imports this opt-in pytest module even in lightweight
+    # provider-validation jobs that intentionally do not install pytest.
+    class _PytestUnavailable:
+        class mark:
+            @staticmethod
+            def skipif(*args, **kwargs):
+                return lambda function: function
+
+            @staticmethod
+            def parametrize(*args, **kwargs):
+                return lambda function: function
+    pytest = _PytestUnavailable()
 
 from src.production_v2.artifacts import ArtifactStore
 from src.production_v2.config import V2Config

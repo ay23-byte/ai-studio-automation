@@ -98,7 +98,12 @@ def sample_times(duration: float, window_seconds: float | None = None, count: in
     span = max(float(duration or 0.0), 0.1)
     if window_seconds and float(window_seconds) > 0:
         span = min(span, float(window_seconds))
-    return [span * (index + 1) / (count + 1) for index in range(count)]
+    # Include both clip boundaries: a black intro/outro can be the part actually used
+    # by a short shot even when the source is several minutes long.
+    edge = min(0.25, span / 4)
+    if count <= 1:
+        return [span / 2]
+    return [edge + (span - 2 * edge) * index / (count - 1) for index in range(count)]
 
 
 def media_picture_problem(path: str | Path, window_seconds: float | None = 12.0,
@@ -144,14 +149,18 @@ def media_picture_problem(path: str | Path, window_seconds: float | None = 12.0,
                     continue
     if not metrics:
         return None
-    average = {key: statistics.mean(item[key] for item in metrics) for key in _METRIC_KEYS}
+    # Do not average away a defective opening/closing frame: every sampled frame must
+    # be usable. Legitimately dark scenes with visible highlights remain reviewable.
     # Size is not judged here: the footage validator applies the floor of the production mode
     # (a vertical Short has other dimensions than a documentary).
     width, height = MIN_SOURCE_WIDTH, MIN_SOURCE_HEIGHT
     if check_size:
         width, height = min(item["width"] for item in metrics), min(item["height"] for item in metrics)
-    failures, _reviews = picture_defects(average, width, height, dark_margin)
-    return failures[0] if failures else None
+    for item in metrics:
+        failures, _reviews = picture_defects(item, width, height, dark_margin)
+        if failures:
+            return failures[0]
+    return None
 
 
 def audit_visual_consistency(visual_report: dict[str, Any],
