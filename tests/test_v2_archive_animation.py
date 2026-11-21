@@ -128,13 +128,21 @@ class AutomaticSelectionTests(unittest.TestCase):
     def test_auto_selects_only_explicit_supported_concepts(self):
         from src.production_v2.visuals import choose_visuals
         config = V2Config.from_env({"PV2_ANIMATION_MODE": "auto_strict"})
-        scenes = [Scene("s1", "A sinusoidal wave illustrates oscillation.", VisualSpec("x", "animation")),
-                  Scene("s2", "A circular orbit is an idealization.", VisualSpec("y", "map")),
-                  Scene("intro", "An opening", VisualSpec("title", "illustrative"))]
+        scenes = [
+            Scene("s1", "A sinusoidal wave illustrates oscillation.", VisualSpec("x", "animation")),
+            Scene("s2", "A circular orbit is an idealization.", VisualSpec("y", "map")),
+            Scene("s3", "Projectile motion follows a parabolic path.", VisualSpec("z", "diagram")),
+            Scene("s4", "Vector addition combines two forces.", VisualSpec("v", "diagram")),
+            Scene("s5", "The solar system has planets orbiting the Sun.", VisualSpec("solar", "animation")),
+            Scene("s6", "An atom contains electrons orbiting the nucleus.", VisualSpec("atom", "diagram")),
+            Scene("s7", "The Earth-Moon system has a stable orbital relationship.", VisualSpec("moon", "animation")),
+            Scene("intro", "An opening", VisualSpec("title", "illustrative")),
+        ]
         choices = choose_visuals(scenes, config)
-        self.assertEqual(choices["s1"]["type"], "manim_wave")
-        self.assertEqual(choices["s2"]["type"], "blender_orbit")
-        self.assertTrue(choices["s1"]["automatic"])
+        expected = ["manim_wave", "blender_orbit", "manim_projectile", "manim_vectors",
+                    "blender_solar_system", "blender_atom", "blender_earth_moon"]
+        self.assertEqual([choices[f"s{i}"]["type"] for i in range(1, 8)], expected)
+        self.assertTrue(all(choices[f"s{i}"]["automatic"] for i in range(1, 8)))
         self.assertNotIn("intro", choices)
 
     def test_unsupported_negated_and_ambiguous_claims_fail_closed(self):
