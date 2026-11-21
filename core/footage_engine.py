@@ -207,6 +207,41 @@ def search_all(providers: list[Provider], queries: list[str], report: ProviderRe
     return leads
 
 
+def _vision_candidate_problem(path: Path, scene_prompt: str) -> str | None:
+    """Reject downloaded candidates whose pixels contradict the shot brief."""
+    if os.getenv("FOOTAGE_CANDIDATE_VISION_SCREENING", "1").strip().lower() in {"0", "false", "no", "off"}:
+        return None
+    from core.config import GEMINI_API_KEY
+    if not GEMINI_API_KEY:
+        return None  # the final documentary screening still fails closed
+    import tempfile
+    import subprocess
+    from core.ffmpeg_utils import ffmpeg_bin
+    with tempfile.TemporaryDirectory(prefix="footage-vision-") as tmp:
+        frame = Path(tmp) / "candidate.jpg"
+        try:
+            subprocess.run([ffmpeg_bin(), "-y", "-i", str(path), "-frames:v", "1",
+                            "-q:v", "3", str(frame)], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, check=True, timeout=30)
+            if not frame.is_file() or frame.stat().st_size < 1000:
+                return "could not extract a representative frame for visual screening"
+            from core.visual_semantics import verify_shot_semantics
+            result = verify_shot_semantics({
+                "narration": scene_prompt, "visual_prompt": scene_prompt,
+                "visual_type": "documentary_b_roll", "sample_frames": [str(frame)],
+            })
+            status = str(result.get("status") or "uncertain")
+            score = float(result.get("match_score") or 0.0)
+            if status != "match" or score < 0.72:
+                reason = str(result.get("reason") or result.get("recommendation") or
+                             "; ".join(str(item) for item in (result.get("concerns") or [])[:3]) or
+                             "visual model did not confirm the shot brief")
+                return f"candidate vision {status} ({score:.2f}): {reason[:260]}"
+            return None
+        except Exception as exc:
+            return f"candidate vision screening error: {type(exc).__name__}: {str(exc)[:180]}"
+
+
 def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", providers: list[Provider],
             download: Callable, relevance: Callable, min_relevance: float = 0.25,
             report: ProviderReport | None = None, scene_label: str = "",
@@ -306,6 +341,18 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
                 used_ids.add(candidate["identity"])
             continue
         report.add(provider.name, "download_successes")
+        # Search metadata can return visually unrelated clips despite keyword overlap.
+        # Screen pixels before accepting; if rejected, continue through ranked candidates.
+        vision_problem = _vision_candidate_problem(path, scene_prompt) if scene_prompt else None
+        if vision_problem:
+            path.unlink(missing_ok=True)
+            path.with_suffix(path.suffix + ".source.json").unlink(missing_ok=True)
+            report.add(provider.name, "invalid_media")
+            report.fail(provider.name, "visual_mismatch: " + vision_problem)
+            tried.append({"provider": provider.name, "asset_id": metadata.get("asset_id"),
+                          "outcome": "visual_mismatch", "reason": vision_problem})
+            rejected["visual candidate did not match the scene brief"] += 1
+            continue
         # The finished film is refused for a black, blank or undersized picture, so refuse such
         # a file here, while the next candidate can still be tried.
         picture_problem = _picture_problem(path)
