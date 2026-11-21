@@ -38,7 +38,7 @@ on:
       presenter_mode:
         description: "Presenter animation (auto 3D avatar renders each chapter opening from its narration)"
         type: choice
-        options: [talking_avatar_auto, talking_avatar, sadtalker, still_cpu, off]
+        options: [talking_avatar_auto]
         default: talking_avatar_auto
       visual_mode:
         description: "Long-form B-roll source preference"
@@ -355,6 +355,8 @@ jobs:
             build/job_*/credits.txt
             build/job_*/provider_report.json
             build/job_*/narration_synthesis_report.json
+            build/job_*/source_evidence_capture_report.json
+            build/job_*/source_evidence_screenshots/*
             build/job_*/shared_review_package/qa/*.json
             build/job_*/shared_review_package/package_summary.json
           if-no-files-found: warn
