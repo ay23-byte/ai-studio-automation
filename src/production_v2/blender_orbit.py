@@ -155,18 +155,20 @@ def build_volcano():
     bpy.ops.mesh.primitive_cone_add(vertices=64, radius1=1.85, radius2=0.35, depth=2.6, location=(0, 0, 0.3))
     cone = bpy.context.object
     cone.name = "Volcano cross-section (schematic)"
+    cone.rotation_euler[0] = math.pi / 2
     cone.data.materials.append(material("Volcanic rock", (0.22, 0.12, 0.09), metallic=0.05))
-    sphere("Magma chamber", 0.72, (0, 0, -1.05), (0.95, 0.12, 0.015), emission=0.8)
+    sphere("Magma chamber", 0.72, (0, -1.05, 0.2), (0.95, 0.12, 0.015), emission=0.8)
     bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.22, depth=1.1, location=(0, 0, 1.25))
     vent = bpy.context.object
     vent.name = "Magma vent"
+    vent.rotation_euler[0] = math.pi / 2
     vent.data.materials.append(material("Molten lava", (1.0, 0.18, 0.015), emission=1.4))
     for index in range(7):
         drop = sphere(f"Lava plume {index + 1}", 0.07 + 0.015 * (index % 3),
-                      (0.12 * math.sin(index), 0.10 * math.cos(index), 1.9),
+                      (0.12 * math.sin(index), 1.9, 0.2 + 0.10 * math.cos(index)),
                       (1.0, 0.24, 0.015), emission=1.0)
-        for frame, z in ((1, 1.8), (scene.frame_end, 2.4 + 0.18 * index)):
-            drop.location.z = z
+        for frame, y in ((1, 1.8), (scene.frame_end, 2.4 + 0.18 * index)):
+            drop.location.y = y
             drop.keyframe_insert(data_path="location", frame=frame)
 
 
@@ -192,32 +194,33 @@ def build_satellite():
 
 
 def build_turbine():
-    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=0.12, depth=2.6, location=(0, 0, 0.65))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=0.12, depth=2.6, location=(0, 0.65, 0.2))
     tower = bpy.context.object
     tower.name = "Wind turbine tower"
+    tower.rotation_euler[0] = math.pi / 2
     tower.data.materials.append(material("Turbine tower", (0.72, 0.78, 0.82), metallic=0.45))
     root = bpy.data.objects.new("Turbine rotor", None)
     bpy.context.collection.objects.link(root)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=0.24, location=(0, 0, 2.0))
+    root.location = (0, 2.0, 0.2)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=0.24, location=(0, 0, 0))
     hub = bpy.context.object
     hub.name = "Rotor hub"
     hub.data.materials.append(material("Rotor hub material", (0.8, 0.84, 0.88), metallic=0.6))
     hub.parent = root
+    hub.location = (0, 0, 0)
     for index in range(3):
         angle = 2 * math.pi * index / 3
-        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 2.0))
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
         blade = bpy.context.object
         blade.name = f"Rotor blade {index + 1}"
-        blade.scale = (0.10, 0.12, 1.15)
-        blade.location.x = math.sin(angle) * 0.65
-        blade.location.z = 2.0 + math.cos(angle) * 0.65
-        blade.rotation_euler[1] = angle
+        blade.scale = (0.12, 1.15, 0.10)
+        blade.location = (math.sin(angle) * 0.65, math.cos(angle) * 0.65, 0)
+        blade.rotation_euler[2] = -angle
         blade.data.materials.append(material("Blade material", (0.82, 0.87, 0.9), metallic=0.35))
         blade.parent = root
-    root.location = (0, 0, 2.0)
-    root.rotation_euler[1] = 0
+    root.rotation_euler[2] = 0
     root.keyframe_insert(data_path="rotation_euler", frame=1)
-    root.rotation_euler[1] = 2 * math.pi
+    root.rotation_euler[2] = 2 * math.pi
     root.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
 
 
