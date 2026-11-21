@@ -93,9 +93,9 @@ class VisualConsistencyTests(unittest.TestCase):
 
     def test_a_clip_is_judged_on_the_seconds_its_shot_shows(self):
         from core.visual_consistency import sample_times
-        self.assertEqual(sample_times(600.0, 8.0), [2.0, 4.0, 6.0])       # a ten-minute source, an 8 s shot
-        self.assertEqual(sample_times(4.0, 12.0), [1.0, 2.0, 3.0])        # the clip is shorter than the shot
-        self.assertEqual(sample_times(8.0), [2.0, 4.0, 6.0])              # no shot length known
+        self.assertEqual(sample_times(600.0, 8.0), [0.25, 4.0, 7.75])    # include both edges of the 8 s shot
+        self.assertEqual(sample_times(4.0, 12.0), [0.25, 2.0, 3.75])     # the clip is shorter than the shot
+        self.assertEqual(sample_times(8.0), [0.25, 4.0, 7.75])           # no shot length known
 
     def test_the_review_sampler_passes_the_shot_length(self):
         source = (Path(__file__).resolve().parents[1] / "core" / "visual_production.py").read_text(encoding="utf-8")
@@ -116,6 +116,23 @@ class VisualConsistencyTests(unittest.TestCase):
         self.assertIsNone(media_picture_problem(broken))
         self.assertIsNone(media_picture_problem(self.root / "absent.mp4"))
 
+
+    def test_black_leading_segment_is_rejected_even_when_later_frames_are_clear(self):
+        import subprocess
+        from core.ffmpeg_utils import ffmpeg_bin
+        from core.visual_consistency import media_picture_problem
+        from tests.footage_fixture import have_ffmpeg
+        if not have_ffmpeg():
+            self.skipTest("FFmpeg/FFprobe are required to build and probe real clips")
+        clip = self.root / "black-intro.mp4"
+        subprocess.run([
+            ffmpeg_bin(), "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=black:s=1280x720:r=24:d=2.8",
+            "-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=5.2",
+            "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+            "-map", "[v]", "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip),
+        ], check=True, timeout=120)
+        self.assertIn("underexposed", media_picture_problem(clip, window_seconds=5))
     def test_a_borderline_dark_picture_is_refused_at_download_but_only_once(self):
         # Mean level 13 passes the audit (limit 12) and is refused when choosing footage (limit 15),
         # so a file accepted there cannot be the one that fails the finished film.
