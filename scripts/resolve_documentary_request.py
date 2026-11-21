@@ -40,7 +40,7 @@ CHOICES = {
     "language": ["hinglish", "hindi", "english"],
     "channel_profile": ["beyond_science", "standard"],
     "voice_gender": ["male", "female"],
-    "presenter_mode": ["talking_avatar_auto", "talking_avatar", "sadtalker", "still_cpu", "off"],
+    "presenter_mode": ["talking_avatar_auto"],
     "visual_mode": ["video_first", "image_first"],
 }
 DEFAULTS = {
