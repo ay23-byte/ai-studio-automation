@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-21T12:01:05+00:00",
+  "updated_at": "2026-11-21T20:29:35+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -324,6 +324,22 @@
       "updated_at": "2026-11-21T12:01:05+00:00",
       "topic": "Why do fiber optic cables bend light without letting it escape?",
       "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "d941d74a85ddd9d3c23765c5",
+      "created_at": "2026-11-21T20:29:10+00:00",
+      "title": "EPFO Proposes Systematic Withdrawal Plan for Retirees",
+      "status": "uploaded",
+      "updated_at": "2026-11-21T20:29:35+00:00",
+      "topic": "What does EPFO’s Systematic Withdrawal Plan entail for retirees | Explained",
+      "source_refs": [
+        "491f6e648590e930f673",
+        "072bda01fdcbbac86928"
+      ],
+      "job_id": 7,
+      "youtube_id": "TjNyzdCfG_A",
+      "privacy_status": "private"
     }
   ]
 }
