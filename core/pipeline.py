@@ -1008,6 +1008,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     shot_timeline = []
     missing_visuals = []
     source_evidence_capture_records = []
+    source_evidence_required_beat_failures = []
     source_evidence_cache = {}
     presenter_mode = os.getenv("PRESENTER_MODE", "still_cpu").strip().lower()
     presenter_enabled = os.getenv("PRESENTER_ENABLED", "1").strip().lower() in {"1", "true", "yes"}
@@ -1284,12 +1285,15 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     explicit_refs.extend((beat.get("chart_spec") or {}).get("source_refs") or [])
                     for event in beat.get("timeline_events") or []:
                         explicit_refs.extend(event.get("source_refs") or [])
+                    beat_screenshot_captured = False
                     if explicit_refs and not cited:
-                        source_evidence_capture_records.append({
+                        failure = {
                             "status": "FAILED",
                             "reason": "No valid HTTP(S) research source matched the evidence beat's source_refs.",
                             "source_refs": list(dict.fromkeys(str(ref) for ref in explicit_refs)),
-                        })
+                        }
+                        source_evidence_capture_records.append(failure)
+                        source_evidence_required_beat_failures.append(failure)
                     for source in cited:
                         source_id = source["source_id"]
                         if source_id not in source_evidence_cache:
@@ -1327,15 +1331,21 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                         shot["_start"] = float(shot["_start"]) + evidence_duration
                         shot["_dur"] = float(shot["_dur"]) - evidence_duration
                         shot_timeline.append(evidence_shot)
+                        beat_screenshot_captured = True
                         print(
                             f"  long-form source evidence {i+1}.{j+1}: real webpage screenshot "
                             f"from {source.get('publisher')} ({source_id})"
                         )
                         break
-                    if cited and not any(
-                        row.get("status") == "CAPTURED" and row.get("source_id") in {s["source_id"] for s in cited}
-                        for row in source_evidence_capture_records
-                    ):
+                    if cited and not beat_screenshot_captured:
+                        failure = {
+                            "status": "FAILED",
+                            "reason": "No cited source webpage could be captured for this evidence beat.",
+                            "source_refs": [row["source_id"] for row in cited],
+                            "chapter": i + 1,
+                            "beat": j + 1,
+                        }
+                        source_evidence_required_beat_failures.append(failure)
                         print(f"WARNING: no real source screenshot captured for evidence beat {i+1}.{j+1}.")
                 except Exception as exc:
                     print(f"WARNING: source webpage screenshot unavailable for beat {i+1}.{j+1}: {type(exc).__name__}: {exc}")
@@ -1507,6 +1517,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         "capture_count": sum(1 for row in source_evidence_capture_records if row.get("status") == "CAPTURED"),
         "failure_count": sum(1 for row in source_evidence_capture_records if row.get("status") != "CAPTURED"),
         "captures": source_evidence_capture_records,
+        "required_beat_failures": source_evidence_required_beat_failures,
         "notice": "Screenshots show the original source webpage as captured at build time. They are visual source context, not independent verification of the claims.",
     }
     (bd / "source_evidence_capture_report.json").write_text(
@@ -1517,10 +1528,10 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         f"{source_evidence_report['failure_count']} unavailable."
     )
     if (os.getenv("SOURCE_EVIDENCE_REQUIRE_SCREENSHOT", "0").strip().lower() in {"1", "true", "yes"}
-            and source_evidence_report["failure_count"]):
+            and source_evidence_required_beat_failures):
         failures = [
             f"{row.get('source_id') or row.get('source_refs') or 'source'}: {row.get('reason') or 'capture failed'}"
-            for row in source_evidence_capture_records if row.get("status") != "CAPTURED"
+            for row in source_evidence_required_beat_failures
         ]
         raise RuntimeError(
             "Required real source-page screenshot evidence is unavailable for one or more data/document beats. "
