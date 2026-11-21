@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-21T10:00:23+00:00",
+  "updated_at": "2026-11-21T12:01:05+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -314,6 +314,16 @@
       "job_id": 7,
       "youtube_id": "We6v-ekZ5OI",
       "privacy_status": "private"
+    },
+    {
+      "kind": "shorts",
+      "key": "ce4fcc4e976aa228ee5ab05b",
+      "created_at": "2026-11-21T12:01:05+00:00",
+      "title": "How Fiber Optics Trap Light Around Curves",
+      "status": "built",
+      "updated_at": "2026-11-21T12:01:05+00:00",
+      "topic": "Why do fiber optic cables bend light without letting it escape?",
+      "job_id": 7
     }
   ]
 }
