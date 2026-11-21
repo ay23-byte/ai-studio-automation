@@ -490,12 +490,16 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     requested_engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
     engine = requested_engine
     fallback_reason = None
+    require_requested_engine = os.getenv("TTS_REQUIRE_ENGINE", "").strip().lower() == requested_engine
     is_ci = os.getenv("CI", "").strip().lower() == "true" or os.getenv("GITHUB_ACTIONS", "").strip().lower() == "true"
     allow_chatterbox_ci = os.getenv("ALLOW_CHATTERBOX_ON_CI", "").strip().lower() == "true"
     if engine == "chatterbox" and is_ci and not allow_chatterbox_ci:
         fallback_reason = "Chatterbox CI inference was not explicitly enabled; trying Edge TTS first."
         print("WARNING: " + fallback_reason)
         engine = "edge"
+    if require_requested_engine and engine != requested_engine:
+        raise VoiceProviderUnavailable(
+            f"Required narration engine '{requested_engine}' is not enabled in this environment; refusing fallback.")
 
     # Provider cascade: requested engine -> multiple Edge voices -> offline espeak-ng.
     # A transient network outage must not abort a documentary after script generation.
@@ -504,6 +508,9 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
         except Exception as exc:
             fallback_reason = f"Chatterbox failed ({type(exc).__name__}: {exc}); trying Edge TTS."
+            if require_requested_engine:
+                raise VoiceProviderUnavailable(
+                    f"Required narration engine 'chatterbox' failed; refusing provider fallback: {exc}") from exc
             print("WARNING: " + fallback_reason)
             for i in range(len(sentences)):
                 (build_dir / f"s{i}.wav").unlink(missing_ok=True)
