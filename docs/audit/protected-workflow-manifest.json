@@ -119,7 +119,7 @@
   "immutable_files": {
     ".github/workflows/archival-documentary-production-trial.yml": "f70556ce04ea41bb4b0a1bd1ccdf094201893e1431b51a37f286c213d7014ad4",
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
-    ".github/workflows/avatar-studio-browser.yml": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
+    ".github/workflows/avatar-studio-browser.yml": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
     ".github/workflows/chernobyl-documentary-production.yml": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
     ".github/workflows/daily-news-auto-short.yml": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
@@ -136,7 +136,7 @@
     ".github/workflows/footage-source-validation.yml": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
-    ".github/workflows/make_longform.yml": "c386622b020f6422ad235ecaa0d1a740ffe902063f370289fb067c7fccf9c1a7",
+    ".github/workflows/make_longform.yml": "c299ad56929152adcf2c85a83f275c903f095be6257703a720b01577a111f515",
     ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
@@ -217,7 +217,7 @@
     "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
     "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
     "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
-    "core/pipeline.py": "16ead3e7889662686152396cd682beefd982466241d7dbfc03109ab581eaf55e",
+    "core/pipeline.py": "76702a7ad0e0bbb092d30febb014a446894cd884527232806887f3f524ce2ecd",
     "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
     "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
@@ -233,8 +233,9 @@
     "core/review_packaging.py": "a56bc462f6bc1f265cc1606b5d016cca5174059ef100e5dcff68972e307ed6c4",
     "core/run_report.py": "71e153efe66648cb4e6c23ffe6818e18ca7680c797277bd1ff4ab6fcf7efe755",
     "core/scheduler.py": "20a907f597f9c250e40d0b19b8f399d59750f3d86ad2bdb550aa6b12ecf4915a",
-    "core/script_engine.py": "1e1eb8bcbeef052818243fbc3ffebc41a8227ed2654d56569f65f054651d63c9",
+    "core/script_engine.py": "bb4381a897f9d1fabecf3736001350eb79a8b7d7eb27cafdd230519d6900d7a5",
     "core/seo.py": "b6eb4380865119416bac1d5f29401d2dcc0debdd79753d584fbe679f479b102b",
+    "core/source_evidence.py": "02b38eb2d727315f680922d3d7d8790932baf858b587616391d71b1226927909",
     "core/subtitle_translation.py": "367d3baecbddf529a26b7418d6d4479206f6ae7380f117f3660c992a5110c6c6",
     "core/subtitles_export.py": "a612dd88a6de033b9543923df2331be6374a6d297adc2d8e36d416d7e1e93077",
     "core/talking_avatar.py": "f5d1f09503b01765327578def9e2ca9dbd5738ee436f5b91434aaad1b1705d8e",
@@ -260,6 +261,7 @@
     "scripts/check_footage_sources_live.py": "5b34892304804ac5bdb9c6aa8f251d6679a88c0ebdfe1d8209a23d7929737010",
     "scripts/check_presenter_clips.py": "92add93c4ce0a76c874d9649f2d286292e3799a03c0eb1786785ad66b91a2a52",
     "scripts/collect_daily_news.py": "6a3b16a7b414b388cb9d58bd686ed86587deeb1fd29b171751844b60b8721589",
+    "scripts/create_daily_news_voice_audition.py": "245324c57097dc62dd81a981bd903c426552d68419b3c6c3f760ad2a24c8ef45",
     "scripts/create_voice_audition.py": "56fe4306daa1258445d04f459f61c75ebddd1e51fe74a1283cbc045ef8172069",
     "scripts/documentary_topic_queue.py": "e3aeab6e3bf8a9966c45eee55e0f19c4267b68548d250ed253ec65765fe88e40",
     "scripts/draft_reviewed_news_short.py": "840c8e47d17e0c8c6741252528f7fa252fc4ab9e7f61ebc62f1afa677f92d84f",
@@ -279,7 +281,7 @@
     "scripts/render_longform_script.py": "9019fe5e260911d1859bff079ce0b126a086335723d27698241baa6caf7d50a6",
     "scripts/render_reviewed_news_short.py": "81e77b0d6321c30e6aba052382b878077674888b6bec54a50db3830686b7305b",
     "scripts/render_standard_short_review.py": "ef66890cd365daf1fc2d72461489d30d87731e4cde09573cccef4c4cdf345b82",
-    "scripts/resolve_documentary_request.py": "edf0270402c2658b05f24624a031a9d53b013714f1191a6575c5a76051555435",
+    "scripts/resolve_documentary_request.py": "fbea35e053ffd5d00786b208b415d01f0cd1f251c5d7e9bec19fea69107646ec",
     "scripts/run_daily_news_short.py": "4befb1a386eb7fa0aa2b542e7c468590440b0bbd0f9d43f9e73f8c48751ba2bb",
     "scripts/upload_approved_news_short.py": "27bdcd91dabfcde7885650eba7fd20e7debda7d41106d6542c5ed5d873c1db16",
     "scripts/upload_documentary_artifact.py": "bad73153757de8af9ec36e1d675c891320aa375ed8e09e642d9e02cb3a7f8586",
@@ -330,8 +332,7 @@
     "schemas/production-manifest-v2.schema.json": "ae3f9eb66b8ff7d574bfec2a5ce9dec08a0fcb01ea185fe8a0c43f63200e13e5",
     "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
     "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
-    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
-    "scripts/create_daily_news_voice_audition.py": "245324c57097dc62dd81a981bd903c426552d68419b3c6c3f760ad2a24c8ef45"
+    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
@@ -460,7 +461,7 @@
       "upload_lines": []
     },
     "avatar-studio-browser.yml": {
-      "sha256": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
+      "sha256": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
       "display_name": "avatar-studio-browser-test",
       "on_sha256": "0abea898eab6164d317e523aefdc120bc81bf398c48d06fd1ad7ae90ec852b21",
       "triggers": [
@@ -553,9 +554,9 @@
       ],
       "dispatch_inputs": {
         "language": {
+          "default": "english",
           "description": "Narration language",
           "type": "choice",
-          "default": "english",
           "options": [
             "english",
             "hinglish",
@@ -1211,9 +1212,9 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "c386622b020f6422ad235ecaa0d1a740ffe902063f370289fb067c7fccf9c1a7",
+      "sha256": "c299ad56929152adcf2c85a83f275c903f095be6257703a720b01577a111f515",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
-      "on_sha256": "cdde7c40d8aa0da577c06c68f0ceba9ee28648ccbbaab680c698f2481fe2b2e8",
+      "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
         "workflow_dispatch",
         "schedule",
@@ -1285,11 +1286,7 @@
           "description": "Presenter animation (auto 3D avatar renders each chapter opening from its narration)",
           "type": "choice",
           "options": [
-            "talking_avatar_auto",
-            "talking_avatar",
-            "sadtalker",
-            "still_cpu",
-            "off"
+            "talking_avatar_auto"
           ]
         },
         "visual_mode": {

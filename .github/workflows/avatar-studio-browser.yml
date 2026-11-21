@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "20"
+      - name: Check the source screenshot renderer syntax
+        run: node --check avatar_studio/capture-source.mjs
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright

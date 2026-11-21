@@ -1007,6 +1007,9 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
     # Optional SadTalker chapter intros use the exact narration audio segment.
     shot_timeline = []
     missing_visuals = []
+    source_evidence_capture_records = []
+    source_evidence_required_beat_failures = []
+    source_evidence_cache = {}
     presenter_mode = os.getenv("PRESENTER_MODE", "still_cpu").strip().lower()
     presenter_enabled = os.getenv("PRESENTER_ENABLED", "1").strip().lower() in {"1", "true", "yes"}
     presenter_image = os.getenv("PRESENTER_IMAGE", "assets/presenter/presenter_master.png")
@@ -1270,6 +1273,83 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 "on_screen_text": beat.get("on_screen_text", ""),
                 "sound_design": beat.get("sound_design", ""),
             })
+            # For data, timeline and document beats, briefly show a genuine
+            # screenshot of the exact cited source page at the matching narration moment.
+            # The screenshot is never generated or substituted with a fake article image.
+            evidence_kind = str(beat.get("visual_type") or "").strip().lower()
+            if evidence_kind in {"chart", "timeline", "document", "evidence"} or beat.get("chart_spec") or beat.get("timeline_events"):
+                try:
+                    from core.source_evidence import cited_source_records, capture_source_screenshot
+                    cited = cited_source_records(beat, script.get("research_sources", []))
+                    explicit_refs = list(beat.get("source_refs") or [])
+                    explicit_refs.extend((beat.get("chart_spec") or {}).get("source_refs") or [])
+                    for event in beat.get("timeline_events") or []:
+                        explicit_refs.extend(event.get("source_refs") or [])
+                    beat_screenshot_captured = False
+                    if explicit_refs and not cited:
+                        failure = {
+                            "status": "FAILED",
+                            "reason": "No valid HTTP(S) research source matched the evidence beat's source_refs.",
+                            "source_refs": list(dict.fromkeys(str(ref) for ref in explicit_refs)),
+                        }
+                        source_evidence_capture_records.append(failure)
+                        source_evidence_required_beat_failures.append(failure)
+                    for source in cited:
+                        source_id = source["source_id"]
+                        if source_id not in source_evidence_cache:
+                            captured = capture_source_screenshot(
+                                source, bd / "source_evidence_screenshots"
+                            )
+                            source_evidence_cache[source_id] = captured
+                            source_evidence_capture_records.append(captured)
+                        captured = source_evidence_cache[source_id]
+                        if captured.get("status") != "CAPTURED":
+                            continue
+                        evidence_duration = min(4.0, float(shot_dur) * 0.30)
+                        if evidence_duration < 1.25 or float(shot_dur) - evidence_duration < 1.0:
+                            continue
+                        evidence_shot = dict(shot)
+                        evidence_shot.update({
+                            "_start": float(shot["_start"]),
+                            "_dur": evidence_duration,
+                            "visual_type": "source_evidence_screenshot",
+                            "subject": source.get("publisher") or "Original source",
+                            "visual_prompt": "Real webpage screenshot from the cited original source; show the actual article/report page, not a generated imitation.",
+                            "visual_disclosure": "Original source webpage screenshot captured during documentary production; capture time and source URL are recorded in the source sidecar.",
+                            "source_screenshot": captured,
+                            "source_refs": [source_id],
+                            "asset_provenance": {
+                                "asset_type": "source_webpage_screenshot",
+                                "ai_generated": False,
+                                "source_id": source_id,
+                                "publisher": source.get("publisher"),
+                                "source_url": source.get("url"),
+                                "capture_metadata": captured.get("metadata_path"),
+                            },
+                            "_media": {"type": "image", "path": captured["path"]},
+                        })
+                        shot["_start"] = float(shot["_start"]) + evidence_duration
+                        shot["_dur"] = float(shot["_dur"]) - evidence_duration
+                        shot_timeline.append(evidence_shot)
+                        beat_screenshot_captured = True
+                        print(
+                            f"  long-form source evidence {i+1}.{j+1}: real webpage screenshot "
+                            f"from {source.get('publisher')} ({source_id})"
+                        )
+                        break
+                    if cited and not beat_screenshot_captured:
+                        failure = {
+                            "status": "FAILED",
+                            "reason": "No cited source webpage could be captured for this evidence beat.",
+                            "source_refs": [row["source_id"] for row in cited],
+                            "chapter": i + 1,
+                            "beat": j + 1,
+                        }
+                        source_evidence_required_beat_failures.append(failure)
+                        print(f"WARNING: no real source screenshot captured for evidence beat {i+1}.{j+1}.")
+                except Exception as exc:
+                    print(f"WARNING: source webpage screenshot unavailable for beat {i+1}.{j+1}: {type(exc).__name__}: {exc}")
+
             # Use Manim/Blender for supported educational animation beats before
             # requesting footage. These clips are labelled conceptual illustrations.
             from core.animation_integration import render_animation
@@ -1432,6 +1512,32 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             if len(beat_shots) > 1:
                 print(f"  long-form visual {i+1}.{j+1}: {shot_dur:.0f} s beat covered by {len(beat_shots)} pictures")
             shot_timeline.extend(beat_shots)
+
+    source_evidence_report = {
+        "capture_count": sum(1 for row in source_evidence_capture_records if row.get("status") == "CAPTURED"),
+        "failure_count": sum(1 for row in source_evidence_capture_records if row.get("status") != "CAPTURED"),
+        "captures": source_evidence_capture_records,
+        "required_beat_failures": source_evidence_required_beat_failures,
+        "notice": "Screenshots show the original source webpage as captured at build time. They are visual source context, not independent verification of the claims.",
+    }
+    (bd / "source_evidence_capture_report.json").write_text(
+        json.dumps(source_evidence_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(
+        f"Source webpage screenshots: {source_evidence_report['capture_count']} captured, "
+        f"{source_evidence_report['failure_count']} unavailable."
+    )
+    if (os.getenv("SOURCE_EVIDENCE_REQUIRE_SCREENSHOT", "0").strip().lower() in {"1", "true", "yes"}
+            and source_evidence_required_beat_failures):
+        failures = [
+            f"{row.get('source_id') or row.get('source_refs') or 'source'}: {row.get('reason') or 'capture failed'}"
+            for row in source_evidence_required_beat_failures
+        ]
+        raise RuntimeError(
+            "Required real source-page screenshot evidence is unavailable for one or more data/document beats. "
+            "Refusing a documentary that displays sourced claims without their original source-page screenshot: "
+            + "; ".join(failures[:6])
+        )
 
     # Optional second-pass Wan2.1 handoff: mapped review shots replace the
     # corresponding generated visuals before the EDL, review manifest and render.

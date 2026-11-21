@@ -54,6 +54,14 @@ PRESENTER_IMAGE=/path/to/your-licensed-presenter-portrait.png
 
 **Deployment limitation:** ordinary GitHub-hosted Actions runners do not provide a supported NVIDIA GPU. The long-form workflow can provision SadTalker in a separate Python 3.8 CPU environment, but CPU inference is very slow; use `SADTALKER_DEVICE=cuda` only on a compatible GPU workstation/self-hosted runner. The adapter is opt-in and is not an instant cloud-avatar service. It validates media streams and A/V duration, but does not certify phoneme-perfect lip-sync. Check the current upstream code, model-weight and portrait licensing before commercial use. If presenter generation is unavailable, the system clearly labels the still-portrait fallback as not lip-synced.
 
+## Built-in 3D presenter and source-page evidence
+
+The long-form GitHub Actions workflow uses the repository's built-in Talking Avatar Studio 3D presenter by default. The presenter is rendered from the chapter's actual narration audio and is used for short chapter openings; documentary footage, maps, charts and source evidence carry the rest of the film. The workflow does not offer a still-photo presenter mode as a production choice. The 3D avatar is stylised, not photorealistic, and its current SDK provides facial animation, blinking and limited head movement rather than full-body gestures. Automated motion checks are not a substitute for watching the finished clip.
+
+For a chart, timeline, statistic or document beat, the renderer resolves only the source IDs explicitly attached to that beat. When a matching research source has a valid HTTP(S) URL, the build attempts to capture the real webpage with the pinned local Playwright browser. The screenshot is shown briefly at the matching narration moment and carries an editorial footer with publisher, publication date and exact URL. The original screenshot and capture metadata are retained under `source_evidence_screenshots/`; `source_evidence_capture_report.json` records captures and failures.
+
+A source screenshot is not proof that a claim is true. It records what a webpage displayed at build time; publication date, source credibility, the cited passage and the claim itself still require verification. Never replace a failed capture with an AI-generated imitation. If a publisher blocks automated access, the build records the failure rather than fabricating a screenshot.
+
 ## Minimum release gate
 
 - [ ] Research dossier and claim ledger reviewed
