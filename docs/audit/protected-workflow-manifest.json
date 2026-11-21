@@ -136,7 +136,7 @@
     ".github/workflows/footage-source-validation.yml": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
-    ".github/workflows/make_longform.yml": "ed3e4bea091a75fb0529d982d66b329e4d13bc7b046164eccf244328b4a7f1f9",
+    ".github/workflows/make_longform.yml": "c299ad56929152adcf2c85a83f275c903f095be6257703a720b01577a111f515",
     ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
@@ -217,7 +217,7 @@
     "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
     "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
     "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
-    "core/pipeline.py": "e89f484519b7de906185a6623c4141418853365c7d58f5e53f6b66b0d7f57113",
+    "core/pipeline.py": "b6c171b9b5db34ad0084a035ba157046b7a7c201c5b49476a54d8d8767f13cea",
     "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
     "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
@@ -1212,7 +1212,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "ed3e4bea091a75fb0529d982d66b329e4d13bc7b046164eccf244328b4a7f1f9",
+      "sha256": "c299ad56929152adcf2c85a83f275c903f095be6257703a720b01577a111f515",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
