@@ -170,6 +170,69 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "longform_1.mp4"):
                 _find_video(root, root / "build" / "job_1")
 
+    def test_automatic_documentary_upload_is_private_and_unscheduled(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            build_dir = root / "build" / "job_42"
+            build_dir.mkdir(parents=True)
+            video = root / "output" / "longform_42.mp4"
+            video.parent.mkdir(parents=True)
+            video.write_bytes(b"documentary mp4 fixture")
+            metadata_path = build_dir / "release_metadata.json"
+            metadata_path.write_text("{}", encoding="utf-8")
+            metadata = {"title": "Test Documentary", "description": "Test description", "tags": ["test"]}
+            probe = {"duration_seconds": 600, "width": 1920, "height": 1080}
+            channel = {"verified": True, "id": "channel-123", "title": "Engineering Physics"}
+            stored = {"found": True, "privacy_status": "private", "publish_at": None, "channel_id": "channel-123"}
+            with patch("scripts.upload_documentary_artifact._find_release_metadata", return_value=(metadata_path, metadata)), \
+                 patch("scripts.upload_documentary_artifact._find_video", return_value=(video, probe)), \
+                 patch("scripts.upload_documentary_artifact._validate_release_evidence", return_value={"release_mode": "machine_only"}), \
+                 patch("core.uploader.verify_channel", return_value=channel), \
+                 patch("scripts.upload_documentary_artifact.find_private_video_by_marker", return_value=None), \
+                 patch("scripts.upload_documentary_artifact.upload", return_value="video-456") as upload_mock, \
+                 patch("scripts.upload_documentary_artifact.wait_processed", return_value="ok"), \
+                 patch("core.uploader.get_video_status", return_value=stored):
+                result = upload_automated_artifact(root, "42", machine_only=True)
+            upload_mock.assert_called_once()
+            self.assertEqual(upload_mock.call_args.kwargs["privacy_status"], "private")
+            self.assertTrue(upload_mock.call_args.kwargs["disable_scheduling"])
+            self.assertTrue(result["privacy_verified"])
+            self.assertEqual(result["privacy_status"], "private")
+            self.assertIsNone(result["publish_at"])
+            saved = json.loads((root / "youtube-upload-result.json").read_text(encoding="utf-8"))
+            self.assertTrue(saved["privacy_verified"])
+
+    def test_automatic_documentary_upload_fails_if_youtube_reports_public(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            build_dir = root / "build" / "job_42"
+            build_dir.mkdir(parents=True)
+            video = root / "output" / "longform_42.mp4"
+            video.parent.mkdir(parents=True)
+            video.write_bytes(b"documentary mp4 fixture")
+            metadata_path = build_dir / "release_metadata.json"
+            metadata_path.write_text("{}", encoding="utf-8")
+            metadata = {"title": "Test Documentary", "description": "Test description", "tags": ["test"]}
+            probe = {"duration_seconds": 600, "width": 1920, "height": 1080}
+            channel = {"verified": True, "id": "channel-123", "title": "Engineering Physics"}
+            stored = {"found": True, "privacy_status": "public", "publish_at": None, "channel_id": "channel-123"}
+            with patch("scripts.upload_documentary_artifact._find_release_metadata", return_value=(metadata_path, metadata)), \
+                 patch("scripts.upload_documentary_artifact._find_video", return_value=(video, probe)), \
+                 patch("scripts.upload_documentary_artifact._validate_release_evidence", return_value={"release_mode": "machine_only"}), \
+                 patch("core.uploader.verify_channel", return_value=channel), \
+                 patch("scripts.upload_documentary_artifact.find_private_video_by_marker", return_value=None), \
+                 patch("scripts.upload_documentary_artifact.upload", return_value="video-456") as upload_mock, \
+                 patch("scripts.upload_documentary_artifact.wait_processed", return_value="ok"), \
+                 patch("core.uploader.get_video_status", return_value=stored):
+                with self.assertRaisesRegex(RuntimeError, "Private upload could not be verified"):
+                    upload_automated_artifact(root, "42", machine_only=True)
+            upload_mock.assert_called_once()
+            self.assertEqual(upload_mock.call_args.kwargs["privacy_status"], "private")
+            self.assertTrue(upload_mock.call_args.kwargs["disable_scheduling"])
+            failure = json.loads((root / "youtube-upload-result.json").read_text(encoding="utf-8"))
+            self.assertFalse(failure["privacy_verified"])
+            self.assertIn("not 'private'", failure["verification_problems"][0])
+
 
 if __name__ == "__main__":
     unittest.main()
