@@ -1040,6 +1040,21 @@ def validate_longform_research_quality(script: dict, min_sources: int = 8,
     return script
 
 
+def longform_target_wpm() -> int:
+    """Return the narration word-rate target used to size long-form scripts.
+
+    Chatterbox's measured delivery in production is materially faster than the
+    old 140 WPM drafting assumption (run 44903253753 measured 181 WPM). A
+    185 WPM target prevents scripts that look long enough on paper from failing
+    the post-synthesis runtime gate. Operators can still override this setting.
+    """
+    try:
+        value = int(os.getenv("LONGFORM_TARGET_WPM", "185") or 185)
+    except (TypeError, ValueError):
+        value = 185
+    return min(200, max(110, value))
+
+
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
@@ -1048,11 +1063,7 @@ def generate_longform_script(topic: str, category: str = "finance",
         channel_name, audience, brand_voice)
     requested_category = str(category or "auto").strip()
     auto_category = requested_category.lower() in {"", "auto", "any", "universal"}
-    try:
-        target_wpm = int(os.getenv("LONGFORM_TARGET_WPM", "140") or 140)
-    except ValueError:
-        target_wpm = 140
-    target_wpm = min(180, max(110, target_wpm))
+    target_wpm = longform_target_wpm()
     minimum_words = int(duration_max * target_wpm * 0.95)
     target_words = int(duration_max * target_wpm)
     prompt = LONGFORM_PROMPT.format(
