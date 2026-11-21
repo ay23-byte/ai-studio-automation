@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 _NEGATION = re.compile(r"\b(?:not|never|without|neither|no)\b", re.I)
-_ALLOWED_VISUALS = {"diagram", "animation"}
+_ALLOWED_VISUALS = {"diagram", "animation", "map", "news_graphic"}
 
 
 def select_animation_kind(narration: str, visual_type: str, visual_prompt: str = "") -> str | None:
