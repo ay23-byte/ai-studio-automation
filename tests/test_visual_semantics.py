@@ -58,6 +58,17 @@ class VisualSemanticsTests(unittest.TestCase):
         self.assertTrue(any("inlineData" in part for part in payload["contents"][0]["parts"]))
 
     @patch("core.visual_semantics.requests.post")
+    def test_singleton_json_array_response_is_normalized(self, post):
+        body = {"verdict": "match", "match_score": 0.9,
+                "visible_evidence": "A cargo ship is visible."}
+        post.return_value = _Response({
+            "candidates": [{"content": {"parts": [{"text": json.dumps([body])}]}}]
+        })
+        result = verify_shot_semantics(self.shot, api_key="test-key", model="vision-test")
+        self.assertEqual(result["status"], "match")
+        self.assertEqual(result["match_score"], 0.9)
+
+    @patch("core.visual_semantics.requests.post")
     def test_presenter_shot_is_judged_as_an_on_camera_host_not_broll(self, post):
         body = {"verdict": "match", "match_score": 0.9}
         post.return_value = _Response({
