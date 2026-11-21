@@ -117,10 +117,10 @@
     "wan21-generated-clips"
   ],
   "immutable_files": {
-    ".github/workflows/archival-documentary-production-trial.yml": "35f163121b3ea985f6a417313245d6ce609c868b4049f1ccc5ca14e301ac5eee",
+    ".github/workflows/archival-documentary-production-trial.yml": "f70556ce04ea41bb4b0a1bd1ccdf094201893e1431b51a37f286c213d7014ad4",
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
-    ".github/workflows/chernobyl-documentary-production.yml": "e36eaab335f184af7db83b229a0dfccb7dae17e9d06d256460acfaaf85ec5503",
+    ".github/workflows/chernobyl-documentary-production.yml": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
     ".github/workflows/daily-news-auto-short.yml": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
     ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
@@ -130,15 +130,15 @@
     ".github/workflows/documentary-e2e-smoke.yml": "32847c33716846f32eee9608b5e63a53c5cde804cb6cf14f1e2e571ea6204bc6",
     ".github/workflows/documentary-voice-audition.yml": "7e1e7caf30424021b3d2698282abbdfc0ca6df000cff5fd05e5a2ff1e06aae55",
     ".github/workflows/export_documentary_review.yml": "ea2194738b6b423da76050e46ad3a19866d92956f0679a06783ba5e4603091a2",
-    ".github/workflows/first-documentary-production-trial.yml": "07dc424ab829af6b235e77f77d8b36443263b89ba30aa6dd47b37058fce538f9",
+    ".github/workflows/first-documentary-production-trial.yml": "4731faece057a662893482edd9f6f33defc3247808a042088ecff61a6a709f4b",
     ".github/workflows/footage-live-verification.yml": "6435f55cd32595888c01068d78cfce6e63d58f4512cef7e490101599511d95c1",
     ".github/workflows/footage-provider-api-health.yml": "754234a197b7adee0d278adea9240c4344a106d7360a78b52f6e6cffaac65c09",
     ".github/workflows/footage-source-validation.yml": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
-    ".github/workflows/live-documentary-production-validation.yml": "0f8d7a4f454766fa07f313ec67589517e39fd93aafdeac33d7516b5f2c6b31a5",
+    ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/make_longform.yml": "f6f4c5e36ed0a1241580e537a0a5e468aad978711af2815d297aff6b36e49bbf",
-    ".github/workflows/make_shorts.yml": "b517d819356afc40093d4397187037b2274891ee116c9247a0e777598dfe7ea4",
-    ".github/workflows/manual-live-documentary-e2e.yml": "cd594ad97a67963ea1945c0ddf8064284be6b5cd815aac573bbd54f4d32e9a9c",
+    ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
+    ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
     ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
     ".github/workflows/news-short-one-click.yml": "d04ec365323d86fbb5f82fb0ebdccdd601a487fae1a8b3929ae18b480355e30e",
@@ -335,7 +335,7 @@
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
-      "sha256": "35f163121b3ea985f6a417313245d6ce609c868b4049f1ccc5ca14e301ac5eee",
+      "sha256": "f70556ce04ea41bb4b0a1bd1ccdf094201893e1431b51a37f286c213d7014ad4",
       "display_name": "⚙ Internal — Archival documentary production trial",
       "on_sha256": "e835a7194214cf1bec3d3088b7cde97353c2ac1ce3699b9dbe8a84f41f0ca088",
       "triggers": [
@@ -490,7 +490,7 @@
       "upload_lines": []
     },
     "chernobyl-documentary-production.yml": {
-      "sha256": "e36eaab335f184af7db83b229a0dfccb7dae17e9d06d256460acfaaf85ec5503",
+      "sha256": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
       "display_name": "⚙ Internal — Chernobyl documentary — professional review render",
       "on_sha256": "617eb8e8d18ee0a0777a4e5e8cf17185d8d4b11807faada731332eef044836c9",
       "triggers": [
@@ -914,7 +914,7 @@
       "upload_lines": []
     },
     "first-documentary-production-trial.yml": {
-      "sha256": "07dc424ab829af6b235e77f77d8b36443263b89ba30aa6dd47b37058fce538f9",
+      "sha256": "4731faece057a662893482edd9f6f33defc3247808a042088ecff61a6a709f4b",
       "display_name": "⚙ Internal — First documentary production trial",
       "on_sha256": "d9dde2fdb974e5b1a16e88a769205f4473880e9db05ae49c05467554db2e2fd3",
       "triggers": [
@@ -1167,7 +1167,7 @@
       "upload_lines": []
     },
     "live-documentary-production-validation.yml": {
-      "sha256": "0f8d7a4f454766fa07f313ec67589517e39fd93aafdeac33d7516b5f2c6b31a5",
+      "sha256": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
       "display_name": "⚙ Internal — Live documentary production validation (current main)",
       "on_sha256": "14a7a2d5c02c3397689846c5e6322806e7cc9eaa845bf9d187eba6a1b358be85",
       "triggers": [
@@ -1342,7 +1342,7 @@
       "upload_lines": []
     },
     "make_shorts.yml": {
-      "sha256": "b517d819356afc40093d4397187037b2274891ee116c9247a0e777598dfe7ea4",
+      "sha256": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
       "display_name": "1. Daily general Shorts — build and package",
       "on_sha256": "7d7e8c0779f31d83983dab944389ed96efe97b586360f93333108f0fafe0fded",
       "triggers": [
@@ -1458,7 +1458,7 @@
       ]
     },
     "manual-live-documentary-e2e.yml": {
-      "sha256": "cd594ad97a67963ea1945c0ddf8064284be6b5cd815aac573bbd54f4d32e9a9c",
+      "sha256": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
       "display_name": "⚙ Internal — Manual live documentary end-to-end validation",
       "on_sha256": "95a3979e050f4efb9960ad14532f2a100ba4b101f98ba7cf857a29eaa140bf0f",
       "triggers": [
