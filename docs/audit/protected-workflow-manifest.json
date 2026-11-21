@@ -121,7 +121,7 @@
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
     ".github/workflows/chernobyl-documentary-production.yml": "e36eaab335f184af7db83b229a0dfccb7dae17e9d06d256460acfaaf85ec5503",
-    ".github/workflows/daily-news-auto-short.yml": "edef91c000e6c52448023bf6afa33382a74cc489fa899d1b46209a1605a215f2",
+    ".github/workflows/daily-news-auto-short.yml": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
     ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
     ".github/workflows/daily-news-short-render.yml": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
@@ -245,7 +245,7 @@
     "core/visual_consistency.py": "6308e913f079e1d353047a5cdcfbdc6618d17d1d945fd35a0dd3ef093ee5a81f",
     "core/visual_production.py": "814cda165f1033a285a660b734ff58f21eeb49ea571c59e9bc9fb38814a3fc0d",
     "core/visual_semantics.py": "b0d835a54c1b77eb9c52bb9a49100718be2e045b7d902c68c70958e7a5e1c272",
-    "core/voice.py": "271fc36fecb68f42dec8030bda71dd5d259fb3ea494ff5779d60249699883d32",
+    "core/voice.py": "bae8dbe2e391a324ae8a6dbc3ad908bb775901dc483240a237ab099ef9ec34a8",
     "core/wan_timeline_adapter.py": "e94ad8165de8a0eb866f7ba0d5b98d52d80191f56cdd9b73e9659ddbaa8684fd",
     "core/wikimedia_images.py": "42efe28f812e572acbe1ca56e251cee39024acb842f9b24418fec054257eae39",
     "core/workflow_audit.py": "67e95cc953555624b25ef763e1728bd28504ffab9a3681b480d009b7b84671ce",
@@ -540,7 +540,7 @@
       "upload_lines": []
     },
     "daily-news-auto-short.yml": {
-      "sha256": "edef91c000e6c52448023bf6afa33382a74cc489fa899d1b46209a1605a215f2",
+      "sha256": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
       "display_name": "Daily news Short — automatic PRIVATE release",
       "on_sha256": "a916ce043807257e147bcf7355918c5a87b8a037981c82bba1fd73c4b9e18e25",
       "triggers": [
