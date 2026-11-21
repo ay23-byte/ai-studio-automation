@@ -217,7 +217,7 @@
     "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
     "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
     "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
-    "core/pipeline.py": "16ead3e7889662686152396cd682beefd982466241d7dbfc03109ab581eaf55e",
+    "core/pipeline.py": "e89f484519b7de906185a6623c4141418853365c7d58f5e53f6b66b0d7f57113",
     "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
     "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
@@ -233,7 +233,7 @@
     "core/review_packaging.py": "a56bc462f6bc1f265cc1606b5d016cca5174059ef100e5dcff68972e307ed6c4",
     "core/run_report.py": "71e153efe66648cb4e6c23ffe6818e18ca7680c797277bd1ff4ab6fcf7efe755",
     "core/scheduler.py": "20a907f597f9c250e40d0b19b8f399d59750f3d86ad2bdb550aa6b12ecf4915a",
-    "core/script_engine.py": "1e1eb8bcbeef052818243fbc3ffebc41a8227ed2654d56569f65f054651d63c9",
+    "core/script_engine.py": "bb4381a897f9d1fabecf3736001350eb79a8b7d7eb27cafdd230519d6900d7a5",
     "core/seo.py": "b6eb4380865119416bac1d5f29401d2dcc0debdd79753d584fbe679f479b102b",
     "core/subtitle_translation.py": "367d3baecbddf529a26b7418d6d4479206f6ae7380f117f3660c992a5110c6c6",
     "core/subtitles_export.py": "a612dd88a6de033b9543923df2331be6374a6d297adc2d8e36d416d7e1e93077",
@@ -331,7 +331,8 @@
     "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
     "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
     "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
-    "scripts/create_daily_news_voice_audition.py": "245324c57097dc62dd81a981bd903c426552d68419b3c6c3f760ad2a24c8ef45"
+    "scripts/create_daily_news_voice_audition.py": "245324c57097dc62dd81a981bd903c426552d68419b3c6c3f760ad2a24c8ef45",
+    "core/source_evidence.py": "d9c507b5204a5e53b1c8d69e2ef751fb56b9b6fe01baf1b3710ef9169e7fafd7"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
@@ -1213,7 +1214,7 @@
     "make_longform.yml": {
       "sha256": "ed3e4bea091a75fb0529d982d66b329e4d13bc7b046164eccf244328b4a7f1f9",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
-      "on_sha256": "cdde7c40d8aa0da577c06c68f0ceba9ee28648ccbbaab680c698f2481fe2b2e8",
+      "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
         "workflow_dispatch",
         "schedule",
@@ -1285,11 +1286,7 @@
           "description": "Presenter animation (auto 3D avatar renders each chapter opening from its narration)",
           "type": "choice",
           "options": [
-            "talking_avatar_auto",
-            "talking_avatar",
-            "sadtalker",
-            "still_cpu",
-            "off"
+            "talking_avatar_auto"
           ]
         },
         "visual_mode": {
