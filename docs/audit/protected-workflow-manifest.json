@@ -119,7 +119,7 @@
   "immutable_files": {
     ".github/workflows/archival-documentary-production-trial.yml": "f70556ce04ea41bb4b0a1bd1ccdf094201893e1431b51a37f286c213d7014ad4",
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
-    ".github/workflows/avatar-studio-browser.yml": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
+    ".github/workflows/avatar-studio-browser.yml": "ec780e942226be6bdd2e87d7bd955eef44dabf51a68ac93c0987b9da6e103d8b",
     ".github/workflows/chernobyl-documentary-production.yml": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
     ".github/workflows/daily-news-auto-short.yml": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
@@ -461,7 +461,7 @@
       "upload_lines": []
     },
     "avatar-studio-browser.yml": {
-      "sha256": "63dee36546180811b412b75c86e1e8e6fd4726a98bdd2a6a83cd94e9b4a9c1ba",
+      "sha256": "ec780e942226be6bdd2e87d7bd955eef44dabf51a68ac93c0987b9da6e103d8b",
       "display_name": "avatar-studio-browser-test",
       "on_sha256": "0abea898eab6164d317e523aefdc120bc81bf398c48d06fd1ad7ae90ec852b21",
       "triggers": [
