@@ -209,7 +209,7 @@ jobs:
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
       - name: Test narration provider fallback and long-form package adapter
-        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact tests.test_source_evidence -v
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_chatterbox_phrase_cache tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact tests.test_source_evidence -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ needs.request.outputs.presenter_mode == 'talking_avatar_auto' }}
@@ -225,6 +225,15 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
+
+      # Restore exact completed narration phrases from earlier interrupted runs.
+      - name: Restore completed Chatterbox narration phrases
+        uses: actions/cache/restore@v4
+        with:
+          path: build/chatterbox-cache
+          key: ${{ runner.os }}-longform-chatterbox-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-longform-chatterbox-
 
       - name: Build long-form video
         env:
@@ -255,7 +264,11 @@ jobs:
           TTS_ENGINE: "chatterbox"
           TTS_REQUIRE_ENGINE: "chatterbox"
           ALLOW_CHATTERBOX_ON_CI: "true"
-          CHATTERBOX_TORCH_THREADS: "2"
+          CHATTERBOX_TORCH_THREADS: "4"
+          CHATTERBOX_TORCH_INTEROP_THREADS: "1"
+          CHATTERBOX_HEARTBEAT_SECONDS: "60"
+          CHATTERBOX_CACHE_DIR: "build/chatterbox-cache"
+          CHATTERBOX_CACHE_MODEL_TAG: "multilingual-v3"
           CHATTERBOX_PLAYBACK_SPEED: "1.04"
           PRESENTER_ENABLED: ${{ needs.request.outputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ needs.request.outputs.presenter_mode }}
@@ -289,6 +302,15 @@ jobs:
             --language "$INPUT_LANGUAGE" \
             --voice-gender "$INPUT_VOICE_GENDER" \
             --force
+
+      # Save even a partially completed narration after a cancelled/failed build.
+      # The next run restores it and synthesizes only phrases that are still missing.
+      - name: Save completed Chatterbox narration phrases
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: build/chatterbox-cache
+          key: ${{ runner.os }}-longform-chatterbox-${{ github.run_id }}
 
       # Build and release remain separate jobs. The release job receives YouTube secrets;
       # the renderer never does. It uploads only after the strict machine-only documentary gate passes.
