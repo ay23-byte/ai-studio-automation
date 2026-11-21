@@ -18,9 +18,10 @@ if not (64 <= args.width <= 3840 and 64 <= args.height <= 3840 and 1 <= args.fps
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
 scene = bpy.context.scene
-scene.render.engine = "CYCLES"
-scene.cycles.device = "CPU"
-scene.cycles.samples = 8
+# Eevee Next is a real-time 3D renderer and keeps CPU-only GitHub builds
+# practical; the scene still uses actual Blender geometry, materials and keyframes.
+scene.render.engine = "BLENDER_EEVEE_NEXT"
+scene.eevee.taa_render_samples = 16
 scene.render.threads_mode = "FIXED"
 scene.render.threads = 2
 scene.render.resolution_x = args.width
