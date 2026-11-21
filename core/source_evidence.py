@@ -86,6 +86,40 @@ def capture_source_screenshot(source: dict, output_dir: str | Path, *, node: str
     if result.returncode != 0 or not image_path.is_file() or image_path.stat().st_size < 5000:
         detail = (result.stderr or result.stdout or "screenshot renderer returned no image").strip()[-1200:]
         return {"status": "FAILED", "reason": detail}
+    # Add an editorial footer to the genuine page capture so viewers can read
+    # the publisher, publication date and exact source URL in the finished film.
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        image = Image.open(image_path).convert("RGB")
+        footer_height = 112
+        canvas = Image.new("RGB", (image.width, image.height + footer_height), (14, 18, 25))
+        canvas.paste(image, (0, 0))
+        draw = ImageDraw.Draw(canvas)
+        regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        try:
+            title_font = ImageFont.truetype(bold, 23)
+            url_font = ImageFont.truetype(regular, 16)
+        except OSError:
+            title_font, url_font = ImageFont.load_default(), ImageFont.load_default()
+        publisher = str(source.get("publisher") or "Original source")
+        published = str(source.get("published_at") or "Date not stated")
+        draw.text((28, image.height + 12), f"SOURCE  |  {publisher}  |  {published}",
+                  fill=(245, 247, 250), font=title_font)
+        url_text = url
+        max_width = image.width - 56
+        while url_font.size > 10 and draw.textbbox((0, 0), url_text, font=url_font)[2] > max_width:
+            url_font = ImageFont.truetype(regular, max(10, url_font.size - 1))
+        draw.text((28, image.height + 58), url_text, fill=(170, 205, 240), font=url_font)
+        canvas.save(image_path, format="PNG", optimize=True)
+        sidecar = json.loads(metadata_path.read_text(encoding="utf-8"))
+        sidecar["editorial_footer"] = {
+            "publisher": publisher, "published_at": published, "source_url": url,
+            "notice": "Footer labels the real webpage screenshot; it is not part of the publisher's original page.",
+        }
+        metadata_path.write_text(json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as exc:
+        return {"status": "FAILED", "reason": f"Could not label source screenshot: {type(exc).__name__}: {exc}"}
     return {
         "status": "CAPTURED",
         "path": str(image_path),
