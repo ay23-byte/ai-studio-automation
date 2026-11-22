@@ -19,6 +19,8 @@ jobs:
           python-version: '3.12'
       - name: Regenerate manifest from this checkout
         run: python scripts/audit/generate_protected_manifest.py
+      - name: Verify protected manifest tests
+        run: python -m unittest discover -s tests -p 'test_protected_workflow_manifest.py' -v
       - name: Commit manifest if changed
         run: |
           git config user.name github-actions[bot]
