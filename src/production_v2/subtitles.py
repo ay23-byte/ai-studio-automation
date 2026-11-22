@@ -49,6 +49,25 @@ def _caption_cues(text: str, max_words: int, max_chars: int) -> list[str]:
     return ["\n".join(lines[index:index + 2]) for index in range(0, len(lines), 2)]
 
 
+def build_subtitles(segments: list[NarrationSegment], config: V2Config) -> str:
+    rules = config.rules_for("documentary")
+    blocks: list[str] = []
+    index = 1
+    for segment in segments:
+        cues = _caption_cues(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
+        weights = [max(1, len(cue.replace("\n", " "))) for cue in cues]
+        total = sum(weights)
+        span = max(0.01, segment.end - segment.start)
+        cursor = segment.start
+        for cue, weight in zip(cues, weights):
+            end = segment.start + span * (sum(weights[:index - 1]) + weight) / total if cursor < segment.end else segment.end
+            end = min(segment.end, max(cursor + 0.01, end))
+            blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(end)}\n{cue}\n")
+            index += 1
+            cursor = end
+    return "\n".join(blocks)
+
+
 def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
     rules = config.rules_for("documentary")
     font_size = 46 if rules.width > rules.height else 58
