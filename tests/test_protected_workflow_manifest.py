@@ -135,7 +135,8 @@ class ProtectedWorkflowManifestTests(unittest.TestCase):
     def test_schedules_are_exactly_the_baseline_schedules(self):
         self.assertEqual(self.manifest["schedules"], EXPECTED_SCHEDULES)
         # The added unscheduled internal voice audition workflow is also protected and audited.
-        self.assertEqual(self.manifest["invariants"]["protected_workflow_count"], 37)
+        # Includes the audited manifest-maintenance workflow; no scheduled workflow was added.
+        self.assertEqual(self.manifest["invariants"]["protected_workflow_count"], 38)
         self.assertEqual(self.manifest["workflows"]["v2-animation-integration.yml"]["schedules"], [])
         self.assertEqual(set(self.manifest["workflows"]["v2-animation-integration.yml"]["triggers"]),
                          {"workflow_dispatch", "pull_request"})

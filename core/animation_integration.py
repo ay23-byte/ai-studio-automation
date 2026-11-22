@@ -40,7 +40,8 @@ def select_animation_kind(narration: str, visual_type: str, visual_prompt: str =
         (r"\b(?:satellite orbit|spacecraft orbit|satellite deployment)\b", "blender_satellite"),
         (r"\b(?:wind turbine|turbine rotor|turbine blades?)\b", "blender_turbine"),
         (r"\b(?:calculus|derivative of|integral of|tangent slope)\b", "manim_calculus"),
-        (r"\b(?:electric field lines?|magnetic field lines?|electromagnetic field)\b", "manim_field_lines"),
+        (r"\b(?:earth(?:'s)? magnetic field|geomagnetic field|magnetic field reversal|magnetic field lines?|magnetosphere|magnetic poles)\b", "blender_magnetic_field"),
+        (r"\b(?:electric field lines?|electromagnetic field)\b", "manim_field_lines"),
         (r"\b(?:fourier series|fourier transform|harmonic decomposition)\b", "manim_fourier"),
         (r"\b(?:neural network|artificial neural network)\b", "manim_neural_network"),
     )

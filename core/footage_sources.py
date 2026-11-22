@@ -1345,13 +1345,29 @@ def _is_archival_video_request(keywords=None, scene_prompt=""):
 
 
 def _expanded_queries(keywords, scene_prompt=""):
+    """Build bounded provider queries from scene anchors plus domain synonyms."""
     values = []
-    for item in keywords or []:
+    for item in [scene_prompt] + list(keywords or []):
         query = str(item).strip()
         if query and query not in values:
-            values.append(query)
-    context = " ".join(values) + " " + str(scene_prompt or "")
+            values.append(query[:180])
+    context = " ".join(values)
     context_tokens = _tokens(context)
+    expansions = (
+        (r"\b(?:earth'?s?\s+)?magnetic\s+field(?:\s+reversal)?|\bgeomagnetic\s+(?:field|reversal|excursion)|\bmagnetic\s+pole", ["Earth magnetic field", "geomagnetic field lines", "Earth magnetic poles", "magnetosphere solar wind"]),
+        (r"\bmagnetosphere\b|\bsolar\s+wind\b", ["magnetosphere Earth", "solar wind magnetic field"]),
+        (r"\b(?:earthquake|tectonic|fault|plate\s+tectonics)\b", ["tectonic plates", "earthquake geology", "fault line"]),
+        (r"\b(?:volcano|volcanic|magma|lava)\b", ["volcano eruption", "magma chamber", "lava flow"]),
+        (r"\b(?:ocean|sea|marine|underwater)\b", ["ocean underwater", "marine life", "ocean waves"]),
+        (r"\b(?:glacier|ice\s+sheet|polar|arctic|antarctic)\b", ["glacier ice", "polar ice"]),
+        (r"\b(?:semiconductor|chip|lithography|wafer)\b", ["semiconductor fabrication", "silicon wafer cleanroom"]),
+        (r"\b(?:nuclear|reactor|radiation)\b", ["nuclear power plant", "radiation laboratory"]),
+    )
+    for pattern, additions in expansions:
+        if re.search(pattern, context, re.I):
+            for query in additions:
+                if query not in values:
+                    values.append(query)
     india_terms = {"india", "indian", "mughal", "maratha", "british", "delhi",
                    "mumbai", "bombay", "kolkata", "calcutta", "plassey",
                    "panipat", "1857", "independence", "east", "company"}
@@ -1361,18 +1377,11 @@ def _expanded_queries(keywords, scene_prompt=""):
             if specific not in values:
                 values.append(specific)
     if _is_archival_video_request(keywords, scene_prompt):
-        base = next((item for item in values if item), str(scene_prompt or "").strip())
-        additions = []
+        base = next((str(item).strip() for item in (keywords or []) if re.search(r"chernobyl|apollo|moon landing|saturn v", str(item), re.I)), str(scene_prompt or "").strip())
         if re.search(r"chernobyl", base, re.I):
-            additions = ["Chernobyl 1986 disaster film",
-                         "Chernobyl nuclear accident 1986 evacuation",
-                         "Pripyat 1986 Soviet newsreel",
-                         "Chernobyl nuclear power plant 1986"]
+            additions = ["Chernobyl 1986 disaster film", "Chernobyl nuclear accident 1986 evacuation", "Pripyat 1986 Soviet newsreel", "Chernobyl nuclear power plant 1986"]
         elif re.search(r"apollo|moon landing|saturn v", base, re.I):
-            additions = ["Apollo 11 1969 NASA launch film",
-                         "Saturn V Apollo 11 launch 1969",
-                         "Apollo 11 lunar landing 1969 footage",
-                         "Apollo 11 mission control 1969"]
+            additions = ["Apollo 11 1969 NASA launch film", "Saturn V Apollo 11 launch 1969", "Apollo 11 lunar landing 1969 footage", "Apollo 11 mission control 1969"]
         else:
             additions = [f"{base} historical film", f"{base} newsreel"]
         for query in additions:

@@ -224,3 +224,8 @@ All optional.
 - Licence classification reads what the provider's API states. It is not legal
   advice, and privacy, publicity and trademark rights are outside it.
 - Footage from broadcasters, YouTube or news agencies is never downloaded.
+
+
+## Scene-specific query expansion
+
+Provider search includes the scene brief as a query in addition to keyword anchors, then adds bounded subject synonyms for selected science domains (geomagnetic fields, tectonics, volcanoes, oceans, glaciers, semiconductors and nuclear science). Queries are capped at 12 per scene; relevance and rights checks remain unchanged. This improves discovery but does not promise an eligible clip.
