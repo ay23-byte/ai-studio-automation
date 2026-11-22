@@ -61,6 +61,14 @@ def _technical_failures(build: Path) -> list[str]:
         quality_status = str(quality.get("status") or "").upper()
         if quality_status not in {"PASS", "REVIEW"}:
             failures.append(f"The final video quality report has invalid status {quality_status!r}.")
+    visual_review = packaging.load_json(build / "visual_review_report.json")
+    editorial = visual_review.get("editorial_audit") if isinstance(visual_review, dict) else None
+    if isinstance(editorial, dict) and str(editorial.get("status") or "").upper() == "FAIL":
+        editorial_issues = [
+            f"{item.get('shot', 'documentary')}: {item.get('message', item.get('code', 'editorial defect'))}"
+            for item in editorial.get("issues", []) if isinstance(item, dict) and item.get("level") == "error"
+        ][:8]
+        failures.append("Editorial visual QA has blocking defects: " + " | ".join(editorial_issues))
     # REVIEW is a human/editorial state, not an encoded-stream defect. Keep it
     # visible in the review package and let the separate release gate block upload.
     consistency = packaging.load_json(build / "visual_consistency_report.json")
