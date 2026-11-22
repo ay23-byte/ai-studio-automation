@@ -19,20 +19,28 @@ def timestamp(seconds: float) -> str:
 
 
 def _split_text(text: str, max_words: int, max_chars: int) -> list[str]:
-    """Wrap a sentence into readable caption lines without fragmenting every few words."""
+    """Wrap narration into balanced, readable lines without tiny trailing fragments."""
     words = text.replace("\n", " ").split()
-    lines: list[str] = []
+    lines: list[list[str]] = []
     current: list[str] = []
     for word in words:
         candidate = " ".join(current + [word])
         if current and (len(current) >= max_words or len(candidate) > max_chars):
-            lines.append(" ".join(current))
+            lines.append(current)
             current = [word]
         else:
             current.append(word)
     if current:
-        lines.append(" ".join(current))
-    return lines or [""]
+        lines.append(current)
+    # A short final line is visually awkward. Borrow words from the previous line
+    # while respecting the same word and character limits.
+    while len(lines) > 1 and len(lines[-1]) < 4 and len(lines[-2]) > 4:
+        candidate = [lines[-2][-1]] + lines[-1]
+        if len(candidate) > max_words or len(" ".join(candidate)) > max_chars:
+            break
+        lines[-2].pop()
+        lines[-1] = candidate
+    return [" ".join(line) for line in lines] or [""]
 
 
 def _caption_cues(text: str, max_words: int, max_chars: int) -> list[str]:
