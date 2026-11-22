@@ -179,7 +179,7 @@
     "core/daily_news_pipeline.py": "09c5692fda86e97e809410a6bee6b74e09f922720495eef0016c985f69fb4531",
     "core/db.py": "e6c2a4baa0ffeaae147cf44c996c06e6b9b4b1e2d18ae5897b33b0789a4c88f7",
     "core/dedupe.py": "61e03294e6375abb4d266d0c63f6c150a38134d654048fe278077b356e202d1f",
-    "core/documentary_editorial_qa.py": "cd8cf2c52d9895d2cfe8fad154151d8bd5f2904acf70ed69afd5c080e1893816",
+    "core/documentary_editorial_qa.py": "65523d6859c6a1d925a55aac643478b8c9ff62ee7b163ad80ab47793f7ee8ebb",
     "core/documentary_edl.py": "5c3ef0fdc729425a860d920d194294bccfea1981aa5f9d98abf3c875e39fcb4d",
     "core/documentary_storyboard.py": "c9482d077fc7d42cb8bb853666cc012298d4f7e9f8428e11bc0575193b6efc25",
     "core/downloads.py": "8df346e8b36dfb3db7848fb4793e1f3fc1de6baa1187ad5b8991cba6e4deb195",
