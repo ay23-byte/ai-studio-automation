@@ -215,7 +215,8 @@ def build_visual_review(shot_timeline: list[dict], build_dir: str | Path,
                     "message": f"AI visual-to-narration screening status is '{status}'; inspect this shot manually.",
                 })
     report = {
-        "shot_count": len(shots), "shots": shots, "issues": issues,\n        "editorial_audit": editorial_audit,
+        "shot_count": len(shots), "shots": shots, "issues": issues,
+        "editorial_audit": editorial_audit,
         "research_audit": _audit_source_refs(shot_timeline, research_sources),
         "automated_vision_verification": bool(semantic_verification),
         "semantic_screening_enabled": bool(semantic_verification),
