@@ -53,18 +53,22 @@ def build_subtitles(segments: list[NarrationSegment], config: V2Config) -> str:
     rules = config.rules_for("documentary")
     blocks: list[str] = []
     index = 1
+    previous_end = 0.0
     for segment in segments:
         cues = _caption_cues(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
         weights = [max(1, len(cue.replace("\n", " "))) for cue in cues]
         total = sum(weights)
-        span = max(0.01, segment.end - segment.start)
-        cursor = segment.start
+        start = max(float(segment.start), previous_end)
+        end_limit = max(start + 0.01, float(segment.end))
+        span = max(0.01, end_limit - start)
+        cursor = start
         for cue, weight in zip(cues, weights):
-            end = cursor + span * weight / total if cursor < segment.end else segment.end
-            end = min(segment.end, max(cursor + 0.01, end))
-            blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(end)}\n{cue}\n")
+            cue_end = cursor + span * weight / total
+            cue_end = min(end_limit, max(cursor + 0.01, cue_end))
+            blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(cue_end)}\n{cue}\n")
             index += 1
-            cursor = end
+            cursor = cue_end
+        previous_end = cursor
     return "\n".join(blocks)
 
 
@@ -79,6 +83,7 @@ def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
         "Format: Layer, Start, End, Style, Text\n"
     )
     events = []
+    previous_end = 0.0
     def ass_time(value: float) -> str:
         h = int(value // 3600)
         m = int((value % 3600) // 60)
@@ -88,17 +93,16 @@ def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
         cues = _caption_cues(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
         weights = [max(1, len(cue.replace("\n", " "))) for cue in cues]
         total_weight = sum(weights)
-        span = max(0.01, segment.end - segment.start)
-        cursor = segment.start
+        start = max(float(segment.start), previous_end)
+        end_limit = max(start + 0.01, float(segment.end))
+        span = max(0.01, end_limit - start)
+        cursor = start
         for cue, weight in zip(cues, weights):
-            cue_end = min(segment.end, cursor + span * weight / total_weight)
-            if cue_end <= cursor:
-                cue_end = cursor + 0.01
+            cue_end = min(end_limit, max(cursor + 0.01, cursor + span * weight / total_weight))
             display = cue.replace("\\", "/").replace("{", "(").replace("}", ")").replace("\n", r"\N")
-            events.append(
-                f"Dialogue: 0,{ass_time(cursor)},{ass_time(cue_end)},Default,{display}"
-            )
+            events.append(f"Dialogue: 0,{ass_time(cursor)},{ass_time(cue_end)},Default,{display}")
             cursor = cue_end
+        previous_end = cursor
     return header + "\n".join(events) + "\n"
 
 
