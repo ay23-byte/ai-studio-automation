@@ -10,7 +10,7 @@ parser.add_argument("--output", required=True)
 parser.add_argument("--width", type=int, required=True)
 parser.add_argument("--height", type=int, required=True)
 parser.add_argument("--fps", type=int, required=True)
-parser.add_argument("--scene-kind", choices=("blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon", "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine"), default="blender_orbit")
+parser.add_argument("--scene-kind", choices=("blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon", "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine", "blender_magnetic_field"), default="blender_orbit")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 if not (64 <= args.width <= 3840 and 64 <= args.height <= 3840 and 1 <= args.fps <= 60):
     raise ValueError("Unsupported render dimensions or frame rate")
@@ -151,6 +151,66 @@ def build_earth_globe():
     earth.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
 
 
+def build_magnetic_field():
+    """Conceptual dipole field around Earth, with animated tracer particles."""
+    earth = sphere("Earth (schematic)", 1.15, (0, 0, 0), (0.025, 0.18, 0.62), metallic=0.08)
+    for name, location, scale in (
+        ("Land 1", (-0.35, 0.38, -0.82), (0.42, 0.26, 0.12)),
+        ("Land 2", (0.38, -0.18, -0.88), (0.30, 0.38, 0.12)),
+        ("Land 3", (0.62, 0.55, -0.70), (0.36, 0.20, 0.10)),
+    ):
+        patch = sphere(name, 0.45, location, (0.10, 0.42, 0.20))
+        patch.scale = scale
+        patch.parent = earth
+    field_root = bpy.data.objects.new("Magnetic dipole reversal animation", None)
+    bpy.context.collection.objects.link(field_root)
+    north_marker = sphere("Magnetic north marker", 0.10, (0, 1.17, 0), (1.0, 0.22, 0.10), emission=0.8)
+    south_marker = sphere("Magnetic south marker", 0.10, (0, -1.17, 0), (0.10, 0.45, 1.0), emission=0.8)
+    north_marker.parent = field_root
+    south_marker.parent = field_root
+    field_root.rotation_euler[2] = 0
+    field_root.keyframe_insert(data_path="rotation_euler", frame=1)
+    field_root.rotation_euler[2] = math.pi
+    field_root.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
+    if field_root.animation_data and field_root.animation_data.action:
+        for fc in field_root.animation_data.action.fcurves:
+            for key in fc.keyframe_points:
+                key.interpolation = "LINEAR"
+    # Dipole-like loops r=L sin(theta)^2; conceptual, not measured data.
+    for index, L in enumerate((1.55, 1.9, 2.25, 2.6)):
+        curve = bpy.data.curves.new(f"Dipole field loop {index+1}", "CURVE")
+        curve.dimensions = "3D"
+        curve.bevel_depth = 0.018
+        curve.bevel_resolution = 3
+        spline = curve.splines.new("POLY")
+        points = []
+        for j in range(160):
+            theta = math.pi * j / 159
+            radius = L * math.sin(theta) ** 2
+            points.append((radius * math.sin(theta), radius * math.cos(theta), 0.0))
+        spline.points.add(len(points)-1)
+        for point, co in zip(spline.points, points):
+            point.co = (*co, 1)
+        obj = bpy.data.objects.new(curve.name, curve)
+        bpy.context.collection.objects.link(obj)
+        obj.parent = field_root
+        curve.materials.append(material(f"Field line {index+1}", (0.08, 0.52, 1.0), emission=0.5))
+        tracer = sphere(f"Field tracer {index+1}", 0.055, (0, 0, 0), (0.35, 0.85, 1.0), emission=1.2)
+        tracer.parent = field_root
+        for frame in range(1, scene.frame_end + 1):
+            theta = math.pi * ((frame - 1) / scene.frame_end)
+            radius = L * math.sin(theta) ** 2
+            tracer.location = (radius * math.sin(theta), radius * math.cos(theta), -0.04)
+            tracer.keyframe_insert(data_path="location", frame=frame)
+        if tracer.animation_data and tracer.animation_data.action:
+            for fc in tracer.animation_data.action.fcurves:
+                for key in fc.keyframe_points:
+                    key.interpolation = "LINEAR"
+    earth.rotation_euler[2] = 0
+    earth.keyframe_insert(data_path="rotation_euler", frame=1)
+    earth.rotation_euler[2] = 0.35
+    earth.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
+
 def build_volcano():
     bpy.ops.mesh.primitive_cone_add(vertices=64, radius1=1.85, radius2=0.35, depth=2.6, location=(0, 0, 0.3))
     cone = bpy.context.object
@@ -233,6 +293,7 @@ builders = {
     "blender_volcano": build_volcano,
     "blender_satellite": build_satellite,
     "blender_turbine": build_turbine,
+    "blender_magnetic_field": build_magnetic_field,
 }
 builders[args.scene_kind]()
 
@@ -257,6 +318,7 @@ label.data.body = {
     "blender_volcano": "VOLCANO CROSS-SECTION — SCHEMATIC",
     "blender_satellite": "SATELLITE ORBIT — CONCEPTUAL MODEL",
     "blender_turbine": "WIND TURBINE — CONCEPTUAL MODEL",
+    "blender_magnetic_field": "EARTH MAGNETIC FIELD — DIPOLE SCHEMATIC",
 }[args.scene_kind]
 label.data.size = 0.20
 label.data.materials.append(material("Label", (0.8, 0.9, 1.0), emission=0.8))
