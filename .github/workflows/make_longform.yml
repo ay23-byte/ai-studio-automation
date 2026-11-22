@@ -261,6 +261,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
+          FOOTAGE_MAX_DOWNLOAD_ATTEMPTS: "8"
+          FOOTAGE_CANDIDATE_VISION_MAX_PER_SCENE: "4"
           TTS_ENGINE: "chatterbox"
           TTS_REQUIRE_ENGINE: "chatterbox"
           ALLOW_CHATTERBOX_ON_CI: "true"
