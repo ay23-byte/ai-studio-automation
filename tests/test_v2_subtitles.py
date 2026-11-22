@@ -55,6 +55,24 @@ class SubtitleTests(unittest.TestCase):
         self.assertIn("[V4+ Styles]", ass)
         self.assertIn("Dialogue:", ass)
 
+    def test_documentary_captions_group_readable_lines_instead_of_tiny_fragments(self):
+        long = [NarrationSegment(
+            "s1",
+            "Earth's magnetic field is generated deep inside the planet by the movement of molten iron in the outer core.",
+            0.0, 8.0, "a.wav", "mock"
+        )]
+        srt = build_subtitles(long, self.config)
+        cues = parse_srt(srt)
+        self.assertLessEqual(len(cues), 2)
+        self.assertTrue(all(len(text.split()) >= 4 for _, _, text in cues))
+        self.assertTrue(all(len(text) <= 130 for _, _, text in cues))
+
+    def test_ass_captions_use_two_line_breaks_and_landscape_documentary_canvas(self):
+        ass = build_ass(segments(), self.config)
+        self.assertIn("PlayResX: 1920", ass)
+        self.assertIn("PlayResY: 1080", ass)
+        self.assertIn(r"\\N", ass)
+
 
 if __name__ == "__main__":
     unittest.main()
