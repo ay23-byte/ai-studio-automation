@@ -274,7 +274,7 @@
     "scripts/map_wan_assets_to_storyboard.py": "e083a30fa2c015a9fbb5a7c8db1655dfb502a3448ee58ac899aa9c7d298132ca",
     "scripts/package_build_for_review.py": "6c8dbd0f9538cec99055f3d93442355bfcefa62b49a05007aeb1581bf3d537ea",
     "scripts/package_daily_news_review.py": "273109db55684936e337d1380d489951184b71eaec4060749c535a1d9e63776f",
-    "scripts/package_longform_review.py": "567e420e0835b73980bcae52911834c31853ef450435c25bb2829b43e4632c83",
+    "scripts/package_longform_review.py": "d5238d5a9c071a9bf0eb725152a443ed26aae888b453f0843bf91a54f04f0290",
     "scripts/package_standard_short_review.py": "8f4b63f604808c6bcdc3598daceee616795b3acd19dc613ce36b31f52bf0bc89",
     "scripts/persist_state.py": "f55020d7ef2d80f79a6693bb507069227ac8217c0c07bf09e6d122e2f3bef175",
     "scripts/prepare_news_short_assets.py": "18af4ce73a5e9237cc11aa44a194b7b2f5df3587e0daca398023c190f94b7dd4",
