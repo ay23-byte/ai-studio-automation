@@ -19,7 +19,8 @@ def timestamp(seconds: float) -> str:
 
 
 def _split_text(text: str, max_words: int, max_chars: int) -> list[str]:
-    words = text.replace("\n", " ").split()
+    """Wrap a sentence into readable caption lines without fragmenting every few words."""
+    words = text.replace("\\n", " ").split()
     lines: list[str] = []
     current: list[str] = []
     for word in words:
@@ -34,24 +35,10 @@ def _split_text(text: str, max_words: int, max_chars: int) -> list[str]:
     return lines or [""]
 
 
-def build_subtitles(segments: list[NarrationSegment], config: V2Config) -> str:
-    rules = config.rules_for("news_short")  # shared tight reading limits
-    blocks: list[str] = []
-    index = 1
-    for segment in segments:
-        lines = _split_text(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
-        span = max(0.01, segment.end - segment.start)
-        weights = [max(1, len(line)) for line in lines]
-        total = sum(weights)
-        cursor = segment.start
-        for line, weight in zip(lines, weights):
-            end = segment.start + span * (weight / total) if cursor < segment.end else segment.end
-            if end <= cursor:
-                end = cursor + 0.01
-            blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(end)}\n{line}\n")
-            index += 1
-            cursor = end
-    return "\n".join(blocks)
+def _caption_cues(text: str, max_words: int, max_chars: int) -> list[str]:
+    """Group wrapped lines into one- or two-line cues, never tiny one-line fragments."""
+    lines = _split_text(text, max_words, max_chars)
+    return ["\\n".join(lines[index:index + 2]) for index in range(0, len(lines), 2)]
 
 
 def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
