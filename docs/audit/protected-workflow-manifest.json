@@ -148,7 +148,7 @@
     ".github/workflows/news-story-review.yml": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
     ".github/workflows/news-visual-asset-review.yml": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
     ".github/workflows/openvino-ltx-local-gpu.yml": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
-    ".github/workflows/regenerate-protected-manifest.yml": "1c90b5b0730ec8f7b9c5b11186f7257f64c387c2b901db39cecd1add57cd3b66",
+    ".github/workflows/regenerate-protected-manifest.yml": "d69aac506f901d96cd3bf03ae1b0b1005f9d5e0af076bc46b14d521564c8099e",
     ".github/workflows/release_documentary_auto.yml": "61339b9866d963ffe5c0d97aa544282980a10ada72b3ff50baeea1f0b1be5c4c",
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
@@ -179,6 +179,7 @@
     "core/daily_news_pipeline.py": "09c5692fda86e97e809410a6bee6b74e09f922720495eef0016c985f69fb4531",
     "core/db.py": "e6c2a4baa0ffeaae147cf44c996c06e6b9b4b1e2d18ae5897b33b0789a4c88f7",
     "core/dedupe.py": "61e03294e6375abb4d266d0c63f6c150a38134d654048fe278077b356e202d1f",
+    "core/documentary_editorial_qa.py": "cd8cf2c52d9895d2cfe8fad154151d8bd5f2904acf70ed69afd5c080e1893816",
     "core/documentary_edl.py": "5c3ef0fdc729425a860d920d194294bccfea1981aa5f9d98abf3c875e39fcb4d",
     "core/documentary_storyboard.py": "c9482d077fc7d42cb8bb853666cc012298d4f7e9f8428e11bc0575193b6efc25",
     "core/downloads.py": "8df346e8b36dfb3db7848fb4793e1f3fc1de6baa1187ad5b8991cba6e4deb195",
@@ -247,7 +248,7 @@
     "core/topics.py": "f805ae349e75e8cff9bf03e17b0e7de2ce18e8f94bff6ed9959bd0e2905c9b62",
     "core/uploader.py": "6f0012e52d1b03ff4120267b9c829c7b27521da125a2c413486e98f1cc04e818",
     "core/visual_consistency.py": "3e20b9d4f06ef2c0f687d5f1c6482fcf09555edb0eebd77b3156e9848bcbf2a8",
-    "core/visual_production.py": "814cda165f1033a285a660b734ff58f21eeb49ea571c59e9bc9fb38814a3fc0d",
+    "core/visual_production.py": "3f0ddaf89e072ed81cd4a92872956820d186bb00df34bc0773602fa60ff83589",
     "core/visual_semantics.py": "56fb5f5b5d18817966c2743c1de705a1d0e749431a55ba71fb039d5028f87b22",
     "core/voice.py": "92ba86e24c6f120e672cc286b6780020742ecef578d1069067e71ab0e07d2cd0",
     "core/wan_timeline_adapter.py": "e94ad8165de8a0eb866f7ba0d5b98d52d80191f56cdd9b73e9659ddbaa8684fd",
@@ -321,7 +322,7 @@
     "src/production_v2/research.py": "d941215df89a1232263cca5e5105dc748696ff6f7a18554d78966d527e239889",
     "src/production_v2/retry.py": "ba5f9a7ebcfa3b513c33b336e323f234d515409dcc7c3447ef5bbe4fe8071dc7",
     "src/production_v2/script_engine.py": "67dcf76ce034a87afd4443526bedb18cd02f7c7d6701e73649aca71a03123a07",
-    "src/production_v2/subtitles.py": "7e2a1ff3f50a6da60594ed1b7bf6a084ddfcfa3e5d15544df988fba9dfc8e94d",
+    "src/production_v2/subtitles.py": "16214ba6139d546914105cb259bbff57c87875e0b22f9085fdecf5f66edcca1a",
     "src/production_v2/topics.py": "0a9283bc02f432d6541b91a0e017c2ccd8178bccab31f457ac6723e68e0792f6",
     "src/production_v2/visuals.py": "e7c4d08e5b10ddd173f89534c526d624587033311cec8a2bd3a214afd692fb46",
     "run.py": "8a5c52df91697615097f9ecd481902fef9f2618d8fc56a1567b7c0e2741e78c1",
@@ -1871,9 +1872,9 @@
       "upload_lines": []
     },
     "regenerate-protected-manifest.yml": {
-      "sha256": "1c90b5b0730ec8f7b9c5b11186f7257f64c387c2b901db39cecd1add57cd3b66",
+      "sha256": "d69aac506f901d96cd3bf03ae1b0b1005f9d5e0af076bc46b14d521564c8099e",
       "display_name": "Regenerate protected manifest",
-      "on_sha256": "cd70d7ddae62d6771a2ed4e9ba178306361aca6cc37cecc64d0c161a4873f4b4",
+      "on_sha256": "a42271f2bc110414b4156d6b4b626a20e6eb5a09701f4e782774ab7e6c1006dd",
       "triggers": [
         "push"
       ],
