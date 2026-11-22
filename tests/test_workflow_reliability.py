@@ -105,23 +105,21 @@ class ActionVersionTests(unittest.TestCase):
         self.assertIn("REQUIRE_ASSET_PROVENANCE: \"1\"", release)
         self.assertIn("shorts-review-${{ github.run_id }}", release)
 
-    def test_daily_news_workflow_uses_guarded_private_autorelease(self):
+    def test_daily_news_workflow_builds_for_review_and_never_uploads(self):
         text = _text("daily-news-auto-short.yml")
-        self.assertIn("run_daily_news_short.py --upload", text)
+        self.assertNotIn("run_daily_news_short.py --upload", text)
         self.assertNotIn("--upload-after-recovery", text)
         # Production news must fail closed instead of publishing generic template filler.
         self.assertNotIn('NEWS_TEMPLATE_FALLBACK: "1"', text)
         self.assertIn("No generic template fallback", text)
-        self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload", text)
-        self.assertNotIn('if [ "$result" -eq 3 ]', text)
-        self.assertNotIn("review handoff; never bypass", text)
-        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", text)
-        self.assertIn('PRIVACY: "private"', text)
-        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', text)
-        self.assertIn('YT_CHANNEL_VERIFY: "1"', text)
-        self.assertIn('UPLOAD_REQUESTED: "true"', text)
+        self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py", text)
+        self.assertIn("Release approved Short (Private)", text)
+        self.assertNotIn("YT_REFRESH_TOKEN", text)
+        self.assertNotIn("YT_CLIENT_SECRET", text)
+        self.assertNotIn("YT_CLIENT_ID", text)
+        self.assertNotIn("YT_CHANNEL_VERIFY", text)
+        self.assertIn('UPLOAD_REQUESTED: "false"', text)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
-        self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', text)
         self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', text)
 
 
@@ -254,7 +252,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "daily-news-auto-short.yml", "make_shorts.yml", "release_documentary_auto.yml")))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "make_shorts.yml", "release_documentary_auto.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
