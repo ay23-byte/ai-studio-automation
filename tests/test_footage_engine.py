@@ -613,6 +613,30 @@ class EngineTests(_Temp):
         self.assertEqual(scene["status"], "needs_manual_review")
         self.assertIn("scene brief match below", scene["reason"])
 
+    @needs_ffmpeg
+    @patch("core.visual_semantics.verify_shot_semantics")
+    @patch("core.config.GEMINI_API_KEY", "test-key")
+    def test_screens_more_ranked_candidates_after_visual_mismatches(self, verify):
+        # The engine should continue through ranked candidates after vision rejects
+        # the first two, rather than giving up and rendering a fallback card.
+        files = {f"https://p/{i}.mp4": self.clip_bytes(f"candidate{i}") for i in range(3)}
+        provider = Provider("P", lambda q: [
+            _lead("P", str(i), "Steam train", f"https://p/{i}.mp4",
+                  declared_width=1920, declared_height=1080) for i in range(3)
+        ])
+        verify.side_effect = [
+            {"status": "mismatch", "match_score": 0.1, "concerns": ["wrong subject"]},
+            {"status": "mismatch", "match_score": 0.2, "concerns": ["wrong scene"]},
+            {"status": "match", "match_score": 0.9},
+        ]
+        with patch.dict(os.environ, {"FOOTAGE_MAX_DOWNLOAD_ATTEMPTS": "3",
+                                    "FOOTAGE_CANDIDATE_VISION_MAX_PER_SCENE": "3"}):
+            ok, _ = self.run_scene([provider], files, prompt="steam train locomotive")
+        self.assertTrue(ok)
+        self.assertEqual(verify.call_count, 3)
+        scene = self.report.to_dict()["scenes"][0]
+        self.assertEqual(scene["selected"]["asset_id"], "2")
+
     def test_invalid_file_is_skipped_and_the_next_candidate_is_used(self):
         files = {"https://a/page.mp4": b"<!DOCTYPE html>" + b"denied " * 20000,
                  "https://b/good.mp4": self.clip_bytes("good")}
