@@ -274,6 +274,8 @@ jobs:
           # no native rate control in this adapter; this is a small tempo change.
           CHATTERBOX_PLAYBACK_SPEED: "0.98"
           TTS_PAUSE_SCALE: "1.4"
+          VOICE_COMPRESSOR_RATIO: "2.0"
+          VOICE_COMPRESSOR_MAKEUP_DB: "1.0"
           PRESENTER_ENABLED: ${{ needs.request.outputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ needs.request.outputs.presenter_mode }}
           LONGFORM_VISUAL_MODE: ${{ needs.request.outputs.visual_mode }}
