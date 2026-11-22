@@ -1,0 +1,32 @@
+name: Regenerate protected manifest
+on:
+  push:
+    branches:
+      - fix/documentary-visual-coverage-retries
+      - fix/documentary-search-and-animations
+permissions:
+  contents: write
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regenerate manifest from this checkout
+        run: python scripts/audit/generate_protected_manifest.py
+      - name: Commit manifest if changed
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/audit/protected-workflow-manifest.json
+          if git diff --cached --quiet; then
+            echo 'Manifest is already current.'
+          else
+            git commit -m 'Regenerate protected workflow manifest'
+            git push
+          fi
