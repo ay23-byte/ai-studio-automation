@@ -311,13 +311,13 @@ def acquire(queries: list[str], path, used_ids: set, *, scene_prompt: str = "", 
         ranked.append(candidate)
     ranked.sort(key=lambda item: -item["rank"]["rank_score"])
 
-    attempts = int(max(1, _number("FOOTAGE_MAX_DOWNLOAD_ATTEMPTS", 6)))
+    attempts = int(max(1, _number("FOOTAGE_MAX_DOWNLOAD_ATTEMPTS", 8)))
     # Vision calls are deliberately bounded: each scene screens at most two
     # downloaded candidates by default. Unscreened candidates are never silently
     # accepted; if neither candidate matches, the scene remains unresolved and
     # the existing release gate blocks the upload.
     vision_enabled = os.getenv("FOOTAGE_CANDIDATE_VISION_SCREENING", "1").strip().lower() not in {"0", "false", "no", "off"}
-    vision_limit = int(max(1, _number("FOOTAGE_CANDIDATE_VISION_MAX_PER_SCENE", 2))) if vision_enabled and scene_prompt else attempts
+    vision_limit = int(max(1, _number("FOOTAGE_CANDIDATE_VISION_MAX_PER_SCENE", 4))) if vision_enabled and scene_prompt else attempts
     candidate_limit = min(attempts, vision_limit)
     tried = []
     for candidate in ranked[:candidate_limit]:
