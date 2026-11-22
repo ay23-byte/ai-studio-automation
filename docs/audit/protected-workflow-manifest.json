@@ -246,7 +246,7 @@
     "core/visual_consistency.py": "3e20b9d4f06ef2c0f687d5f1c6482fcf09555edb0eebd77b3156e9848bcbf2a8",
     "core/visual_production.py": "814cda165f1033a285a660b734ff58f21eeb49ea571c59e9bc9fb38814a3fc0d",
     "core/visual_semantics.py": "56fb5f5b5d18817966c2743c1de705a1d0e749431a55ba71fb039d5028f87b22",
-    "core/voice.py": "5ec1645ef9953e3c5c4561ae28fd2605360273279190efa19eb3f4628c9cc767",
+    "core/voice.py": "12588d29fdc56e85ff916b45072467d76d35f46ba38ec7bc1e60b4afb74cc62d",
     "core/wan_timeline_adapter.py": "e94ad8165de8a0eb866f7ba0d5b98d52d80191f56cdd9b73e9659ddbaa8684fd",
     "core/wikimedia_images.py": "42efe28f812e572acbe1ca56e251cee39024acb842f9b24418fec054257eae39",
     "core/workflow_audit.py": "67e95cc953555624b25ef763e1728bd28504ffab9a3681b480d009b7b84671ce",
@@ -1212,7 +1212,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "086fcb83c09e17bef8f024aea16711419ed0dfe28704a40b9fff018914e9151d",
+      "sha256": "7fe90a3dd400c42677bc89caa906dd047daaf585d39ec3864bde848082f7db0c",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
@@ -2161,6 +2161,34 @@
       "privacy_lines": [
         "PRIVACY: \"private\""
       ],
+      "upload_lines": []
+    },
+    "longform-voice-audition.yml": {
+      "sha256": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
+      "display_name": "Internal — Long-form narration voice audition",
+      "on_sha256": "",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "longform-voice-audition"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
       "upload_lines": []
     }
   }
