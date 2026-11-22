@@ -127,6 +127,7 @@ class ProviderCascadeTests(unittest.TestCase):
 
     def test_no_provider_at_all_fails_with_an_actionable_message(self):
         with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict("os.environ", {"TTS_ENGINE": "edge"}), \
              patch.object(voice, "edge_tts", None), \
              patch("shutil.which", return_value=None):
             with self.assertRaisesRegex(voice.VoiceProviderUnavailable, "No narration provider is available"):

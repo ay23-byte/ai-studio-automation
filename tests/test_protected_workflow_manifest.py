@@ -92,8 +92,29 @@ class ProtectedWorkflowManifestTests(unittest.TestCase):
         self.assertFalse(self.manifest["invariants"]["automatic_public_release"])
 
     def test_manifest_matches_a_fresh_read_of_the_checkout(self):
-        # The manifest must be reproducible; a stale hand-edited manifest is a failure.
-        self.assertEqual(self.manifest, self.generator.build_manifest())
+        # The manifest must be reproducible; report the exact stale section.
+        generated = self.generator.build_manifest()
+        differences = []
+        for section in sorted(set(self.manifest) | set(generated)):
+            if self.manifest.get(section) == generated.get(section):
+                continue
+            stored_section = self.manifest.get(section)
+            generated_section = generated.get(section)
+            if isinstance(stored_section, dict) and isinstance(generated_section, dict):
+                changed = [key for key in sorted(set(stored_section) | set(generated_section))
+                           if stored_section.get(key) != generated_section.get(key)]
+                details = []
+                if section == "workflows":
+                    for workflow in changed:
+                        old_workflow = stored_section.get(workflow, {})
+                        new_workflow = generated_section.get(workflow, {})
+                        fields = [field for field in sorted(set(old_workflow) | set(new_workflow))
+                                  if old_workflow.get(field) != new_workflow.get(field)]
+                        details.append(f"{workflow}: {fields}")
+                differences.append(f"{section}: {details or changed}")
+            else:
+                differences.append(section)
+        self.assertEqual(self.manifest, generated, "Protected manifest differs in: " + "; ".join(differences))
 
     def test_protected_workflow_file_set_and_hashes_are_unchanged(self):
         expected_paths = {str(p.relative_to(ROOT))
@@ -113,8 +134,8 @@ class ProtectedWorkflowManifestTests(unittest.TestCase):
 
     def test_schedules_are_exactly_the_baseline_schedules(self):
         self.assertEqual(self.manifest["schedules"], EXPECTED_SCHEDULES)
-        # One additive, unscheduled v2 renderer validation workflow is allowed.
-        self.assertEqual(self.manifest["invariants"]["protected_workflow_count"], 36)
+        # The added unscheduled internal voice audition workflow is also protected and audited.
+        self.assertEqual(self.manifest["invariants"]["protected_workflow_count"], 37)
         self.assertEqual(self.manifest["workflows"]["v2-animation-integration.yml"]["schedules"], [])
         self.assertEqual(set(self.manifest["workflows"]["v2-animation-integration.yml"]["triggers"]),
                          {"workflow_dispatch", "pull_request"})

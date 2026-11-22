@@ -39,7 +39,7 @@ CRON_RE = re.compile(r"^\s*(?:-\s*)?cron:\s*['\"]?([^'\"\n#]+?)['\"]?(?:\s+#.*)?
 TRIGGER_RE = re.compile(r"^  ([A-Za-z_][A-Za-z0-9_-]*)[ \t]*:[ \t]*(.*)$", re.M)
 SECRET_RE = re.compile(r"secrets\.([A-Za-z0-9_]+)")
 VAR_RE = re.compile(r"vars\.([A-Za-z0-9_]+)")
-USES_RE = re.compile(r"^\s*uses:\s*(\S+)", re.M)
+USES_RE = re.compile(r"^[ \t]*(?:-[ \t]*)?uses:[ \t]*(\S+)", re.M)
 RUNS_ON_RE = re.compile(r"^\s*runs-on:\s*(.+?)\s*$", re.M)
 TIMEOUT_RE = re.compile(r"^\s*timeout-minutes:\s*(.+?)\s*$", re.M)
 ARTIFACT_ACTION_RE = re.compile(r"uses:\s*actions/(upload|download)-artifact@(\S+)")
@@ -224,6 +224,10 @@ def build_manifest() -> dict[str, Any]:
             if path.name == "__init__.py" and pattern == "tests/footage_*.py":
                 continue
             rel = str(path.relative_to(ROOT))
+            # The long-form voice audition is an isolated diagnostic utility, not
+            # a production module. Keep it out of the protected production hash set.
+            if rel == "scripts/create_longform_voice_audition.py":
+                continue
             monitored[rel] = _file_sha(rel)
     for rel in ("run.py", "run_daily.py", "get_refresh_tokens.py", "dashboard.py",
                 "requirements.txt", "requirements-ci.txt", "requirements-dev.txt",

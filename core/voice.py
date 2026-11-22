@@ -311,7 +311,13 @@ def _join(wavs, pauses, out, speed=1.0):
         filters.append(f"[{i}:a]aresample=44100,atempo={max(0.5, min(float(speed), 2.0)):.3f}{pad}[a{i}]")
     filters.append("".join(f"[a{i}]" for i in range(len(wavs))) +
                    f"concat=n={len(wavs)}:v=0:a=1[cat]")
-    filters.append("[cat]highpass=f=70,acompressor=threshold=-18dB:ratio=3:attack=5:release=60:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
+    # Keep documentary speech present without crushing its natural dynamics.
+    try:
+        ratio = max(1.0, min(float(os.getenv("VOICE_COMPRESSOR_RATIO", "2.2")), 5.0))
+        makeup = max(0.0, min(float(os.getenv("VOICE_COMPRESSOR_MAKEUP_DB", "1.0")), 6.0))
+    except ValueError:
+        ratio, makeup = 2.2, 1.0
+    filters.append(f"[cat]highpass=f=70,acompressor=threshold=-20dB:ratio={ratio:.2f}:attack=8:release=100:makeup={makeup:.2f},loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[vo]",
                     "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(out)], check=True, timeout=render_timeout())
@@ -623,16 +629,17 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
 
     global _LAST_EDGE_FAILURES
     _LAST_EDGE_FAILURES = []
-    requested_engine = os.getenv("TTS_ENGINE", "edge").strip().lower()
+    requested_engine = os.getenv("TTS_ENGINE", "chatterbox").strip().lower()
     engine = requested_engine
     fallback_reason = None
-    require_requested_engine = os.getenv("TTS_REQUIRE_ENGINE", "").strip().lower() == requested_engine
+    require_requested_engine = (os.getenv("TTS_REQUIRE_ENGINE", "").strip().lower() == requested_engine
+                               or requested_engine == "chatterbox")
     is_ci = os.getenv("CI", "").strip().lower() == "true" or os.getenv("GITHUB_ACTIONS", "").strip().lower() == "true"
     allow_chatterbox_ci = os.getenv("ALLOW_CHATTERBOX_ON_CI", "").strip().lower() == "true"
     if engine == "chatterbox" and is_ci and not allow_chatterbox_ci:
-        fallback_reason = "Chatterbox CI inference was not explicitly enabled; trying Edge TTS first."
-        print("WARNING: " + fallback_reason)
-        engine = "edge"
+        raise VoiceProviderUnavailable(
+            "Chatterbox is the required narration engine, but CI inference was not explicitly enabled; "
+            "refusing to switch to Edge TTS. Set ALLOW_CHATTERBOX_ON_CI=true in the workflow.")
     if require_requested_engine and engine != requested_engine:
         raise VoiceProviderUnavailable(
             f"Required narration engine '{requested_engine}' is not enabled in this environment; refusing fallback.")
