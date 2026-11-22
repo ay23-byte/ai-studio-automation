@@ -148,7 +148,7 @@
     ".github/workflows/news-story-review.yml": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
     ".github/workflows/news-visual-asset-review.yml": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
     ".github/workflows/openvino-ltx-local-gpu.yml": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
-    ".github/workflows/regenerate-protected-manifest.yml": "0986096cc367ad62327b32f865ddf53f2d2e993924ffeb078f799bdecbc8ec99",
+    ".github/workflows/regenerate-protected-manifest.yml": "1c90b5b0730ec8f7b9c5b11186f7257f64c387c2b901db39cecd1add57cd3b66",
     ".github/workflows/release_documentary_auto.yml": "61339b9866d963ffe5c0d97aa544282980a10ada72b3ff50baeea1f0b1be5c4c",
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
@@ -1871,7 +1871,7 @@
       "upload_lines": []
     },
     "regenerate-protected-manifest.yml": {
-      "sha256": "0986096cc367ad62327b32f865ddf53f2d2e993924ffeb078f799bdecbc8ec99",
+      "sha256": "1c90b5b0730ec8f7b9c5b11186f7257f64c387c2b901db39cecd1add57cd3b66",
       "display_name": "Regenerate protected manifest",
       "on_sha256": "cd70d7ddae62d6771a2ed4e9ba178306361aca6cc37cecc64d0c161a4873f4b4",
       "triggers": [
@@ -1885,13 +1885,15 @@
       "variables": [],
       "artifact_names": [],
       "actions": [
-        "actions/checkout@v4",
-        "actions/setup-python@v5"
+        "actions/checkout@v5",
+        "actions/setup-python@v6"
       ],
       "runs_on": [
         "ubuntu-latest"
       ],
-      "timeout_minutes": [],
+      "timeout_minutes": [
+        "10"
+      ],
       "privacy_lines": [],
       "upload_lines": []
     },
