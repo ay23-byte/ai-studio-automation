@@ -223,11 +223,11 @@ def build_manifest() -> dict[str, Any]:
         for path in sorted(ROOT.glob(pattern)):
             if path.name == "__init__.py" and pattern == "tests/footage_*.py":
                 continue
+            rel = str(path.relative_to(ROOT))
             # The long-form voice audition is an isolated diagnostic utility, not
             # a production module. Keep it out of the protected production hash set.
             if rel == "scripts/create_longform_voice_audition.py":
                 continue
-            rel = str(path.relative_to(ROOT))
             monitored[rel] = _file_sha(rel)
     for rel in ("run.py", "run_daily.py", "get_refresh_tokens.py", "dashboard.py",
                 "requirements.txt", "requirements-ci.txt", "requirements-dev.txt",
