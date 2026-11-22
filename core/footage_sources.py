@@ -1377,7 +1377,7 @@ def _expanded_queries(keywords, scene_prompt=""):
             if specific not in values:
                 values.append(specific)
     if _is_archival_video_request(keywords, scene_prompt):
-        base = next((item for item in values if item), str(scene_prompt or "").strip())
+        base = next((str(item).strip() for item in (keywords or []) if re.search(r"chernobyl|apollo|moon landing|saturn v", str(item), re.I)), str(scene_prompt or "").strip())
         if re.search(r"chernobyl", base, re.I):
             additions = ["Chernobyl 1986 disaster film", "Chernobyl nuclear accident 1986 evacuation", "Pripyat 1986 Soviet newsreel", "Chernobyl nuclear power plant 1986"]
         elif re.search(r"apollo|moon landing|saturn v", base, re.I):
