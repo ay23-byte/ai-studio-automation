@@ -60,7 +60,7 @@ def build_subtitles(segments: list[NarrationSegment], config: V2Config) -> str:
         span = max(0.01, segment.end - segment.start)
         cursor = segment.start
         for cue, weight in zip(cues, weights):
-            end = segment.start + span * (sum(weights[:index - 1]) + weight) / total if cursor < segment.end else segment.end
+            end = cursor + span * weight / total if cursor < segment.end else segment.end
             end = min(segment.end, max(cursor + 0.01, end))
             blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(end)}\n{cue}\n")
             index += 1
