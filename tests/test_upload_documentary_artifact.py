@@ -62,6 +62,32 @@ class DocumentaryUploadEvidenceTests(unittest.TestCase):
             self.assertEqual(report["release_mode"], "machine_only")
             self.assertEqual(report["shot_count"], 1)
 
+    def test_machine_only_release_allows_nonfatal_visual_review_warnings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._build(root)
+            path = root / "visual_consistency_report.json"
+            report = json.loads(path.read_text(encoding="utf-8"))
+            report["status"] = "REVIEW"
+            report["summary"]["review_count"] = 1
+            report["summary"]["fail_count"] = 0
+            report["summary"]["unavailable_count"] = 0
+            path.write_text(json.dumps(report), encoding="utf-8")
+            result = _validate_release_evidence(root, machine_only=True)
+            self.assertEqual(result["technical_review_warning_count"], 1)
+
+    def test_machine_only_release_still_blocks_hard_visual_failures(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._build(root)
+            path = root / "visual_consistency_report.json"
+            report = json.loads(path.read_text(encoding="utf-8"))
+            report["status"] = "FAIL"
+            report["summary"]["fail_count"] = 1
+            path.write_text(json.dumps(report), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Visual consistency report blocks upload"):
+                _validate_release_evidence(root, machine_only=True)
+
     def test_machine_only_release_honours_explicit_upload_block(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

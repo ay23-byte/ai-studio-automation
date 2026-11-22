@@ -46,6 +46,11 @@ def _extract_json(response: dict[str, Any]) -> dict[str, Any]:
         if start < 0 or end <= start:
             raise ValueError("Vision model response was not valid JSON.")
         value = json.loads(raw[start:end + 1])
+    # Some Gemini-compatible endpoints wrap a single structured object in
+    # a one-item JSON array despite responseMimeType=application/json. Accept
+    # only that unambiguous wrapper; never guess among multiple objects.
+    if isinstance(value, list) and len(value) == 1 and isinstance(value[0], dict):
+        value = value[0]
     if not isinstance(value, dict):
         raise ValueError("Vision model response must be a JSON object.")
     return value

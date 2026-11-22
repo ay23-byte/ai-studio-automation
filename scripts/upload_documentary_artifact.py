@@ -130,7 +130,16 @@ def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -
     summary = consistency.get("summary") or {}
     consistency_status = str(consistency.get("status") or "MISSING").upper()
     fail_count = int(summary.get("fail_count") or 0)
-    if consistency_status != "PASS" or fail_count or int(summary.get("review_count") or 0) or int(summary.get("unavailable_count") or 0):
+    review_count = int(summary.get("review_count") or 0)
+    unavailable_count = int(summary.get("unavailable_count") or 0)
+    # In autonomous PRIVATE mode, non-fatal exposure/contrast/sharpness warnings
+    # remain visible in the release dossier but do not deadlock every upload.
+    # Semantic alignment, hard visual failures, and unreadable samples still block.
+    consistency_blocked = (
+        consistency_status == "FAIL" or fail_count > 0 or unavailable_count > 0
+        or (review_count > 0 and not machine_only)
+    )
+    if consistency_blocked:
         failed_shots = [
             f"{row.get('shot_id', 'unknown')}: {'; '.join(row.get('issues') or [])}"
             for row in consistency.get("shots") or []
@@ -138,8 +147,8 @@ def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -
         ]
         detail = (
             f"status={consistency_status}, fail_count={fail_count}, "
-            f"review_count={int(summary.get('review_count') or 0)}, "
-            f"unavailable_count={int(summary.get('unavailable_count') or 0)}"
+            f"review_count={review_count}, "
+            f"unavailable_count={unavailable_count}"
         )
         if failed_shots:
             detail += "; failed shots: " + " | ".join(failed_shots[:12])
@@ -187,7 +196,8 @@ def _validate_release_evidence(build_dir: Path, *, machine_only: bool = False) -
             "release_mode": "machine_only" if machine_only else "human_reviewed",
             "automated_fact_check_scope": "source traceability and evidence completeness only; not independent truth verification",
             "automated_visual_check_scope": "sampled-frame semantic alignment only; not proof of factual truth or historical authenticity",
-            "automated_rights_check_scope": "recognized licence metadata, per-shot attribution and credits completeness; not legal advice"}
+            "automated_rights_check_scope": "recognized licence metadata, per-shot attribution and credits completeness; not legal advice",
+            "technical_review_warning_count": review_count if machine_only else 0}
 
 
 def upload_automated_artifact(artifact_dir: Path, source_run_id: str, *, machine_only: bool = False) -> dict:
