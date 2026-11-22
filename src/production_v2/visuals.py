@@ -208,7 +208,7 @@ def plan_visuals(scenes: list[Scene], store_root: Path, library: AssetLibrary,
                 # Use an isolated directory so a previous render cannot be mistaken for success.
                 scene_type = choice["type"]
                 if scene_type not in {"blender_orbit", "blender_solar_system", "blender_atom", "blender_earth_moon",
-                                      "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine"}:
+                                      "blender_earth_globe", "blender_volcano", "blender_satellite", "blender_turbine", "blender_magnetic_field"}:
                     raise ValueError(f"unsupported Blender scene: {scene_type}")
                 media_dir = Path(tempfile.mkdtemp(prefix=f"blender_{scene.id}_", dir=store_root))
                 frames = media_dir / "frame_"

@@ -23,6 +23,14 @@ class VisualRelevanceTests(unittest.TestCase):
         generic = _expanded_queries(["deep space nebula"], "astronomy")
         self.assertNotIn("deep space nebula India", generic)
 
+    def test_scene_prompt_is_included_and_scientific_queries_expand(self):
+        queries = _expanded_queries(["Earth", "core"], "Earth magnetic field reversal")
+        self.assertIn("Earth magnetic field reversal", queries)
+        self.assertIn("Earth magnetic field", queries)
+        self.assertIn("geomagnetic field lines", queries)
+        self.assertIn("magnetosphere solar wind", queries)
+        self.assertLessEqual(len(queries), 12)
+
     def test_category_styles_are_distinct(self):
         self.assertIn("historically grounded", _image_style("history").lower())
         self.assertIn("laboratory", _image_style("science").lower())

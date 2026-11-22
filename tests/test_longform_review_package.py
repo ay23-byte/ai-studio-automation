@@ -152,6 +152,28 @@ class LongformReviewPackageTests(unittest.TestCase):
                     self.assertIn(fragment, " ".join(report["failures"]))
                     self.assertFalse([item for item in report["failures"] if "audio channel" in item])
 
+
+    def test_editorial_visual_defects_block_technical_release_gate(self):
+        build, video = self._fixture()
+        visual_path = build / "visual_review_report.json"
+        visual = json.loads(visual_path.read_text(encoding="utf-8"))
+        visual["editorial_audit"] = {
+            "status": "FAIL",
+            "issues": [{
+                "level": "error", "shot": "shot_0001",
+                "code": "chart_without_data",
+                "message": "Chart has no structured labels and values.",
+            }],
+        }
+        visual_path.write_text(json.dumps(visual), encoding="utf-8")
+        with fake_media("longform"):
+            root = create_package(build, video, pipeline_job_id=42)
+        summary = json.loads((root / "package_summary.json").read_text(encoding="utf-8"))
+        technical = self.qa(root, "technical")
+        self.assertEqual(summary["status"], "FAIL")
+        self.assertEqual(technical["status"], "FAIL")
+        self.assertIn("Chart has no structured labels and values", " ".join(technical["failures"]))
+
     def test_quality_review_is_not_a_technical_failure_but_release_block_stays_blocking(self):
         root, _, summary = self.package(quality={
             "status": "REVIEW",

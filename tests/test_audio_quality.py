@@ -20,10 +20,10 @@ class AudioQualityTests(unittest.TestCase):
         self.video = self.root / "sample.mp4"
         self.video.write_bytes(b"placeholder")
 
-    def _loud_log(self, integrated="-16.2", peak="-2.0", lra="7.0"):
+    def _loud_log(self, integrated="-14.2", peak="-1.2", lra="7.0"):
         return json.dumps({
             "input_i": integrated, "input_tp": peak, "input_lra": lra,
-            "input_thresh": "-26.0", "output_i": "-16.0", "output_tp": "-1.8",
+            "input_thresh": "-26.0", "output_i": "-14.0", "output_tp": "-1.0",
             "output_lra": lra, "output_thresh": "-26.0", "target_offset": "0.2",
         })
 
@@ -31,7 +31,7 @@ class AudioQualityTests(unittest.TestCase):
         return subprocess.CompletedProcess(args=["ffmpeg"], returncode=0, stdout="", stderr=stderr)
 
     def test_parsers_read_loudness_clipping_and_silence(self):
-        self.assertEqual(_loudnorm_data(self._loud_log())["input_i"], -16.2)
+        self.assertEqual(_loudnorm_data(self._loud_log())["input_i"], -14.2)
         self.assertEqual(_clipped_samples("Number of samples out of range: 4"), 4)
         # Real astats output has no such counter; the Overall peak decides.
         clean = "[Parsed_astats_0] Channel: 1\nPeak level dB: 0.000000\n[Parsed_astats_0] Overall\nPeak level dB: -4.091496\nPeak count: 2.000000\n"
@@ -51,7 +51,7 @@ class AudioQualityTests(unittest.TestCase):
         ]
         report = inspect_audio(self.video)
         self.assertEqual(report["status"], "PASS")
-        self.assertEqual(report["metrics"]["integrated_lufs"], -16.2)
+        self.assertEqual(report["metrics"]["integrated_lufs"], -14.2)
         self.assertEqual(report["human_review_status"], "pending")
 
     @patch("core.audio_quality.subprocess.run")

@@ -197,7 +197,7 @@ All optional.
 |---|---|---|
 | `FOOTAGE_MIN_RELEVANCE` | 0.25 | Lowest text relevance accepted for an archive result |
 | `FOOTAGE_DIVERSITY_WEIGHT` | 0.25 | Strength of the penalty for reusing one provider |
-| `FOOTAGE_MAX_DOWNLOAD_ATTEMPTS` | 8 | Files tried per scene before giving up |
+| `FOOTAGE_MAX_DOWNLOAD_ATTEMPTS` | 6 | Files tried per scene before giving up |
 | `FOOTAGE_MAX_CLIP_MB` | 250 | Largest file fetched for one scene |
 | `FOOTAGE_MIN_WIDTH`, `FOOTAGE_MIN_HEIGHT` | 320, 240 | Smallest accepted picture |
 | `FOOTAGE_MIN_DURATION_SECONDS` | 2 | Shortest accepted clip |
@@ -226,6 +226,6 @@ All optional.
 - Footage from broadcasters, YouTube or news agencies is never downloaded.
 
 
-## Candidate retry policy
+## Scene-specific query expansion
 
-The documentary build screens up to four ranked downloads per scene (when Gemini vision screening is enabled) and tries up to eight ranked candidates. A rejected candidate is not accepted as filler: screening, licence, provenance, media and picture-quality gates still apply. This improves the chance of finding a relevant clip but may increase provider downloads and model calls; it does not guarantee coverage.
+Provider search includes the scene brief as a query in addition to keyword anchors, then adds bounded subject synonyms for selected science domains (geomagnetic fields, tectonics, volcanoes, oceans, glaciers, semiconductors and nuclear science). Queries are capped at 12 per scene; relevance and rights checks remain unchanged. This improves discovery but does not promise an eligible clip.

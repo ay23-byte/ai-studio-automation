@@ -19,60 +19,91 @@ def timestamp(seconds: float) -> str:
 
 
 def _split_text(text: str, max_words: int, max_chars: int) -> list[str]:
+    """Wrap narration into balanced, readable lines without tiny trailing fragments."""
     words = text.replace("\n", " ").split()
-    lines: list[str] = []
+    lines: list[list[str]] = []
     current: list[str] = []
     for word in words:
         candidate = " ".join(current + [word])
         if current and (len(current) >= max_words or len(candidate) > max_chars):
-            lines.append(" ".join(current))
+            lines.append(current)
             current = [word]
         else:
             current.append(word)
     if current:
-        lines.append(" ".join(current))
-    return lines or [""]
+        lines.append(current)
+    # A short final line is visually awkward. Borrow words from the previous line
+    # while respecting the same word and character limits.
+    while len(lines) > 1 and len(lines[-1]) < 4 and len(lines[-2]) > 4:
+        candidate = [lines[-2][-1]] + lines[-1]
+        if len(candidate) > max_words or len(" ".join(candidate)) > max_chars:
+            break
+        lines[-2].pop()
+        lines[-1] = candidate
+    return [" ".join(line) for line in lines] or [""]
+
+
+def _caption_cues(text: str, max_words: int, max_chars: int) -> list[str]:
+    """Group wrapped lines into one- or two-line cues, never tiny one-line fragments."""
+    lines = _split_text(text, max_words, max_chars)
+    return ["\n".join(lines[index:index + 2]) for index in range(0, len(lines), 2)]
 
 
 def build_subtitles(segments: list[NarrationSegment], config: V2Config) -> str:
-    rules = config.rules_for("news_short")  # shared tight reading limits
+    rules = config.rules_for("documentary")
     blocks: list[str] = []
     index = 1
+    previous_end = 0.0
     for segment in segments:
-        lines = _split_text(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
-        span = max(0.01, segment.end - segment.start)
-        weights = [max(1, len(line)) for line in lines]
+        cues = _caption_cues(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
+        weights = [max(1, len(cue.replace("\n", " "))) for cue in cues]
         total = sum(weights)
-        cursor = segment.start
-        for line, weight in zip(lines, weights):
-            end = segment.start + span * (weight / total) if cursor < segment.end else segment.end
-            if end <= cursor:
-                end = cursor + 0.01
-            blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(end)}\n{line}\n")
+        start = max(float(segment.start), previous_end)
+        end_limit = max(start + 0.01, float(segment.end))
+        span = max(0.01, end_limit - start)
+        cursor = start
+        for cue, weight in zip(cues, weights):
+            cue_end = cursor + span * weight / total
+            cue_end = min(end_limit, max(cursor + 0.01, cue_end))
+            blocks.append(f"{index}\n{timestamp(cursor)} --> {timestamp(cue_end)}\n{cue}\n")
             index += 1
-            cursor = end
+            cursor = cue_end
+        previous_end = cursor
     return "\n".join(blocks)
 
 
 def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
+    rules = config.rules_for("documentary")
+    font_size = 46 if rules.width > rules.height else 58
+    margin = 64 if rules.width > rules.height else 120
     header = (
-        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n\n"
+        f"[Script Info]\nScriptType: v4.00+\nPlayResX: {rules.width}\nPlayResY: {rules.height}\n\n"
         "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, Alignment, MarginV\n"
-        "Style: Default,Noto Sans,58,&H00FFFFFF,2,120\n\n[Events]\n"
+        f"Style: Default,Noto Sans,{font_size},&H00FFFFFF,2,{margin}\n\n[Events]\n"
         "Format: Layer, Start, End, Style, Text\n"
     )
-    lines = []
+    events = []
+    previous_end = 0.0
+    def ass_time(value: float) -> str:
+        h = int(value // 3600)
+        m = int((value % 3600) // 60)
+        s = value % 60
+        return f"{h:d}:{m:02d}:{s:05.2f}"
     for segment in segments:
-        text = segment.text.replace("\n", " ")[:120]
-        start = segment.start
-        end = segment.end
-        def ass_time(value: float) -> str:
-            h = int(value // 3600)
-            m = int((value % 3600) // 60)
-            s = value % 60
-            return f"{h:d}:{m:02d}:{s:05.2f}"
-        lines.append(f"Dialogue: 0,{ass_time(start)},{ass_time(end)},Default,{text}")
-    return header + "\n".join(lines) + "\n"
+        cues = _caption_cues(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
+        weights = [max(1, len(cue.replace("\n", " "))) for cue in cues]
+        total_weight = sum(weights)
+        start = max(float(segment.start), previous_end)
+        end_limit = max(start + 0.01, float(segment.end))
+        span = max(0.01, end_limit - start)
+        cursor = start
+        for cue, weight in zip(cues, weights):
+            cue_end = min(end_limit, max(cursor + 0.01, cursor + span * weight / total_weight))
+            display = cue.replace("\\", "/").replace("{", "(").replace("}", ")").replace("\n", r"\N")
+            events.append(f"Dialogue: 0,{ass_time(cursor)},{ass_time(cue_end)},Default,{display}")
+            cursor = cue_end
+        previous_end = cursor
+    return header + "\n".join(events) + "\n"
 
 
 @dataclass

@@ -67,8 +67,8 @@ def _silence_intervals(log: str) -> list[dict[str, float]]:
     return rows
 
 
-def inspect_audio(video_path: str | Path, target_lufs: float = -16.0,
-                  true_peak_target: float = -1.5, lra_target: float = 11.0,
+def inspect_audio(video_path: str | Path, target_lufs: float = -14.0,
+                  true_peak_target: float = -1.0, lra_target: float = 9.0,
                   body_seconds: float | None = None) -> dict[str, Any]:
     """Measure integrated loudness, true peak, clipped samples and long silences.
 
