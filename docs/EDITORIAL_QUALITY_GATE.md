@@ -19,7 +19,7 @@ This standard supplements codec, licence, source-provenance and semantic checks.
 ## Audio
 - Master target: -14 LUFS integrated, -1 dBTP ceiling, approximately 9 LU target loudness range.
 - Background ambience should remain roughly 15–20 dB below narration and be ducked while speech is present.
-- If no cleared music track is available, the renderer may generate a quiet original ambient drone; this is not a substitute for human listening review.
+- If no cleared music track is available, the renderer generates a quiet original ambient drone with slow modulation; this is not a substitute for human listening review.
 - Human review must listen to the complete export. Measurements alone cannot certify speech intelligibility or musical taste.
 
 ## Release
