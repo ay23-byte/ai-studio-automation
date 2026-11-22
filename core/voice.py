@@ -311,7 +311,13 @@ def _join(wavs, pauses, out, speed=1.0):
         filters.append(f"[{i}:a]aresample=44100,atempo={max(0.5, min(float(speed), 2.0)):.3f}{pad}[a{i}]")
     filters.append("".join(f"[a{i}]" for i in range(len(wavs))) +
                    f"concat=n={len(wavs)}:v=0:a=1[cat]")
-    filters.append("[cat]highpass=f=70,acompressor=threshold=-18dB:ratio=3:attack=5:release=60:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
+    # Keep documentary speech present without crushing its natural dynamics.
+    try:
+        ratio = max(1.0, min(float(os.getenv("VOICE_COMPRESSOR_RATIO", "2.2")), 5.0))
+        makeup = max(0.0, min(float(os.getenv("VOICE_COMPRESSOR_MAKEUP_DB", "1.0")), 6.0))
+    except ValueError:
+        ratio, makeup = 2.2, 1.0
+    filters.append(f"[cat]highpass=f=70,acompressor=threshold=-20dB:ratio={ratio:.2f}:attack=8:release=100:makeup={makeup:.2f},loudnorm=I=-16:TP=-1.5:LRA=11[vo]")
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[vo]",
                     "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(out)], check=True, timeout=render_timeout())
