@@ -162,8 +162,20 @@ def build_magnetic_field():
         patch = sphere(name, 0.45, location, (0.10, 0.42, 0.20))
         patch.scale = scale
         patch.parent = earth
-    sphere("Magnetic north marker", 0.10, (0, 1.17, 0), (1.0, 0.22, 0.10), emission=0.8)
-    sphere("Magnetic south marker", 0.10, (0, -1.17, 0), (0.10, 0.45, 1.0), emission=0.8)
+    field_root = bpy.data.objects.new("Magnetic dipole reversal animation", None)
+    bpy.context.collection.objects.link(field_root)
+    north_marker = sphere("Magnetic north marker", 0.10, (0, 1.17, 0), (1.0, 0.22, 0.10), emission=0.8)
+    south_marker = sphere("Magnetic south marker", 0.10, (0, -1.17, 0), (0.10, 0.45, 1.0), emission=0.8)
+    north_marker.parent = field_root
+    south_marker.parent = field_root
+    field_root.rotation_euler[2] = 0
+    field_root.keyframe_insert(data_path="rotation_euler", frame=1)
+    field_root.rotation_euler[2] = math.pi
+    field_root.keyframe_insert(data_path="rotation_euler", frame=scene.frame_end)
+    if field_root.animation_data and field_root.animation_data.action:
+        for fc in field_root.animation_data.action.fcurves:
+            for key in fc.keyframe_points:
+                key.interpolation = "LINEAR"
     # Dipole-like loops r=L sin(theta)^2; conceptual, not measured data.
     for index, L in enumerate((1.55, 1.9, 2.25, 2.6)):
         curve = bpy.data.curves.new(f"Dipole field loop {index+1}", "CURVE")
@@ -181,8 +193,10 @@ def build_magnetic_field():
             point.co = (*co, 1)
         obj = bpy.data.objects.new(curve.name, curve)
         bpy.context.collection.objects.link(obj)
+        obj.parent = field_root
         curve.materials.append(material(f"Field line {index+1}", (0.08, 0.52, 1.0), emission=0.5))
         tracer = sphere(f"Field tracer {index+1}", 0.055, (0, 0, 0), (0.35, 0.85, 1.0), emission=1.2)
+        tracer.parent = field_root
         for frame in range(1, scene.frame_end + 1):
             theta = math.pi * ((frame - 1) / scene.frame_end)
             radius = L * math.sin(theta) ** 2
