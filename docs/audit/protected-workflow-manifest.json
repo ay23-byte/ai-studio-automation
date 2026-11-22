@@ -11,7 +11,7 @@
     "production_privacy_status": "private",
     "public_publish_allowed_in_protected_workflows": false,
     "automatic_public_release": false,
-    "protected_workflow_count": 37,
+    "protected_workflow_count": 38,
     "protected_config_count": 3
   },
   "schedules": {
@@ -118,9 +118,6 @@
     "wan21-generated-clips"
   ],
   "immutable_files": {
-    ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
-    ".github/live-documentary-e2e-v2-trigger.txt": "049477ad63fd6cbf4ffbc6e3e019d027537b82d0f3b70a7ecae279dcf7c4621f",
-    ".github/production-trial-trigger.txt": "88989b0ae05ee3b4fe821bb40dd9618b471a5739a5fb6ca850ab9c51f0fc35e6",
     ".github/workflows/archival-documentary-production-trial.yml": "f70556ce04ea41bb4b0a1bd1ccdf094201893e1431b51a37f286c213d7014ad4",
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
@@ -141,7 +138,7 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-    ".github/workflows/make_longform.yml": "7fe90a3dd400c42677bc89caa906dd047daaf585d39ec3864bde848082f7db0c",
+    ".github/workflows/make_longform.yml": "8491158752e63b3b4340523c6b26a153a0722dd0ddf0b254deb8a08aa6e741e9",
     ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
@@ -151,17 +148,19 @@
     ".github/workflows/news-story-review.yml": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
     ".github/workflows/news-visual-asset-review.yml": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
     ".github/workflows/openvino-ltx-local-gpu.yml": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
+    ".github/workflows/regenerate-protected-manifest.yml": "1c90b5b0730ec8f7b9c5b11186f7257f64c387c2b901db39cecd1add57cd3b66",
     ".github/workflows/release_documentary_auto.yml": "61339b9866d963ffe5c0d97aa544282980a10ada72b3ff50baeea1f0b1be5c4c",
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
     ".github/workflows/v2-animation-integration.yml": "a0c0614c423c1f6934e8377aa13619c862f79990952447d39ecdf6f0e62c7c8a",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
-    ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505"
+    ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
+    ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
+    ".github/live-documentary-e2e-v2-trigger.txt": "049477ad63fd6cbf4ffbc6e3e019d027537b82d0f3b70a7ecae279dcf7c4621f",
+    ".github/production-trial-trigger.txt": "88989b0ae05ee3b4fe821bb40dd9618b471a5739a5fb6ca850ab9c51f0fc35e6"
   },
   "monitored_files": {
-    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb",
-    "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
     "core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "core/analytics.py": "9f9f0f99a0d97b2ea61aea71dbb74ec3c24b9121f4309e56a48c56cd97de67d3",
     "core/animation_integration.py": "d0cfb1b0a8066edcb6afeef37802cb89db21f1376ed93135208c7fba5a233ab0",
@@ -190,7 +189,7 @@
     "core/failure_category.py": "fa6e2ce61673d21e22abf699e77b5f53ba402ea33e4f29cf0800d9f66a3cb4d3",
     "core/ffmpeg_utils.py": "84972bef8e54df0bcd79704f1c27d3f4346654379f846bb697580a184e5f5e7b",
     "core/fonts.py": "60d80976685df8c50647a62d4a510672312f94701defeff33acab4f071202d58",
-    "core/footage_engine.py": "5636f6c331dd13070e882807bc3407926256aed9991ccaa771fe9494fd92d02c",
+    "core/footage_engine.py": "949ce746c758bb00f039ebd430a841949f2b84a4638d4d49c10efdca09feae1d",
     "core/footage_licence.py": "6cc615071c80d27aca164c420f534ac8a45b6aebd6cdbe9e7c69ef4ef2b4a7f5",
     "core/footage_report.py": "f998649be059339db3c8a9f763eddf03c2ae82ce352e55642b05c7bd24472f74",
     "core/footage_sources.py": "0e5ad0e14a426ae7186290d2c7bbd60a1c89eb1b846aecfe078304b8fb6fcd8a",
@@ -222,9 +221,9 @@
     "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
     "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
     "core/pipeline.py": "76702a7ad0e0bbb092d30febb014a446894cd884527232806887f3f524ce2ecd",
+    "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
     "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
-    "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/publish.py": "c683f011e1177110a839ea909a18736444e86fec185fc4b61816fddc2237e70f",
     "core/quality.py": "9b37de71136c318b0ff02f8bee2d19b81bd492636df7a2b50939da52209ba3a5",
     "core/recovery.py": "eaae9cc1fb03c105f5865d10f8a7d5f4c34aed1c36beea8deba3fc0448c9bc04",
@@ -254,16 +253,6 @@
     "core/wan_timeline_adapter.py": "e94ad8165de8a0eb866f7ba0d5b98d52d80191f56cdd9b73e9659ddbaa8684fd",
     "core/wikimedia_images.py": "42efe28f812e572acbe1ca56e251cee39024acb842f9b24418fec054257eae39",
     "core/workflow_audit.py": "67e95cc953555624b25ef763e1728bd28504ffab9a3681b480d009b7b84671ce",
-    "dashboard.py": "ee54cd1e574f36fc3ecf6f03f88c08bf0a2ff94c387270da76ff8f842e173b50",
-    "get_refresh_tokens.py": "e261ca10c940d44b7c9e0cf2e2f0bd252c5df5ff22469c3eb44decce569ad88a",
-    "requirements-ci.txt": "5b221aaf63eb039a3602a2c6be065c8288c3c3c0d6ff3c5f63bb1172cce79871",
-    "requirements-dev.txt": "e7a5c23e17802cb658ee5402f46b386a65b6a21ac1fac6f7d04efeb50bc39b6b",
-    "requirements.txt": "47ea11bcb3a3a2cfbcac987b42dc7e8cc2e07a9f86112fdefc2add59eb5f9e5d",
-    "run_daily.py": "7827aab6ee0897a93763c6d58fef6b3098ec4b3019b4a64f35f6b6c755105599",
-    "run.py": "8a5c52df91697615097f9ecd481902fef9f2618d8fc56a1567b7c0e2741e78c1",
-    "schemas/production-manifest-v1.schema.json": "21bcb26a4f6d6fee7c51d103d95b8ef710864dc77608ffed7df806b645556490",
-    "schemas/production-manifest-v2.schema.json": "ae3f9eb66b8ff7d574bfec2a5ce9dec08a0fcb01ea185fe8a0c43f63200e13e5",
-    "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
     "scripts/alert_on_failure.py": "020c54750fb6e10f6e56314e73f07bd09d0b992bbcc5bdfc96838ae06147ca59",
     "scripts/annotate_build_evidence.py": "de0025c66f49f8fd0ca5ff3b5db88b348ab74399726d59e7316f609393ff7706",
     "scripts/apply_review_decisions.py": "7ab404e0eae5cc05d10fa7a6083b789af35c58dad8fa8945675d027c9d8ef5b8",
@@ -305,6 +294,8 @@
     "scripts/verify_rendered_media.py": "832d0c44a70f9f567031cc757c9c859795daebc71c76a6c398c8b8620390bacd",
     "scripts/verify_source_run.py": "49f809c7f59f2458e02d05bff09008fd8a036b9409d6aa2e27e69ea702071d53",
     "scripts/write_job_summary.py": "789d0d2409bb4f458aef11ccfba4ff9c0c5d8d217959fbae3df6a0b2e0f559eb",
+    "tests/footage_fake_web.py": "dcd9233bf777284ef66dde26f0150ed613603386b5cec531832749d442504480",
+    "tests/footage_fixture.py": "81e51a90378745c9ead0f5ce8474ff1dbe23b31b437f9e3d5daab7aa8dbebdab",
     "src/__init__.py": "cada6f619d324bd286ea5aa3dc9bca53a33420d6d8e4a8296f5c7ede2ce8fb55",
     "src/production_v2/__init__.py": "4c5fad6fe492aa5735aef15dfd4fcdf3cd87df3f9d6da8c72bc1c327bd9297b2",
     "src/production_v2/archive.py": "fb01a0da64f2355ec1d8f8a97866d3c35dbd82f11e94aabb72c855778d6c0ded",
@@ -333,8 +324,18 @@
     "src/production_v2/subtitles.py": "7e2a1ff3f50a6da60594ed1b7bf6a084ddfcfa3e5d15544df988fba9dfc8e94d",
     "src/production_v2/topics.py": "0a9283bc02f432d6541b91a0e017c2ccd8178bccab31f457ac6723e68e0792f6",
     "src/production_v2/visuals.py": "e7c4d08e5b10ddd173f89534c526d624587033311cec8a2bd3a214afd692fb46",
-    "tests/footage_fake_web.py": "dcd9233bf777284ef66dde26f0150ed613603386b5cec531832749d442504480",
-    "tests/footage_fixture.py": "81e51a90378745c9ead0f5ce8474ff1dbe23b31b437f9e3d5daab7aa8dbebdab"
+    "run.py": "8a5c52df91697615097f9ecd481902fef9f2618d8fc56a1567b7c0e2741e78c1",
+    "run_daily.py": "7827aab6ee0897a93763c6d58fef6b3098ec4b3019b4a64f35f6b6c755105599",
+    "get_refresh_tokens.py": "e261ca10c940d44b7c9e0cf2e2f0bd252c5df5ff22469c3eb44decce569ad88a",
+    "dashboard.py": "ee54cd1e574f36fc3ecf6f03f88c08bf0a2ff94c387270da76ff8f842e173b50",
+    "requirements.txt": "47ea11bcb3a3a2cfbcac987b42dc7e8cc2e07a9f86112fdefc2add59eb5f9e5d",
+    "requirements-ci.txt": "5b221aaf63eb039a3602a2c6be065c8288c3c3c0d6ff3c5f63bb1172cce79871",
+    "requirements-dev.txt": "e7a5c23e17802cb658ee5402f46b386a65b6a21ac1fac6f7d04efeb50bc39b6b",
+    "schemas/production-manifest-v1.schema.json": "21bcb26a4f6d6fee7c51d103d95b8ef710864dc77608ffed7df806b645556490",
+    "schemas/production-manifest-v2.schema.json": "ae3f9eb66b8ff7d574bfec2a5ce9dec08a0fcb01ea185fe8a0c43f63200e13e5",
+    "schemas/review-decisions-v2.schema.json": "d40c2d6e15917da7db69d506e6d9e65b3c893caf3790c3d083be68d4e5156575",
+    "config/trusted_sources.json": "23118e018716f2b74bd9200a6d3a2d1d8e180bfdcf16026b73c02ff8835e820d",
+    "config/blocklist_sources.json": "c375f6b63e16af83122f28a0dffd05773256c3ae62702d61857fc4e1417ec0fb"
   },
   "workflows": {
     "archival-documentary-production-trial.yml": {
@@ -1267,7 +1268,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "7fe90a3dd400c42677bc89caa906dd047daaf585d39ec3864bde848082f7db0c",
+      "sha256": "8491158752e63b3b4340523c6b26a153a0722dd0ddf0b254deb8a08aa6e741e9",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
@@ -1865,6 +1866,33 @@
       "timeout_minutes": [
         "300",
         "360"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
+    "regenerate-protected-manifest.yml": {
+      "sha256": "1c90b5b0730ec8f7b9c5b11186f7257f64c387c2b901db39cecd1add57cd3b66",
+      "display_name": "Regenerate protected manifest",
+      "on_sha256": "cd70d7ddae62d6771a2ed4e9ba178306361aca6cc37cecc64d0c161a4873f4b4",
+      "triggers": [
+        "push"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [
+        "GITHUB_TOKEN"
+      ],
+      "variables": [],
+      "artifact_names": [],
+      "actions": [
+        "actions/checkout@v5",
+        "actions/setup-python@v6"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "10"
       ],
       "privacy_lines": [],
       "upload_lines": []
