@@ -51,7 +51,7 @@ class SubtitleTests(unittest.TestCase):
         self.assertFalse(validate_subtitles(injected, bad, self.config, 5.0).accepted)
 
     def test_ass_track_is_generated(self):
-        ass = build_ass(segments(), self.config)
+        ass = build_ass([NarrationSegment("s1", "Earth magnetic fields are generated deep inside the planet by moving molten iron in the liquid outer core.", 0.0, 8.0, "a.wav", "mock")], self.config)
         self.assertIn("[V4+ Styles]", ass)
         self.assertIn("Dialogue:", ass)
 
@@ -71,7 +71,7 @@ class SubtitleTests(unittest.TestCase):
         ass = build_ass(segments(), self.config)
         self.assertIn("PlayResX: 1920", ass)
         self.assertIn("PlayResY: 1080", ass)
-        self.assertIn(r"\\N", ass)
+        self.assertIn(r"\N", ass)
 
 
 if __name__ == "__main__":
