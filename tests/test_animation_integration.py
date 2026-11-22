@@ -23,6 +23,7 @@ class AnimationSelectionTests(unittest.TestCase):
         cases = [
             ("Earth magnetic field reversal changes polarity.", "blender_magnetic_field"),
             ("The geomagnetic field shields Earth in the magnetosphere.", "blender_magnetic_field"),
+            ("Magnetic field lines surround Earth.", "blender_magnetic_field"),
             ("Magnetic poles move as the magnetic field changes.", "blender_magnetic_field"),
         ]
         for narration, expected in cases:
