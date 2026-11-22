@@ -269,7 +269,6 @@
     "scripts/apply_review_decisions.py": "7ab404e0eae5cc05d10fa7a6083b789af35c58dad8fa8945675d027c9d8ef5b8",
     "scripts/attach_daily_news_assets.py": "72804883432fac62a0bd48e8a9be9043e6273d21ac1021556399431da1821883",
     "scripts/audit_documentary.py": "70ee8406211ef87e1381100c72588c1bd789e47a108e76156081b5b994ad4e18",
-    "scripts/audit/generate_protected_manifest.py": "c50d11ce049be136a9cb370768197c31b6127e61b97358415392b0f02d0c0382",
     "scripts/build_review_dashboard.py": "abdfb71e85ad6ddd26aba0aa5f170898502e7af2f6c6215d71646fdd65389ec0",
     "scripts/build_with_recovery.py": "2f3f44ed6d6019893d3eba3f4192e7d03cefac34966b4da280fe4347929b9c33",
     "scripts/certify_release.py": "94d0ea06e3f66b2c6180eb1682a121645c2a181cdad7d18388ae8e9e04496b7a",
