@@ -11,7 +11,7 @@
     "production_privacy_status": "private",
     "public_publish_allowed_in_protected_workflows": false,
     "automatic_public_release": false,
-    "protected_workflow_count": 36,
+    "protected_workflow_count": 37,
     "protected_config_count": 3
   },
   "schedules": {
@@ -100,6 +100,7 @@
     "longform-qa-diagnostics-${{ github.run_id }}",
     "longform-review-${{ github.run_id }}",
     "longform-review-package",
+    "longform-voice-audition",
     "news-review-mp4-issue-${{ inputs.issue_number }}",
     "news-script-draft-${{ inputs.script_run_id }}",
     "news-script-draft-issue-${{ github.event.issue.number }}",
@@ -117,6 +118,9 @@
     "wan21-generated-clips"
   ],
   "immutable_files": {
+    ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
+    ".github/live-documentary-e2e-v2-trigger.txt": "049477ad63fd6cbf4ffbc6e3e019d027537b82d0f3b70a7ecae279dcf7c4621f",
+    ".github/production-trial-trigger.txt": "88989b0ae05ee3b4fe821bb40dd9618b471a5739a5fb6ca850ab9c51f0fc35e6",
     ".github/workflows/archival-documentary-production-trial.yml": "f70556ce04ea41bb4b0a1bd1ccdf094201893e1431b51a37f286c213d7014ad4",
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
@@ -136,6 +140,7 @@
     ".github/workflows/footage-source-validation.yml": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
+    ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
     ".github/workflows/make_longform.yml": "086fcb83c09e17bef8f024aea16711419ed0dfe28704a40b9fff018914e9151d",
     ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
@@ -152,10 +157,7 @@
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
     ".github/workflows/v2-animation-integration.yml": "a0c0614c423c1f6934e8377aa13619c862f79990952447d39ecdf6f0e62c7c8a",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
-    ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
-    ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
-    ".github/live-documentary-e2e-v2-trigger.txt": "049477ad63fd6cbf4ffbc6e3e019d027537b82d0f3b70a7ecae279dcf7c4621f",
-    ".github/production-trial-trigger.txt": "88989b0ae05ee3b4fe821bb40dd9618b471a5739a5fb6ca850ab9c51f0fc35e6"
+    ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505"
   },
   "monitored_files": {
     "core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -1211,6 +1213,34 @@
       ],
       "upload_lines": []
     },
+    "longform-voice-audition.yml": {
+      "sha256": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
+      "display_name": "Internal — Long-form narration voice audition",
+      "on_sha256": "e57b5d3d2f9c79e5149849dca1b4a7b3f4bef4186d4585424f582c4ab281e9ca",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "schedules": [],
+      "dispatch_inputs": {},
+      "secrets": [],
+      "variables": [],
+      "artifact_names": [
+        "longform-voice-audition"
+      ],
+      "actions": [
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7"
+      ],
+      "runs_on": [
+        "ubuntu-latest"
+      ],
+      "timeout_minutes": [
+        "90"
+      ],
+      "privacy_lines": [],
+      "upload_lines": []
+    },
     "make_longform.yml": {
       "sha256": "7fe90a3dd400c42677bc89caa906dd047daaf585d39ec3864bde848082f7db0c",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
@@ -2161,34 +2191,6 @@
       "privacy_lines": [
         "PRIVACY: \"private\""
       ],
-      "upload_lines": []
-    },
-    "longform-voice-audition.yml": {
-      "sha256": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-      "display_name": "Internal — Long-form narration voice audition",
-      "on_sha256": "",
-      "triggers": [
-        "workflow_dispatch"
-      ],
-      "schedules": [],
-      "dispatch_inputs": {},
-      "secrets": [],
-      "variables": [],
-      "artifact_names": [
-        "longform-voice-audition"
-      ],
-      "actions": [
-        "actions/checkout@v7",
-        "actions/setup-python@v7",
-        "actions/upload-artifact@v7"
-      ],
-      "runs_on": [
-        "ubuntu-latest"
-      ],
-      "timeout_minutes": [
-        "90"
-      ],
-      "privacy_lines": [],
       "upload_lines": []
     }
   }
