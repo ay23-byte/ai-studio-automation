@@ -309,7 +309,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
         afilt[0] = f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
         afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.5[mu]")
-        afilt.append("[mu]asplit=2[mu1][mu2];[mu1][key]"
+        afilt.append("[mu][key]"
                      "sidechaincompress=threshold=0.03:ratio=5:attack=15:release=600:makeup=1[duck]")
         mix_in = ["[va]","[duck]"]
     fade = f"afade=t=out:st={max(T-2.0,0):.3f}:d=2.0"
