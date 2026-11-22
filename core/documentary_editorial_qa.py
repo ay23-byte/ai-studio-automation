@@ -33,7 +33,7 @@ def _chart_has_real_payload(spec) -> bool:
     return bool(labels and values and len(labels) == len(values))
 
 
-def audit_editorial_shots(shots: list[dict], *, max_title_chars: int = 48,
+def audit_editorial_shots(shots: list[dict], *, max_title_chars: int = 42,
                           max_static_seconds: float = 10.0) -> dict:
     """Return per-shot editorial issues without inventing facts or source evidence."""
     issues = []
