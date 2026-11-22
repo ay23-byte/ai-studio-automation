@@ -155,15 +155,15 @@ def build_magnetic_field():
     """Conceptual dipole field around Earth, with animated tracer particles."""
     earth = sphere("Earth (schematic)", 1.15, (0, 0, 0), (0.025, 0.18, 0.62), metallic=0.08)
     for name, location, scale in (
-        ("Land 1", (-0.35, -0.82, 0.38), (0.42, 0.12, 0.26)),
-        ("Land 2", (0.38, -0.88, -0.18), (0.30, 0.12, 0.38)),
-        ("Land 3", (0.62, -0.70, 0.55), (0.36, 0.10, 0.20)),
+        ("Land 1", (-0.35, 0.38, -0.82), (0.42, 0.26, 0.12)),
+        ("Land 2", (0.38, -0.18, -0.88), (0.30, 0.38, 0.12)),
+        ("Land 3", (0.62, 0.55, -0.70), (0.36, 0.20, 0.10)),
     ):
         patch = sphere(name, 0.45, location, (0.10, 0.42, 0.20))
         patch.scale = scale
         patch.parent = earth
-    sphere("Magnetic north marker", 0.10, (0, 0, 1.17), (1.0, 0.22, 0.10), emission=0.8)
-    sphere("Magnetic south marker", 0.10, (0, 0, -1.17), (0.10, 0.45, 1.0), emission=0.8)
+    sphere("Magnetic north marker", 0.10, (0, 1.17, 0), (1.0, 0.22, 0.10), emission=0.8)
+    sphere("Magnetic south marker", 0.10, (0, -1.17, 0), (0.10, 0.45, 1.0), emission=0.8)
     # Dipole-like loops r=L sin(theta)^2; conceptual, not measured data.
     for index, L in enumerate((1.55, 1.9, 2.25, 2.6)):
         curve = bpy.data.curves.new(f"Dipole field loop {index+1}", "CURVE")
@@ -175,7 +175,7 @@ def build_magnetic_field():
         for j in range(160):
             theta = math.pi * j / 159
             radius = L * math.sin(theta) ** 2
-            points.append((radius * math.sin(theta), 0.0, radius * math.cos(theta)))
+            points.append((radius * math.sin(theta), radius * math.cos(theta), 0.0))
         spline.points.add(len(points)-1)
         for point, co in zip(spline.points, points):
             point.co = (*co, 1)
@@ -186,7 +186,7 @@ def build_magnetic_field():
         for frame in range(1, scene.frame_end + 1):
             theta = math.pi * ((frame - 1) / scene.frame_end)
             radius = L * math.sin(theta) ** 2
-            tracer.location = (radius * math.sin(theta), -0.04, radius * math.cos(theta))
+            tracer.location = (radius * math.sin(theta), radius * math.cos(theta), -0.04)
             tracer.keyframe_insert(data_path="location", frame=frame)
         if tracer.animation_data and tracer.animation_data.action:
             for fc in tracer.animation_data.action.fcurves:
