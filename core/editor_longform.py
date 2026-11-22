@@ -259,8 +259,8 @@ def _create_original_ambient_bed(path, duration):
     duration = max(1.0, float(duration))
     fade_start = max(0.0, duration - min(4.0, duration / 3.0))
     graph = (
-        "[0:a]volume=0.10,tremolo=f=0.07:d=0.25[a0];"
-        "[1:a]volume=0.055,tremolo=f=0.11:d=0.20[a1];"
+        "[0:a]volume=0.10,tremolo=f=0.10:d=0.25[a0];"
+        "[1:a]volume=0.055,tremolo=f=0.12:d=0.20[a1];"
         "[2:a]volume=0.025,lowpass=f=1400[a2];"
         "[a0][a1][a2]amix=inputs=3:normalize=0,"
         "afade=t=in:st=0:d=3,"
