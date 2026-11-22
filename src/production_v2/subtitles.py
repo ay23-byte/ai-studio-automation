@@ -20,7 +20,7 @@ def timestamp(seconds: float) -> str:
 
 def _split_text(text: str, max_words: int, max_chars: int) -> list[str]:
     """Wrap a sentence into readable caption lines without fragmenting every few words."""
-    words = text.replace("\\n", " ").split()
+    words = text.replace("\n", " ").split()
     lines: list[str] = []
     current: list[str] = []
     for word in words:
@@ -38,28 +38,39 @@ def _split_text(text: str, max_words: int, max_chars: int) -> list[str]:
 def _caption_cues(text: str, max_words: int, max_chars: int) -> list[str]:
     """Group wrapped lines into one- or two-line cues, never tiny one-line fragments."""
     lines = _split_text(text, max_words, max_chars)
-    return ["\\n".join(lines[index:index + 2]) for index in range(0, len(lines), 2)]
+    return ["\n".join(lines[index:index + 2]) for index in range(0, len(lines), 2)]
 
 
 def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
+    rules = config.rules_for("documentary")
     header = (
-        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n\n"
+        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\n\n"
         "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, Alignment, MarginV\n"
-        "Style: Default,Noto Sans,58,&H00FFFFFF,2,120\n\n[Events]\n"
+        "Style: Default,Noto Sans,46,&H00FFFFFF,2,64\n\n[Events]\n"
         "Format: Layer, Start, End, Style, Text\n"
     )
-    lines = []
+    events = []
+    def ass_time(value: float) -> str:
+        h = int(value // 3600)
+        m = int((value % 3600) // 60)
+        s = value % 60
+        return f"{h:d}:{m:02d}:{s:05.2f}"
     for segment in segments:
-        text = segment.text.replace("\n", " ")[:120]
-        start = segment.start
-        end = segment.end
-        def ass_time(value: float) -> str:
-            h = int(value // 3600)
-            m = int((value % 3600) // 60)
-            s = value % 60
-            return f"{h:d}:{m:02d}:{s:05.2f}"
-        lines.append(f"Dialogue: 0,{ass_time(start)},{ass_time(end)},Default,{text}")
-    return header + "\n".join(lines) + "\n"
+        cues = _caption_cues(segment.text, rules.subtitle_max_words, rules.subtitle_max_chars)
+        weights = [max(1, len(cue.replace("\n", " "))) for cue in cues]
+        total_weight = sum(weights)
+        span = max(0.01, segment.end - segment.start)
+        cursor = segment.start
+        for cue, weight in zip(cues, weights):
+            cue_end = min(segment.end, cursor + span * weight / total_weight)
+            if cue_end <= cursor:
+                cue_end = cursor + 0.01
+            display = cue.replace("\\", "/").replace("{", "(").replace("}", ")").replace("\n", r"\N")
+            events.append(
+                f"Dialogue: 0,{ass_time(cursor)},{ass_time(cue_end)},Default,{display}"
+            )
+            cursor = cue_end
+    return header + "\n".join(events) + "\n"
 
 
 @dataclass
