@@ -43,10 +43,12 @@ def _caption_cues(text: str, max_words: int, max_chars: int) -> list[str]:
 
 def build_ass(segments: list[NarrationSegment], config: V2Config) -> str:
     rules = config.rules_for("documentary")
+    font_size = 46 if rules.width > rules.height else 58
+    margin = 64 if rules.width > rules.height else 120
     header = (
-        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\n\n"
+        f"[Script Info]\nScriptType: v4.00+\nPlayResX: {rules.width}\nPlayResY: {rules.height}\n\n"
         "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, Alignment, MarginV\n"
-        "Style: Default,Noto Sans,46,&H00FFFFFF,2,64\n\n[Events]\n"
+        f"Style: Default,Noto Sans,{font_size},&H00FFFFFF,2,{margin}\n\n[Events]\n"
         "Format: Layer, Start, End, Style, Text\n"
     )
     events = []
