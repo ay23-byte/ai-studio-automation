@@ -10,7 +10,6 @@ TEXT = """Imagine standing beside a lake at dawn. The water looks calm, the air 
 
 CANDIDATES = [
     {"id":"longform_chatterbox_relaxed","engine":"chatterbox","voice":"Chatterbox multilingual V3, relaxed pacing","gender":"male"},
-    {"id":"edge_christopher_slow","engine":"edge","voice":"en-US-ChristopherNeural","gender":"male"},
 ]
 
 def render(candidate: dict, root: Path) -> dict:
@@ -19,7 +18,7 @@ def render(candidate: dict, root: Path) -> dict:
     folder.mkdir(parents=True)
     os.environ.update({
         "TTS_ENGINE":candidate["engine"],"TTS_REQUIRE_ENGINE":candidate["engine"],
-        "TTS_VOICE":candidate["voice"] if candidate["engine"]=="edge" else "",
+        "TTS_VOICE":"",
         "TTS_RATE":"-3%","TTS_OPENING_RATE":"-4%","TTS_CLOSING_RATE":"-3%",
         "TTS_PAUSE_SCALE":"1.4","TTS_REJECT_ROBOTIC_FALLBACK":"1",
         "CHATTERBOX_TORCH_THREADS":"2","CHATTERBOX_TORCH_INTEROP_THREADS":"1",
@@ -50,7 +49,7 @@ def main(argv=None):
     root=Path(parser.parse_args(argv).output_dir);root.mkdir(parents=True,exist_ok=True)
     results=[render(c,root) for c in CANDIDATES]
     index={"purpose":"Short same-script long-form voice audition","script":TEXT,"candidates":results,
-           "selection_guidance":"Listen to both samples. Compare naturalness, pacing, warmth, pronunciation and listening fatigue. Do not select based on duration metrics alone.",
+           "selection_guidance":"Listen to the Chatterbox sample for naturalness, pacing, warmth, pronunciation and listening fatigue. Do not select based on duration metrics alone.",
            "production_changes_tested":["0.98 Chatterbox tempo","1.4x phrase pause scale","gentler compressor"],
            "limitations":["Short sample, not a full documentary guarantee.","Technical metrics cannot assess subjective voice quality."]}
     (root/"audition_index.json").write_text(json.dumps(index,ensure_ascii=False,indent=2),encoding="utf-8")
