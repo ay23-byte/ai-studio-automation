@@ -19,6 +19,16 @@ class AnimationSelectionTests(unittest.TestCase):
             with self.subTest(narration=narration):
                 self.assertEqual(select_animation_kind(narration, "diagram"), expected)
 
+    def test_magnetic_field_concepts_select_blender_visual(self):
+        cases = [
+            ("Earth magnetic field reversal changes polarity.", "blender_magnetic_field"),
+            ("The geomagnetic field shields Earth in the magnetosphere.", "blender_magnetic_field"),
+            ("Magnetic poles move as the magnetic field changes.", "blender_magnetic_field"),
+        ]
+        for narration, expected in cases:
+            with self.subTest(narration=narration):
+                self.assertEqual(select_animation_kind(narration, "animation"), expected)
+
     def test_supported_blender_concepts(self):
         cases = [
             ("A circular orbit around a central body.", "blender_orbit"),
