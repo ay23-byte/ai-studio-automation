@@ -629,8 +629,7 @@ class EngineTests(_Temp):
             {"status": "mismatch", "match_score": 0.2, "concerns": ["wrong scene"]},
             {"status": "match", "match_score": 0.9},
         ]
-        with patch.dict(os.environ, {"FOOTAGE_MAX_DOWNLOAD_ATTEMPTS": "3",
-                                    "FOOTAGE_CANDIDATE_VISION_MAX_PER_SCENE": "3"}):
+        with patch.dict(os.environ, {"FOOTAGE_MAX_DOWNLOAD_ATTEMPTS": "3"}):
             ok, _ = self.run_scene([provider], files, prompt="steam train locomotive")
         self.assertTrue(ok)
         self.assertEqual(verify.call_count, 3)
