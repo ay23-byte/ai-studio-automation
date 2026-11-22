@@ -141,7 +141,7 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-    ".github/workflows/make_longform.yml": "086fcb83c09e17bef8f024aea16711419ed0dfe28704a40b9fff018914e9151d",
+    ".github/workflows/make_longform.yml": "7fe90a3dd400c42677bc89caa906dd047daaf585d39ec3864bde848082f7db0c",
     ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
