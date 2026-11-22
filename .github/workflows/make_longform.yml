@@ -269,7 +269,11 @@ jobs:
           CHATTERBOX_HEARTBEAT_SECONDS: "60"
           CHATTERBOX_CACHE_DIR: "build/chatterbox-cache"
           CHATTERBOX_CACHE_MODEL_TAG: "multilingual-v3"
-          CHATTERBOX_PLAYBACK_SPEED: "1.04"
+          # Long-form delivery: deliberately slower than Shorts, with longer
+          # breathing room between clauses and sentences. Chatterbox itself has
+          # no native rate control in this adapter; this is a small tempo change.
+          CHATTERBOX_PLAYBACK_SPEED: "0.98"
+          TTS_PAUSE_SCALE: "1.4"
           PRESENTER_ENABLED: ${{ needs.request.outputs.presenter_mode == 'off' && '0' || '1' }}
           PRESENTER_MODE: ${{ needs.request.outputs.presenter_mode }}
           LONGFORM_VISUAL_MODE: ${{ needs.request.outputs.visual_mode }}
