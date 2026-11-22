@@ -86,15 +86,6 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CHANNEL_ID: ${{ vars.YT_CHANNEL_ID }}
-          YT_CHANNEL_HANDLE: ${{ vars.YT_CHANNEL_HANDLE || '@engineeringphysics-n5g' }}
-          YT_CHANNEL_VERIFY: "1"
-          PRIVACY: "private"
-          ALLOW_PUBLIC_PUBLISH: "0"
-          PUBLISH_AT_IST: ""
           OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
           OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -147,7 +138,7 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          UPLOAD_REQUESTED: "true"
+          UPLOAD_REQUESTED: "false"
         run: python scripts/write_job_summary.py --pipeline news_short --artifact "news-short-auto-${GITHUB_RUN_ID}"
 
       - uses: actions/upload-artifact@v7
