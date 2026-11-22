@@ -20,10 +20,10 @@ class AudioQualityTests(unittest.TestCase):
         self.video = self.root / "sample.mp4"
         self.video.write_bytes(b"placeholder")
 
-    def _loud_log(self, integrated="-16.2", peak="-2.0", lra="7.0"):
+    def _loud_log(self, integrated="-14.2", peak="-1.2", lra="7.0"):
         return json.dumps({
             "input_i": integrated, "input_tp": peak, "input_lra": lra,
-            "input_thresh": "-26.0", "output_i": "-16.0", "output_tp": "-1.8",
+            "input_thresh": "-26.0", "output_i": "-14.0", "output_tp": "-1.0",
             "output_lra": lra, "output_thresh": "-26.0", "target_offset": "0.2",
         })
 
@@ -51,7 +51,7 @@ class AudioQualityTests(unittest.TestCase):
         ]
         report = inspect_audio(self.video)
         self.assertEqual(report["status"], "PASS")
-        self.assertEqual(report["metrics"]["integrated_lufs"], -16.2)
+        self.assertEqual(report["metrics"]["integrated_lufs"], -14.2)
         self.assertEqual(report["human_review_status"], "pending")
 
     @patch("core.audio_quality.subprocess.run")
