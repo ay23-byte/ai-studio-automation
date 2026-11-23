@@ -2,6 +2,16 @@
 
 Automated Hindi/Hinglish YouTube video creator for **Shorts (9:16)** and **long-form videos (16:9)**. It generates scripts with Gemini, creates visuals, synthesizes narration with Chatterbox (with Edge TTS fallback when selected), renders videos with FFmpeg, and can upload them to YouTube.
 
+
+
+## GitHub Actions: generate a video (not just collect news)
+
+For a daily news Short, run **[Daily news Short — VIDEO BUILD FOR REVIEW](.github/workflows/daily-news-auto-short.yml)**. It runs the production build and uploads a review artifact containing the generated output. It does **not** upload to YouTube.
+
+Do **not** use [Research queue — NO VIDEO](.github/workflows/daily-news-shorts.yml) when you need an MP4. That workflow only collects candidate headlines into a JSON/ZIP artifact; it never generates narration or renders video.
+
+Full instructions, artifact names, review and private-release steps: [GitHub Actions: start here](docs/GITHUB_ACTIONS_START_HERE.md).
+
 ## Operations quick reference
 
 Architecture, safety rules and recovery steps: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
