@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-22T12:12:38+00:00",
+  "updated_at": "2026-11-23T11:48:33+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -364,6 +364,21 @@
       "updated_at": "2026-11-22T12:12:38+00:00",
       "topic": "Why Doesn't a Moving Bicycle Fall Over?",
       "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "8dc79fd5d8b292cee97502bb",
+      "created_at": "2026-11-23T11:48:08+00:00",
+      "title": "Scientists Discover Rare Stellar Fossil Preserving Early Universe Clues",
+      "status": "uploaded",
+      "updated_at": "2026-11-23T11:48:33+00:00",
+      "topic": "Scientists discover a rare stellar fossil that preserves clues to the universe's first generations of stars",
+      "source_refs": [
+        "a88199fa875e24a8d4bc"
+      ],
+      "job_id": 7,
+      "youtube_id": "i4YtVXK1Nv8",
+      "privacy_status": "private"
     }
   ]
 }
