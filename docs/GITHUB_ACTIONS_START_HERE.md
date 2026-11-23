@@ -1,36 +1,40 @@
 # GitHub Actions: start here
 
-Normal production uses a build workflow, a review, and a release workflow.
+Use the **video build** workflow when you want an MP4. The research queue is a separate discovery-only workflow and does not render video.
 
-## 1. Build (never uploads)
+## Daily news Short — choose the correct workflow
+
+<badge></badge>
+
+| Your goal | Workflow | What it actually produces |
+|---|---|---|
+| **Generate a video (use this)** | [Daily news Short — VIDEO BUILD FOR REVIEW](../actions/workflows/daily-news-auto-short.yml) | MP4 + review package in artifact `news-short-auto-<run id>`; no YouTube upload |
+| Collect possible news topics only | [Research queue — NO VIDEO](../actions/workflows/daily-news-shorts.yml) | JSON candidate queue ZIP only; no script approval, narration, rendering, MP4 or upload |
+
+**Do not run the Research queue expecting a video.** A green research-queue run only means headline collection and its tests completed.
+
+The video-build workflow runs the complete news Short build and creates a review artifact. A successful workflow run should contain the artifact `news-short-auto-<run id>`. If no MP4 is present, inspect the run summary and `run_report.json`; do not treat a green research-only run as a production success.
+
+## Other video builds
 
 | Workflow | Produces |
 |---|---|
 | [Create a Short](../actions/workflows/make_shorts.yml) | `shorts-review-<run id>` |
 | [Create a Documentary](../actions/workflows/make_longform.yml) | `longform-review-<run id>` |
-| [Daily news Short](../actions/workflows/daily-news-auto-short.yml) | `news-short-auto-<run id>` |
 
-A green run means a review package is waiting for you. A red run means the video could
-not be built or failed automated quality checks; the run summary says why.
+## Review
 
-## 2. Review
+Download the artifact, open the review dashboard/package, watch the exact MP4 and inspect the source, visual, audio, subtitle and rights checks. Do not approve a video you have not watched.
 
-Download the artifact, open `build/job_<id>/shared_review_package/review_dashboard.html`,
-watch the video and decide every item. Copy the decisions from the dashboard.
-
-## 3. Release (private only)
+## Release (private only)
 
 | Workflow | For |
 |---|---|
 | [Release approved Short (Private)](../actions/workflows/release_shorts_private.yml) | Standard and daily-news Shorts |
 | [Release approved documentary (Private)](../actions/workflows/release_documentary_private.yml) | Documentaries |
 
-Enter the build run id, the MP4 SHA-256 from the dashboard and the copied decisions, and
-tick the confirmation. The video is uploaded as **private** and unscheduled. Publishing is
-done by you in YouTube Studio. Details: [SHARED_REVIEW_PACKAGE.md](SHARED_REVIEW_PACKAGE.md).
+Enter the build run id, the MP4 SHA-256 from the dashboard and the copied decisions, and tick the confirmation. The video is uploaded as **private** and unscheduled. Publishing is done by you in YouTube Studio.
 
 ## Other workflows
 
-Workflows prefixed with **⚙ Internal** are specialist steps, diagnostics, provider checks,
-experimental renderers, or parts of multi-step handoffs. None of them holds YouTube
-credentials. `manual-youtube-private-upload.yml` is retired and uploads nothing.
+Workflows prefixed with **⚙ Internal** are specialist steps, diagnostics, provider checks, experimental renderers, or parts of multi-step handoffs. Do not run them as the normal video-build entry point unless a specific handoff explicitly instructs you to. They do not replace the main video-build workflow. `manual-youtube-private-upload.yml` is retired and uploads nothing.
