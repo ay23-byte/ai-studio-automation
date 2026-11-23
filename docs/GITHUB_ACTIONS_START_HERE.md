@@ -4,7 +4,6 @@ Use the **video build** workflow when you want an MP4. The research queue is a s
 
 ## Daily news Short — choose the correct workflow
 
-<badge></badge>
 
 | Your goal | Workflow | What it actually produces |
 |---|---|---|
