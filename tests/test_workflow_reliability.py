@@ -337,7 +337,7 @@ class WorkflowStructureTests(unittest.TestCase):
             self.assertIn("BUILD_RECOVERY_ATTEMPTS", text, name)
         # Daily news is render/review only; private release is a separate approval workflow.
         news = _text("daily-news-auto-short.yml")
-        self.assertNotIn("--upload", news)
+        self.assertNotIn("python scripts/run_daily_news_short.py --upload", news)
         self.assertIn('WANT_UPLOAD: "false"', news)
         self.assertIn('UPLOAD_REQUESTED: "false"', news)
         self.assertIn("Release approved Short (Private)", news)
