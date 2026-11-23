@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-23T13:56:03+00:00",
+  "updated_at": "2026-11-23T21:22:54+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -391,6 +391,21 @@
       "job_id": 7,
       "youtube_id": "Ys__8ctFX9U",
       "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "6d1024d725f847080886824e",
+      "created_at": "2026-11-23T21:22:54+00:00",
+      "title": "CJP's Saurav Das Claims Being Barred From London Travel At Delhi Airport",
+      "status": "built",
+      "updated_at": "2026-11-23T21:22:54+00:00",
+      "topic": "CJP’s Saurav Das claims he was stopped at Delhi airport from travelling to U.K.",
+      "source_refs": [
+        "118913d3973d12088c1e",
+        "872ffb5995747f0582fc",
+        "d286d5dc5c19bbd765bb"
+      ],
+      "job_id": 7
     }
   ]
 }
