@@ -335,11 +335,14 @@ class WorkflowStructureTests(unittest.TestCase):
             text = _text(name)
             self.assertIn("scripts/build_with_recovery.py", text, name)
             self.assertIn("BUILD_RECOVERY_ATTEMPTS", text, name)
-        # Daily news has its own fail-closed automated PRIVATE release path; no public publish path.
+        # Daily news is render/review only; private release is a separate approval workflow.
         news = _text("daily-news-auto-short.yml")
-        self.assertIn("core.news_private_release", (ROOT / "core" / "news_auto.py").read_text(encoding="utf-8"))
-        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', news)
-        self.assertNotIn("--upload-after-recovery", news)
+        self.assertNotIn("--upload", news)
+        self.assertIn('WANT_UPLOAD: "false"', news)
+        self.assertIn('UPLOAD_REQUESTED: "false"', news)
+        self.assertIn("Release approved Short (Private)", news)
+        self.assertNotIn("YT_REFRESH_TOKEN", news)
+        self.assertNotIn("YT_CLIENT_SECRET", news)
 
     def test_state_is_saved_even_when_the_build_fails(self):
         for name in ("make_shorts.yml", "daily-news-auto-short.yml"):
