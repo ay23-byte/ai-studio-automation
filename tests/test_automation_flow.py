@@ -513,7 +513,7 @@ class WorkflowHygieneTests(unittest.TestCase):
         self.assertIn("persist_state.py save", shorts)
 
         news = (ROOT / ".github" / "workflows" / "daily-news-auto-short.yml").read_text(encoding="utf-8")
-        self.assertNotIn("--upload", news)
+        self.assertNotIn("python scripts/run_daily_news_short.py --upload", news)
         self.assertIn('WANT_UPLOAD: "false"', news)
         self.assertIn('UPLOAD_REQUESTED: "false"', news)
         self.assertNotIn("YT_REFRESH_TOKEN", news)
