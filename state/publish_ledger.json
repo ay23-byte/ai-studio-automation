@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-23T13:54:24+00:00",
+  "updated_at": "2026-11-23T13:56:03+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -385,10 +385,12 @@
       "key": "a1692842e9372846c27541de",
       "created_at": "2026-11-23T13:54:24+00:00",
       "title": "How Microwaves Heat Food Using Water",
-      "status": "built",
-      "updated_at": "2026-11-23T13:54:24+00:00",
+      "status": "uploaded",
+      "updated_at": "2026-11-23T13:56:03+00:00",
       "topic": "How does a microwave oven heat food using water molecules?",
-      "job_id": 7
+      "job_id": 7,
+      "youtube_id": "Ys__8ctFX9U",
+      "privacy_status": "private"
     }
   ]
 }
