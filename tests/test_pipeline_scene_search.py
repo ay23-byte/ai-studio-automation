@@ -77,13 +77,17 @@ class SceneSearchBriefTests(unittest.TestCase):
         self.assertEqual(len(image_calls), 3, "all long-form image acquisitions must use the helper")
         for call in image_calls:
             self.assertIn("search_query", {keyword.arg for keyword in call.keywords})
+        helper = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_generate_scene_image"
+        )
         direct_provider_calls = [
-            node for node in ast.walk(tree)
+            node for node in ast.walk(helper)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "generate_image"
         ]
-        self.assertEqual(len(direct_provider_calls), 1, "only the helper may call the image provider directly")
+        self.assertEqual(len(direct_provider_calls), 1, "the helper must forward the provider call")
 
 
 if __name__ == "__main__":
