@@ -5,6 +5,7 @@ on:
       - fix/documentary-visual-coverage-retries
       - fix/documentary-search-and-animations
       - fix/documentary-editorial-quality
+      - fix/daily-news-review-first-release
 permissions:
   contents: write
 jobs:

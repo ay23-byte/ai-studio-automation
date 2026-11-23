@@ -505,13 +505,21 @@ class WorkflowHygieneTests(unittest.TestCase):
             if isinstance(triggers, dict) and "schedule" in triggers:
                 self.assertIn("concurrency", data, f"{path.name} is scheduled but not serialised")
 
-    def test_automatic_workflows_upload_privately_and_never_push_to_main(self):
-        for name in ("make_shorts.yml", "daily-news-auto-short.yml"):
-            text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
-            self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', text)
-            self.assertNotIn("HEAD:main", text)
-            self.assertIn("persist_state.py restore", text)
-            self.assertIn("persist_state.py save", text)
+    def test_automatic_workflows_keep_private_upload_and_build_only_news_boundary(self):
+        shorts = (ROOT / ".github" / "workflows" / "make_shorts.yml").read_text(encoding="utf-8")
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', shorts)
+        self.assertNotIn("HEAD:main", shorts)
+        self.assertIn("persist_state.py restore", shorts)
+        self.assertIn("persist_state.py save", shorts)
+
+        news = (ROOT / ".github" / "workflows" / "daily-news-auto-short.yml").read_text(encoding="utf-8")
+        self.assertNotIn("python scripts/run_daily_news_short.py --upload", news)
+        self.assertIn('WANT_UPLOAD: "false"', news)
+        self.assertIn('UPLOAD_REQUESTED: "false"', news)
+        self.assertNotIn("YT_REFRESH_TOKEN", news)
+        self.assertNotIn("YT_CLIENT_SECRET", news)
+        self.assertIn("persist_state.py restore", news)
+        self.assertIn("persist_state.py save", news)
 
 
 class HealthCheckTests(_StateSandbox):

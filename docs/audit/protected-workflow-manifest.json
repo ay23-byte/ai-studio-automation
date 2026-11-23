@@ -122,7 +122,7 @@
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
     ".github/workflows/chernobyl-documentary-production.yml": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
-    ".github/workflows/daily-news-auto-short.yml": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
+    ".github/workflows/daily-news-auto-short.yml": "cb270da9a823b178ab6fc241bc360f5873e9d5c78c0731690813c1868cae16cf",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
     ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
     ".github/workflows/daily-news-short-render.yml": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
@@ -148,7 +148,7 @@
     ".github/workflows/news-story-review.yml": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
     ".github/workflows/news-visual-asset-review.yml": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
     ".github/workflows/openvino-ltx-local-gpu.yml": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
-    ".github/workflows/regenerate-protected-manifest.yml": "d69aac506f901d96cd3bf03ae1b0b1005f9d5e0af076bc46b14d521564c8099e",
+    ".github/workflows/regenerate-protected-manifest.yml": "f9f91ce505c2ebe4edb383f1304e3417185f3dad9a2a969a1b30a5f9a368bbc6",
     ".github/workflows/release_documentary_auto.yml": "61339b9866d963ffe5c0d97aa544282980a10ada72b3ff50baeea1f0b1be5c4c",
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
@@ -551,8 +551,8 @@
       "upload_lines": []
     },
     "daily-news-auto-short.yml": {
-      "sha256": "bd5eac3c38696dd7ab513506c9a5924dd37692193d7aa55123cbfbc41307fd24",
-      "display_name": "Daily news Short — automatic PRIVATE release",
+      "sha256": "cb270da9a823b178ab6fc241bc360f5873e9d5c78c0731690813c1868cae16cf",
+      "display_name": "Daily news Short — build for review (PRIVATE release after approval)",
       "on_sha256": "a916ce043807257e147bcf7355918c5a87b8a037981c82bba1fd73c4b9e18e25",
       "triggers": [
         "workflow_dispatch",
@@ -594,16 +594,11 @@
         "TELEGRAM_CHAT_ID",
         "YOUTUBE_API_KEY",
         "YOUTUBE_DATA_API_KEY",
-        "YT_API_KEY",
-        "YT_CLIENT_ID",
-        "YT_CLIENT_SECRET",
-        "YT_REFRESH_TOKEN"
+        "YT_API_KEY"
       ],
       "variables": [
         "BUILD_RECOVERY_ATTEMPTS",
-        "FOOTAGE_CONTACT",
-        "YT_CHANNEL_HANDLE",
-        "YT_CHANNEL_ID"
+        "FOOTAGE_CONTACT"
       ],
       "artifact_names": [
         "news-short-auto-${{ github.run_id }}"
@@ -619,13 +614,8 @@
       "timeout_minutes": [
         "45"
       ],
-      "privacy_lines": [
-        "ALLOW_PUBLIC_PUBLISH: \"0\"",
-        "PRIVACY: \"private\""
-      ],
-      "upload_lines": [
-        "python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py --upload"
-      ]
+      "privacy_lines": [],
+      "upload_lines": []
     },
     "daily-news-short-artifact-render.yml": {
       "sha256": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
@@ -1872,9 +1862,9 @@
       "upload_lines": []
     },
     "regenerate-protected-manifest.yml": {
-      "sha256": "d69aac506f901d96cd3bf03ae1b0b1005f9d5e0af076bc46b14d521564c8099e",
+      "sha256": "f9f91ce505c2ebe4edb383f1304e3417185f3dad9a2a969a1b30a5f9a368bbc6",
       "display_name": "Regenerate protected manifest",
-      "on_sha256": "a42271f2bc110414b4156d6b4b626a20e6eb5a09701f4e782774ab7e6c1006dd",
+      "on_sha256": "ce4fdfa9313b5d054f26c9c523b0d92139e6f81ed1aa23e1036459203d60c1fe",
       "triggers": [
         "push"
       ],
