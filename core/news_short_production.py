@@ -228,7 +228,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     filters = []
     for index, wav in enumerate(wavs):
         inputs += ["-i", str(wav)]
-        filters.append(f"[{index}:a]{narration_cleanup_filter()},aformat=sample_fmts=s16:channel_layouts=mono"
+        filters.append(f"[{index}:a]aresample=44100,aformat=sample_fmts=s16:channel_layouts=mono"
                        + (",apad=pad_dur=0.25" if index < len(wavs)-1 else "")
                        + f"[a{index}]")
     filters.append("".join(f"[a{i}]" for i in range(len(wavs)))
@@ -252,7 +252,17 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     profile = music_profile(topic, "news")
     music_source = "caller_supplied"
     music_path = script.get("music_path")
-    if not music_path or not Path(music_path).is_file():
+    supplied_music_is_licensed = False
+    if music_path and Path(music_path).is_file():
+        sidecar = Path(str(music_path) + ".source.json")
+        try:
+            music_metadata = json.loads(sidecar.read_text(encoding="utf-8")) if sidecar.is_file() else {}
+            supplied_music_is_licensed = bool(
+                music_metadata.get("licence") or music_metadata.get("license")
+            ) and bool(music_metadata.get("licence_url") or music_metadata.get("license_url"))
+        except (OSError, ValueError):
+            supplied_music_is_licensed = False
+    if not music_path or not Path(music_path).is_file() or not supplied_music_is_licensed:
         music_path, profile = create_original_music_bed(
             build_dir / "original_news_music.wav", mux_duration, topic, "news"
         )
