@@ -323,8 +323,25 @@ def _apply_fallback_gate(report_path, fallback_report):
 
 
 def _pick_music():
-    files = list(cfg.MUSIC_DIR.glob("*.mp3")) + list(cfg.MUSIC_DIR.glob("*.wav"))
-    return random.choice(files) if files else None
+    """Use only local music with a provenance sidecar documenting its licence and URL.
+
+    Unverified files are ignored; the renderer supplies an original generated score
+    instead of silently using a track whose rights cannot be established.
+    """
+    import json
+    candidates = list(cfg.MUSIC_DIR.glob("*.mp3")) + list(cfg.MUSIC_DIR.glob("*.wav"))
+    eligible = []
+    for path in candidates:
+        sidecar = path.with_suffix(path.suffix + ".source.json")
+        try:
+            metadata = json.loads(sidecar.read_text(encoding="utf-8")) if sidecar.is_file() else {}
+        except (OSError, ValueError):
+            continue
+        has_licence = bool(metadata.get("licence") or metadata.get("license"))
+        has_url = bool(metadata.get("licence_url") or metadata.get("license_url"))
+        if has_licence and has_url:
+            eligible.append(path)
+    return random.choice(eligible) if eligible else None
 
 def _local_clips():
     files = [p for p in cfg.CLIPS_DIR.iterdir() if p.suffix.lower() in (".mp4",".mov",".webm")]

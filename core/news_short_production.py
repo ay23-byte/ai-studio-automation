@@ -219,6 +219,10 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         ], text=True, timeout=PROBE_TIMEOUT).strip()
         durations.append(float(probe))
 
+    from core.audio_production import (
+        create_original_music_bed, narration_cleanup_filter, music_profile,
+        write_audio_production_report,
+    )
     voice_path = outdir / "voice.wav"
     inputs = []
     filters = []
@@ -244,12 +248,42 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     final_path = outdir / "review_short.mp4"
     subtitle_filter = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     mux_duration = total + 0.6
+    topic = str(script.get("topic") or script.get("title") or "daily news")
+    profile = music_profile(topic, "news")
+    music_source = "caller_supplied"
+    music_path = script.get("music_path")
+    supplied_music_is_licensed = False
+    if music_path and Path(music_path).is_file():
+        sidecar = Path(str(music_path) + ".source.json")
+        try:
+            music_metadata = json.loads(sidecar.read_text(encoding="utf-8")) if sidecar.is_file() else {}
+            supplied_music_is_licensed = bool(
+                music_metadata.get("licence") or music_metadata.get("license")
+            ) and bool(music_metadata.get("licence_url") or music_metadata.get("license_url"))
+        except (OSError, ValueError):
+            supplied_music_is_licensed = False
+    if not music_path or not Path(music_path).is_file() or not supplied_music_is_licensed:
+        music_path, profile = create_original_music_bed(
+            build_dir / "original_news_music.wav", mux_duration, topic, "news"
+        )
+        music_source = "original_generated"
+    write_audio_production_report(outdir, profile, music_source)
+    audio_graph = (
+        f"[1:a]aresample=44100,highpass=f=75,lowpass=f=14500,afftdn=nf=-28:tn=1,"
+        f"apad,atrim=duration={mux_duration:.3f}[voice0];[voice0]asplit=2[voice][key];"
+        f"[2:a]aresample=44100,volume=0.42,highpass=f=90,lowpass=f=12000,"
+        f"afade=t=in:st=0:d=1.0[music];"
+        "[music][key]sidechaincompress=threshold=0.025:ratio=7:attack=12:release=500:makeup=1[duck];"
+        f"[voice][duck]amix=inputs=2:duration=first:normalize=0,"
+        f"afade=t=out:st={max(mux_duration-1.2, 0):.3f}:d=1.2,"
+        "loudnorm=I=-14:TP=-1.5:LRA=9,alimiter=limit=0.95[aout]"
+    )
     subprocess.run([
         ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(visual_path),
-        "-i", str(voice_path), "-vf", f"subtitles={subtitle_filter}",
-        "-map", "0:v:0", "-map", "1:a:0",
-        "-af", f"aresample=44100,apad,atrim=duration={mux_duration:.3f},"
-               f"afade=t=out:st={max(mux_duration-1.2, 0):.3f}:d=1.2",
+        "-i", str(voice_path), "-stream_loop", "-1", "-t", f"{mux_duration:.3f}",
+        "-i", str(music_path), "-vf", f"subtitles={subtitle_filter}",
+        "-filter_complex", audio_graph,
+        "-map", "0:v:0", "-map", "[aout]",
         "-t", f"{mux_duration:.3f}", "-c:v", "libx264", "-preset", "fast",
         "-crf", "19", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
         "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(final_path)
@@ -280,6 +314,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         "visual_renderer": visual_report,
         "visual_style": "actual_licensed_media_and_approved_stills_with_subtle_motion",
         "voice": str(voice_path),
+        "audio_production_report": str(outdir / "audio_production_report.json"),
         "captions": str(ass_path),
         "licence_register": licence["csv_path"],
         "credits": licence["credits_path"],

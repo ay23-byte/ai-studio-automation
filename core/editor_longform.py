@@ -250,38 +250,26 @@ def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits
     return out
 
 
-def _create_original_ambient_bed(path, duration):
-    """Create a quiet, original, non-rhythmic ambient bed when no licensed track is supplied.
-
-    This is a restrained synthesised drone, not a downloaded recording. It is mixed
-    below narration and ducked by the narration side-chain in _render.
-    """
-    duration = max(1.0, float(duration))
-    fade_start = max(0.0, duration - min(4.0, duration / 3.0))
-    graph = (
-        "[0:a]volume=0.10,tremolo=f=0.10:d=0.25[a0];"
-        "[1:a]volume=0.055,tremolo=f=0.12:d=0.20[a1];"
-        "[2:a]volume=0.025,lowpass=f=1400[a2];"
-        "[a0][a1][a2]amix=inputs=3:normalize=0,"
-        "afade=t=in:st=0:d=3,"
-        f"afade=t=out:st={fade_start:.3f}:d={min(4.0, duration / 3.0):.3f},"
-        "alimiter=limit=0.8[a]"
-    )
-    _run([
-        ffmpeg_bin(), "-y", "-loglevel", "error",
-        "-f", "lavfi", "-i", f"sine=frequency=55:sample_rate=44100:duration={duration:.3f}",
-        "-f", "lavfi", "-i", f"sine=frequency=82.41:sample_rate=44100:duration={duration:.3f}",
-        "-f", "lavfi", "-i", f"sine=frequency=220:sample_rate=44100:duration={duration:.3f}",
-        "-filter_complex", graph, "-map", "[a]", "-c:a", "pcm_s16le", "-ar", "44100",
-        "-ac", "2", str(path),
-    ])
-    if not Path(path).is_file() or Path(path).stat().st_size < 1000:
-        raise RuntimeError("Original ambient music bed could not be generated.")
-    return Path(path)
+def _create_original_ambient_bed(path, duration, topic=""):
+    """Compatibility wrapper for the shared original documentary music generator."""
+    from core.audio_production import create_original_music_bed
+    generated, _ = create_original_music_bed(path, duration, topic, "documentary")
+    return generated
 
 
 def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path, reuse=False):
+    from core.audio_production import (
+        create_original_music_bed, narration_cleanup_filter, music_profile,
+        write_audio_production_report,
+    )
     T = total + 1.5
+    topic = " ".join(str(section.get("title") or section.get("narration") or "") for section in sections)
+    profile = music_profile(topic, "documentary")
+    music_source = "caller_supplied"
+    if not music or not Path(music).is_file():
+        music, profile = create_original_music_bed(bd / "original_documentary_music.wav", T, topic, "documentary")
+        music_source = "original_generated"
+    write_audio_production_report(Path(out).parent, profile, music_source)
     valid = []
     for i, sec in enumerate(sections):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
@@ -300,13 +288,13 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     inputs += ["-i",str(voice)]
     valid = parts
     n = len(valid); norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
-    afilt = [f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va]"]
+    afilt = [f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va]"]
     mix_in = ["[va]"]; idx = n+1
     if not music or not Path(music).is_file():
         music = _create_original_ambient_bed(bd / "original_ambient_bed.wav", T)
     if music and Path(music).exists():
         inputs += ["-stream_loop","-1","-t",f"{T+1:.2f}","-i",str(music)]
-        afilt[0] = f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
+        afilt[0] = f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
         afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.5[mu]")
         afilt.append("[mu][key]"
