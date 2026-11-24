@@ -97,7 +97,18 @@ def render(media, lens, cuts, voice, ass, total, out, music=None, music_vol=0.45
 
 
 def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx_vol):
+    from core.audio_production import (
+        create_original_music_bed, narration_cleanup_filter, music_profile,
+        write_audio_production_report,
+    )
     T = total + 0.6
+    topic = " ".join(str(item.get("visual_prompt") or item.get("topic") or "") for item in media)
+    profile = music_profile(topic, "shorts")
+    music_source = "caller_supplied"
+    if not music or not Path(music).is_file():
+        music, profile = create_original_music_bed(bd / "original_shorts_music.wav", T, topic, "shorts")
+        music_source = "original_generated"
+    write_audio_production_report(bd, profile, music_source)
     parts = []
     for i, m in enumerate(media):
         d = lens[i] + FADE
@@ -112,18 +123,18 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
     inputs += ["-i",str(voice)]
     n = len(parts); idx = n+1
     norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
-    afilt = [f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va0]"]
+    afilt = [f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va0]"]
     mix_in = []
     if music and Path(music).exists():
         inputs += ["-stream_loop","-1","-t",f"{T+1:.2f}","-i",str(music)]
         afilt.append("[va0]asplit=2[va][key]")
-        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
+        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-20:TP=-4:LRA=7,aresample=44100,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.0[mu]")
         afilt.append("[mu]asplit=2[mu1][mu2];[mu1][key]"
                      "sidechaincompress=threshold=0.03:ratio=6:attack=12:release=450:makeup=1[duck]")
         mix_in = ["[va]","[duck]"]; idx += 1
     else:
-        afilt[0] = f"[{n}:a]{norm},apad=whole_dur={T:.3f}[va]"; mix_in = ["[va]"]
+        afilt[0] = f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va]"; mix_in = ["[va]"]
     if sfx_vol > 0 and cuts:
         whoosh = bd/"whoosh.wav"; _whoosh(whoosh); inputs += ["-i",str(whoosh)]
         K = len(cuts)
