@@ -270,10 +270,10 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
     write_audio_production_report(outdir, profile, music_source)
     audio_graph = (
         f"[1:a]aresample=44100,highpass=f=75,lowpass=f=14500,afftdn=nf=-28:tn=1,"
-        f"apad,atrim=duration={mux_duration:.3f}[voice];"
+        f"apad,atrim=duration={mux_duration:.3f}[voice0];[voice0]asplit=2[voice][key];"
         f"[2:a]aresample=44100,volume=0.16,highpass=f=90,lowpass=f=12000,"
         f"afade=t=in:st=0:d=1.0[music];"
-        "[music][voice]sidechaincompress=threshold=0.025:ratio=7:attack=12:release=500:makeup=1[duck];"
+        "[music][key]sidechaincompress=threshold=0.025:ratio=7:attack=12:release=500:makeup=1[duck];"
         f"[voice][duck]amix=inputs=2:duration=first:normalize=0,"
         f"afade=t=out:st={max(mux_duration-1.2, 0):.3f}:d=1.2,"
         "loudnorm=I=-14:TP=-1.5:LRA=9,alimiter=limit=0.95[aout]"
