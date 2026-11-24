@@ -34,7 +34,18 @@ def music_profile(topic: str = "", pipeline: str = "shorts") -> dict:
     return {"mood": mood, "notes_hz": list(notes), "description": label,
             "pipeline_style": {"shorts": "high-energy cinematic explainer",
                                "news": "modern newsroom visual journalism",
-                               "documentary": "cinematic investigative documentary"}.get(pipeline, pipeline)}
+                               "documentary": "cinematic investigative documentary"}.get(pipeline, pipeline),
+            "visual_identity": {
+                "shorts": {"palette": "deep navy, electric cyan, warm white", "type": "bold Noto Sans",
+                           "transitions": "punchy cuts, short directional wipes, restrained impact zooms",
+                           "pacing": "fast visual changes; explainers and animated diagrams"},
+                "news": {"palette": "newsroom navy, white, restrained amber", "type": "clean Noto Sans",
+                         "transitions": "clean broadcast cuts and restrained wipes",
+                         "pacing": "fact-led, readable headlines, source evidence and maps"},
+                "documentary": {"palette": "cinematic charcoal, muted gold, natural footage tones",
+                                "type": "editorial Noto Sans", "transitions": "deliberate dissolves and motivated cuts",
+                                "pacing": "measured chapters, archival footage and explanatory animation"},
+            }.get(pipeline, {})}
 
 
 def create_original_music_bed(path: str | Path, duration: float, topic: str = "",
