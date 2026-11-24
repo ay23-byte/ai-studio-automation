@@ -94,7 +94,6 @@ def write_audio_production_report(directory: str | Path, profile: dict, music_so
                   **profile},
         "mix_policy": {"narration_priority": True, "sidechain_ducking": True,
                        "music_during_pauses": True, "human_listening_review_required": True,
-                       "final_sample_rate_hz": 48000,
                        **(mix_settings or {})},
         "copyright_note": "Generated instrumental is original synthesis; supplied tracks still require documented usage rights.",
     }
