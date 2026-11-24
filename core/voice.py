@@ -361,7 +361,7 @@ def _chatterbox_language_id(text, language):
         return "en"
     if selected == "hindi":
         return "hi"
-    devanagari = sum(1 for char in str(text) if "\\u0900" <= char <= "\\u097f" and char.isalpha())
+    devanagari = sum(1 for char in str(text) if "\u0900" <= char <= "\u097f" and char.isalpha())
     latin = sum(1 for char in str(text) if char.isascii() and char.isalpha())
     return "hi" if devanagari and devanagari >= max(1, latin * 0.35) else "en"
 
