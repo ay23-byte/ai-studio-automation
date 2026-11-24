@@ -653,8 +653,9 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     # Pause after the phrase that was just spoken (not the next phrase).
     pauses = [_pause_after(chunk) for chunk in sentences[:-1]] + [0.0]
 
-    global _LAST_EDGE_FAILURES
+    global _LAST_EDGE_FAILURES, _LAST_CHATTERBOX_LANGUAGES
     _LAST_EDGE_FAILURES = []
+    _LAST_CHATTERBOX_LANGUAGES = []
     requested_engine = os.getenv("TTS_ENGINE", "chatterbox").strip().lower()
     engine = requested_engine
     fallback_reason = None
