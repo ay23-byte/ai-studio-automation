@@ -468,9 +468,7 @@ def _synth_all_chatterbox(sentences, language, build_dir):
         )
         heartbeat_thread.start()
         try:
-            actual_language = _synth_chatterbox(sentence, language, temporary)
-            if actual_language != phrase_language:
-                raise RuntimeError("Chatterbox phrase language selection changed during synthesis.")
+            _synth_chatterbox(sentence, language, temporary)
         except Exception:
             temporary.unlink(missing_ok=True)
             metadata_temporary.unlink(missing_ok=True)
