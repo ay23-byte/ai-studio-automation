@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-24T11:09:47+00:00",
+  "updated_at": "2026-11-24T11:11:26+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -436,10 +436,12 @@
       "key": "24f362c7ddd965d1a5e2eb75",
       "created_at": "2026-11-24T11:09:47+00:00",
       "title": "Sunlight से Electricity कैसे बनती है? Photoelectric Effect",
-      "status": "built",
-      "updated_at": "2026-11-24T11:09:47+00:00",
+      "status": "uploaded",
+      "updated_at": "2026-11-24T11:11:26+00:00",
       "topic": "How Does Sunlight Become Electricity? The photoelectric and photovoltaic effects.",
-      "job_id": 7
+      "job_id": 7,
+      "youtube_id": "mJ2vyoQmsTo",
+      "privacy_status": "private"
     }
   ]
 }
