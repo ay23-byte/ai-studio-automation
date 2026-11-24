@@ -344,7 +344,13 @@ def _ask_gemini(prompt: str) -> str:
     providers = llm.configured_providers()
     if not providers:
         if gemini_error is not None:
-            raise gemini_error
+            raise RuntimeError(
+                str(gemini_error)
+                + "\\nNo fallback text provider is configured. Add at least one working "
+                "GitHub Actions secret: GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, "
+                "MISTRAL_API_KEY, or GITHUB_MODELS_TOKEN. The workflow already passes these "
+                "optional secrets to the script generator; an unset/empty secret is not a provider."
+            ) from gemini_error
         raise RuntimeError(
             "GEMINI_API_KEY is not set. Add it to GitHub Actions secrets, or configure a "
             "fallback text provider (GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, "
