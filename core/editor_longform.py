@@ -305,7 +305,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     if music and Path(music).exists():
         inputs += ["-stream_loop","-1","-t",f"{T+1:.2f}","-i",str(music)]
         afilt[0] = f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
-        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
+        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=48000,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.5[mu]")
         afilt.append("[mu][key]"
                      "sidechaincompress=threshold=0.03:ratio=5:attack=15:release=600:makeup=1[duck]")
