@@ -292,7 +292,7 @@ def generate_reviewed_shorts(review_path, output_path, language=None):
         )
     language_instruction = {
         "english": "Write natural spoken English narration and accurate English captions.",
-        "hinglish": "Write natural spoken Roman Hinglish narration and accurate Roman Hinglish captions. Keep English technical terms natural.",
+        "hinglish": "Write natural spoken Hinglish narration: Hindi words in Devanagari and English words, technical terms and names in Latin script. Blend both naturally like a professional Indian news presenter; never transliterate Hindi words into Roman letters or force English terms into formal Hindi. Captions should be concise and match the spoken meaning.",
         "hindi": "Write natural spoken Devanagari Hindi narration and Roman Hinglish captions."
     }[language]
     prompt = (
