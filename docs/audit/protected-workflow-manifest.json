@@ -170,7 +170,7 @@
     "core/archival_images.py": "ff116db262f3638fc20356cdd4ae17c04f6049b11c1454037ee79373186cc84c",
     "core/asset_licensing.py": "90effc0dfeb9eff6150bd3e82c681fb918460845f2ddcda4ced306da13fdfd6b",
     "core/asset_manifest.py": "e7c7099f061db630e9dc5f1f0e97c85a0d08a8942ff2324a9ec2421d4c07fd4f",
-    "core/audio_production.py": "7db25b060fdf22accf57e090385524e00728fb39c99f76ea355ac515e88b2eed",
+    "core/audio_production.py": "8a1ddf3dba1a56214e8cfb16f0ad817d2a5afc59b0cb9b031264ed73732fcc67",
     "core/audio_quality.py": "0613c2bab89529409f96d36085a29fbe35a647197eb759c3eb8d407fd8804130",
     "core/avatar_clip_generation.py": "5b5e8dacff640c9f84abeff8d53517c1e13e8b5315abc25a338f9b7b6ac3db28",
     "core/channel_profile.py": "8530bdb1f8f718782f9253f8ab965aeb66eb6dbc78d4998cf1220120ca050d53",
