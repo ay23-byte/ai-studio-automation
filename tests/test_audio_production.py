@@ -13,6 +13,7 @@ class AudioProductionTests(unittest.TestCase):
         self.assertIn("highpass=f=75", value)
         self.assertIn("lowpass=f=14500", value)
         self.assertIn("afftdn=nf=-28", value)
+        self.assertIn("aresample=48000", value)
 
     def test_topic_selects_distinct_music_moods(self):
         self.assertEqual(music_profile("Quantum physics discovery", "shorts")["mood"], "discovery")
@@ -29,6 +30,8 @@ class AudioProductionTests(unittest.TestCase):
             profile = music_profile("space science", "shorts")
             report = write_audio_production_report(temp, profile, "original_generated")
             self.assertTrue(report["narration_cleanup"]["enabled"])
+            self.assertEqual(report["narration_cleanup"]["sample_rate_hz"], 48000)
+            self.assertEqual(report["mix_policy"]["final_sample_rate_hz"], 48000)
             self.assertTrue(report["mix_policy"]["human_listening_review_required"])
             self.assertEqual(report["music"]["licensing"], "original_synthesised_instrumental")
             self.assertTrue((Path(temp) / "audio_production_report.json").is_file())
