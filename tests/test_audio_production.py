@@ -28,7 +28,8 @@ class AudioProductionTests(unittest.TestCase):
     def test_audio_report_keeps_human_review_and_licence_evidence(self):
         with tempfile.TemporaryDirectory() as temp:
             profile = music_profile("space science", "shorts")
-            report = write_audio_production_report(temp, profile, "original_generated")
+            report = write_audio_production_report(temp, profile, "original_generated",
+                                                   mix_settings={"final_sample_rate_hz": 48000})
             self.assertTrue(report["narration_cleanup"]["enabled"])
             self.assertEqual(report["narration_cleanup"]["sample_rate_hz"], 48000)
             self.assertEqual(report["mix_policy"]["final_sample_rate_hz"], 48000)
