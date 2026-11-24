@@ -341,14 +341,19 @@ class WorkflowStructureTests(unittest.TestCase):
             text = _text(name)
             self.assertIn("scripts/build_with_recovery.py", text, name)
             self.assertIn("BUILD_RECOVERY_ATTEMPTS", text, name)
-        # Daily news is render/review only; private release is a separate approval workflow.
+        # The news renderer is credential-isolated; a dependent job releases the
+        # exact artifact PRIVATE after the existing machine-only gate passes.
         news = _text("daily-news-auto-short.yml")
-        self.assertNotIn("python scripts/run_daily_news_short.py --upload", news)
-        self.assertIn('WANT_UPLOAD: "false"', news)
-        self.assertIn('UPLOAD_REQUESTED: "false"', news)
-        self.assertTrue((WORKFLOW_DIR / "release_news_private_auto.yml").is_file())
-        self.assertNotIn("YT_REFRESH_TOKEN", news)
-        self.assertNotIn("YT_CLIENT_SECRET", news)
+        build = _job_block(news, "news-short")
+        release = _job_block(news, "release")
+        self.assertNotIn("python scripts/run_daily_news_short.py --upload", build)
+        self.assertIn('WANT_UPLOAD: "false"', build)
+        self.assertIn('UPLOAD_REQUESTED: "false"', build)
+        self.assertIn("needs: news-short", release)
+        self.assertIn("scripts/release_news_private_artifact.py", release)
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn('PRIVACY: "private"', release)
 
     def test_state_is_saved_even_when_the_build_fails(self):
         for name in ("make_shorts.yml", "daily-news-auto-short.yml"):
