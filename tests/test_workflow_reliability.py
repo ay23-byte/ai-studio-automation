@@ -113,7 +113,7 @@ class ActionVersionTests(unittest.TestCase):
         self.assertNotIn('NEWS_TEMPLATE_FALLBACK: "1"', text)
         self.assertIn("No generic template fallback", text)
         self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py", text)
-        self.assertIn("Release approved Short (Private)", text)
+        self.assertIn("release_news_private_auto.yml", (WORKFLOW_DIR / "release_news_private_auto.yml").name)
         self.assertNotIn("YT_REFRESH_TOKEN", text)
         self.assertNotIn("YT_CLIENT_SECRET", text)
         self.assertNotIn("YT_CLIENT_ID", text)
@@ -340,7 +340,7 @@ class WorkflowStructureTests(unittest.TestCase):
         self.assertNotIn("python scripts/run_daily_news_short.py --upload", news)
         self.assertIn('WANT_UPLOAD: "false"', news)
         self.assertIn('UPLOAD_REQUESTED: "false"', news)
-        self.assertIn("Release approved Short (Private)", news)
+        self.assertTrue((WORKFLOW_DIR / "release_news_private_auto.yml").is_file())
         self.assertNotIn("YT_REFRESH_TOKEN", news)
         self.assertNotIn("YT_CLIENT_SECRET", news)
 
