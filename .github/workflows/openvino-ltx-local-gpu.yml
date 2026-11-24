@@ -112,7 +112,7 @@ jobs:
         # which cannot be verified from the repository. Kept on the Node 20 majors.
         uses: actions/checkout@v4
 
-      - name: Preflight laptop RAM before installing or exporting the model
+      - name: Preflight laptop RAM before installing the OpenVINO environment
         shell: powershell
         run: |
           $computer = Get-CimInstance Win32_ComputerSystem
@@ -133,7 +133,6 @@ jobs:
           if ($freeGB -lt 8) {
             throw "Only $freeGB GB RAM is currently available. Close memory-heavy apps and rerun; the LTX exporter needs substantial working memory."
           }
-
 
       - name: Install isolated OpenVINO environment with compatible Transformers
         id: install
