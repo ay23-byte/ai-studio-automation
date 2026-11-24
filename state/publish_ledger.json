@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-24T01:33:07+00:00",
+  "updated_at": "2026-11-24T10:17:50+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -419,6 +419,16 @@
         "91099cf1cfebf97b33a5",
         "178f7652c2607ce71f7d"
       ],
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "4c731addf006c8cb2fb596a3",
+      "created_at": "2026-11-24T10:17:50+00:00",
+      "title": "क्या Electron हमें \"देखते हुए\" पकड़ लेता है? Quantum Physics",
+      "status": "built",
+      "updated_at": "2026-11-24T10:17:50+00:00",
+      "topic": "Does an Electron Know When We Observe It?",
       "job_id": 7
     }
   ]
