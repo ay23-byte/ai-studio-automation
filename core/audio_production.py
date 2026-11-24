@@ -62,7 +62,7 @@ def create_original_music_bed(path: str | Path, duration: float, topic: str = ""
         inputs += ["-f", "lavfi", "-i",
                    f"sine=frequency={frequency}:sample_rate=44100:duration={duration:.3f}"]
         filters.append(
-            f"[{index}:a]volume={volume},tremolo=f={0.08 + index * 0.025:.3f}:d=0.18,"
+            f"[{index}:a]volume={volume},tremolo=f={0.10 + index * 0.025:.3f}:d=0.18,"
             f"lowpass=f={1800 + index * 450},aformat=sample_fmts=fltp:channel_layouts=stereo"
             f"[m{index}]"
         )
