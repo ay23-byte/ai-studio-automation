@@ -140,7 +140,7 @@
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
     ".github/workflows/make_longform.yml": "8491158752e63b3b4340523c6b26a153a0722dd0ddf0b254deb8a08aa6e741e9",
-    ".github/workflows/make_shorts.yml": "63023ab985c56c485c3de871784f92da89ba8b360bba4ed1a89e19d83355cd68",
+    ".github/workflows/make_shorts.yml": "954d150a7e4375ee1f2a53f1bacbd56a72db8d6cb72a9752c07365b291fc5278",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
     ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
@@ -185,7 +185,7 @@
     "core/documentary_storyboard.py": "c9482d077fc7d42cb8bb853666cc012298d4f7e9f8428e11bc0575193b6efc25",
     "core/downloads.py": "8df346e8b36dfb3db7848fb4793e1f3fc1de6baa1187ad5b8991cba6e4deb195",
     "core/editor_longform.py": "96bc37d21fa01fe1b28472c0cd1980e8a3c9d6dcd406d6f325e4e20cb77133d0",
-    "core/editor_shorts.py": "e2eb437222c23a0b4358d575251cf25c6d420fcb57cb0c3b4335fd63e343e79a",
+    "core/editor_shorts.py": "b949234a62ebb244bf07214a66d020b686a290f888d4ca23f055fbbad7ca4b6c",
     "core/editorial_review.py": "dcb41407416281a167ae0c9d38dccb9d51a40074bea0447ab9b3b0e41d11b3c5",
     "core/explainer_cards.py": "49e0b126f9798550e9baa35d559db0df72236184fc3ee5d9c41afa71d1d43f1f",
     "core/failure_category.py": "fa6e2ce61673d21e22abf699e77b5f53ba402ea33e4f29cf0800d9f66a3cb4d3",
@@ -222,7 +222,7 @@
     "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
     "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
     "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
-    "core/pipeline.py": "94c8fa6e6c9d7f29767392a276cdeba8355be6ff0589a70f33d57c08eff54741",
+    "core/pipeline.py": "7b6fbdf2b42bf8bb0e413dd5c49d8dd9bce74f3bc8bb38026409f47f772f5334",
     "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
     "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
@@ -1402,7 +1402,7 @@
       "upload_lines": []
     },
     "make_shorts.yml": {
-      "sha256": "63023ab985c56c485c3de871784f92da89ba8b360bba4ed1a89e19d83355cd68",
+      "sha256": "954d150a7e4375ee1f2a53f1bacbd56a72db8d6cb72a9752c07365b291fc5278",
       "display_name": "1. Daily general Shorts — build and package",
       "on_sha256": "7b6bebf109a2f8f1729d3f40b49c2c66fd11d9fa3eeb414f20b82d78319adb35",
       "triggers": [
