@@ -350,7 +350,8 @@ class NewsAutoTests(_StateSandbox):
         self.assertIn("THE LEAD", news_auto.NEWS_PROMPT)
         self.assertIn("THE CONFIRMATION", news_auto.NEWS_PROMPT)
         self.assertIn("Never manufacture context", news_auto.NEWS_PROMPT)
-        self.assertIn("Roman script", news_auto._LANGUAGE_RULES["hinglish"])
+        self.assertIn("Devanagari", news_auto._LANGUAGE_RULES["hinglish"])
+        self.assertIn("Latin script", news_auto._LANGUAGE_RULES["hinglish"])
 
     def test_ungrounded_model_output_fails_closed(self):
         story, _ = news_auto.select_story(CORROBORATED)

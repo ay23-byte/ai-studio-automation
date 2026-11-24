@@ -283,7 +283,7 @@ Return ONLY valid JSON:
 
 _LANGUAGE_RULES = {
     "english": "Natural spoken English for narration and captions.",
-    "hinglish": "Natural Indian newsroom Hinglish in Roman script: fluent Hindi sentence structure with familiar English news, policy, business and technology terms; keep names and official terms accurate, avoid forced slang, meme language and excessive English. Narration and captions must both be Roman script.",
+    "hinglish": "Natural Indian newsroom Hinglish: write Hindi words in Devanagari and familiar English news, policy, business and technology terms, names and official terms in Latin script. Blend both naturally in the same sentence like a confident professional Indian news anchor. Avoid forced slang, meme language, stiff translations and excessive English.",
     "hindi": "Natural Devanagari Hindi narration; captions in the same language.",
 }
 

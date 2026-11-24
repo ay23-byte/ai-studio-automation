@@ -349,19 +349,41 @@ def _get_chatterbox():
             _CHATTERBOX_MODEL = loader(device="cpu")
     return _CHATTERBOX_MODEL
 
+def _chatterbox_language_id(text, language):
+    """Select the Chatterbox multilingual language from the phrase's actual script.
+
+    Hinglish is authored with Hindi words in Devanagari and English words/terms
+    in Latin script. Chatterbox accepts one language_id per phrase, so Hindi-
+    dominant phrases must use its Hindi model rather than being sent as English.
+    """
+    selected = str(language or "").strip().lower()
+    if selected == "english":
+        return "en"
+    if selected == "hindi":
+        return "hi"
+    devanagari = sum(1 for char in str(text) if "\u0900" <= char <= "\u097f" and char.isalpha())
+    latin = sum(1 for char in str(text) if char.isascii() and char.isalpha())
+    return "hi" if devanagari and devanagari >= max(1, latin * 0.35) else "en"
+
+
+_LAST_CHATTERBOX_LANGUAGES = []
+
+
 def _synth_chatterbox(text, language, path):
     import torchaudio
     model = _get_chatterbox()
-    language_id = "en" if language in {"english", "hinglish"} else "hi"
+    language_id = _chatterbox_language_id(text, language)
     audio = model.generate(text, language_id=language_id)
     torchaudio.save(str(path), audio.detach().cpu(), model.sr)
+    return language_id
+
 
 def _chatterbox_phrase_signature(sentence, language):
     """Stable cache key for one completed Chatterbox phrase."""
     payload = {
-        "schema": 1,
+        "schema": 2,
         "model": os.getenv("CHATTERBOX_CACHE_MODEL_TAG", "multilingual-v3"),
-        "language": "en" if language in {"english", "hinglish"} else "hi",
+        "language": _chatterbox_language_id(sentence, language),
         "text": str(sentence),
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -395,6 +417,8 @@ def _synth_all_chatterbox(sentences, language, build_dir):
     cache_setting = os.getenv("CHATTERBOX_CACHE_DIR", "").strip()
     cache_dir = Path(cache_setting) if cache_setting else Path(build_dir) / "chatterbox_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
+    global _LAST_CHATTERBOX_LANGUAGES
+    _LAST_CHATTERBOX_LANGUAGES = []
     wavs = []
     reused = 0
     total = len(sentences)
@@ -404,6 +428,8 @@ def _synth_all_chatterbox(sentences, language, build_dir):
         heartbeat_seconds = 60.0
 
     for i, sentence in enumerate(sentences, start=1):
+        phrase_language = _chatterbox_language_id(sentence, language)
+        _LAST_CHATTERBOX_LANGUAGES.append(phrase_language)
         signature = _chatterbox_phrase_signature(sentence, language)
         wav = cache_dir / f"{signature}.wav"
         metadata_path = cache_dir / f"{signature}.json"
@@ -627,8 +653,9 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     # Pause after the phrase that was just spoken (not the next phrase).
     pauses = [_pause_after(chunk) for chunk in sentences[:-1]] + [0.0]
 
-    global _LAST_EDGE_FAILURES
+    global _LAST_EDGE_FAILURES, _LAST_CHATTERBOX_LANGUAGES
     _LAST_EDGE_FAILURES = []
+    _LAST_CHATTERBOX_LANGUAGES = []
     requested_engine = os.getenv("TTS_ENGINE", "chatterbox").strip().lower()
     engine = requested_engine
     fallback_reason = None
@@ -708,6 +735,7 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
                               and _LAST_EDGE_VOICE != pick_voice(language, gender)),
         "providers_available": provider_status(),
         "language": language,
+        "chatterbox_phrase_languages": list(_LAST_CHATTERBOX_LANGUAGES),
         "gender": gender,
         "chunk_count": len(sentences),
         "characters": completeness["characters"],

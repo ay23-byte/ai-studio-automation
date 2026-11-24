@@ -258,6 +258,14 @@ class ContentQaTests(unittest.TestCase):
         self.assertEqual(content_qa.validate_shorts_script(hindi, "english")["status"], "FAIL")
         self.assertNotEqual(content_qa.validate_shorts_script(hindi, "hindi")["status"], "FAIL")
 
+    def test_natural_hinglish_allows_and_requires_both_scripts(self):
+        mixed = _script(say="आज हम इस technology को समझेंगे और इसका real world impact देखेंगे")
+        roman_only = _script(say="Aaj hum is technology ko samjhenge aur iska real world impact dekhenge")
+        english_only = _script(say="Today we will understand this technology and its real world impact")
+        self.assertNotEqual(content_qa.validate_shorts_script(mixed, "hinglish")["status"], "FAIL")
+        self.assertEqual(content_qa.validate_shorts_script(roman_only, "hinglish")["status"], "FAIL")
+        self.assertEqual(content_qa.validate_shorts_script(english_only, "hinglish")["status"], "FAIL")
+
 
 class LlmFallbackTests(unittest.TestCase):
     def test_only_providers_with_keys_are_configured_and_ordered(self):
