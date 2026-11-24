@@ -92,7 +92,7 @@ class GeminiFailoverTests(unittest.TestCase):
         for language, expected in [
             ("English", "natural English"),
             ("Hindi", "natural Hindi in Devanagari"),
-            ("Hinglish", "natural spoken Hindi-English code-mixing: Hindi words in Devanagari"),
+            ("Hinglish", "natural spoken Hindi-English code-mixing using Devanagari for Hindi words"),
         ]:
             prompt = script_engine.SHORTS_PROMPT.format(
                 topic="The science of black holes",
