@@ -108,7 +108,7 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
     if not music or not Path(music).is_file():
         music, profile = create_original_music_bed(bd / "original_shorts_music.wav", T, topic, "shorts")
         music_source = "original_generated"
-    write_audio_production_report(bd, profile, music_source)
+    write_audio_production_report(Path(out).parent, profile, music_source)
     parts = []
     for i, m in enumerate(media):
         d = lens[i] + FADE
