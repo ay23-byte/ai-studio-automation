@@ -123,7 +123,7 @@
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
     ".github/workflows/chernobyl-documentary-production.yml": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
-    ".github/workflows/daily-news-auto-short.yml": "c35c9e470f244d8213805969a19c2e07b4e4b72d0b3679d8316fa534ac598829",
+    ".github/workflows/daily-news-auto-short.yml": "4b8f9ccf03b2dbc4905f39b942056f6405abf14cf28030ba1193d4bf734f3fa2",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
     ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
     ".github/workflows/daily-news-short-render.yml": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
@@ -140,7 +140,7 @@
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
     ".github/workflows/make_longform.yml": "8491158752e63b3b4340523c6b26a153a0722dd0ddf0b254deb8a08aa6e741e9",
-    ".github/workflows/make_shorts.yml": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
+    ".github/workflows/make_shorts.yml": "6b123c0b47fc8e627ac889e1f43aa08a1d07000dcfa58d757f6c130c5441331a",
     ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
     ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
@@ -176,7 +176,7 @@
     "core/cinematic_shot_planner.py": "c05d22bccf9f6e753745c9ad15995455a69466fda7da7911d884f523dc168b78",
     "core/config.py": "7f585abbcd5a88f41679f6b1ebce336531e51eb8eb0f8821f0e3045d5c71dab7",
     "core/content_lab.py": "51e52d57e7d7436756181b688108174b393d010ac0d6cd361ce483e7725f2f7f",
-    "core/content_qa.py": "3a0a2ce4a0d33a8b854a0d395dda71716b9239d40eca54fe0d800642c077a4d1",
+    "core/content_qa.py": "8363b3423d4806e34c51b0074fa16fb4946851e5eb7592bb66031440b00d6ffa",
     "core/daily_news_pipeline.py": "09c5692fda86e97e809410a6bee6b74e09f922720495eef0016c985f69fb4531",
     "core/db.py": "e6c2a4baa0ffeaae147cf44c996c06e6b9b4b1e2d18ae5897b33b0789a4c88f7",
     "core/dedupe.py": "61e03294e6375abb4d266d0c63f6c150a38134d654048fe278077b356e202d1f",
@@ -205,7 +205,7 @@
     "core/local_review.py": "9f44101baf7df488d69970c254ebc82641a426076018ed0ba559ceb1ef4c8972",
     "core/monitoring.py": "6a2e8854e763a30367ffa44e69e7c6f497f878f657f07e51ff0a6f38f657a6a4",
     "core/muapi_video.py": "b02ab5d936d5541d3eff88fa440e042a883eae9da0bc3f91d7e1b0bc7504af5d",
-    "core/news_auto.py": "ce2c01bac92301a9eb2f075ca516fee02aaea42bef50df74716e4c92148ca3df",
+    "core/news_auto.py": "5eaf915bd8d3f0da1ad2368f4abf3a826b52c058ba70034b74958f111a63b48d",
     "core/news_editorial.py": "dc45a218e77624a756a41869bd0c5e01f0bccc954b0fce268afccdefd6ee02e1",
     "core/news_private_release.py": "debeafaafda962ebb57a29a912c49e07df593e0860e31e9b6343c7ab8ea11466",
     "core/news_research.py": "3f445bbf71deba0d41ebf12f25984b25721a8dc07796b1d0308d4e8f73e1f106",
@@ -216,7 +216,7 @@
     "core/news_short_presenter_qa.py": "9c2c1aa0a9fe855014b7739deba6d51dc1ead6c936f59a0fa370923fb19e3119",
     "core/news_short_production.py": "a5da2b0f76a19ca6e7e076e1a619ddc9553716dd232a7bf260bb0bccb4e065c7",
     "core/news_short_scene_qa.py": "e4084c03ceb24a1482d387ae1bcc705e3caf498dbc9c8283a69c3225f1a03b41",
-    "core/news_shorts_writer.py": "87de99ecdc4aded0368d903f2458ce5c8d9c7f148df678d3e99e4dfb525f83f8",
+    "core/news_shorts_writer.py": "d7ae656ddbef77ed1dccb9a126c23ebb868a8ba8297b5e95cec5250f82822e96",
     "core/news_source_verification.py": "64ec355843f9fe87c49a3a594e3916746f5a2288214a86d7532358ed659b6875",
     "core/notify.py": "5000eb5f68d54684c918073f7bead667644abf7adf9be1defb3874b6c14a8797",
     "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
@@ -238,7 +238,7 @@
     "core/review_packaging.py": "a56bc462f6bc1f265cc1606b5d016cca5174059ef100e5dcff68972e307ed6c4",
     "core/run_report.py": "71e153efe66648cb4e6c23ffe6818e18ca7680c797277bd1ff4ab6fcf7efe755",
     "core/scheduler.py": "20a907f597f9c250e40d0b19b8f399d59750f3d86ad2bdb550aa6b12ecf4915a",
-    "core/script_engine.py": "89d7d3a401eb229951644db81ed44832164b43d99f177701e844b59b290a33fb",
+    "core/script_engine.py": "1bd5e59b2b456ccf22d2ae86f1acf4e3c71cb81765e5639bbbc7e55019af9ea9",
     "core/seo.py": "b6eb4380865119416bac1d5f29401d2dcc0debdd79753d584fbe679f479b102b",
     "core/source_evidence.py": "02b38eb2d727315f680922d3d7d8790932baf858b587616391d71b1226927909",
     "core/subtitle_translation.py": "367d3baecbddf529a26b7418d6d4479206f6ae7380f117f3660c992a5110c6c6",
@@ -251,7 +251,7 @@
     "core/visual_consistency.py": "3e20b9d4f06ef2c0f687d5f1c6482fcf09555edb0eebd77b3156e9848bcbf2a8",
     "core/visual_production.py": "3f0ddaf89e072ed81cd4a92872956820d186bb00df34bc0773602fa60ff83589",
     "core/visual_semantics.py": "56fb5f5b5d18817966c2743c1de705a1d0e749431a55ba71fb039d5028f87b22",
-    "core/voice.py": "92ba86e24c6f120e672cc286b6780020742ecef578d1069067e71ab0e07d2cd0",
+    "core/voice.py": "af95b1d6aa95c7131aff5dfd4422ace36d3a6b5d1398ee88be43b30c8175d33e",
     "core/wan_timeline_adapter.py": "e94ad8165de8a0eb866f7ba0d5b98d52d80191f56cdd9b73e9659ddbaa8684fd",
     "core/wikimedia_images.py": "42efe28f812e572acbe1ca56e251cee39024acb842f9b24418fec054257eae39",
     "core/workflow_audit.py": "67e95cc953555624b25ef763e1728bd28504ffab9a3681b480d009b7b84671ce",
@@ -553,9 +553,9 @@
       "upload_lines": []
     },
     "daily-news-auto-short.yml": {
-      "sha256": "c35c9e470f244d8213805969a19c2e07b4e4b72d0b3679d8316fa534ac598829",
+      "sha256": "4b8f9ccf03b2dbc4905f39b942056f6405abf14cf28030ba1193d4bf734f3fa2",
       "display_name": "Daily news Short — build for automatic PRIVATE release",
-      "on_sha256": "a916ce043807257e147bcf7355918c5a87b8a037981c82bba1fd73c4b9e18e25",
+      "on_sha256": "3f7c51b1ad35af2dd13e9f8fdb1e71512414f1cd5e997696dc782a4de531b085",
       "triggers": [
         "workflow_dispatch",
         "schedule"
@@ -566,7 +566,7 @@
       ],
       "dispatch_inputs": {
         "language": {
-          "default": "english",
+          "default": "hinglish",
           "description": "Narration language",
           "type": "choice",
           "options": [
@@ -1402,9 +1402,9 @@
       "upload_lines": []
     },
     "make_shorts.yml": {
-      "sha256": "5121e9f71d10370225deafbb20be3186c4c632be59a7c95257101ebd47734013",
+      "sha256": "6b123c0b47fc8e627ac889e1f43aa08a1d07000dcfa58d757f6c130c5441331a",
       "display_name": "1. Daily general Shorts — build and package",
-      "on_sha256": "7d7e8c0779f31d83983dab944389ed96efe97b586360f93333108f0fafe0fded",
+      "on_sha256": "7b6bebf109a2f8f1729d3f40b49c2c66fd11d9fa3eeb414f20b82d78319adb35",
       "triggers": [
         "workflow_dispatch",
         "schedule"
@@ -1450,7 +1450,7 @@
           ]
         },
         "language": {
-          "default": "english",
+          "default": "hinglish",
           "description": "Voice and subtitle language",
           "type": "choice",
           "options": [
