@@ -1,4 +1,4 @@
-import hashlib, json, os, shutil, subprocess, tempfile
+import hashlib, json, math, os, shutil, subprocess, tempfile
 from pathlib import Path
 
 from core import ffmpeg_utils
@@ -273,7 +273,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
         Path(out).parent, profile, music_source,
         mix_settings={
             "music_base_gain_linear": float(music_vol),
-            "music_base_gain_db": round(20.0 * __import__("math").log10(max(float(music_vol), 1e-6)), 2),
+            "music_base_gain_db": round(20.0 * math.log10(max(float(music_vol), 1e-6)), 2),
             "music_base_gain_reference": "relative to the loudness-normalized music stem",
             "dialogue_priority_method": "sidechain compression keyed from narration",
             "dialogue_music_separation_verified": False,
@@ -297,7 +297,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     for p2 in parts: inputs += ["-i",str(p2)]
     inputs += ["-i",str(voice)]
     valid = parts
-    n = len(valid); norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
+    n = len(valid); norm = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo"
     afilt = [f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va]"]
     mix_in = ["[va]"]; idx = n+1
     if not music or not Path(music).is_file():
@@ -316,7 +316,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     filt += ";".join(afilt)
     _run([ffmpeg_bin(),"-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
-          "-c:a","aac","-b:a","256k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
+          "-c:a","aac","-b:a","256k","-ar","48000","-ac","2","-movflags","+faststart",str(out)])
     if credits_path:
         _append_credits_card(out, credits_path)
     return out
