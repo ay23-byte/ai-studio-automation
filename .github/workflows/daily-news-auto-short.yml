@@ -1,8 +1,8 @@
-name: 'Daily news Short — build for review (PRIVATE release after approval)'
-# Build path: discover → source-tier/safety gates → script → render → review package.
-# This workflow never uploads. A human watches and approves the exact MP4, then
-# the separate "Release approved Short (Private)" workflow uploads PRIVATE only.
-# Visual, audio, caption, source and licensing review gates are never bypassed.
+name: 'Daily news Short — build for automatic PRIVATE release'
+# Build path: discover → source-tier/safety gates → script → render → QA package.
+# This job has no YouTube credentials. A separate workflow_run release job receives
+# credentials only after this exact build succeeds, then runs strict machine QA and
+# uploads PRIVATE only. Sensitive stories and any failed QA remain blocked.
 on:
   workflow_dispatch:
     inputs:
@@ -111,7 +111,8 @@ jobs:
           NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
           SHORTS_SUBTITLE_LANGUAGE: "english"
           WANT_UPLOAD: "false"
-          # Build only. The separate approval workflow is the sole YouTube uploader.
+          # The build job is credential-isolated. A separate release job uploads
+          # this exact artifact only after the machine-only newsroom release gate.
           # No generic template fallback: if a newsroom-quality script cannot be
           # generated and validated, skip production rather than publish filler.
           BUILD_RECOVERY_ATTEMPTS: ${{ vars.BUILD_RECOVERY_ATTEMPTS || '1' }}
@@ -153,6 +154,7 @@ jobs:
             build/job_*/
             !build/job_*/render_work/
             state/
+            db/studio.sqlite
           if-no-files-found: warn
           retention-days: 14
 
