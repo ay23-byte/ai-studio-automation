@@ -18,8 +18,8 @@ def _run(cmd): ffmpeg_utils.run(cmd)
 
 
 def shorts_audio_master_filter():
-    \"\"\"Normalize the final narration/music/SFX mix to a consistent Shorts level.\"\"\"
-    return \"loudnorm=I=-14:TP=-1.5:LRA=9\"
+    """Normalize the final narration/music/SFX mix to a consistent Shorts level."""
+    return "loudnorm=I=-14:TP=-1.5:LRA=9"
 
 def _img_size(p):
     out = subprocess.check_output([ffprobe_bin(),"-v","error","-select_streams","v:0",
