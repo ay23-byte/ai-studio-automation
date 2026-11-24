@@ -20,7 +20,7 @@ on:
         description: "Voice and subtitle language"
         type: choice
         options: [english, hinglish, hindi]
-        default: english
+        default: hinglish
       upload:
         description: "Automatically upload the generated Short to YouTube as PRIVATE after strict machine QA passes"
         type: boolean
@@ -136,8 +136,8 @@ jobs:
           TTS_REQUIRE_ENGINE: "chatterbox"
           ALLOW_CHATTERBOX_ON_CI: "true"
           CHATTERBOX_TORCH_THREADS: "2"
-          CHATTERBOX_PLAYBACK_SPEED: "1.04"
-          SHORTS_LANGUAGE: ${{ inputs.language || 'english' }}
+          CHATTERBOX_PLAYBACK_SPEED: "1.00"
+          SHORTS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           SHORTS_SUBTITLE_LANGUAGE: "english"
           TOPIC_CATEGORIES: "physics,engineering,technology,science"
           CHANNEL_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.channel_profile || 'standard' }}
