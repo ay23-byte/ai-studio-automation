@@ -109,6 +109,8 @@ jobs:
           TTS_OPENING_RATE: "+2%"
           TTS_CLOSING_RATE: "+3%"
           NEWS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
+          # Do not silently substitute an English template for the requested Hinglish anchor voice.
+          NEWS_TEMPLATE_FALLBACK: ${{ inputs.language == 'english' && '1' || '0' }}
           SHORTS_SUBTITLE_LANGUAGE: "english"
           WANT_UPLOAD: "false"
           # The build job is credential-isolated. A separate release job uploads
