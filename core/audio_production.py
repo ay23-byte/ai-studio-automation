@@ -73,7 +73,7 @@ def create_original_music_bed(path: str | Path, duration: float, topic: str = ""
                    "alimiter=limit=0.75[out]")
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[out]",
-                    "-t", f"{duration:.3f}", "-c:a", "pcm_s16le", "-ar", "44100",
+                    "-t", f"{duration:.3f}", "-c:a", "pcm_s16le", "-ar", "48000",
                     "-ac", "2", str(path)], check=True, timeout=render_timeout())
     if not path.is_file() or path.stat().st_size < 1000:
         raise RuntimeError("Original topic-matched instrumental bed could not be generated.")
