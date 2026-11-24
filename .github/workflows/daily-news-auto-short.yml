@@ -119,10 +119,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Do not pass --upload here. A successful render must be reviewable even
-          # when semantic/audio/caption/asset QA correctly returns REVIEW. The
-          # separate Release approved Short (Private) workflow performs upload only
-          # after the user watches this exact MP4 and supplies its SHA-256/decisions.
+          # Keep YouTube credentials out of the renderer. The downstream release job
+          # restores this exact run's database and files, then invokes the existing
+          # fail-closed daily-news release gate before any PRIVATE upload.
           python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py
 
       - name: Assemble the diagnostic and review package
