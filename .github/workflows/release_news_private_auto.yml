@@ -5,7 +5,7 @@ name: "Release daily news Short automatically (Private)"
 # machine source/script/render gates all pass and YouTube confirms PRIVATE.
 on:
   workflow_run:
-    workflows: ["Daily news Short — build for review (PRIVATE release after approval)"]
+    workflows: ["Daily news Short — build for automatic PRIVATE release"]
     types: [completed]
 
 permissions:
