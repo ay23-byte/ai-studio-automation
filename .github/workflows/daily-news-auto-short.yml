@@ -10,7 +10,7 @@ on:
         description: "Narration language"
         type: choice
         options: [english, hinglish, hindi]
-        default: english
+        default: hinglish
   schedule:
     - cron: '45 2 * * *'    # 08:15 IST
     - cron: '45 13 * * *'   # 19:15 IST
@@ -101,14 +101,14 @@ jobs:
           TTS_REQUIRE_ENGINE: "chatterbox"
           ALLOW_CHATTERBOX_ON_CI: "true"
           CHATTERBOX_TORCH_THREADS: "2"
-          CHATTERBOX_PLAYBACK_SPEED: "1.04"
-          TTS_VOICE: ${{ inputs.language == 'hindi' && 'hi-IN-MadhurNeural' || inputs.language == 'hinglish' && 'hi-IN-MadhurNeural' || 'en-US-AndrewNeural' }}
-          TTS_PAUSE_SCALE: "0.55"
+          CHATTERBOX_PLAYBACK_SPEED: "1.00"
+          TTS_VOICE: ${{ inputs.language == 'english' && 'en-US-AndrewNeural' || 'hi-IN-MadhurNeural' }}
+          TTS_PAUSE_SCALE: "0.95"
           TTS_REJECT_ROBOTIC_FALLBACK: "1"
-          TTS_RATE: "+13%"
-          TTS_OPENING_RATE: "+12%"
-          TTS_CLOSING_RATE: "+10%"
-          NEWS_LANGUAGE: ${{ inputs.language || 'english' }}
+          TTS_RATE: "+3%"
+          TTS_OPENING_RATE: "+2%"
+          TTS_CLOSING_RATE: "+3%"
+          NEWS_LANGUAGE: ${{ inputs.language || 'hinglish' }}
           SHORTS_SUBTITLE_LANGUAGE: "english"
           WANT_UPLOAD: "false"
           # The build job is credential-isolated. A separate release job uploads
