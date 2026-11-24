@@ -269,7 +269,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     if not music or not Path(music).is_file():
         music, profile = create_original_music_bed(bd / "original_documentary_music.wav", T, topic, "documentary")
         music_source = "original_generated"
-    write_audio_production_report(bd, profile, music_source)
+    write_audio_production_report(Path(out).parent, profile, music_source)
     valid = []
     for i, sec in enumerate(sections):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
