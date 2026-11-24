@@ -130,7 +130,7 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
         afilt.append("[va0]asplit=2[va][key]")
         afilt.append(f"[{idx}:a]{norm},loudnorm=I=-20:TP=-4:LRA=7,aresample=44100,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.0[mu]")
-        afilt.append("[mu]asplit=2[mu1][mu2];[mu1][key]"
+        afilt.append("[mu][key]"
                      "sidechaincompress=threshold=0.03:ratio=6:attack=12:release=450:makeup=1[duck]")
         mix_in = ["[va]","[duck]"]; idx += 1
     else:
