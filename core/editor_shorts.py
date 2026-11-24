@@ -16,6 +16,11 @@ RANGE = "scale=out_range=tv,format=yuv420p,"
 
 def _run(cmd): ffmpeg_utils.run(cmd)
 
+
+def shorts_audio_master_filter():
+    """Normalize the final narration/music/SFX mix to a consistent Shorts level."""
+    return "loudnorm=I=-14:TP=-1.5:LRA=9"
+
 def _img_size(p):
     out = subprocess.check_output([ffprobe_bin(),"-v","error","-select_streams","v:0",
         "-show_entries","stream=width,height","-of","csv=p=0",str(p)],
@@ -129,7 +134,7 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
             afilt.append(f"[w{i}]adelay={ms}|{ms},volume={sfx_vol}[d{i}]"); mix_in.append(f"[d{i}]")
     fade = f"afade=t=out:st={max(T-1.2,0):.3f}:d=1.2"
     afilt.append("".join(mix_in)+f"amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
-                 f"normalize=0,alimiter=limit=0.95,{fade}[aout]")
+                 f"normalize=0,{fade},{shorts_audio_master_filter()}[aout]")
     filt += ";".join(afilt)
     _run([ffmpeg_bin(),"-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,

@@ -131,7 +131,10 @@ class ShortsEndToEndTests(unittest.TestCase):
             again = Path(pipeline.build_shorts(SCRIPT, job_id, language="english"))
             self.assertEqual(again, video)
             self.assertEqual(self.synth.call_count, voice_calls)
-            self.assertLessEqual(len(self.image_calls) - image_calls, 1)  # only the failed scene may be retried
+            retry_calls = self.image_calls[image_calls:]
+            self.assertEqual(len(retry_calls), 3)  # initial attempt plus two bounded retries
+            self.assertTrue(all(name == "img1.jpg" for name in retry_calls),
+                            "resume must retry only the failed scene, never regenerate successful scenes")
 
     def test_failed_render_is_recorded_and_resumable(self):
         from core import pipeline

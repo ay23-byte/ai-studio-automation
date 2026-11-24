@@ -10,6 +10,7 @@ from core.audio_quality import (
     assert_audio_quality_ready, inspect_audio, mark_audio_reviewed,
 )
 from core.editor_longform import _audio_master_filter
+from core.editor_shorts import shorts_audio_master_filter
 
 
 class AudioQualityTests(unittest.TestCase):
@@ -98,6 +99,9 @@ class AudioQualityTests(unittest.TestCase):
         }), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "blocking failures"):
             assert_audio_quality_ready(self.root)
+
+    def test_shorts_master_filter_normalizes_the_final_mix(self):
+        self.assertEqual(shorts_audio_master_filter(), "loudnorm=I=-14:TP=-1.5:LRA=9")
 
     def test_master_filter_uses_bounded_documentary_targets(self):
         with patch.dict("os.environ", {

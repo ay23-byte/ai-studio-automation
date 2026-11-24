@@ -1,5 +1,5 @@
 """Main pipeline: takes a script dict, builds a video, returns output path."""
-import random, re, subprocess, os
+import random, re, subprocess, os, time
 from pathlib import Path
 from core import config as cfg
 from core.voice import synthesise
@@ -660,13 +660,24 @@ def _short_scene_visual(index, scene, scenes, script, bd, used_ids, state):
     # After repeated consecutive failures the image provider is down or rate
     # limited: stop paying its retry/back-off cost for every remaining scene.
     if state["image_failures"] < state["image_failure_limit"]:
-        if generate_image(scene_prompt, img_p, category=script.get("category", "general"),
-                          search_query=scene_search_prompt):
-            state["image_failures"] = 0
-            return {"type": "image", "path": img_p, "provider": "image"}
+        # Transient free-provider timeouts are common. Retry the exact scene before
+        # falling back to a graphic card; each retry keeps the same subject and
+        # changes only the composition request, never substitutes unrelated imagery.
+        retries = max(0, min(3, int(os.getenv("SHORTS_IMAGE_GENERATION_RETRIES", "2") or 2)))
+        for attempt in range(retries + 1):
+            retry_prompt = scene_prompt if attempt == 0 else (
+                scene_prompt + " Alternate cinematic camera angle and composition; preserve the exact subject, "
+                "scientific accuracy, and action from the original direction."
+            )
+            if generate_image(retry_prompt, img_p, category=script.get("category", "general"),
+                              search_query=scene_search_prompt):
+                state["image_failures"] = 0
+                return {"type": "image", "path": img_p, "provider": "image"}
+            if attempt < retries:
+                time.sleep(min(2 * (attempt + 1), 5))
         state["image_failures"] += 1
         if state["image_failures"] == state["image_failure_limit"]:
-            print("  image provider failed repeatedly; skipping it for the remaining scenes.")
+            print("  image providers failed after scene retries; skipping them for the remaining scenes.")
     card_text = " ".join(str(scene.get(key) or "") for key in ("label", "caption", "say")).strip()
     # The scene label is already burned in by the caption track; no kicker here.
     if _fallback_card(card_p, card_text, size=(W_S, H_S), kicker="",
