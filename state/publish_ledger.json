@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-24T14:32:56+00:00",
+  "updated_at": "2026-11-24T14:34:31+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -476,10 +476,12 @@
       "key": "4e6aee947bfa9ed6f32d603d",
       "created_at": "2026-11-24T14:32:56+00:00",
       "title": "GPS और Einstein की Relativity का असली कनेक्शन",
-      "status": "built",
-      "updated_at": "2026-11-24T14:32:56+00:00",
+      "status": "uploaded",
+      "updated_at": "2026-11-24T14:34:31+00:00",
       "topic": "How GPS Uses Einstein's Theory of Relativity to Find Your Location",
-      "job_id": 7
+      "job_id": 7,
+      "youtube_id": "HGDl8zeiL_c",
+      "privacy_status": "private"
     }
   ]
 }
