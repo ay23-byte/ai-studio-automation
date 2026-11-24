@@ -216,7 +216,7 @@ def _ask_model(prompt: str, model: str, attempts: int = 3):
     raise GeminiRequestError(model, f"Gemini request failed for {model}.", retryable=True)
 
 
-def _ask_gemini_models(prompt: str) -> str:
+def _ask_gemini_models_once(prompt: str) -> str:
     """Try every configured Gemini model, then models discovered for this key."""
     try:
         models = gemini_policy.model_chain(GEMINI_MODEL, GEMINI_FALLBACK_MODELS)
@@ -294,6 +294,42 @@ def _ask_gemini_models(prompt: str) -> str:
         "If this continues, check Google AI Studio service status and API quota.\n"
         + details
     )
+
+
+
+def _ask_gemini_models(prompt: str) -> str:
+    """Retry the complete Gemini chain after a transient provider-wide outage.
+
+    Per-model retries can exhaust a short outage window. This bounded outer
+    retry gives the service time to recover before optional fallback providers
+    are attempted by _ask_gemini().
+    """
+    import os
+
+    try:
+        extra_retries = max(0, min(2, int(os.getenv("GEMINI_CHAIN_RETRIES", "1"))))
+    except (TypeError, ValueError):
+        extra_retries = 1
+    try:
+        delay = max(1, min(180, int(os.getenv("GEMINI_CHAIN_RETRY_DELAY_SECONDS", "45"))))
+    except (TypeError, ValueError):
+        delay = 45
+
+    for retry_index in range(extra_retries + 1):
+        try:
+            return _ask_gemini_models_once(prompt)
+        except RuntimeError as exc:
+            transient = "Gemini is temporarily unavailable across all configured models." in str(exc)
+            if not transient or retry_index >= extra_retries:
+                raise
+            wait_seconds = min(180, delay * (retry_index + 1))
+            print(
+                "All configured Gemini models are temporarily unavailable; "
+                f"retrying the complete model chain in {wait_seconds}s "
+                f"({retry_index + 1}/{extra_retries})."
+            )
+            time.sleep(wait_seconds)
+
 
 
 def _ask_gemini(prompt: str) -> str:
