@@ -130,6 +130,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
+          DVIDS_API_KEY: ${{ secrets.DVIDS_API_KEY }}
+          DVIDS_API_REFERER: ${{ secrets.DVIDS_API_REFERER }}
+          EUROPEANA_API_KEY: ${{ secrets.EUROPEANA_API_KEY }}
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
+          OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
+          OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
           TTS_ENGINE: "chatterbox"
