@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-24T14:34:31+00:00",
+  "updated_at": "2026-11-24T18:08:38+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -482,6 +482,22 @@
       "job_id": 7,
       "youtube_id": "HGDl8zeiL_c",
       "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "33007a9911a139185659b1ca",
+      "created_at": "2026-11-24T18:08:38+00:00",
+      "title": "Nvidia Reinstates Jensen Huang as CEO Following U.S. Intervention",
+      "status": "built",
+      "updated_at": "2026-11-24T18:08:38+00:00",
+      "topic": "Nvidia reinstates Jensen Huang as CEO after U.S. government input",
+      "source_refs": [
+        "8e8fd129958e5584c316",
+        "9e96991686ccebb87868",
+        "25d043b118adad46fcdf",
+        "9194ddb079718aecbab3"
+      ],
+      "job_id": 7
     }
   ]
 }
