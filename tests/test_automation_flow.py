@@ -516,7 +516,7 @@ class WorkflowHygieneTests(unittest.TestCase):
         self.assertNotIn("python scripts/run_daily_news_short.py --upload", news)
         self.assertIn('WANT_UPLOAD: "false"', news)
         self.assertIn('UPLOAD_REQUESTED: "false"', news)
-        build = news.split("\\n  release:", 1)[0]
+        build = news.split("\n  release:", 1)[0]
         release = news.split("\\n  release:", 1)[1]
         self.assertNotIn("YT_REFRESH_TOKEN", build)
         self.assertNotIn("YT_CLIENT_SECRET", build)
