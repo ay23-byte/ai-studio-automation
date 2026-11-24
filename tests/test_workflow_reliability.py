@@ -113,11 +113,17 @@ class ActionVersionTests(unittest.TestCase):
         self.assertNotIn('NEWS_TEMPLATE_FALLBACK: "1"', text)
         self.assertIn("No generic template fallback", text)
         self.assertIn("python scripts/build_with_recovery.py -- python scripts/run_daily_news_short.py", text)
-        self.assertIn("release_news_private_auto.yml", (WORKFLOW_DIR / "release_news_private_auto.yml").name)
-        self.assertNotIn("YT_REFRESH_TOKEN", text)
-        self.assertNotIn("YT_CLIENT_SECRET", text)
-        self.assertNotIn("YT_CLIENT_ID", text)
-        self.assertNotIn("YT_CHANNEL_VERIFY", text)
+        build = _job_block(text, "news-short")
+        release = _job_block(text, "release")
+        for secret in ("YT_REFRESH_TOKEN", "YT_CLIENT_SECRET", "YT_CLIENT_ID"):
+            self.assertNotIn(secret, build)
+        self.assertIn("scripts/release_news_private_artifact.py", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+        self.assertIn('PRIVACY: "private"', release)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
+        self.assertIn('YT_CHANNEL_VERIFY: "1"', release)
+        self.assertIn("db/studio.sqlite", text)
         self.assertIn('UPLOAD_REQUESTED: "false"', text)
         self.assertIn("news-short-auto-${{ github.run_id }}", text)
         self.assertIn('SHORTS_SUBTITLE_LANGUAGE: "english"', text)
@@ -252,7 +258,7 @@ class SharedReleaseWorkflowTests(unittest.TestCase):
     def test_only_the_two_release_workflows_can_reach_youtube(self):
         holders = sorted(path.name for path in WORKFLOWS
                          if re.search(r"secrets\.YT_(REFRESH_TOKEN|CLIENT_SECRET)", path.read_text(encoding="utf-8")))
-        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "make_shorts.yml", "release_documentary_auto.yml")))
+        self.assertEqual(holders, sorted((*RELEASE_WORKFLOWS, "make_shorts.yml", "release_documentary_auto.yml", "daily-news-auto-short.yml")))
         for path in WORKFLOWS:
             text = path.read_text(encoding="utf-8")
             with self.subTest(workflow=path.name):
@@ -655,35 +661,30 @@ class LongformAutomaticPrivateReleaseTests(unittest.TestCase):
 
 
 class DailyNewsAutomaticPrivateReleaseTests(unittest.TestCase):
-    def test_news_build_is_credential_isolated_and_packages_database_for_release(self):
-        build = _text("daily-news-auto-short.yml")
+    def test_news_release_is_a_credential_isolated_dependent_job(self):
+        text = _text("daily-news-auto-short.yml")
+        build = _job_block(text, "news-short")
+        release = _job_block(text, "release")
+        self.assertIn("needs: news-short", release)
+        self.assertIn("github.ref == 'refs/heads/main'", release)
         self.assertNotIn("YT_REFRESH_TOKEN", build)
-        self.assertNotIn("YT_CLIENT_SECRET", build)
-        self.assertIn("db/studio.sqlite", build)
-        self.assertIn("news-short-auto-${{ github.run_id }}", build)
-        self.assertIn("WANT_UPLOAD: \"false\"", build)
-
-    def test_news_release_runs_only_after_trusted_successful_build_and_is_private(self):
-        release = (WORKFLOW_DIR / "release_news_private_auto.yml").read_text(encoding="utf-8")
-        self.assertIn("workflow_run:", release)
-        self.assertIn("Daily news Short — build for automatic PRIVATE release", release)
-        self.assertIn("conclusion == 'success'", release)
-        self.assertIn("head_branch == 'main'", release)
-        self.assertIn("repository.full_name == github.repository", release)
-        self.assertIn("--mode daily_news", release)
-        self.assertIn("news-short-auto-${{ github.event.workflow_run.id }}", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
         self.assertIn("scripts/release_news_private_artifact.py", release)
+        self.assertIn("news-short-auto-${{ github.run_id }}", release)
         self.assertIn('PRIVACY: "private"', release)
         self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
         self.assertIn('PUBLISH_AT_IST: ""', release)
         self.assertIn("YT_CHANNEL_VERIFY: \"1\"", release)
-        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
 
     def test_news_release_helper_uses_existing_fail_closed_gate(self):
         helper = (ROOT / "scripts" / "release_news_private_artifact.py").read_text(encoding="utf-8")
         self.assertIn("publish_news_job", helper)
         self.assertIn("exactly one daily-news job", helper)
         gate = (ROOT / "core" / "news_private_release.py").read_text(encoding="utf-8")
-        self.assertIn("privacy_status=\"private\"", gate)
+        self.assertIn('privacy_status="private"', gate)
         self.assertIn("verify_channel(force=True)", gate)
         self.assertIn("privacy_verified", gate)
+
+
+if __name__ == "__main__":
+    unittest.main()
