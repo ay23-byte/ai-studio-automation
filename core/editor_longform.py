@@ -171,14 +171,14 @@ def _append_credits_card(video_path, credits_path):
     args = [
         ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(video_path),
         "-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}",
-        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}",
+        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=48000:d={duration:.2f}",
         "-filter_complex",
         f"[1:v]{ffmpeg_utils.subtitles_filter(ass_path)},format=yuv420p,setpts=PTS-STARTPTS[cv];"
-        "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=44100,asetpts=PTS-STARTPTS[a0];"
+        "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=48000,asetpts=PTS-STARTPTS[a0];"
         "[2:a]asetpts=PTS-STARTPTS[ca];[v0][a0][cv][ca]concat=n=2:v=1:a=1[v][a]",
         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium",
         "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac",
-        "-b:a", "256k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart",
+        "-b:a", "256k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart",
         str(temp_out),
     ]
     try:
@@ -220,7 +220,7 @@ def _cached_seg(src, idx, dur, is_image, bd, shot=None, reuse=False):
     return result
 
 
-def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits_path=None,
+def render(sections, voice, ass, total, out, music=None, music_vol=0.10, credits_path=None,
            work_dir=None):
     """Render a documentary.
 
@@ -269,7 +269,17 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     if not music or not Path(music).is_file():
         music, profile = create_original_music_bed(bd / "original_documentary_music.wav", T, topic, "documentary")
         music_source = "original_generated"
-    write_audio_production_report(Path(out).parent, profile, music_source)
+    write_audio_production_report(
+        Path(out).parent, profile, music_source,
+        mix_settings={
+            "music_base_gain_linear": float(music_vol),
+            "music_base_gain_db": round(20.0 * __import__("math").log10(max(float(music_vol), 1e-6)), 2),
+            "music_base_gain_reference": "relative to the loudness-normalized music stem",
+            "dialogue_priority_method": "sidechain compression keyed from narration",
+            "dialogue_music_separation_verified": False,
+            "dialogue_music_separation_note": "The music stem is attenuated and sidechain-ducked; final dialogue/music separation still requires listening review.",
+        },
+    )
     valid = []
     for i, sec in enumerate(sections):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
