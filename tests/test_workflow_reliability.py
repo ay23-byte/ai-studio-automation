@@ -651,3 +651,39 @@ class LongformAutomaticPrivateReleaseTests(unittest.TestCase):
         self.assertIn('PUBLISH_AT_IST: ""', release)
         self.assertIn("documentary-private-release-${{ github.run_id }}", release)
         self.assertIn('privacy_status="private"', (ROOT / "scripts" / "upload_documentary_artifact.py").read_text(encoding="utf-8"))
+
+
+
+class DailyNewsAutomaticPrivateReleaseTests(unittest.TestCase):
+    def test_news_build_is_credential_isolated_and_packages_database_for_release(self):
+        build = _text("daily-news-auto-short.yml")
+        self.assertNotIn("YT_REFRESH_TOKEN", build)
+        self.assertNotIn("YT_CLIENT_SECRET", build)
+        self.assertIn("db/studio.sqlite", build)
+        self.assertIn("news-short-auto-${{ github.run_id }}", build)
+        self.assertIn("WANT_UPLOAD: \"false\"", build)
+
+    def test_news_release_runs_only_after_trusted_successful_build_and_is_private(self):
+        release = (WORKFLOW_DIR / "release_news_private_auto.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_run:", release)
+        self.assertIn("Daily news Short — build for automatic PRIVATE release", release)
+        self.assertIn("conclusion == 'success'", release)
+        self.assertIn("head_branch == 'main'", release)
+        self.assertIn("repository.full_name == github.repository", release)
+        self.assertIn("--mode daily_news", release)
+        self.assertIn("news-short-auto-${{ github.event.workflow_run.id }}", release)
+        self.assertIn("scripts/release_news_private_artifact.py", release)
+        self.assertIn('PRIVACY: "private"', release)
+        self.assertIn('ALLOW_PUBLIC_PUBLISH: "0"', release)
+        self.assertIn('PUBLISH_AT_IST: ""', release)
+        self.assertIn("YT_CHANNEL_VERIFY: \"1\"", release)
+        self.assertIn("YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}", release)
+
+    def test_news_release_helper_uses_existing_fail_closed_gate(self):
+        helper = (ROOT / "scripts" / "release_news_private_artifact.py").read_text(encoding="utf-8")
+        self.assertIn("publish_news_job", helper)
+        self.assertIn("exactly one daily-news job", helper)
+        gate = (ROOT / "core" / "news_private_release.py").read_text(encoding="utf-8")
+        self.assertIn("privacy_status=\"private\"", gate)
+        self.assertIn("verify_channel(force=True)", gate)
+        self.assertIn("privacy_verified", gate)
