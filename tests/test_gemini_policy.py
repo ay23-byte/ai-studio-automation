@@ -206,7 +206,7 @@ class ScriptEngineFallbackTests(unittest.TestCase):
             patch.object(script_engine, "GEMINI_FALLBACK_MODELS", ["gemini-second", "gemini-third"]),
             patch.object(script_engine.time, "sleep"),
             patch.object(gemini, "_log_path", return_value=None),
-            patch.dict("os.environ", {"GEMINI_AUTO_DISCOVER_MODELS": "0"}),
+            patch.dict("os.environ", {"GEMINI_AUTO_DISCOVER_MODELS": "0", "GEMINI_CHAIN_RETRIES": "0"}),
         ]
         for item in patches:
             item.start()
@@ -299,6 +299,15 @@ class ScriptEngineFallbackTests(unittest.TestCase):
         usage = gemini.last_usage("script")
         self.assertEqual(usage["outcome"], "unavailable")
         self.assertEqual(usage["attempted_models"], ["gemini-primary", "gemini-second", "gemini-third"])
+
+    def test_full_chain_retries_once_after_a_transient_provider_wide_outage(self):
+        responses = [_error(503, "overloaded")] * 6 + [_ok('{"title":"recovered"}')]
+        with patch.dict("os.environ", {"GEMINI_CHAIN_RETRIES": "1", "GEMINI_CHAIN_RETRY_DELAY_SECONDS": "1"}), \\
+             patch.object(script_engine.requests, "post", side_effect=responses) as post, \\
+             patch.object(script_engine.time, "sleep") as sleep:
+            self.assertEqual(script_engine._ask_gemini_models("prompt"), '{"title":"recovered"}')
+        self.assertEqual(post.call_count, 7)
+        sleep.assert_any_call(1)
 
     def test_unknown_model_ids_are_reported_as_configuration_not_as_an_outage(self):
         with patch.object(script_engine.requests, "post", return_value=_error(404, "model not found")) as post:
