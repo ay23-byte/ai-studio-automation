@@ -302,10 +302,10 @@ class ScriptEngineFallbackTests(unittest.TestCase):
 
     def test_full_chain_retries_once_after_a_transient_provider_wide_outage(self):
         responses = [_error(503, "overloaded")] * 6 + [_ok('{"title":"recovered"}')]
-        with patch.dict("os.environ", {"GEMINI_CHAIN_RETRIES": "1", "GEMINI_CHAIN_RETRY_DELAY_SECONDS": "1"}), \\
-             patch.object(script_engine.requests, "post", side_effect=responses) as post, \\
-             patch.object(script_engine.time, "sleep") as sleep:
-            self.assertEqual(script_engine._ask_gemini_models("prompt"), '{"title":"recovered"}')
+        with patch.dict("os.environ", {"GEMINI_CHAIN_RETRIES": "1", "GEMINI_CHAIN_RETRY_DELAY_SECONDS": "1"}):
+            with patch.object(script_engine.requests, "post", side_effect=responses) as post:
+                with patch.object(script_engine.time, "sleep") as sleep:
+                    self.assertEqual(script_engine._ask_gemini_models("prompt"), '{"title":"recovered"}')
         self.assertEqual(post.call_count, 7)
         sleep.assert_any_call(1)
 
