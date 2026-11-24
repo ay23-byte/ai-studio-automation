@@ -1,4 +1,4 @@
-import hashlib, json, os, shutil, subprocess, tempfile
+import hashlib, json, math, os, shutil, subprocess, tempfile
 from pathlib import Path
 
 from core import ffmpeg_utils
@@ -171,14 +171,14 @@ def _append_credits_card(video_path, credits_path):
     args = [
         ffmpeg_bin(), "-y", "-loglevel", "error", "-i", str(video_path),
         "-f", "lavfi", "-i", f"color=c=0x10151d:s=1920x1080:r=30:d={duration:.2f}",
-        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=44100:d={duration:.2f}",
+        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=48000:d={duration:.2f}",
         "-filter_complex",
         f"[1:v]{ffmpeg_utils.subtitles_filter(ass_path)},format=yuv420p,setpts=PTS-STARTPTS[cv];"
-        "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=44100,asetpts=PTS-STARTPTS[a0];"
+        "[0:v]setpts=PTS-STARTPTS[v0];[0:a]aresample=48000,asetpts=PTS-STARTPTS[a0];"
         "[2:a]asetpts=PTS-STARTPTS[ca];[v0][a0][cv][ca]concat=n=2:v=1:a=1[v][a]",
         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium",
         "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac",
-        "-b:a", "256k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart",
+        "-b:a", "256k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart",
         str(temp_out),
     ]
     try:
@@ -220,7 +220,7 @@ def _cached_seg(src, idx, dur, is_image, bd, shot=None, reuse=False):
     return result
 
 
-def render(sections, voice, ass, total, out, music=None, music_vol=0.18, credits_path=None,
+def render(sections, voice, ass, total, out, music=None, music_vol=0.10, credits_path=None,
            work_dir=None):
     """Render a documentary.
 
@@ -269,7 +269,17 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     if not music or not Path(music).is_file():
         music, profile = create_original_music_bed(bd / "original_documentary_music.wav", T, topic, "documentary")
         music_source = "original_generated"
-    write_audio_production_report(Path(out).parent, profile, music_source)
+    write_audio_production_report(
+        Path(out).parent, profile, music_source,
+        mix_settings={
+            "music_base_gain_linear": float(music_vol),
+            "music_base_gain_db": round(20.0 * math.log10(max(float(music_vol), 1e-6)), 2),
+            "music_base_gain_reference": "relative to the loudness-normalized music stem",
+            "dialogue_priority_method": "sidechain compression keyed from narration",
+            "dialogue_music_separation_verified": False,
+            "dialogue_music_separation_note": "The music stem is attenuated and sidechain-ducked; final dialogue/music separation still requires listening review.",
+        },
+    )
     valid = []
     for i, sec in enumerate(sections):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
@@ -287,7 +297,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     for p2 in parts: inputs += ["-i",str(p2)]
     inputs += ["-i",str(voice)]
     valid = parts
-    n = len(valid); norm = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
+    n = len(valid); norm = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo"
     afilt = [f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va]"]
     mix_in = ["[va]"]; idx = n+1
     if not music or not Path(music).is_file():
@@ -295,7 +305,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     if music and Path(music).exists():
         inputs += ["-stream_loop","-1","-t",f"{T+1:.2f}","-i",str(music)]
         afilt[0] = f"[{n}:a]{narration_cleanup_filter()},{norm},apad=whole_dur={T:.3f}[va0];[va0]asplit=2[va][key]"
-        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=44100,"
+        afilt.append(f"[{idx}:a]{norm},loudnorm=I=-14:TP=-2:LRA=7,aresample=48000,"
                      f"highpass=f=100,lowpass=f=10000,volume={music_vol},afade=t=in:st=0:d=1.5[mu]")
         afilt.append("[mu][key]"
                      "sidechaincompress=threshold=0.03:ratio=5:attack=15:release=600:makeup=1[duck]")
@@ -306,7 +316,7 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
     filt += ";".join(afilt)
     _run([ffmpeg_bin(),"-y","-loglevel","error",*inputs,"-filter_complex",filt,
           "-map","[vout]","-map","[aout]","-t",f"{T:.3f}",*ENC,
-          "-c:a","aac","-b:a","256k","-ar","44100","-ac","2","-movflags","+faststart",str(out)])
+          "-c:a","aac","-b:a","256k","-ar","48000","-ac","2","-movflags","+faststart",str(out)])
     if credits_path:
         _append_credits_card(out, credits_path)
     return out

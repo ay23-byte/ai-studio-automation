@@ -14,7 +14,7 @@ from core.ffmpeg_utils import ffmpeg_bin, render_timeout
 
 def narration_cleanup_filter() -> str:
     """Gentle broadband cleanup; avoid aggressive gates that clip breaths/word tails."""
-    return "aresample=44100,highpass=f=75,lowpass=f=14500,afftdn=nf=-28:tn=1"
+    return "aresample=48000,highpass=f=75,lowpass=f=14500,afftdn=nf=-28:tn=1"
 
 
 def music_profile(topic: str = "", pipeline: str = "shorts") -> dict:
@@ -60,7 +60,7 @@ def create_original_music_bed(path: str | Path, duration: float, topic: str = ""
     volumes = (0.050, 0.032, 0.022, 0.012)
     for index, (frequency, volume) in enumerate(zip(notes, volumes)):
         inputs += ["-f", "lavfi", "-i",
-                   f"sine=frequency={frequency}:sample_rate=44100:duration={duration:.3f}"]
+                   f"sine=frequency={frequency}:sample_rate=48000:duration={duration:.3f}"]
         filters.append(
             f"[{index}:a]volume={volume},tremolo=f={0.10 + index * 0.025:.3f}:d=0.18,"
             f"lowpass=f={1800 + index * 450},aformat=sample_fmts=fltp:channel_layouts=stereo"
@@ -73,7 +73,7 @@ def create_original_music_bed(path: str | Path, duration: float, topic: str = ""
                    "alimiter=limit=0.75[out]")
     subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *inputs,
                     "-filter_complex", ";".join(filters), "-map", "[out]",
-                    "-t", f"{duration:.3f}", "-c:a", "pcm_s16le", "-ar", "44100",
+                    "-t", f"{duration:.3f}", "-c:a", "pcm_s16le", "-ar", "48000",
                     "-ac", "2", str(path)], check=True, timeout=render_timeout())
     if not path.is_file() or path.stat().st_size < 1000:
         raise RuntimeError("Original topic-matched instrumental bed could not be generated.")
@@ -81,18 +81,20 @@ def create_original_music_bed(path: str | Path, duration: float, topic: str = ""
 
 
 def write_audio_production_report(directory: str | Path, profile: dict, music_source: str,
-                                  denoise_filter: str | None = None) -> dict:
+                                  denoise_filter: str | None = None,
+                                  mix_settings: dict | None = None) -> dict:
     directory = Path(directory)
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "rendered_pending_measurement_and_human_listening_review",
         "narration_cleanup": {"enabled": True, "filter": denoise_filter or narration_cleanup_filter(),
-                              "strength": "gentle"},
+                              "strength": "gentle", "sample_rate_hz": 48000},
         "music": {"source": music_source, "licensing": "original_synthesised_instrumental"
                   if music_source == "original_generated" else "caller_supplied_track_requires_licence_review",
                   **profile},
         "mix_policy": {"narration_priority": True, "sidechain_ducking": True,
-                       "music_during_pauses": True, "human_listening_review_required": True},
+                       "music_during_pauses": True, "human_listening_review_required": True,
+                       **(mix_settings or {})},
         "copyright_note": "Generated instrumental is original synthesis; supplied tracks still require documented usage rights.",
     }
     (directory / "audio_production_report.json").write_text(
