@@ -185,7 +185,7 @@
     "core/documentary_storyboard.py": "c9482d077fc7d42cb8bb853666cc012298d4f7e9f8428e11bc0575193b6efc25",
     "core/downloads.py": "8df346e8b36dfb3db7848fb4793e1f3fc1de6baa1187ad5b8991cba6e4deb195",
     "core/editor_longform.py": "96bc37d21fa01fe1b28472c0cd1980e8a3c9d6dcd406d6f325e4e20cb77133d0",
-    "core/editor_shorts.py": "b949234a62ebb244bf07214a66d020b686a290f888d4ca23f055fbbad7ca4b6c",
+    "core/editor_shorts.py": "9f46bb4d41196c3d542766324b9eacadc3d30e357211c8ecafd1397598cb328f",
     "core/editorial_review.py": "dcb41407416281a167ae0c9d38dccb9d51a40074bea0447ab9b3b0e41d11b3c5",
     "core/explainer_cards.py": "49e0b126f9798550e9baa35d559db0df72236184fc3ee5d9c41afa71d1d43f1f",
     "core/failure_category.py": "fa6e2ce61673d21e22abf699e77b5f53ba402ea33e4f29cf0800d9f66a3cb4d3",
