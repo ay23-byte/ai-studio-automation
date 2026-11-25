@@ -266,6 +266,9 @@ jobs:
           # set the repository variable to override without a code change.
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL_LONGFORM }}
           GEMINI_PROFILE: longform
+          # Long-form fallback responses need a larger completion budget than the short-form default.
+          LLM_FALLBACK_MAX_TOKENS: "32768"
+          LLM_PROVIDER_ORDER: "groq,cerebras,openrouter,mistral,github"
           GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS_LONGFORM }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
