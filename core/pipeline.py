@@ -1383,7 +1383,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                     failure = {
                         "status": "FAILED",
                         "reason": f"{type(exc).__name__}: {exc}",
-                        "source_refs": list(dict.fromkeys(str(ref) for ref in explicit_refs if str(ref).strip())),
+                        "source_refs": list(dict.fromkeys(str(ref) for ref in locals().get("explicit_refs", []) if str(ref).strip())),
                         "chapter": i + 1,
                         "beat": j + 1,
                     }
