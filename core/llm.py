@@ -103,7 +103,8 @@ def _provider_config(name: str) -> dict | None:
     model = os.getenv(spec["model_env"], "").strip() or spec.get("default_model", "")
     if not model:
         return None
-    return {"name": name, "base_url": base_url.rstrip("/"), "api_key": key, "model": model}
+    return {"name": name, "base_url": base_url.rstrip("/"), "api_key": key, "model": model,
+            "max_tokens": spec.get("max_tokens")}
 
 
 def configured_providers() -> list[dict]:
