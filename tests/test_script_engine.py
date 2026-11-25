@@ -13,9 +13,9 @@ class GeminiFailoverTests(unittest.TestCase):
              patch.object(script_engine, "GEMINI_MODEL", "primary"), \
              patch.object(script_engine, "GEMINI_FALLBACK_MODELS", ["fallback-a"]), \
              patch.object(script_engine.time, "sleep"), \
-             patch.object(script_engine, "_ask_model", side_effect=[outage, "valid response"]) as call:
+             patch.object(script_engine, "_ask_model", side_effect=[outage, '{"title":"valid response"}']) as call:
             result = script_engine._ask_gemini("prompt")
-        self.assertEqual(result, "valid response")
+        self.assertEqual(result, '{"title":"valid response"}')
         self.assertEqual([c.args[1] for c in call.call_args_list], ["primary", "fallback-a"])
 
     def test_non_retryable_auth_error_does_not_rotate_models(self):
@@ -34,6 +34,30 @@ class GeminiFailoverTests(unittest.TestCase):
         with patch.object(script_engine, "GEMINI_API_KEY", ""):
             with self.assertRaisesRegex(RuntimeError, "GEMINI_API_KEY"):
                 script_engine._ask_gemini("prompt")
+
+    def test_malformed_gemini_json_fails_over_to_groq(self):
+        groq = {"name": "groq", "model": "llama-test"}
+        valid_json = '{"title":"Recovered","sections":[]}'
+        with patch.object(script_engine, "GEMINI_API_KEY", "test-key"), \
+             patch.object(script_engine, "_ask_gemini_models", return_value='{"title":"broken\\q"}'), \
+             patch("core.llm.configured_providers", return_value=[groq]), \
+             patch("core.llm.complete", return_value=valid_json) as complete, \
+             patch.object(script_engine.gemini_policy, "record_usage"):
+            result = script_engine._ask_gemini("prompt")
+        self.assertEqual(script_engine._parse(result)["title"], "Recovered")
+        complete.assert_called_once_with(groq, "prompt")
+
+    def test_invalid_json_from_first_fallback_continues_to_next_provider(self):
+        groq = {"name": "groq", "model": "llama-test"}
+        cerebras = {"name": "cerebras", "model": "cerebras-test"}
+        with patch.object(script_engine, "GEMINI_API_KEY", ""), \
+             patch("core.llm.configured_providers", return_value=[groq, cerebras]), \
+             patch("core.llm.complete", side_effect=['{"title":"broken\\q"}', '{"title":"valid"}']) as complete, \
+             patch.object(script_engine.gemini_policy, "record_usage"):
+            result = script_engine._ask_gemini("prompt")
+        self.assertEqual(script_engine._parse(result)["title"], "valid")
+        self.assertEqual([call.args[0]["name"] for call in complete.call_args_list], ["groq", "cerebras"])
+
 
     def test_longform_prompt_formats_without_json_key_error(self):
         prompt = script_engine.LONGFORM_PROMPT.format(

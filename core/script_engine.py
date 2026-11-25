@@ -338,23 +338,34 @@ def _ask_gemini_models(prompt: str) -> str:
 
 
 def _ask_gemini(prompt: str) -> str:
-    """Generate text: Gemini first, then any configured free-tier fallback."""
+    """Generate valid JSON: Gemini first, then validated configured fallbacks.
+
+    A provider returning HTTP 200 is not enough: documentary generation must
+    fail over when its response is malformed/truncated JSON as well as on
+    transport, quota, or server errors. Validate before accepting a provider.
+    """
     from core import llm
     gemini_error = None
     if GEMINI_API_KEY:
         try:
-            return _ask_gemini_models(prompt)
-        except RuntimeError as exc:
+            text = _ask_gemini_models(prompt)
+            _parse(text)
+            return text
+        except (RuntimeError, ValueError) as exc:
             gemini_error = exc
+            if isinstance(exc, ValueError):
+                gemini_error = RuntimeError(
+                    "Gemini returned invalid JSON; trying configured fallback providers. "
+                    + str(exc)
+                )
     providers = llm.configured_providers()
     if not providers:
         if gemini_error is not None:
             raise RuntimeError(
                 str(gemini_error)
-                + "\\nNo fallback text provider is configured. Add at least one working "
+                + "\nNo fallback text provider is configured. Add at least one working "
                 "GitHub Actions secret: GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, "
-                "MISTRAL_API_KEY, or GITHUB_MODELS_TOKEN. The workflow already passes these "
-                "optional secrets to the script generator; an unset/empty secret is not a provider."
+                "MISTRAL_API_KEY, or GITHUB_MODELS_TOKEN."
             ) from gemini_error
         raise RuntimeError(
             "GEMINI_API_KEY is not set. Add it to GitHub Actions secrets, or configure a "
@@ -362,18 +373,34 @@ def _ask_gemini(prompt: str) -> str:
             "MISTRAL_API_KEY, GITHUB_MODELS_TOKEN, OLLAMA_BASE_URL)."
         )
     if gemini_error is not None:
-        print("Gemini could not serve this request; switching to fallback text providers: "
+        print("Gemini could not provide valid JSON; switching to fallback text providers: "
               + llm.redact(str(gemini_error).splitlines()[0]))
-    try:
-        text = llm.complete_with_fallbacks(prompt, providers)
-        served = dict(getattr(llm, "LAST_FALLBACK", {}) or {})
-        gemini_policy.record_usage(
-            "script", provider=served.get("provider") or "fallback", model=served.get("model"),
-            outcome="ok", failures=[llm.redact(str(gemini_error).splitlines()[0])] if gemini_error else [])
-        return text
-    except llm.LLMError as exc:
-        prefix = (str(gemini_error) + "\n") if gemini_error is not None else ""
-        raise RuntimeError(prefix + llm.redact(exc)) from exc
+
+    failures = []
+    for config in providers:
+        provider = config.get("name", "fallback")
+        try:
+            print(f"Requesting script from fallback provider: {provider} ({config.get('model', 'default')})")
+            text = llm.complete(config, prompt)
+            _parse(text)
+            llm.LAST_FALLBACK.clear()
+            llm.LAST_FALLBACK.update({
+                "provider": provider, "model": config.get("model"),
+                "skipped": list(failures),
+            })
+            gemini_policy.record_usage(
+                "script", provider=provider, model=config.get("model"), outcome="ok",
+                failures=([llm.redact(str(gemini_error).splitlines()[0])] if gemini_error else [])
+            )
+            return text
+        except (llm.LLMError, ValueError, RuntimeError) as exc:
+            detail = llm.redact(exc)
+            failures.append(f"{provider}: {detail}")
+            print(f"Fallback provider {provider} did not return valid script JSON: {detail}")
+
+    summary = "\n".join(f"- {item}" for item in failures)
+    prefix = (str(gemini_error) + "\n") if gemini_error is not None else ""
+    raise RuntimeError(prefix + "All configured fallback text providers failed to return valid JSON.\n" + summary)
 
 
 def _stamp_generation(script: dict) -> dict:
