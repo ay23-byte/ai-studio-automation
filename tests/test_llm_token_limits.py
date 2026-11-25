@@ -17,6 +17,11 @@ class ProviderTokenBudgetTests(unittest.TestCase):
         self.assertEqual(result, '{"title":"ok"}')
         self.assertEqual(post.call_args.kwargs["json"]["max_tokens"], 16384)
 
+    def test_configured_groq_provider_carries_its_default_token_cap(self):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}, clear=True):
+            config = llm._provider_config("groq")
+        self.assertEqual(config["max_tokens"], 16384)
+
     def test_api_reported_model_limit_retries_same_model_with_reduced_budget(self):
         rejected = Mock(status_code=400, text=(
             "`max_tokens` must be less than or equal to 16384, "
