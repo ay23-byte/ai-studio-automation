@@ -62,6 +62,12 @@ jobs:
       LANGUAGE: ${{ inputs.language }}
       VOICE_GENDER: ${{ inputs.voice_gender }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Free-tier fallbacks for when Gemini quota/capacity is unavailable.
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_MODELS_TOKEN }}
       # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
       # set the repository variable to override without a code change.
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL_LONGFORM }}
@@ -109,10 +115,11 @@ jobs:
 
       - name: Verify required API configuration
         run: |
-          test -n "$GEMINI_API_KEY" || {
-            echo "::error::Add GEMINI_API_KEY to repository Actions secrets before running this validation."
+          if [[ -z "${GEMINI_API_KEY:-}" && -z "${GROQ_API_KEY:-}" && -z "${CEREBRAS_API_KEY:-}" && -z "${OPENROUTER_API_KEY:-}" && -z "${MISTRAL_API_KEY:-}" && -z "${GITHUB_MODELS_TOKEN:-}" ]]; then
+            echo "::error::Configure GEMINI_API_KEY or at least one free-tier text fallback secret (GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, GITHUB_MODELS_TOKEN)."
             exit 1
-          }
+          fi
+          echo "At least one script-generation provider is configured."
           test -f "$PRESENTER_IMAGE" || {
             echo "::error::Configured presenter image is missing: $PRESENTER_IMAGE"
             exit 1
