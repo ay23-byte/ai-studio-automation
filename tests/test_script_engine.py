@@ -13,7 +13,7 @@ class GeminiFailoverTests(unittest.TestCase):
              patch.object(script_engine, "GEMINI_MODEL", "primary"), \
              patch.object(script_engine, "GEMINI_FALLBACK_MODELS", ["fallback-a"]), \
              patch.object(script_engine.time, "sleep"), \
-             patch.object(script_engine, "_ask_model", side_effect=[outage, "valid response"]) as call:
+             patch.object(script_engine, "_ask_model", side_effect=[outage, '{"title":"valid response"}']) as call:
             result = script_engine._ask_gemini("prompt")
         self.assertEqual(result, "valid response")
         self.assertEqual([c.args[1] for c in call.call_args_list], ["primary", "fallback-a"])
