@@ -37,6 +37,9 @@ _PROVIDERS = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY",
         "model_env": "GROQ_MODEL", "default_model": "llama-3.3-70b-versatile",
+        # Groq models have different context windows. This conservative default
+        # is overridden downward if the API reports a smaller model-specific cap.
+        "max_tokens": 16384,
     },
     "cerebras": {
         "base_url": "https://api.cerebras.ai/v1", "key_env": "CEREBRAS_API_KEY",
@@ -204,18 +207,36 @@ def complete(config: dict, prompt: str, *, json_mode: bool = True, temperature: 
              max_tokens: int | None = None, attempts: int = 2, timeout: int = 180) -> str:
     """Call one provider with bounded retries and model discovery on 404/400."""
     max_tokens = max_tokens or int(os.getenv("LLM_FALLBACK_MAX_TOKENS", "8192"))
+    provider_cap = int(os.getenv(
+        f"LLM_MAX_TOKENS_{str(config.get('name', '')).upper()}",
+        str(config.get("max_tokens") or max_tokens),
+    ))
+    max_tokens = max(1, min(max_tokens, provider_cap))
     model = config["model"]
     discovered = False
     json_supported = json_mode
     last_error: LLMError | None = None
     retries = 0     # only real retries count; switching JSON mode or model does not
-    for _ in range(max(1, attempts) + 2):
+    token_limit_retries = 0
+    for _ in range(max(1, attempts) + 3):
         try:
             return _post_chat(config, model, prompt, json_mode=json_supported,
                               temperature=temperature, max_tokens=max_tokens, timeout=timeout)
         except LLMError as exc:
             last_error = exc
             message = str(exc).lower()
+            if exc.status_code == 400 and "max_tokens" in message and token_limit_retries < 2:
+                # Gateways return the actual completion cap in the error body.
+                # Reduce the budget and retry the same model; model discovery is
+                # inappropriate for a request-size error.
+                match = re.search(r"(?:maximum value for max_tokens is|max_tokens.{0,80}?)(\\d{3,6})", message)
+                reported_limit = int(match.group(1)) if match else 0
+                reduced = min(max_tokens - 1, reported_limit) if reported_limit else max_tokens // 2
+                if reduced >= 1024 and reduced < max_tokens:
+                    max_tokens = reduced
+                    token_limit_retries += 1
+                    print(f"{config['name']}: reducing completion budget to {max_tokens} tokens for model {model}.")
+                    continue
             if exc.status_code == 400 and json_supported and "response_format" in message:
                 json_supported = False  # provider/model without JSON mode
                 continue
