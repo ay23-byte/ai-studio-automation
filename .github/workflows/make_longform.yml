@@ -117,6 +117,11 @@ jobs:
       - name: Preflight documentary providers
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_MODELS_TOKEN }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -128,9 +133,21 @@ jobs:
         run: |
           python - <<'PY'
           import os, sys
-          if not os.getenv("GEMINI_API_KEY"):
-              print("FATAL: GEMINI_API_KEY is missing; script generation cannot start.")
+          text_fallbacks = {
+              "Groq": "GROQ_API_KEY",
+              "Cerebras": "CEREBRAS_API_KEY",
+              "OpenRouter": "OPENROUTER_API_KEY",
+              "Mistral": "MISTRAL_API_KEY",
+              "GitHub Models": "GITHUB_MODELS_TOKEN",
+          }
+          configured_text_fallbacks = [name for name, key in text_fallbacks.items()
+                                       if os.getenv(key, "").strip()]
+          if not os.getenv("GEMINI_API_KEY", "").strip() and not configured_text_fallbacks:
+              print("FATAL: No script-generation provider is configured. Add GEMINI_API_KEY or at least one fallback secret (GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, GITHUB_MODELS_TOKEN).")
               sys.exit(1)
+          print("Script-generation providers: " + ", ".join(
+              (["Gemini"] if os.getenv("GEMINI_API_KEY", "").strip() else []) + configured_text_fallbacks
+          ))
           providers = {
               "Pixabay": bool(os.getenv("PIXABAY_API_KEY")),
               "Cloudflare image generation": bool(os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN")),
@@ -238,6 +255,13 @@ jobs:
       - name: Build long-form video
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Gemini remains primary; free-tier OpenAI-compatible providers take over
+          # automatically when its model chain is rate-limited or unavailable.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_MODELS_TOKEN }}
           # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
           # set the repository variable to override without a code change.
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL_LONGFORM }}
