@@ -18,7 +18,8 @@ class SourceScreenshotRetryTests(unittest.TestCase):
                 if len(calls) == 1:
                     raise subprocess.TimeoutExpired(command, 55)
                 payload = json.loads(input)
-                from PIL import Image\n                Image.new("RGB", (1600, 900), "white").save(payload["image_path"], format="PNG")
+                from PIL import Image
+                Image.new("RGB", (1600, 900), "white").save(payload["image_path"], format="PNG")
                 Path(payload["metadata_path"]).write_text(
                     json.dumps({"screenshot_is_real_source_page": True}), encoding="utf-8"
                 )
