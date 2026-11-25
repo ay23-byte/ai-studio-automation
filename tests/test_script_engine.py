@@ -51,6 +51,9 @@ class GeminiFailoverTests(unittest.TestCase):
         self.assertIn('"sections"', prompt)
         self.assertIn("How Black Holes Bend Space and Time", prompt)
         self.assertIn("unmistakably spoken", prompt)
+        self.assertIn("real, public, directly accessible source page", prompt)
+        self.assertIn("Never invent an internal committee report", prompt)
+        self.assertIn("Do not turn an observed outcome into an unverified technical cause", prompt)
 
     def test_parser_accepts_json_fence_and_trailing_commas(self):
         result = script_engine._parse('''```json
