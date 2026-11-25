@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-24T23:42:46+00:00",
+  "updated_at": "2026-11-25T12:04:14+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -510,6 +510,20 @@
       "source_refs": [
         "f863dfc1570dc57ad75b",
         "c6c16288d3804736b916"
+      ],
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "bf553248c7aff841fac64d14",
+      "created_at": "2026-11-25T12:04:14+00:00",
+      "title": "Thirupparankundram Hill Barred Amid Security Deployment in Madurai",
+      "status": "built",
+      "updated_at": "2026-11-25T12:04:14+00:00",
+      "topic": "Thirupparankundram row LIVE: Madurai District Collector says Devasthanam did not authorise lamp-lighting team",
+      "source_refs": [
+        "63827ecf31fa2f372479",
+        "2a94e97d61d1a8e3dac8"
       ],
       "job_id": 7
     }
