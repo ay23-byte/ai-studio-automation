@@ -24,6 +24,12 @@ class ResolveRequestTests(unittest.TestCase):
     def _pull_request(self, message="Request a build [documentary-run]", same_repository=True):
         return request.resolve("pull_request", {}, self.file, message, same_repository)
 
+    def test_twelve_minute_documentary_is_an_allowed_form_and_request_value(self):
+        result = request.resolve("workflow_dispatch", {"topic": "Chandrayaan-3", "minutes": "12"},
+                                 self.file, "", False)
+        self.assertEqual(result["run"], "true")
+        self.assertEqual(result["minutes"], "12")
+
     def test_the_form_starts_a_build_with_its_inputs(self):
         result = request.resolve("workflow_dispatch", {"topic": "Tides", "minutes": "22", "semantic_review": "true"},
                                  self.file, "", False)
