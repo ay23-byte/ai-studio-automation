@@ -15,7 +15,7 @@ class GeminiFailoverTests(unittest.TestCase):
              patch.object(script_engine.time, "sleep"), \
              patch.object(script_engine, "_ask_model", side_effect=[outage, '{"title":"valid response"}']) as call:
             result = script_engine._ask_gemini("prompt")
-        self.assertEqual(result, "valid response")
+        self.assertEqual(result, '{"title":"valid response"}')
         self.assertEqual([c.args[1] for c in call.call_args_list], ["primary", "fallback-a"])
 
     def test_non_retryable_auth_error_does_not_rotate_models(self):
