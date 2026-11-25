@@ -36,7 +36,7 @@ from scripts.documentary_topic_queue import scheduled_topic
 REQUEST_FILE = ".github/documentary-production-request.json"
 MARKER = "[documentary-run]"
 CHOICES = {
-    "minutes": ["18", "20", "22", "25", "28", "30"],
+    "minutes": ["12", "18", "20", "22", "25", "28", "30"],
     "language": ["hinglish", "hindi", "english"],
     "channel_profile": ["beyond_science", "standard"],
     "voice_gender": ["male", "female"],
