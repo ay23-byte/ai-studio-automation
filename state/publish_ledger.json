@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-25T13:52:10+00:00",
+  "updated_at": "2026-11-25T13:53:45+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -532,10 +532,12 @@
       "key": "f287e4fb52f566ffb0676944",
       "created_at": "2026-11-25T13:52:10+00:00",
       "title": "Why Does an Ambulance Siren Change Pitch? (Doppler Effect)",
-      "status": "built",
-      "updated_at": "2026-11-25T13:52:10+00:00",
+      "status": "uploaded",
+      "updated_at": "2026-11-25T13:53:45+00:00",
       "topic": "Why Does an Ambulance Siren Change Pitch as It Passes?",
-      "job_id": 7
+      "job_id": 7,
+      "youtube_id": "BPM8ZRRVaaE",
+      "privacy_status": "private"
     }
   ]
 }
