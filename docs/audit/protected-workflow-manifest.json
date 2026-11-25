@@ -139,9 +139,9 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-    ".github/workflows/make_longform.yml": "8491158752e63b3b4340523c6b26a153a0722dd0ddf0b254deb8a08aa6e741e9",
+    ".github/workflows/make_longform.yml": "e5bed91e08f6f9e63448a5366e78e6db0e490336def13a19a8ff17c7d7c0b358",
     ".github/workflows/make_shorts.yml": "954d150a7e4375ee1f2a53f1bacbd56a72db8d6cb72a9752c07365b291fc5278",
-    ".github/workflows/manual-live-documentary-e2e.yml": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
+    ".github/workflows/manual-live-documentary-e2e.yml": "aa6a845f020b6587ec659a5350fb92a64a34e7477e021b057346c5b6636784e8",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
     ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
     ".github/workflows/news-short-one-click.yml": "d04ec365323d86fbb5f82fb0ebdccdd601a487fae1a8b3929ae18b480355e30e",
@@ -1273,7 +1273,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "8491158752e63b3b4340523c6b26a153a0722dd0ddf0b254deb8a08aa6e741e9",
+      "sha256": "e5bed91e08f6f9e63448a5366e78e6db0e490336def13a19a8ff17c7d7c0b358",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
@@ -1361,6 +1361,7 @@
         }
       },
       "secrets": [
+        "CEREBRAS_API_KEY",
         "CLOUDFLARE_ACCOUNT_ID",
         "CLOUDFLARE_API_TOKEN",
         "COVERR_API_KEY",
@@ -1368,7 +1369,11 @@
         "DVIDS_API_KEY",
         "EUROPEANA_API_KEY",
         "GEMINI_API_KEY",
+        "GITHUB_MODELS_TOKEN",
+        "GROQ_API_KEY",
+        "MISTRAL_API_KEY",
         "NARA_API_KEY",
+        "OPENROUTER_API_KEY",
         "PIXABAY_API_KEY",
         "SLACK_WEBHOOK_URL",
         "TELEGRAM_BOT_TOKEN",
@@ -1529,7 +1534,7 @@
       ]
     },
     "manual-live-documentary-e2e.yml": {
-      "sha256": "e126d8cd4c212bd329ad5ab153fe057a7137c39c4f1d53187af861e7a629b945",
+      "sha256": "aa6a845f020b6587ec659a5350fb92a64a34e7477e021b057346c5b6636784e8",
       "display_name": "⚙ Internal — Manual live documentary end-to-end validation",
       "on_sha256": "95a3979e050f4efb9960ad14532f2a100ba4b101f98ba7cf857a29eaa140bf0f",
       "triggers": [
@@ -1569,13 +1574,18 @@
         }
       },
       "secrets": [
+        "CEREBRAS_API_KEY",
         "CLOUDFLARE_ACCOUNT_ID",
         "CLOUDFLARE_API_TOKEN",
         "COVERR_API_KEY",
         "DVIDS_API_KEY",
         "EUROPEANA_API_KEY",
         "GEMINI_API_KEY",
+        "GITHUB_MODELS_TOKEN",
+        "GROQ_API_KEY",
+        "MISTRAL_API_KEY",
         "NARA_API_KEY",
+        "OPENROUTER_API_KEY",
         "PIXABAY_API_KEY"
       ],
       "variables": [
