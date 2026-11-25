@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.source_evidence import cited_source_records
+from core.source_evidence import cited_source_records, research_source_records
 
 
 class SourceEvidenceTests(unittest.TestCase):
@@ -15,6 +15,19 @@ class SourceEvidenceTests(unittest.TestCase):
             {"source_id": "S3", "title": "Bad URL", "publisher": "Bad",
              "url": "javascript:alert(1)"},
         ]
+
+    def test_script_source_compatibility_uses_legacy_sources_when_new_field_empty(self):
+        script = {"research_sources": [], "sources": self.sources}
+        self.assertEqual(research_source_records(script), self.sources)
+
+    def test_script_source_compatibility_prefers_populated_research_sources(self):
+        preferred = [self.sources[0]]
+        script = {"research_sources": preferred, "sources": self.sources}
+        self.assertEqual(research_source_records(script), preferred)
+
+    def test_script_source_compatibility_handles_missing_and_malformed_fields(self):
+        self.assertEqual(research_source_records({}), [])
+        self.assertEqual(research_source_records({"sources": "not-a-list"}), [])
 
     def test_only_explicitly_cited_valid_sources_are_selected(self):
         beat = {"visual_type": "chart", "source_refs": ["S1"],
