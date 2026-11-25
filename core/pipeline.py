@@ -1638,7 +1638,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         bd, [item.get("_media", {}).get("path") for item in shot_timeline
              if item.get("_media", {}).get("path") and not item.get("presenter_mode")
              and item.get("visual_type") != "chapter_title"],
-        explainer_cards.max_share(0.35))
+        explainer_cards.max_share(0.10))
 
     # Add a reviewable per-shot cinema plan and pass camera controls into FFmpeg rendering.
     shot_timeline[:] = plan_cinematic_shots(shot_timeline, defaults={"aspect_ratio": "16:9"})
