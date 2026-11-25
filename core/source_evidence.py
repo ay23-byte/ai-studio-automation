@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -88,20 +89,52 @@ def capture_source_screenshot(source: dict, output_dir: str | Path, *, node: str
         "image_path": str(image_path.resolve()),
         "metadata_path": str(metadata_path.resolve()),
     }
-    try:
-        result = subprocess.run(
-            [node, str(script)],
-            input=json.dumps(payload, ensure_ascii=False),
-            text=True,
-            capture_output=True,
-            timeout=int(os.getenv("SOURCE_SCREENSHOT_TIMEOUT_SECONDS", "55")),
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"status": "FAILED", "reason": f"{type(exc).__name__}: {exc}"}
-    if result.returncode != 0 or not image_path.is_file() or image_path.stat().st_size < 5000:
-        detail = (result.stderr or result.stdout or "screenshot renderer returned no image").strip()[-1200:]
-        return {"status": "FAILED", "reason": detail}
+    # Public publishers occasionally return transient 429/5xx responses or
+    # close headless-browser connections. Retry those failures, but do not
+    # retry permanent URL/security/content errors. A screenshot is accepted
+    # only when the renderer produced a real page image and its sidecar.
+    timeout_seconds = max(10, int(os.getenv("SOURCE_SCREENSHOT_TIMEOUT_SECONDS", "55")))
+    attempts = max(1, min(3, int(os.getenv("SOURCE_SCREENSHOT_ATTEMPTS", "3"))))
+    failures = []
+    result = None
+    for attempt in range(1, attempts + 1):
+        image_path.unlink(missing_ok=True)
+        metadata_path.unlink(missing_ok=True)
+        try:
+            result = subprocess.run(
+                [node, str(script)],
+                input=json.dumps(payload, ensure_ascii=False),
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            if result.returncode == 0 and image_path.is_file() and image_path.stat().st_size >= 5000:
+                break
+            detail = (result.stderr or result.stdout or "screenshot renderer returned no image").strip()[-1200:]
+        except subprocess.TimeoutExpired as exc:
+            detail = f"TimeoutExpired after {timeout_seconds}s"
+        except OSError as exc:
+            detail = f"{type(exc).__name__}: {exc}"
+        failures.append(f"attempt {attempt}/{attempts}: {detail}")
+        transient = any(token in detail.lower() for token in (
+            "timeout", "err_", "econn", "429", "502", "503", "504",
+            "target closed", "browser has been closed", "temporarily unavailable",
+            "navigation failed", "net::"
+        ))
+        if not transient or attempt >= attempts:
+            break
+        time.sleep(min(2 * attempt, 5))
+    if (result is None or result.returncode != 0 or not image_path.is_file()
+            or image_path.stat().st_size < 5000
+            or not metadata_path.is_file()):
+        return {
+            "status": "FAILED",
+            "reason": " | ".join(failures)[-2400:] or "Screenshot renderer did not produce a verified page image and metadata sidecar.",
+            "source_id": source.get("source_id"),
+            "url": url,
+            "attempts": len(failures) if failures else 1,
+        }
     # Add an editorial footer to the genuine page capture so viewers can read
     # the publisher, publication date and exact source URL in the finished film.
     try:

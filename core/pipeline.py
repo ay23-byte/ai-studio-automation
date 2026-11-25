@@ -1377,6 +1377,18 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                         source_evidence_required_beat_failures.append(failure)
                         print(f"WARNING: no real source screenshot captured for evidence beat {i+1}.{j+1}.")
                 except Exception as exc:
+                    # Evidence-beat exceptions must remain visible to the strict
+                    # screenshot gate; logging alone could silently let a cited
+                    # chart/document beat through without its source-page capture.
+                    failure = {
+                        "status": "FAILED",
+                        "reason": f"{type(exc).__name__}: {exc}",
+                        "source_refs": list(dict.fromkeys(str(ref) for ref in locals().get("explicit_refs", []) if str(ref).strip())),
+                        "chapter": i + 1,
+                        "beat": j + 1,
+                    }
+                    source_evidence_capture_records.append(failure)
+                    source_evidence_required_beat_failures.append(failure)
                     print(f"WARNING: source webpage screenshot unavailable for beat {i+1}.{j+1}: {type(exc).__name__}: {exc}")
 
             # Use Manim/Blender for supported educational animation beats before
@@ -1626,7 +1638,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
         bd, [item.get("_media", {}).get("path") for item in shot_timeline
              if item.get("_media", {}).get("path") and not item.get("presenter_mode")
              and item.get("visual_type") != "chapter_title"],
-        explainer_cards.max_share(0.35))
+        explainer_cards.max_share(0.10))
 
     # Add a reviewable per-shot cinema plan and pass camera controls into FFmpeg rendering.
     shot_timeline[:] = plan_cinematic_shots(shot_timeline, defaults={"aspect_ratio": "16:9"})
