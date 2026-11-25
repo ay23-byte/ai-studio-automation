@@ -16,6 +16,22 @@ from urllib.parse import urlparse
 EVIDENCE_TYPES = {"chart", "timeline", "document", "evidence"}
 
 
+def research_source_records(script: dict) -> list[dict]:
+    """Read research sources from either supported script field.
+
+    Older script generations store the same source records under ``sources``;
+    newer generations use ``research_sources``. An empty newer field must not
+    mask a populated legacy field.
+    """
+    if not isinstance(script, dict):
+        return []
+    records = script.get("research_sources")
+    if isinstance(records, list) and records:
+        return records
+    records = script.get("sources")
+    return records if isinstance(records, list) else []
+
+
 def cited_source_records(beat: dict, research_sources: list[dict]) -> list[dict]:
     """Resolve a beat's explicit source IDs to valid, titled HTTP(S) source records."""
     refs = list(beat.get("source_refs") or [])

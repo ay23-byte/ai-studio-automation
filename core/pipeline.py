@@ -9,6 +9,7 @@ from core.cinematic_shot_planner import plan_cinematic_shots, write_cinematic_sh
 
 from core import ffmpeg_utils
 from core.jobs import Checkpoint, stable_hash
+from core.source_evidence import research_source_records
 
 W_S, H_S = 1080, 1920   # Shorts
 W_L, H_L = 1920, 1080   # Long-form
@@ -1308,7 +1309,7 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
             if evidence_kind in {"chart", "timeline", "document", "evidence"} or beat.get("chart_spec") or beat.get("timeline_events"):
                 try:
                     from core.source_evidence import cited_source_records, capture_source_screenshot
-                    cited = cited_source_records(beat, script.get("research_sources", []))
+                    cited = cited_source_records(beat, research_source_records(script))
                     explicit_refs = list(beat.get("source_refs") or [])
                     explicit_refs.extend((beat.get("chart_spec") or {}).get("source_refs") or [])
                     for event in beat.get("timeline_events") or []:
