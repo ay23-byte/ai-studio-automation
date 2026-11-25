@@ -229,7 +229,7 @@ def complete(config: dict, prompt: str, *, json_mode: bool = True, temperature: 
                 # Gateways return the actual completion cap in the error body.
                 # Reduce the budget and retry the same model; model discovery is
                 # inappropriate for a request-size error.
-                match = re.search(r"(?:maximum value for max_tokens is|max_tokens.{0,80}?)(\\d{3,6})", message)
+                match = re.search(r"(?:maximum value for max_tokens is|max_tokens.{0,80}?)(\d{3,6})", message)
                 reported_limit = int(match.group(1)) if match else 0
                 reduced = min(max_tokens - 1, reported_limit) if reported_limit else max_tokens // 2
                 if reduced >= 1024 and reduced < max_tokens:
