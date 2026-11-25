@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-25T13:53:45+00:00",
+  "updated_at": "2026-11-25T23:18:45+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -538,6 +538,20 @@
       "job_id": 7,
       "youtube_id": "BPM8ZRRVaaE",
       "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "af64c249526c4797a6582847",
+      "created_at": "2026-11-25T23:18:45+00:00",
+      "title": "Flipkart CEO Kalyan Krishnamurthy अगले हफ्ते पद छोड़ेंगे",
+      "status": "built",
+      "updated_at": "2026-11-25T23:18:45+00:00",
+      "topic": "Kalyan Krishnamurthy to step down as Flipkart CEO",
+      "source_refs": [
+        "eae6fd19ef8db6a00783",
+        "01f1e288934d74d71e24"
+      ],
+      "job_id": 7
     }
   ]
 }
