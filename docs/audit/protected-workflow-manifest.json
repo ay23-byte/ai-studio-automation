@@ -139,7 +139,7 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-    ".github/workflows/make_longform.yml": "347e71ac4d10e821343d85818b3e25e488977f4c55d0658335a34cfa9eea7df2",
+    ".github/workflows/make_longform.yml": "08c7bdb06b8a05d9a47680bcfe56809b4000647fc65aff12f590f91b9ce97d35",
     ".github/workflows/make_shorts.yml": "954d150a7e4375ee1f2a53f1bacbd56a72db8d6cb72a9752c07365b291fc5278",
     ".github/workflows/manual-live-documentary-e2e.yml": "df1a06e4e83686e95711c88c72cad61ecbbf6964dc6d510f00a8196b1a1d7f0a",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
@@ -1273,7 +1273,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "347e71ac4d10e821343d85818b3e25e488977f4c55d0658335a34cfa9eea7df2",
+      "sha256": "08c7bdb06b8a05d9a47680bcfe56809b4000647fc65aff12f590f91b9ce97d35",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
