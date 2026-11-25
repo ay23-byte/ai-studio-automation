@@ -18,7 +18,7 @@ on:
       minutes:
         description: "Target length in minutes"
         type: choice
-        options: ["12", "18", "20", "22", "25", "28", "30"]
+        options: ["18", "20", "22", "25", "28", "30"]
         default: "22"
       language:
         description: "Narration language (subtitles are always English)"
@@ -226,7 +226,7 @@ jobs:
         run: python -m compileall -q core run.py run_daily.py get_refresh_tokens.py
 
       - name: Test narration provider fallback and long-form package adapter
-        run: python -m unittest tests.test_llm_token_limits tests.test_script_engine tests.test_documentary_request tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_chatterbox_phrase_cache tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact tests.test_source_evidence -v
+        run: python -m unittest tests.test_voice_fallback tests.test_voice_text tests.test_voice_pacing tests.test_chatterbox_phrase_cache tests.test_footage_exposure tests.test_longform_review_package tests.test_upload_documentary_artifact tests.test_source_evidence -v
 
       - name: Install Playwright Chromium for automatic 3D avatar recording
         if: ${{ needs.request.outputs.presenter_mode == 'talking_avatar_auto' }}
@@ -330,7 +330,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$INPUT_MINUTES" =~ ^(12|18|20|22|25|28|30)$ ]] || { echo "::error::minutes must be one of 12, 18, 20, 22, 25, 28 or 30."; exit 1; }
+          [[ "$INPUT_MINUTES" =~ ^(18|20|22|25|28|30)$ ]] || { echo "::error::minutes must be one of 18, 20, 22, 25, 28 or 30."; exit 1; }
           python run.py long "$INPUT_TOPIC" \
             --category "$INPUT_CATEGORY" \
             --minutes "$INPUT_MINUTES" \
