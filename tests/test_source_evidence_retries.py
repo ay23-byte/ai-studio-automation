@@ -58,6 +58,30 @@ class SourceScreenshotRetryTests(unittest.TestCase):
             self.assertTrue(Path(result["path"]).is_file())
             self.assertTrue(Path(result["metadata_path"]).is_file())
 
+    def test_rejects_placeholder_page_even_when_a_png_and_sidecar_exist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            def fake_run(command, *, input, **kwargs):
+                payload = json.loads(input)
+                from PIL import Image
+                Image.new("RGB", (1600, 900), "white").save(payload["image_path"], format="PNG")
+                Path(payload["metadata_path"]).write_text(
+                    json.dumps({
+                        "screenshot_is_real_source_page": True,
+                        "http_status": 200,
+                        "content_validated": False,
+                        "page_title": "Page not found - The National Archives",
+                    }), encoding="utf-8"
+                )
+                return subprocess.CompletedProcess(command, 0, stdout="captured", stderr="")
+
+            with patch("core.source_evidence.subprocess.run", side_effect=fake_run):
+                result = capture_source_screenshot(
+                    {"source_id": "S2", "url": "https://example.org/missing", "publisher": "Archive"},
+                    directory,
+                )
+            self.assertEqual(result["status"], "FAILED")
+            self.assertIn("validated article/report page", result["reason"])
+
     def test_does_not_retry_permanent_capture_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             command = ["node", "capture-source.mjs"]
