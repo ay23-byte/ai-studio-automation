@@ -217,7 +217,7 @@ jobs:
               "messages": [{"role": "user", "content": "Reply with exactly: NEMOTRON_API_OK"}],
               "max_tokens": 128,
               "temperature": 0,
-              "chat_template_kwargs": {"enable_thinking": false}
+              "chat_template_kwargs": {"enable_thinking": False}
           }
           Path("artifacts/nemotron-smoke/request.json").write_text(json.dumps(payload))
           PY
