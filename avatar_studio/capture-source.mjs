@@ -84,8 +84,8 @@ try {
     articleFound: Boolean(document.querySelector("article, main [itemprop='articleBody'], main")),
     bodyText: (document.body?.innerText || "").trim().slice(0, 12000),
   }));
-  const errorTitle = /^(page not found|not found|this page does not exist|coming soon|access denied|forbidden|service unavailable|error)(\\b|\\s|[-:])/i;
-  const errorBody = /\\b(page not found|this page does not exist|temporarily unavailable|site is under maintenance|access denied)\\b/i;
+  const errorTitle = /^(page not found|not found|this page does not exist|coming soon|access denied|forbidden|service unavailable|error)(\b|\s|[-:])/i;
+  const errorBody = /\b(page not found|this page does not exist|temporarily unavailable|site is under maintenance|access denied)\b/i;
   if (!pageInfo.title || pageInfo.bodyTextLength < 100 ||
       errorTitle.test(pageInfo.title.trim()) || errorBody.test(pageInfo.bodyText)) {
     throw new Error(`Source URL displayed an error/placeholder page, not the cited article (title=${pageInfo.title || "untitled"}).`);
