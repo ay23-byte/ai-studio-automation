@@ -118,10 +118,18 @@ jobs:
         id: build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          NVIDIA_LLM_MODEL: ${{ vars.NVIDIA_LLM_MODEL }}
+          NVIDIA_IMAGE_MODEL: ${{ vars.NVIDIA_IMAGE_MODEL }}
+          NVIDIA_IMAGE_ENABLED: ${{ vars.NVIDIA_IMAGE_ENABLED || '0' }}
+          NVIDIA_TTS_ENABLED: ${{ vars.NVIDIA_TTS_ENABLED || '0' }}
+          NVIDIA_TTS_MODEL: ${{ vars.NVIDIA_TTS_MODEL }}
+          NVIDIA_TTS_VOICE: ${{ vars.NVIDIA_TTS_VOICE }}
           # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;
           # set the repository variable to override without a code change.
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
+          LLM_PROVIDER_ORDER: "groq,cerebras,openrouter,mistral,nvidia"
           # Optional free fallbacks used automatically when Gemini is unavailable.
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

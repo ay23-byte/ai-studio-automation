@@ -13,7 +13,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from core import voice
 
@@ -159,8 +159,39 @@ class ProviderCascadeTests(unittest.TestCase):
 
     def test_provider_status_is_a_plain_report(self):
         status = voice.provider_status()
-        self.assertEqual(set(status), {"edge", "chatterbox", "espeak-ng"})
+        self.assertEqual(set(status), {"edge", "chatterbox", "espeak-ng", "nvidia_magpie"})
         self.assertTrue(all(isinstance(value, bool) for value in status.values()))
+
+
+class NvidiaMagpieProviderTests(unittest.TestCase):
+    def test_magpie_discovers_matching_hindi_voice_and_writes_wav(self):
+        from core.voice import _synth_all_magpie
+        voice_response = Mock(status_code=200)
+        voice_response.json.return_value = {
+            "hi-IN": {"voices": [
+                "Magpie-Multilingual.HI-IN.Leo",
+                "Magpie-Multilingual.HI-IN.Sofia",
+            ]}
+        }
+        audio_response = Mock(status_code=200, content=b"RIFF" + b"\\x00" * 2048, text="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"NVIDIA_API_KEY": "test-key"}, clear=True), \
+             patch("requests.get", return_value=voice_response) as get, \
+             patch("requests.post", return_value=audio_response) as post:
+            wavs, selected = _synth_all_magpie(["Namaste, physics!"], "hinglish", "male", Path(tmp))
+            self.assertEqual(selected, "Magpie-Multilingual.HI-IN.Leo")
+            self.assertEqual(len(wavs), 1)
+            self.assertTrue(wavs[0].read_bytes().startswith(b"RIFF"))
+        get.assert_called_once()
+        form = {key: value[1] for key, value in post.call_args.kwargs["files"].items()}
+        self.assertEqual(form["language"], "hi-IN")
+        self.assertEqual(form["voice"], "Magpie-Multilingual.HI-IN.Leo")
+
+    def test_magpie_requires_nvidia_key(self):
+        from core.voice import _synth_all_magpie, VoiceProviderUnavailable
+        with patch.dict(os.environ, {}, clear=True), tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(VoiceProviderUnavailable):
+                _synth_all_magpie(["hello"], "english", "male", Path(tmp))
 
 
 class WorkflowDependencyTests(unittest.TestCase):

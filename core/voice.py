@@ -50,6 +50,7 @@ def provider_status() -> dict:
         chatterbox = False
     return {
         "edge": edge_tts is not None,
+        "nvidia_magpie": bool(os.getenv("NVIDIA_API_KEY", "").strip()),
         "chatterbox": chatterbox,
         "espeak-ng": shutil.which("espeak-ng") is not None,
     }
@@ -644,6 +645,71 @@ def _synth_all_espeak(sentences, language, build_dir):
     print(f"Offline espeak-ng fallback completed using voice {voice}.")
     return wavs
 
+def _nvidia_magpie_voice(language, gender):
+    import requests
+    override = os.getenv("NVIDIA_TTS_VOICE", "").strip()
+    if override:
+        return override
+    api_key = os.getenv("NVIDIA_API_KEY", "").strip()
+    if not api_key:
+        raise VoiceProviderUnavailable("NVIDIA Magpie requires NVIDIA_API_KEY.")
+    endpoint = "https://877104f7-e885-42b9-8de8-f6e4c6303969.invocation.api.nvcf.nvidia.com"
+    response = requests.get(endpoint + "/v1/audio/list_voices",
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            timeout=(15, 45))
+    response.raise_for_status()
+    payload = response.json()
+    locale = "HI-IN" if language in {"hindi", "hinglish"} else "EN-US"
+    voices = []
+    def collect(value):
+        if isinstance(value, dict):
+            for item in value.values():
+                collect(item)
+        elif isinstance(value, list):
+            voices.extend(str(item) for item in value if isinstance(item, str))
+    collect(payload)
+    candidates = [voice for voice in voices if "Magpie-Multilingual." + locale in voice]
+    if not candidates:
+        raise RuntimeError(f"NVIDIA Magpie has no {locale} voices in its available voice list.")
+    gender_terms = ("female", "woman", "aria", "mia", "isabela", "sofia", "louise") if gender == "female" else ("male", "man", "jason", "diego", "leo", "pascal", "ray", "siwei", "long", "houzhen")
+    matching = [voice for voice in candidates if any(term in voice.lower() for term in gender_terms)]
+    return (matching or candidates)[0]
+
+
+def _synth_all_magpie(sentences, language, gender, build_dir):
+    import requests
+    """Synthesize a complete narration using NVIDIA's hosted Magpie HTTP endpoint."""
+    api_key = os.getenv("NVIDIA_API_KEY", "").strip()
+    if not api_key:
+        raise VoiceProviderUnavailable("NVIDIA Magpie requires NVIDIA_API_KEY.")
+    endpoint = "https://877104f7-e885-42b9-8de8-f6e4c6303969.invocation.api.nvcf.nvidia.com"
+    voice_name = _nvidia_magpie_voice(language, gender)
+    language_code = "hi-IN" if language in {"hindi", "hinglish"} else "en-US"
+    wavs = []
+    for index, sentence in enumerate(sentences):
+        response = requests.post(
+            endpoint + "/v1/audio/synthesize",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={key: (None, value) for key, value in {
+                "text": str(sentence), "language": language_code, "voice": voice_name,
+                "encoding": "LINEAR_PCM", "sample_rate_hz": "22050",
+            }.items()},
+            timeout=(20, 180),
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"NVIDIA Magpie HTTP {response.status_code}: {' '.join(response.text.split())[:200]}")
+        wav = Path(build_dir) / f"s{index}.wav"
+        temporary = wav.with_suffix(".nvidia-tmp.wav")
+        temporary.write_bytes(response.content)
+        if len(response.content) < 1024 or response.content[:4] != b"RIFF":
+            temporary.unlink(missing_ok=True)
+            raise RuntimeError("NVIDIA Magpie returned an invalid WAV response.")
+        os.replace(temporary, wav)
+        wavs.append(wav)
+    print(f"NVIDIA Magpie narration completed with voice {voice_name}.")
+    return wavs, voice_name
+
+
 def synthesise(text, build_dir, language="hindi", gender="male"):
     build_dir = Path(build_dir)
     build_dir.mkdir(parents=True, exist_ok=True)
@@ -657,6 +723,11 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     _LAST_EDGE_FAILURES = []
     _LAST_CHATTERBOX_LANGUAGES = []
     requested_engine = os.getenv("TTS_ENGINE", "chatterbox").strip().lower()
+    if os.getenv("NVIDIA_TTS_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
+        selected_tts_model = os.getenv("NVIDIA_TTS_MODEL", "magpie-tts-multilingual").strip()
+        if selected_tts_model != "magpie-tts-multilingual":
+            raise VoiceProviderUnavailable(f"Unsupported NVIDIA_TTS_MODEL: {selected_tts_model}")
+        requested_engine = "nvidia_magpie"
     engine = requested_engine
     fallback_reason = None
     require_requested_engine = (os.getenv("TTS_REQUIRE_ENGINE", "").strip().lower() == requested_engine
@@ -673,7 +744,23 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
 
     # Provider cascade: requested engine -> multiple Edge voices -> offline espeak-ng.
     # A transient network outage must not abort a documentary after script generation.
-    if engine == "chatterbox":
+    magpie_voice = None
+    if engine == "nvidia_magpie":
+        try:
+            wavs, magpie_voice = _synth_all_magpie(sentences, language, gender, build_dir)
+        except Exception as magpie_exc:
+            fallback_reason = f"NVIDIA Magpie failed ({type(magpie_exc).__name__}: {magpie_exc}); trying Edge TTS."
+            if require_requested_engine:
+                raise VoiceProviderUnavailable(f"Required narration engine NVIDIA Magpie failed: {magpie_exc}") from magpie_exc
+            print("WARNING: " + fallback_reason)
+            try:
+                wavs = _synth_all_edge(sentences, language, gender, build_dir)
+                engine = "edge"
+            except Exception as edge_exc:
+                fallback_reason += f" Edge TTS also failed ({type(edge_exc).__name__}: {edge_exc}); using offline espeak-ng."
+                wavs = _synth_all_espeak(sentences, language, build_dir)
+                engine = "espeak-ng"
+    elif engine == "chatterbox":
         try:
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
         except Exception as exc:
@@ -728,7 +815,7 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "requested_engine": requested_engine,
         "actual_engine": engine,
         "fallback_reason": fallback_reason,
-        "voice": (_LAST_EDGE_VOICE or pick_voice(language, gender)) if engine == "edge" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback"),
+        "voice": (_LAST_EDGE_VOICE or pick_voice(language, gender)) if engine == "edge" else (magpie_voice if engine == "nvidia_magpie" else ("Chatterbox multilingual" if engine == "chatterbox" else "espeak-ng offline fallback")),
         "configured_voice": pick_voice(language, gender),
         "voice_failures": list(_LAST_EDGE_FAILURES),
         "voice_changed": bool(engine == "edge" and _LAST_EDGE_VOICE

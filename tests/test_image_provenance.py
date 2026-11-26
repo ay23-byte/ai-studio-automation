@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import requests
-from core.images import _cloudflare, _pollinations, _pixabay_image, _POLLINATIONS_STATE
+from core.images import _cloudflare, _pollinations, _pixabay_image, _POLLINATIONS_STATE, _nvidia_flux_image
 from core.footage_licence import classify_licence
 
 
@@ -34,6 +34,30 @@ class ImageProvenanceTests(unittest.TestCase):
             path = Path(folder) / "generated.jpg"
             self.assertFalse(_cloudflare("documentary visual prompt", path))
             self.assertFalse(path.exists())
+        post.assert_not_called()
+
+    @patch.dict(os.environ, {"NVIDIA_API_KEY": "test-key", "NVIDIA_IMAGE_ENABLED": "1",
+                             "NVIDIA_IMAGE_MODEL": "black-forest-labs/flux.1-dev"})
+    @patch("core.images._ok", return_value=True)
+    @patch("core.images.requests.post")
+    def test_nvidia_flux_writes_validated_image_and_ai_provenance(self, post, _ok):
+        import base64
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "flux.jpg"
+            response = _Response(content=b"", content_type="application/json",
+                                 payload={"artifacts": [{"base64": base64.b64encode(b"fake-jpeg").decode()}]})
+            post.return_value = response
+            self.assertTrue(_nvidia_flux_image("cinematic science visual", path))
+            self.assertEqual(path.read_bytes(), b"fake-jpeg")
+            sidecar = json.loads(path.with_suffix(".jpg.source.json").read_text(encoding="utf-8"))
+            self.assertEqual(sidecar["provider"], "NVIDIA FLUX.1-dev")
+            self.assertEqual(sidecar["asset_type"], "AI-generated synthetic still")
+            self.assertTrue(sidecar["human_review_required"])
+
+    def test_nvidia_flux_is_disabled_without_explicit_opt_in(self):
+        with patch.dict(os.environ, {"NVIDIA_API_KEY": "test-key"}, clear=True), \
+             patch("core.images.requests.post") as post:
+            self.assertFalse(_nvidia_flux_image("prompt", Path("unused.jpg")))
         post.assert_not_called()
 
     def test_pixabay_still_fallback_requires_relevance_and_records_provenance(self):

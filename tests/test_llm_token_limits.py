@@ -5,6 +5,22 @@ from core import llm
 
 
 class ProviderTokenBudgetTests(unittest.TestCase):
+    def test_nvidia_nemotron_is_available_when_key_is_configured(self):
+        with patch.dict("os.environ", {
+            "NVIDIA_API_KEY": "test-nvidia-key",
+            "NVIDIA_LLM_MODEL": "nvidia/nemotron-3.5-lightning-30b-a3b",
+            "LLM_PROVIDER_ORDER": "nvidia",
+        }, clear=True):
+            providers = llm.configured_providers()
+        self.assertEqual(len(providers), 1)
+        self.assertEqual(providers[0]["name"], "nvidia")
+        self.assertEqual(providers[0]["base_url"], "https://integrate.api.nvidia.com/v1")
+        self.assertEqual(providers[0]["model"], "nvidia/nemotron-3.5-lightning-30b-a3b")
+
+    def test_nvidia_is_not_configured_without_secret(self):
+        with patch.dict("os.environ", {"LLM_PROVIDER_ORDER": "nvidia"}, clear=True):
+            self.assertEqual(llm.configured_providers(), [])
+
     def test_groq_budget_is_capped_before_request(self):
         response = Mock(status_code=200, text="")
         response.json.return_value = {
