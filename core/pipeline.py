@@ -356,14 +356,45 @@ def _clean(s): return s.replace("{","(").replace("}",")")
 
 
 def _scene_search_brief(beat: dict, keywords) -> str:
-    """Build concise semantic search text, separate from cinematic generation prose."""
-    parts = (
-        beat.get("subject", ""),
-        beat.get("location", ""),
-        beat.get("time_period", ""),
-        " ".join(str(item) for item in (keywords or []) if str(item).strip()),
-    )
-    return " ".join(" ".join(str(part or "").split()) for part in parts if str(part or "").strip())[:600]
+    """Build a compact, subject-led metadata query for archive and stock catalogues.
+
+    Provider metadata is usually a short title/tag list, not a full description of
+    the storyboard. Comparing it with a long cinematic brief dilutes real matches:
+    a correct clip can share the subject but fail the 0.30 token-coverage gate.
+    Keep only distinctive anchors; vision screening and the independent relevance
+    and licence gates still decide whether a downloaded clip may be selected.
+    """
+    stop = {
+        "the", "and", "for", "with", "from", "that", "this", "into", "about",
+        "during", "before", "after", "while", "showing", "shows", "scene",
+        "footage", "video", "documentary", "historical", "historic", "archival",
+        "archive", "authentic", "genuine", "real", "period",
+    }
+
+    def terms(value, limit):
+        result = []
+        for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", str(value or "")):
+            cleaned = word.strip("'-").lower()
+            if len(cleaned) < 3 or cleaned in stop or cleaned in result:
+                continue
+            result.append(cleaned)
+            if len(result) >= limit:
+                break
+        return result
+
+    # Prioritise the actual subject. Location and date are useful discriminators,
+    # while keywords supply alternate names and concrete objects/actions.
+    selected = []
+    for value, limit in (
+        (beat.get("subject", ""), 6),
+        (beat.get("location", ""), 2),
+        (beat.get("time_period", ""), 2),
+        (" ".join(str(item) for item in (keywords or []) if str(item).strip()), 4),
+    ):
+        for token in terms(value, limit):
+            if token not in selected:
+                selected.append(token)
+    return " ".join(selected[:12])
 
 
 def _short_scene_search_brief(scene: dict) -> str:
