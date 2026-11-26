@@ -677,6 +677,7 @@ def _nvidia_magpie_voice(language, gender):
 
 
 def _synth_all_magpie(sentences, language, gender, build_dir):
+    import requests
     """Synthesize a complete narration using NVIDIA's hosted Magpie HTTP endpoint."""
     api_key = os.getenv("NVIDIA_API_KEY", "").strip()
     if not api_key:
