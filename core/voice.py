@@ -720,6 +720,9 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
     _LAST_CHATTERBOX_LANGUAGES = []
     requested_engine = os.getenv("TTS_ENGINE", "chatterbox").strip().lower()
     if os.getenv("NVIDIA_TTS_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
+        selected_tts_model = os.getenv("NVIDIA_TTS_MODEL", "magpie-tts-multilingual").strip()
+        if selected_tts_model != "magpie-tts-multilingual":
+            raise VoiceProviderUnavailable(f"Unsupported NVIDIA_TTS_MODEL: {selected_tts_model}")
         requested_engine = "nvidia_magpie"
     engine = requested_engine
     fallback_reason = None
