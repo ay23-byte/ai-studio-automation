@@ -3,6 +3,12 @@ name: "V2 animation integration (opt-in validation)"
 # Validation only: no schedules, production configuration, credentials or uploads.
 on:
   workflow_dispatch:
+    inputs:
+      cosmos_smoke:
+        description: "Run one NVIDIA Cosmos 3 Nano 480p text-to-video smoke test (uses NVIDIA hosted API)"
+        required: true
+        default: false
+        type: boolean
   pull_request:
     paths:
       - '.github/workflows/v2-animation-integration.yml'
@@ -65,3 +71,110 @@ jobs:
           PYCODE
           fi
           exit "$result"
+
+  cosmos3-nano-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.cosmos_smoke == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify Cosmos credential is configured without printing it
+        env:
+          COSMOS_API_KEY: ${{ secrets[format('NVIDIA_{0}_API_KEY', 'COSMOS')] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${COSMOS_API_KEY:-}" ]; then
+            echo "::error::Missing repository Actions secret NVIDIA_COSMOS_API_KEY."
+            exit 1
+          fi
+          echo "Cosmos credential is present (value is masked and never logged)."
+      - name: Generate one short 480p Cosmos 3 Nano sample
+        env:
+          COSMOS_API_KEY: ${{ secrets[format('NVIDIA_{0}_API_KEY', 'COSMOS')] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cosmos-smoke
+          cat > artifacts/cosmos-smoke/request.json <<'JSON'
+          {
+            "model_mode": "text2video",
+            "prompt": "Cinematic documentary establishing shot of the Himalayan foothills in northern India at dawn, realistic mountain landscape, soft morning mist drifting through a river valley, slow aerial camera movement, natural colors, no text, no logos.",
+            "resolution": "480_16_9",
+            "num_frames": 25,
+            "num_inference_steps": 35,
+            "guidance_scale": 6,
+            "flow_shift": 10,
+            "fps": 24,
+            "seed": 42
+          }
+          JSON
+          status=$(curl --silent --show-error --output artifacts/cosmos-smoke/response.json --write-out '%{http_code}' \
+            --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 5 \
+            --request POST 'https://ai.api.nvidia.com/v1/cosmos/nvidia/cosmos3-nano' \
+            --header "Authorization: Bearer ${COSMOS_API_KEY}" \
+            --header 'Content-Type: application/json' \
+            --header 'Accept: application/json' \
+            --data-binary @artifacts/cosmos-smoke/request.json) || {
+              echo "::error::Cosmos request failed at the transport layer. See sanitized curl diagnostics above."
+              exit 1
+            }
+          echo "Cosmos HTTP status: ${status}"
+          if [ "${status}" != "200" ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("artifacts/cosmos-smoke/response.json")
+          raw = p.read_text(errors="replace")[:4000] if p.exists() else "(empty response)"
+          try:
+              obj = json.loads(raw)
+              # Never print credential-like fields from a provider error payload.
+              print(json.dumps(obj, indent=2)[:4000])
+          except Exception:
+              print(raw)
+          PY
+            if [ "${status}" = "404" ]; then
+              echo "::error::NVIDIA returned HTTP 404 for its documented Cosmos route. This usually indicates endpoint/account availability or routing, not a malformed MP4."
+            fi
+            exit 1
+          fi
+          python - <<'PY'
+          import base64, json
+          from pathlib import Path
+          response = json.loads(Path("artifacts/cosmos-smoke/response.json").read_text())
+          encoded = response.get("b64_video")
+          if not isinstance(encoded, str) or not encoded:
+              raise SystemExit("NVIDIA returned HTTP 200 but no b64_video field.")
+          video = base64.b64decode(encoded, validate=True)
+          if len(video) < 1024:
+              raise SystemExit(f"Decoded video is unexpectedly small: {len(video)} bytes.")
+          Path("artifacts/cosmos-smoke/cosmos3-nano-smoke.mp4").write_bytes(video)
+          print(f"Decoded MP4: {len(video)} bytes")
+          PY
+      - name: Validate generated MP4 container and stream
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffprobe -v error -show_entries format=format_name,duration,size -show_entries stream=codec_type,codec_name,width,height,r_frame_rate -of json artifacts/cosmos-smoke/cosmos3-nano-smoke.mp4 | tee artifacts/cosmos-smoke/ffprobe.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("artifacts/cosmos-smoke/ffprobe.json").read_text())
+          streams = data.get("streams", [])
+          if not any(s.get("codec_type") == "video" for s in streams):
+              raise SystemExit("Decoded file has no video stream.")
+          duration = float(data.get("format", {}).get("duration", 0))
+          if duration <= 0:
+              raise SystemExit("Generated MP4 has no positive duration.")
+          print(f"MP4 validation passed; duration={duration:.3f}s")
+          PY
+      - name: Upload smoke-test evidence (never uploads to YouTube)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosmos3-nano-smoke-${{ github.run_id }}
+          path: artifacts/cosmos-smoke/
+          if-no-files-found: warn
+          retention-days: 7
