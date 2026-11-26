@@ -140,7 +140,7 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-    ".github/workflows/make_longform.yml": "08c7bdb06b8a05d9a47680bcfe56809b4000647fc65aff12f590f91b9ce97d35",
+    ".github/workflows/make_longform.yml": "55758d8f0c4a61a863d49b7ad930dbac6622765b3b711ca4787d1db51a82b23f",
     ".github/workflows/make_shorts.yml": "954d150a7e4375ee1f2a53f1bacbd56a72db8d6cb72a9752c07365b291fc5278",
     ".github/workflows/manual-live-documentary-e2e.yml": "df1a06e4e83686e95711c88c72cad61ecbbf6964dc6d510f00a8196b1a1d7f0a",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
@@ -226,7 +226,7 @@
     "core/openverse_images.py": "b6dae0eb985e5a9171be526ca691c9a718aa50ba23237cd3a04367f551536483",
     "core/openvino_video.py": "31dda50497f3d1c60df4a02b3875eec057066e754e82a89e1fdf912bdc9b326d",
     "core/performance.py": "f06f53896dc687dfcf7a7c5f121ff05fdbc21815e2bb4641638dae0d557f3956",
-    "core/pipeline.py": "ce9ff1728aa25f0de066983d7ecd25773fe2f46d9a06d347bfe96ee401972c4c",
+    "core/pipeline.py": "97755aa43dbedce05f7275437b6b2961ee9ec6d5e979cec4d585d25575c2ba63",
     "core/presenter.py": "d90218b91ac04246c27c653fc98d58506494d0fff5f2e94f64a477d7df86b877",
     "core/presenter_quality.py": "eadd7bdf2d7284fd954a9fbd85eb94720ac775b7e680bb70263d94ecab19a203",
     "core/presenter_scene.py": "684e3637db45066dc2db4494cd99d2c391a15a147fbf7fa69c216f8e6f7d31c3",
@@ -244,7 +244,7 @@
     "core/scheduler.py": "20a907f597f9c250e40d0b19b8f399d59750f3d86ad2bdb550aa6b12ecf4915a",
     "core/script_engine.py": "46b87552d5d2801a82c6c35c1a665f0f51debfb483e3654d8f1f2dc3e4ff9ee0",
     "core/seo.py": "b6eb4380865119416bac1d5f29401d2dcc0debdd79753d584fbe679f479b102b",
-    "core/source_evidence.py": "ad05f191e88aa9a1d111300463f49363a036852e8277cb309d6bf6babd54c003",
+    "core/source_evidence.py": "1a73e7257dcdef2f80240fec3429b7920c70d827ab75ea91da903133f0333cdb",
     "core/subtitle_translation.py": "367d3baecbddf529a26b7418d6d4479206f6ae7380f117f3660c992a5110c6c6",
     "core/subtitles_export.py": "a612dd88a6de033b9543923df2331be6374a6d297adc2d8e36d416d7e1e93077",
     "core/talking_avatar.py": "f5d1f09503b01765327578def9e2ca9dbd5738ee436f5b91434aaad1b1705d8e",
@@ -1274,7 +1274,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "08c7bdb06b8a05d9a47680bcfe56809b4000647fc65aff12f590f91b9ce97d35",
+      "sha256": "55758d8f0c4a61a863d49b7ad930dbac6622765b3b711ca4787d1db51a82b23f",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
