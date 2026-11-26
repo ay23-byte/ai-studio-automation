@@ -87,6 +87,7 @@ jobs:
           NVIDIA_IMAGE_MODEL: ${{ vars.NVIDIA_IMAGE_MODEL }}
           NVIDIA_IMAGE_ENABLED: ${{ vars.NVIDIA_IMAGE_ENABLED || '0' }}
           NVIDIA_TTS_ENABLED: ${{ vars.NVIDIA_TTS_ENABLED || '0' }}
+          NVIDIA_TTS_MODEL: ${{ vars.NVIDIA_TTS_MODEL }}
           NVIDIA_TTS_VOICE: ${{ vars.NVIDIA_TTS_VOICE }}
           LLM_PROVIDER_ORDER: "groq,cerebras,openrouter,mistral,nvidia"
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
