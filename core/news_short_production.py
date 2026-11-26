@@ -269,7 +269,7 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         music_source = "original_generated"
     write_audio_production_report(outdir, profile, music_source)
     audio_graph = (
-        f"[1:a]aresample=44100,highpass=f=75,lowpass=f=14500,afftdn=nf=-28:tn=1,"
+        f"[1:a]{narration_cleanup_filter()},aresample=44100,"
         f"apad,atrim=duration={mux_duration:.3f}[voice0];[voice0]asplit=2[voice][key];"
         f"[2:a]aresample=44100,volume=0.42,highpass=f=90,lowpass=f=12000,"
         f"afade=t=in:st=0:d=1.0[music];"
