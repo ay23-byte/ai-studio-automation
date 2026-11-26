@@ -670,7 +670,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
                 "two English words/technical terms written in Latin script. Do this in every scene, not only "
                 "once across the whole script. Never transliterate Hindi into Roman letters. Preserve the topic, "
                 "facts, 5-6 scene structure, and word limits. "
-                'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
+                    'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
                 "Captions must follow the configured subtitle language. Return only valid JSON."
             )
         request = (prompt + "\n\nYour previous answer was rejected for these reasons: " + last_error
@@ -1164,7 +1164,7 @@ def validate_longform_language(script: dict, language: str = "hinglish") -> dict
         narration = str(section.get("narration") or "") if isinstance(section, dict) else ""
         all_text.append(narration)
         words = len(narration.split())
-        hindi_words = len(re.findall(r"[\\u0900-\\u097F]+", narration))
+        hindi_words = len(re.findall(r"[\u0900-\u097F]+", narration))
         english_words = len(re.findall(r"[A-Za-z]+", narration))
         section_metrics.append({
             "section": index, "words": words,
@@ -1173,7 +1173,7 @@ def validate_longform_language(script: dict, language: str = "hinglish") -> dict
 
     text = " ".join(all_text)
     total_words = len(text.split())
-    hindi_words = len(re.findall(r"[\\u0900-\\u097F]+", text))
+    hindi_words = len(re.findall(r"[\u0900-\u097F]+", text))
     english_words = len(re.findall(r"[A-Za-z]+", text))
     problems = []
 
@@ -1297,7 +1297,7 @@ def generate_longform_script(topic: str, category: str = "finance",
                 raise
             if requested_language == "hinglish":
                 prompt += (
-                    "\\n\\nLANGUAGE REPAIR REQUIRED: The previous complete documentary was not natural Hinglish. "
+                    "\n\nLANGUAGE REPAIR REQUIRED: The previous complete documentary was not natural Hinglish. "
                     "Rewrite ALL narration in EVERY chapter as conversational Hindi-English code-mixing. "
                     "Use Devanagari for Hindi words and Latin script for English words, technical terms and names. "
                     "Each chapter must contain at least 8% Hindi words in Devanagari and at least 8% English words "
@@ -1305,18 +1305,18 @@ def generate_longform_script(topic: str, category: str = "finance",
                     "English paragraphs with only a few Hindi insertions. Blend both languages naturally in "
                     "the same spoken sentences, like a professional Indian presenter. Keep all factual claims, "
                     "source IDs, evidence notes, runtime bounds and storyboard structure. "
-                    "Example rhythm: \\"जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।\\" "
+                    'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
                     "Correct the language without inventing facts or changing the research."
                 )
             elif requested_language == "hindi":
                 prompt += (
-                    "\\n\\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
+                    "\n\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
                     "using Devanagari script. Keep familiar technical terms and proper names in Latin script. "
                     "Preserve all facts, sources, claims, runtime bounds and storyboard structure."
                 )
             else:
                 prompt += (
-                    "\\n\\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural English only. "
+                    "\n\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
                     "Do not use Devanagari. Preserve all facts, sources, claims, runtime bounds and storyboard structure."
                 )
             print(f"Long-form language QA failed; requesting full {requested_language} rewrite {attempt + 1}/2: {exc}")
