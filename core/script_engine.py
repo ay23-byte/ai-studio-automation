@@ -660,7 +660,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
         last_error = "; ".join(report["issues"])
         print(f"Shorts script failed content QA (attempt {attempt + 1}/{attempts}): {last_error}")
         correction = ""
-        if selected_language == "hinglish" and "Hinglish narration must genuinely mix" in last_error:
+        if selected_language == "hinglish" and "Hinglish" in last_error:
             correction = (
                 "\\n\\nLANGUAGE REPAIR REQUIRED: Your last narration was not Hinglish. Rewrite every scene's "
                 "say field so it contains at least two natural Hindi words written in Devanagari AND at least "
