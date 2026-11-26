@@ -374,8 +374,8 @@ def _scene_search_brief(beat: dict, keywords) -> str:
     def terms(value, limit):
         result = []
         for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", str(value or "")):
-            cleaned = word.strip("'-").lower()
-            if len(cleaned) < 3 or cleaned in stop or cleaned in result:
+            cleaned = word.strip("'-")
+            if len(cleaned) < 3 or cleaned.lower() in stop or cleaned.lower() in {item.lower() for item in result}:
                 continue
             result.append(cleaned)
             if len(result) >= limit:
@@ -394,7 +394,7 @@ def _scene_search_brief(beat: dict, keywords) -> str:
         for token in terms(value, limit):
             if token not in selected:
                 selected.append(token)
-    return " ".join(selected[:12])
+    return " ".join(selected[:12])[:600]
 
 
 def _short_scene_search_brief(scene: dict) -> str:
