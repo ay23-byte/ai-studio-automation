@@ -6,7 +6,6 @@ on:
       - fix/documentary-search-and-animations
       - fix/documentary-editorial-quality
       - fix/daily-news-review-first-release
-      - feat/nvidia-model-integrations
 permissions:
   contents: write
 jobs:
