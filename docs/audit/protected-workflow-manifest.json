@@ -91,6 +91,7 @@
     "avatar-studio-browser-test-results",
     "chernobyl-documentary-review-copy",
     "compact-review-export-${{ inputs.source_run_id }}",
+    "cosmos3-nano-smoke-${{ github.run_id }}",
     "daily-news-assets-${{ github.run_id }}",
     "daily-news-candidates-${{ github.run_id }}",
     "daily-news-short-review-${{ github.run_id }}",
@@ -162,7 +163,7 @@
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
-    ".github/workflows/v2-animation-integration.yml": "a0c0614c423c1f6934e8377aa13619c862f79990952447d39ecdf6f0e62c7c8a",
+    ".github/workflows/v2-animation-integration.yml": "71a5cdc99e9033ebf85c8dda4aae3fde2f63126a1efa0b3d7c47de593a8505e1",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
     ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
     ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
@@ -2200,27 +2201,38 @@
       "upload_lines": []
     },
     "v2-animation-integration.yml": {
-      "sha256": "a0c0614c423c1f6934e8377aa13619c862f79990952447d39ecdf6f0e62c7c8a",
+      "sha256": "71a5cdc99e9033ebf85c8dda4aae3fde2f63126a1efa0b3d7c47de593a8505e1",
       "display_name": "V2 animation integration (opt-in validation)",
-      "on_sha256": "83c8c4c0887952f744a53650e5e0abf507b4e6c66d773e6652fd8850228be4be",
+      "on_sha256": "8cd1800f8a76b3e0b4bdc21482a3b37bae873b2175a4173323cc30a569defaaa",
       "triggers": [
         "workflow_dispatch",
         "pull_request"
       ],
       "schedules": [],
-      "dispatch_inputs": {},
+      "dispatch_inputs": {
+        "cosmos_smoke": {
+          "default": "false",
+          "description": "Run one NVIDIA Cosmos 3 Nano 480p text-to-video smoke test (uses NVIDIA hosted API)",
+          "required": "true",
+          "type": "boolean"
+        }
+      },
       "secrets": [],
       "variables": [],
-      "artifact_names": [],
+      "artifact_names": [
+        "cosmos3-nano-smoke-${{ github.run_id }}"
+      ],
       "actions": [
         "actions/checkout@v7",
-        "actions/setup-python@v7"
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v4"
       ],
       "runs_on": [
         "ubuntu-24.04"
       ],
       "timeout_minutes": [
-        "25"
+        "25",
+        "30"
       ],
       "privacy_lines": [],
       "upload_lines": []
