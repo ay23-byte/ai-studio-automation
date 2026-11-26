@@ -188,7 +188,7 @@ def inspect_narration(narration_path: str | Path, output_dir: str | Path | None 
     overall = log.rsplit("Overall", 1)[-1] if "Overall" in log else log
 
     def metric(name: str) -> float | None:
-        match = re.search(rf"{re.escape(name)}:\\s*(-?inf|-?[\\d.]+)", overall, re.IGNORECASE)
+        match = re.search(rf"{re.escape(name)}:\s*(-?inf|-?[\d.]+)", overall, re.IGNORECASE)
         return _number(match.group(1)) if match else None
 
     noise_floor = metric("Noise floor dB")

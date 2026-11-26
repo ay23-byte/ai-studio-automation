@@ -71,7 +71,7 @@ def create_original_music_bed(path: str | Path, duration: float, topic: str = ""
         inputs += ["-f", "lavfi", "-i",
                    f"sine=frequency={frequency:.3f}:sample_rate=48000:duration={duration:.3f}"]
         if index < 4:
-            treatment = f"tremolo=f={0.045 + index * 0.012:.3f}:d=0.12,lowpass=f={1500 + index * 500}"
+            treatment = f"tremolo=f={max(0.1, 0.12 + index * 0.02):.3f}:d=0.12,lowpass=f={1500 + index * 500}"
         elif index == 4:
             treatment = f"tremolo=f={profile['tempo_bpm'] / 120.0:.3f}:d=0.85,lowpass=f=180"
         else:
