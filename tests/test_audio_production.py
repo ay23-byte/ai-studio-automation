@@ -25,6 +25,21 @@ class AudioProductionTests(unittest.TestCase):
         self.assertEqual(music_profile("", "news")["pipeline_style"], "modern newsroom visual journalism")
         self.assertEqual(music_profile("", "documentary")["pipeline_style"], "cinematic investigative documentary")
 
+    def test_music_arrangement_is_layered_and_topic_matched(self):
+        profile = music_profile("The mystery of India's disappearing villages", "documentary")
+        self.assertEqual(profile["mood"], "investigative")
+        self.assertGreaterEqual(len(profile["notes_hz"]), 4)
+        self.assertGreater(profile["tempo_bpm"], 0)
+        self.assertIn("soft_low_pulse", profile["arrangement"])
+        self.assertIn("gentle_reverb", profile["arrangement"])
+
+    def test_music_profiles_do_not_share_one_generic_tempo_or_bass(self):
+        discovery = music_profile("Quantum physics and space", "shorts")
+        newsroom = music_profile("Breaking economy news", "news")
+        documentary = music_profile("History of a village", "documentary")
+        self.assertNotEqual(discovery["tempo_bpm"], newsroom["tempo_bpm"])
+        self.assertNotEqual(newsroom["bass_hz"], documentary["bass_hz"])
+
     def test_audio_report_keeps_human_review_and_licence_evidence(self):
         with tempfile.TemporaryDirectory() as temp:
             profile = music_profile("space science", "shorts")
