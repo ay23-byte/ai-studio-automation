@@ -19,6 +19,50 @@ def _script(lines):
     }
 
 
+class LongformHinglishQualityTests(unittest.TestCase):
+    def test_english_only_documentary_is_rejected_when_hinglish_was_requested(self):
+        script = {"sections": [
+            {"title": "Origins", "narration": " ".join(
+                ["The Titanic was a large passenger ship built in Belfast."] * 30)},
+            {"title": "Voyage", "narration": " ".join(
+                ["The ship departed Southampton and crossed the North Atlantic."] * 30)},
+        ]}
+        with self.assertRaisesRegex(ValueError, "does not match the requested hinglish style"):
+            script_engine.validate_longform_language(script, "hinglish")
+
+    def test_natural_hinglish_is_checked_in_each_chapter(self):
+        mixed = " ".join(
+            ["जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।"] * 35
+        )
+        script = {"sections": [
+            {"title": "Origins", "narration": mixed},
+            {"title": "Mechanism", "narration": mixed},
+        ]}
+        report = script_engine.validate_longform_language(script, "hinglish")
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(script["language"], "hinglish")
+        self.assertTrue(all(item["hindi_words"] > 0 and item["english_words"] > 0
+                            for item in report["sections"]))
+
+    def test_one_english_only_chapter_fails_even_when_other_chapters_are_hinglish(self):
+        mixed = " ".join(
+            ["जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।"] * 35
+        )
+        english = " ".join(["The ship crossed the North Atlantic during its voyage."] * 35)
+        script = {"sections": [
+            {"title": "Origins", "narration": mixed},
+            {"title": "Voyage", "narration": english},
+        ]}
+        with self.assertRaisesRegex(ValueError, "Chapter 2 is not genuinely mixed-language"):
+            script_engine.validate_longform_language(script, "hinglish")
+
+    def test_english_and_hindi_language_modes_are_also_enforced(self):
+        english = {"sections": [{"narration": "The ship crossed the North Atlantic."}]}
+        self.assertEqual(script_engine.validate_longform_language(english, "english")["status"], "PASS")
+        hindi = {"sections": [{"narration": " ".join(["जहाज समुद्र में आगे बढ़ रहा था।"] * 20)}]}
+        self.assertEqual(script_engine.validate_longform_language(hindi, "hindi")["status"], "PASS")
+
+
 class HinglishScriptQualityTests(unittest.TestCase):
     def test_english_only_script_fails_hinglish_qa(self):
         lines = [
