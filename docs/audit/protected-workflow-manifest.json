@@ -110,6 +110,7 @@
     "longform-review-${{ github.run_id }}",
     "longform-review-package",
     "longform-voice-audition",
+    "nemotron-api-smoke-${{ github.run_id }}",
     "news-private-release-${{ github.run_id }}",
     "news-review-mp4-issue-${{ inputs.issue_number }}",
     "news-script-draft-${{ inputs.script_run_id }}",
@@ -163,7 +164,7 @@
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
     ".github/workflows/standard-shorts-review.yml": "9faeea32bb83e53232a852c0f3532e7c757234164195aa6a3ba010793fe1aef1",
-    ".github/workflows/v2-animation-integration.yml": "66ce99b5c46f9b27d0021c21da097f0cc66b3f2963ebb427f870c929d6fb2468",
+    ".github/workflows/v2-animation-integration.yml": "35a07aeb768f4f7682a6f3d97e0ecbf2565504682f2a22bc44cfe5841e06189c",
     ".github/workflows/validate.yml": "70941bb363cba34b64e5cefe2e2a50dc2ea96d4688558e890b95ddc8aea52494",
     ".github/workflows/wan21-documentary-rerender.yml": "2e8bfb7a192ce97f6505e6f89a298947d31c5786409190195e81ed4509660505",
     ".github/documentary-production-request.json": "a7152b7dbf2146151c8f8c46311d5821871532ba4c1b333a9ed0fddb357048cf",
@@ -2201,9 +2202,9 @@
       "upload_lines": []
     },
     "v2-animation-integration.yml": {
-      "sha256": "66ce99b5c46f9b27d0021c21da097f0cc66b3f2963ebb427f870c929d6fb2468",
+      "sha256": "35a07aeb768f4f7682a6f3d97e0ecbf2565504682f2a22bc44cfe5841e06189c",
       "display_name": "V2 animation integration (opt-in validation)",
-      "on_sha256": "db05581fba1182f4b76a7568377859b87bb08ea8e938bb5e0df7e3f0089786fe",
+      "on_sha256": "91f39eef7303ea035ce1bc8d6b2ea991899d97e539bdcdebb0a8d1296431e236",
       "triggers": [
         "workflow_dispatch",
         "pull_request"
@@ -2215,12 +2216,23 @@
           "description": "Run one NVIDIA Cosmos 3 Nano 480p text-to-video smoke test (uses NVIDIA hosted API)",
           "required": "true",
           "type": "boolean"
+        },
+        "nemotron_smoke": {
+          "default": "false",
+          "description": "Run one small NVIDIA Nemotron API inference test using NVIDIA_API_KEY",
+          "required": "true",
+          "type": "boolean"
         }
       },
-      "secrets": [],
-      "variables": [],
+      "secrets": [
+        "NVIDIA_API_KEY"
+      ],
+      "variables": [
+        "NVIDIA_LLM_MODEL"
+      ],
       "artifact_names": [
-        "cosmos3-nano-smoke-${{ github.run_id }}"
+        "cosmos3-nano-smoke-${{ github.run_id }}",
+        "nemotron-api-smoke-${{ github.run_id }}"
       ],
       "actions": [
         "actions/checkout@v7",
@@ -2231,6 +2243,7 @@
         "ubuntu-24.04"
       ],
       "timeout_minutes": [
+        "10",
         "25",
         "30"
       ],
