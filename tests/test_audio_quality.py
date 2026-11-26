@@ -81,8 +81,8 @@ class AudioQualityTests(unittest.TestCase):
     @patch("core.audio_quality.subprocess.run")
     def test_isolated_narration_noise_floor_is_reported_before_music_mix(self, run):
         run.return_value = self._completed(
-            "[Parsed_astats_0] Overall\\nNoise floor dB: -31.000000\\n"
-            "RMS level dB: -22.000000\\nPeak level dB: -2.000000\\n"
+            "[Parsed_astats_0] Overall\nNoise floor dB: -31.000000\n"
+            "RMS level dB: -22.000000\nPeak level dB: -2.000000\n"
         )
         voice = self.root / "voice.wav"
         voice.write_bytes(b"voice")
