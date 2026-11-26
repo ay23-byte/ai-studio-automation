@@ -356,14 +356,47 @@ def _clean(s): return s.replace("{","(").replace("}",")")
 
 
 def _scene_search_brief(beat: dict, keywords) -> str:
-    """Build concise semantic search text, separate from cinematic generation prose."""
-    parts = (
-        beat.get("subject", ""),
-        beat.get("location", ""),
-        beat.get("time_period", ""),
-        " ".join(str(item) for item in (keywords or []) if str(item).strip()),
-    )
-    return " ".join(" ".join(str(part or "").split()) for part in parts if str(part or "").strip())[:600]
+    """Build a compact, subject-led metadata query for archive and stock catalogues.
+
+    Provider metadata is usually a short title/tag list, not a full description of
+    the storyboard. Comparing it with a long cinematic brief dilutes real matches:
+    a correct clip can share the subject but fail the 0.30 token-coverage gate.
+    Keep only distinctive anchors; vision screening and the independent relevance
+    and licence gates still decide whether a downloaded clip may be selected.
+    """
+    stop = {
+        "the", "and", "for", "with", "from", "that", "this", "into", "about",
+        "during", "before", "after", "while", "showing", "shows", "scene",
+        "footage", "video", "documentary", "historical", "historic", "archival",
+        "archive", "authentic", "genuine", "real", "period", "newsreel", "newsreels", "stock", "clip", "clips",
+    }
+
+    def terms(value, limit):
+        result = []
+        for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", str(value or "")):
+            cleaned = word.strip("'-")
+            if len(cleaned) < 3 or cleaned.lower() in stop or cleaned.lower() in {item.lower() for item in result}:
+                continue
+            result.append(cleaned)
+            if len(result) >= limit:
+                break
+        return result
+
+    # Prioritise the actual subject. Location and date are useful discriminators,
+    # while keywords supply alternate names and concrete objects/actions.
+    selected = []
+    for group, (value, limit) in enumerate((
+        (beat.get("subject", ""), 6),
+        (" ".join(str(item) for item in (keywords or []) if str(item).strip()), 4),
+        (beat.get("location", ""), 2),
+        (beat.get("time_period", ""), 2),
+    )):
+        for token in terms(value, limit):
+            # Preserve adjacent keyword phrases (for example "ASML EUV") even
+            # when a subject term already occurs in that phrase.
+            if group == 1 or token.lower() not in {item.lower() for item in selected}:
+                selected.append(token)
+    return " ".join(selected[:12])[:600]
 
 
 def _short_scene_search_brief(scene: dict) -> str:
@@ -1473,7 +1506,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 elif ai_video_mode != "prefer" and generate_ai_video(prompt, clip_p, aspect_ratio="16:9"):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
                     print(f"  long-form visual {i+1}.{j+1}: AI-generated video")
-                elif generate_image(prompt, img_p, category=script.get("category", "general")):
+                elif generate_image(prompt, img_p, category=script.get("category", "general"),
+                                     search_query=scene_search_brief):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
                     print(f"  long-form visual {i+1}.{j+1}: generated image fallback")
                 else:
@@ -1513,7 +1547,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                                 "Configure a visual provider; refusing unrelated filler."
                             )
             else:
-                if generate_image(prompt, img_p, category=script.get("category", "general")):
+                if generate_image(prompt, img_p, category=script.get("category", "general"),
+                                   search_query=scene_search_brief):
                     shot["_media"] = {"type": "image", "path": str(img_p)}
                 elif fetch_clip(kws, clip_p, used_ids, scene_prompt=scene_search_brief):
                     shot["_media"] = {"type": "video", "path": str(clip_p)}
@@ -1550,7 +1585,8 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 angle = ("a different angle and framing of the same subject",
                          "a close-up detail of the same subject",
                          "a wide establishing view of the same setting")[(number - 2) % 3]
-                if generate_image(_prompt + f" Show {angle}.", extra_image, category=script.get("category", "general")):
+                if generate_image(_prompt + f" Show {angle}.", extra_image,
+                                    category=script.get("category", "general"), search_query=_brief):
                     return {"type": "image", "path": str(extra_image)}
                 return None
 

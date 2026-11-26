@@ -97,10 +97,19 @@ def validate_shorts_script(script, language: str = "english") -> dict:
         issues.append("Language is Hindi but the narration is not written in Devanagari.")
     if selected == "english" and devanagari > 0:
         issues.append("Language is English but the narration contains Devanagari text.")
-    if selected == "hinglish" and (devanagari < 8 or latin < 8):
-        issues.append(
-            "Hinglish narration must genuinely mix Hindi in Devanagari with English in Latin script."
-        )
+    if selected == "hinglish":
+        if devanagari < 8 or latin < 8:
+            issues.append(
+                "Hinglish narration must genuinely mix Hindi in Devanagari with English in Latin script."
+            )
+        for number, say in enumerate(spoken, start=1):
+            hindi_words = re.findall(r"[\u0900-\u097F]+", say)
+            english_words = re.findall(r"[A-Za-z]+", say)
+            if len(hindi_words) < 2 or len(english_words) < 2:
+                issues.append(
+                    f"Hinglish scene {number} must contain at least two Hindi words in Devanagari "
+                    "and two English words in Latin script."
+                )
 
     everything = " ".join([title, str(script.get("hook") or ""), *spoken]).lower()
     for pattern, description in _RISKY_PATTERNS:

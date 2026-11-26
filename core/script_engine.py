@@ -19,11 +19,13 @@ class GeminiRequestError(RuntimeError):
 
 SHORTS_PROMPT = """Write ONE polished YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
 
-DELIVERY: Write for a real human host speaking directly to one curious viewer. Use contractions in English, everyday phrasing, varied sentence lengths, natural breath points and smooth spoken transitions. Sound curious, warm, confident and specific—not like an essay, textbook, advertisement or AI summary. Avoid clichés such as “in today’s world”, “let’s dive in”, “in conclusion” and repeated “here’s the thing”. Use rhetorical questions sparingly and answer them with evidence. Keep every line easy to say aloud at a brisk but comfortable pace.\n\nLANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write natural spoken Hindi-English code-mixing using Devanagari for Hindi words and Latin script for English words, technical terms, names and phrases. Mix both naturally within a sentence, as a confident Indian presenter would speak. Do not translate familiar English terms into stiff Hindi, and do not write Hindi words in Roman transliteration. Spoken narration, captions, title, hook and labels must use the selected language consistently.
+DELIVERY: Write for a real human host speaking directly to one curious viewer. Use everyday phrasing, varied sentence lengths, natural breath points and smooth spoken transitions. Sound curious, warm, confident and specific—not like an essay, textbook, advertisement or AI summary. Avoid clichés such as "in today's world", "let's dive in" and "in conclusion". Keep every line easy to say aloud at a brisk but comfortable pace.
+
+LANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write natural spoken Hindi-English code-mixing using Devanagari for Hindi words and Latin script for English words, technical terms, names and phrases. Every scene's spoken "say" must contain BOTH scripts: at least two natural Hindi words in Devanagari and at least two English words/technical terms in Latin script. Do not write an entire scene in English or Hindi. Example of the intended rhythm (adapt it naturally to the topic): "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" Use everyday Indian speech, not formal translation. Do not translate familiar English terms into stiff Hindi, and do not write Hindi words in Roman transliteration. The title, hook and labels should be in the selected language; the caption must follow the requested subtitle-language setting.
 
 RULES:
 - 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
-- "say" is the exact narration in the selected language; "caption" is concise subtitle text in the same language matching the spoken meaning
+- "say" is the exact narration in the selected language; "caption" is concise subtitle text in {subtitle_language} matching the spoken meaning (translate naturally when needed)
 - Finance topics: education only, no personal advice, no promised returns
 - Last scene: concise educational disclaimer + follow call to action
 - "label": 1-3 short words in the selected language, max 22 characters
@@ -636,7 +638,8 @@ def generate_shorts_script(topic: str, category: str = "finance",
         raise ValueError("Shorts language must be one of: english, hindi, hinglish.")
     prompt = SHORTS_PROMPT.format(
         topic=topic, category=category, channel_name=channel_name or CHANNEL_NAME,
-        language=language_aliases[selected_language])
+        language=language_aliases[selected_language],
+        subtitle_language=str(os.getenv("SHORTS_SUBTITLE_LANGUAGE", "english")).strip().lower())
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
     # Content QA with one corrective regeneration: a truncated, off-language or
     # over-length script must never reach narration and rendering.
@@ -659,8 +662,19 @@ def generate_shorts_script(topic: str, category: str = "finance",
             return script
         last_error = "; ".join(report["issues"])
         print(f"Shorts script failed content QA (attempt {attempt + 1}/{attempts}): {last_error}")
+        correction = ""
+        if selected_language == "hinglish" and "Hinglish" in last_error:
+            correction = (
+                "\n\nLANGUAGE REPAIR REQUIRED: Your last narration was not valid Hinglish. Rewrite every scene's "
+                "say field so it contains at least two natural Hindi words written in Devanagari AND at least "
+                "two English words/technical terms written in Latin script. Do this in every scene, not only "
+                "once across the whole script. Never transliterate Hindi into Roman letters. Preserve the topic, "
+                "facts, 5-6 scene structure, and word limits. "
+                    'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
+                "Captions must follow the configured subtitle language. Return only valid JSON."
+            )
         request = (prompt + "\n\nYour previous answer was rejected for these reasons: " + last_error
-                   + ". Fix every one of them and return ONLY the corrected JSON object.")
+                   + ". Fix every one of them and return ONLY the corrected JSON object." + correction)
     raise ValueError(f"Shorts script failed content QA after {attempts} attempts: {last_error}")
 
 
@@ -1129,12 +1143,97 @@ def longform_target_wpm() -> int:
     return min(200, max(110, value))
 
 
+def validate_longform_language(script: dict, language: str = "hinglish") -> dict:
+    """Fail closed when a long-form script does not match its requested narration language.
+
+    Hinglish is checked per chapter as well as across the complete narration so an
+    English documentary cannot pass merely because its title contains a Hindi word.
+    """
+    import re
+
+    selected = str(language or "hinglish").strip().lower()
+    if selected not in {"english", "hindi", "hinglish"}:
+        raise ValueError("Long-form narration language must be english, hindi or hinglish.")
+    sections = script.get("sections") if isinstance(script, dict) else None
+    if not isinstance(sections, list) or not sections:
+        raise ValueError("Long-form language check requires at least one narration section.")
+
+    section_metrics = []
+    all_text = []
+    for index, section in enumerate(sections, start=1):
+        narration = str(section.get("narration") or "") if isinstance(section, dict) else ""
+        all_text.append(narration)
+        words = len(narration.split())
+        hindi_words = len(re.findall(r"[\u0900-\u097F]+", narration))
+        english_words = len(re.findall(r"[A-Za-z]+", narration))
+        section_metrics.append({
+            "section": index, "words": words,
+            "hindi_words": hindi_words, "english_words": english_words,
+        })
+
+    text = " ".join(all_text)
+    total_words = len(text.split())
+    hindi_words = len(re.findall(r"[\u0900-\u097F]+", text))
+    english_words = len(re.findall(r"[A-Za-z]+", text))
+    problems = []
+
+    if selected == "english":
+        if hindi_words:
+            problems.append("English narration contains Devanagari words.")
+    elif selected == "hindi":
+        if hindi_words < max(20, int(total_words * 0.55)):
+            problems.append(
+                f"Hindi narration has only {hindi_words}/{total_words} Devanagari words; "
+                "at least 55% is required."
+            )
+    else:
+        if hindi_words < max(20, int(total_words * 0.12)):
+            problems.append(
+                f"Hinglish narration has only {hindi_words}/{total_words} Hindi words in Devanagari; "
+                "at least 12% is required."
+            )
+        if english_words < max(20, int(total_words * 0.12)):
+            problems.append(
+                f"Hinglish narration has only {english_words}/{total_words} English words in Latin script; "
+                "at least 12% is required."
+            )
+        for item in section_metrics:
+            if item["words"] and (
+                item["hindi_words"] < max(5, int(item["words"] * 0.08))
+                or item["english_words"] < max(5, int(item["words"] * 0.08))
+            ):
+                problems.append(
+                    f"Chapter {item['section']} is not genuinely mixed-language "
+                    f"({item['hindi_words']} Hindi, {item['english_words']} English words "
+                    f"across {item['words']} words)."
+                )
+
+    if problems:
+        raise ValueError("Narration language does not match the requested " + selected + " style: "
+                         + " ".join(problems))
+    report = {
+        "language": selected,
+        "total_words": total_words,
+        "hindi_words": hindi_words,
+        "english_words": english_words,
+        "sections": section_metrics,
+        "status": "PASS",
+    }
+    script["language"] = selected
+    script["language_quality"] = report
+    return report
+
+
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
                               brand_voice: str = "") -> dict:
     channel_name, audience, brand_voice = apply_configured_channel_profile(
         channel_name, audience, brand_voice)
+    requested_language = str(language or "hinglish").strip().lower()
+    language_labels = {"hinglish": "Hinglish", "hindi": "Hindi", "english": "English"}
+    if requested_language not in language_labels:
+        raise ValueError("Long-form narration language must be english, hindi or hinglish.")
     requested_category = str(category or "auto").strip()
     auto_category = requested_category.lower() in {"", "auto", "any", "universal"}
     target_wpm = longform_target_wpm()
@@ -1142,7 +1241,7 @@ def generate_longform_script(topic: str, category: str = "finance",
     target_words = int(duration_max * target_wpm)
     prompt = LONGFORM_PROMPT.format(
         topic=topic, category=("auto" if auto_category else requested_category),
-        duration_min=duration_min, duration_max=duration_max, language=language,
+        duration_min=duration_min, duration_max=duration_max, language=language_labels[requested_language],
         minimum_words=minimum_words, target_words=target_words, target_wpm=target_wpm,
         maximum_words=target_words + max(50, int(target_words * 0.02)))
     if auto_category:
@@ -1191,6 +1290,37 @@ def generate_longform_script(topic: str, category: str = "finance",
             category = requested_category
         script["category"] = category
         script["research_sources"] = research_sources
+        try:
+            validate_longform_language(script, requested_language)
+        except ValueError as exc:
+            if attempt == 2:
+                raise
+            if requested_language == "hinglish":
+                prompt += (
+                    "\n\nLANGUAGE REPAIR REQUIRED: The previous complete documentary was not natural Hinglish. "
+                    "Rewrite ALL narration in EVERY chapter as conversational Hindi-English code-mixing. "
+                    "Use Devanagari for Hindi words and Latin script for English words, technical terms and names. "
+                    "Each chapter must contain at least 8% Hindi words in Devanagari and at least 8% English words "
+                    "in Latin script; across the complete narration, each must be at least 12%. Do not write "
+                    "English paragraphs with only a few Hindi insertions. Blend both languages naturally in "
+                    "the same spoken sentences, like a professional Indian presenter. Keep all factual claims, "
+                    "source IDs, evidence notes, runtime bounds and storyboard structure. "
+                    'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
+                    "Correct the language without inventing facts or changing the research."
+                )
+            elif requested_language == "hindi":
+                prompt += (
+                    "\n\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
+                    "using Devanagari script. Keep familiar technical terms and proper names in Latin script. "
+                    "Preserve all facts, sources, claims, runtime bounds and storyboard structure."
+                )
+            else:
+                prompt += (
+                    "\n\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
+                    "Do not use Devanagari. Preserve all facts, sources, claims, runtime bounds and storyboard structure."
+                )
+            print(f"Long-form language QA failed; requesting full {requested_language} rewrite {attempt + 1}/2: {exc}")
+            continue
         from core.research_verification import append_source_citations_to_description
         script = append_source_citations_to_description(script)
         script = _repair_longform_visual_anchors(script)

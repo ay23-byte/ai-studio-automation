@@ -126,6 +126,7 @@ class GeminiFailoverTests(unittest.TestCase):
                 category="science",
                 channel_name="Engineering Physics",
                 language=language,
+                subtitle_language="english",
             )
             self.assertIn(expected, prompt)
             self.assertIn("Engineering Physics", prompt)
@@ -133,6 +134,19 @@ class GeminiFailoverTests(unittest.TestCase):
             self.assertIn("real human host", prompt)
             self.assertIn("brisk but comfortable pace", prompt)
             self.assertIn('"scenes"', prompt)
+            self.assertIn('"caption" is concise subtitle text in english', prompt)
+
+    def test_hinglish_prompt_requires_both_scripts_in_every_scene(self):
+        prompt = script_engine.SHORTS_PROMPT.format(
+            topic="Metals feel colder than wood",
+            category="science",
+            channel_name="Engineering Physics",
+            language="Hinglish",
+            subtitle_language="english",
+        )
+        self.assertIn("Every scene's spoken", prompt)
+        self.assertIn("at least two natural Hindi words in Devanagari", prompt)
+        self.assertIn("at least two English words/technical terms", prompt)
 
     def test_shorts_generator_rejects_unknown_language(self):
         with self.assertRaisesRegex(ValueError, "english, hindi, hinglish"):

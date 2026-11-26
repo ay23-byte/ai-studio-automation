@@ -36,6 +36,25 @@ class VisualProviderQueryTests(unittest.TestCase):
             self.assertTrue(generate_image(prompt, "scene.jpg", search_query=query))
         pixabay.assert_called_once_with(query, "scene.jpg")
 
+    def test_long_scene_brief_is_compacted_to_subject_anchors(self):
+        from core.pipeline import _scene_search_brief
+        brief = _scene_search_brief(
+            {
+                "subject": "RMS Titanic lifeboat launch and evacuation of passengers",
+                "location": "North Atlantic Ocean near Newfoundland",
+                "time_period": "night of 14 April 1912 early twentieth century",
+            },
+            ["Titanic lifeboats launching", "passenger evacuation", "archival newsreel"],
+        )
+        tokens = brief.lower().split()
+        self.assertLessEqual(len(tokens), 12)
+        self.assertIn("titanic", tokens)
+        self.assertIn("lifeboat", tokens)
+        self.assertIn("north", tokens)
+        self.assertIn("atlantic", tokens)
+        self.assertNotIn("archival", tokens)
+        self.assertNotIn("twentieth", tokens)
+
     def test_clip_search_keeps_scene_brief_ahead_of_many_keywords(self):
         scene = "noise cancelling headphones sound wave interference"
         keywords = [f"generic keyword {index}" for index in range(10)]
