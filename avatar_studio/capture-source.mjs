@@ -70,7 +70,11 @@ try {
   });
   page.setDefaultNavigationTimeout(30000);
   page.setDefaultTimeout(10000);
-  await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 30000 });
+  const response = await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 30000 });
+  const httpStatus = response?.status() ?? 0;
+  if (!(httpStatus >= 200 && httpStatus < 400)) {
+    throw new Error(`Source page returned HTTP ${httpStatus}; refusing an error-page screenshot.`);
+  }
   await page.waitForTimeout(1200);
   const pageInfo = await page.evaluate(() => ({
     title: document.title || "",
@@ -78,9 +82,13 @@ try {
     description: document.querySelector('meta[name="description"]')?.content || "",
     bodyTextLength: (document.body?.innerText || "").trim().length,
     articleFound: Boolean(document.querySelector("article, main [itemprop='articleBody'], main")),
+    bodyText: (document.body?.innerText || "").trim().slice(0, 12000),
   }));
-  if (!pageInfo.title || pageInfo.bodyTextLength < 100) {
-    throw new Error("Source page did not expose enough readable content for a meaningful screenshot.");
+  const errorTitle = /^(page not found|not found|this page does not exist|coming soon|access denied|forbidden|service unavailable|error)(\\b|\\s|[-:])/i;
+  const errorBody = /\\b(page not found|this page does not exist|temporarily unavailable|site is under maintenance|access denied)\\b/i;
+  if (!pageInfo.title || pageInfo.bodyTextLength < 100 ||
+      errorTitle.test(pageInfo.title.trim()) || errorBody.test(pageInfo.bodyText)) {
+    throw new Error(`Source URL displayed an error/placeholder page, not the cited article (title=${pageInfo.title || "untitled"}).`);
   }
   const article = page.locator("article").first();
   if (await article.count()) {
@@ -104,6 +112,8 @@ try {
     final_url: page.url(),
     page_title: pageInfo.title,
     canonical_url: pageInfo.canonical,
+    http_status: httpStatus,
+    content_validated: true,
     captured_at: new Date().toISOString(),
     screenshot_viewport: "1600x900",
     notice: "A screenshot records what this webpage displayed at capture time; it does not independently verify the truth of the claim.",
