@@ -1,0 +1,96 @@
+name: NVIDIA Nemotron API smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_api_test:
+        description: "Run one small Nemotron inference request using NVIDIA_API_KEY"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  nemotron-api-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm_api_test == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify NVIDIA credential is configured without printing it
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${NVIDIA_API_KEY:-}" ]; then
+            echo "::error::Missing repository Actions secret NVIDIA_API_KEY."
+            exit 1
+          fi
+          echo "NVIDIA credential is present (value is never logged)."
+      - name: Call Nemotron chat completions API
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          NVIDIA_MODEL: ${{ vars.NVIDIA_LLM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/nemotron-smoke
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              "model": os.environ["NVIDIA_MODEL"],
+              "messages": [{"role": "user", "content": "Reply with exactly: NEMOTRON_API_OK"}],
+              "max_tokens": 32,
+              "temperature": 0
+          }
+          Path("artifacts/nemotron-smoke/request.json").write_text(json.dumps(payload))
+          PY
+          status=$(curl --silent --show-error --output artifacts/nemotron-smoke/response.json --write-out '%{http_code}' \
+            --connect-timeout 30 --max-time 120 --retry 1 --retry-delay 3 \
+            --request POST 'https://integrate.api.nvidia.com/v1/chat/completions' \
+            --header "Authorization: Bearer ${NVIDIA_API_KEY}" \
+            --header 'Content-Type: application/json' \
+            --data-binary @artifacts/nemotron-smoke/request.json)
+          echo "Nemotron HTTP status: ${status}"
+          if [ "${status}" != "200" ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              obj = json.loads(Path("artifacts/nemotron-smoke/response.json").read_text())
+              err = obj.get("error", {})
+              if isinstance(err, dict):
+                  print("Provider error type:", err.get("type", "unspecified"))
+                  print("Provider error code:", err.get("code", "unspecified"))
+              else:
+                  print("Provider returned a nonstandard error response.")
+          except Exception:
+              print("Provider returned a non-JSON error response.")
+          PY
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("artifacts/nemotron-smoke/response.json").read_text())
+          choices = data.get("choices") or []
+          content = ((choices[0].get("message") or {}).get("content") if choices else None)
+          if not isinstance(content, str) or not content.strip():
+              raise SystemExit("HTTP 200 but no assistant message was returned.")
+          report = {"status": "passed", "model": data.get("model"), "choices": len(choices), "response_nonempty": True}
+          Path("artifacts/nemotron-smoke/result.json").write_text(json.dumps(report, indent=2))
+          print("Nemotron API authentication and inference passed.")
+          print("Returned model:", data.get("model"))
+          PY
+      - name: Upload sanitized Nemotron test evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: nemotron-api-smoke-${{ github.run_id }}
+          path: artifacts/nemotron-smoke/
+          if-no-files-found: warn
+          retention-days: 7
