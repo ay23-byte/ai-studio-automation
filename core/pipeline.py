@@ -368,7 +368,7 @@ def _scene_search_brief(beat: dict, keywords) -> str:
         "the", "and", "for", "with", "from", "that", "this", "into", "about",
         "during", "before", "after", "while", "showing", "shows", "scene",
         "footage", "video", "documentary", "historical", "historic", "archival",
-        "archive", "authentic", "genuine", "real", "period",
+        "archive", "authentic", "genuine", "real", "period", "newsreel", "newsreels", "stock", "clip", "clips",
     }
 
     def terms(value, limit):
