@@ -387,9 +387,9 @@ def _scene_search_brief(beat: dict, keywords) -> str:
     selected = []
     for value, limit in (
         (beat.get("subject", ""), 6),
+        (" ".join(str(item) for item in (keywords or []) if str(item).strip()), 4),
         (beat.get("location", ""), 2),
         (beat.get("time_period", ""), 2),
-        (" ".join(str(item) for item in (keywords or []) if str(item).strip()), 4),
     ):
         for token in terms(value, limit):
             if token not in selected:
