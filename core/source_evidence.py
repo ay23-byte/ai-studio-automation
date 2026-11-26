@@ -17,6 +17,40 @@ from urllib.parse import urlparse
 EVIDENCE_TYPES = {"chart", "timeline", "document", "evidence"}
 
 
+def allocate_evidence_beat_durations(beats: list[dict], durations: list[float], *,
+                                     minimum: float = 4.2,
+                                     reserve: float = 1.0) -> list[float]:
+    """Give evidence beats enough screen time by borrowing from longer B-roll beats.
+
+    The chapter duration is conserved. Donor beats retain at least the reserve
+    seconds, and the function never invents time when the chapter is too short.
+    """
+    values = [max(0.0, float(value)) for value in durations]
+    if len(values) != len(beats):
+        raise ValueError("beats and durations must have the same length")
+    evidence_indexes = [
+        index for index, beat in enumerate(beats)
+        if str(beat.get("visual_type") or "").strip().lower()
+        in {"chart", "timeline", "document", "evidence"}
+        or beat.get("chart_spec") or beat.get("timeline_events")
+    ]
+    for index in evidence_indexes:
+        deficit = max(0.0, float(minimum) - values[index])
+        donors = sorted(
+            (i for i in range(len(values)) if i != index and i not in evidence_indexes),
+            key=lambda i: values[i], reverse=True
+        )
+        for donor in donors:
+            available = max(0.0, values[donor] - float(reserve))
+            transfer = min(deficit, available)
+            values[donor] -= transfer
+            values[index] += transfer
+            deficit -= transfer
+            if deficit <= 1e-9:
+                break
+    return values
+
+
 def research_source_records(script: dict) -> list[dict]:
     """Read research sources from either supported script field.
 
@@ -134,6 +168,24 @@ def capture_source_screenshot(source: dict, output_dir: str | Path, *, node: str
             "source_id": source.get("source_id"),
             "url": url,
             "attempts": len(failures) if failures else 1,
+        }
+    # The browser must attest that this was a successful, readable source page.
+    # A large PNG of a 404/maintenance page is not source evidence.
+    try:
+        sidecar = json.loads(metadata_path.read_text(encoding="utf-8"))
+        status = int(sidecar.get("http_status") or 0)
+        page_title = str(sidecar.get("page_title") or "").strip()
+        if not (200 <= status < 400) or not sidecar.get("content_validated"):
+            return {
+                "status": "FAILED",
+                "reason": f"Source URL did not resolve to a validated article/report page (HTTP {status}, title={page_title!r}).",
+                "source_id": source.get("source_id"), "url": url,
+            }
+    except (OSError, ValueError, TypeError) as exc:
+        return {
+            "status": "FAILED",
+            "reason": f"Could not validate source-page metadata: {type(exc).__name__}: {exc}",
+            "source_id": source.get("source_id"), "url": url,
         }
     # Add an editorial footer to the genuine page capture so viewers can read
     # the publisher, publication date and exact source URL in the finished film.
