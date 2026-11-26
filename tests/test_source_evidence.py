@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.source_evidence import cited_source_records, research_source_records
+from core.source_evidence import allocate_evidence_beat_durations, cited_source_records, research_source_records
 
 
 class SourceEvidenceTests(unittest.TestCase):
@@ -15,6 +15,28 @@ class SourceEvidenceTests(unittest.TestCase):
             {"source_id": "S3", "title": "Bad URL", "publisher": "Bad",
              "url": "javascript:alert(1)"},
         ]
+
+    def test_evidence_screenshot_time_is_rebalanced_without_changing_chapter_length(self):
+        beats = [
+            {"visual_type": "stock"},
+            {"visual_type": "chart", "source_refs": ["S1"]},
+            {"visual_type": "stock"},
+        ]
+        durations = allocate_evidence_beat_durations(beats, [12.0, 0.5, 8.0])
+        self.assertAlmostEqual(sum(durations), 20.5)
+        self.assertGreaterEqual(durations[1], 4.2)
+        self.assertTrue(all(value >= 1.0 for value in (durations[0], durations[2])))
+
+    def test_multiple_evidence_beats_borrow_only_from_non_evidence_shots(self):
+        beats = [{"visual_type": "document"}, {"visual_type": "timeline"}, {"visual_type": "stock"}]
+        durations = allocate_evidence_beat_durations(beats, [0.5, 0.5, 12.0])
+        self.assertGreaterEqual(durations[0], 4.2)
+        self.assertGreaterEqual(durations[1], 4.2)
+        self.assertGreaterEqual(durations[2], 1.0)
+
+    def test_duration_rebalancing_rejects_mismatched_inputs(self):
+        with self.assertRaises(ValueError):
+            allocate_evidence_beat_durations([{"visual_type": "chart"}], [])
 
     def test_script_source_compatibility_uses_legacy_sources_when_new_field_empty(self):
         script = {"research_sources": [], "sources": self.sources}
