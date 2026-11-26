@@ -385,14 +385,16 @@ def _scene_search_brief(beat: dict, keywords) -> str:
     # Prioritise the actual subject. Location and date are useful discriminators,
     # while keywords supply alternate names and concrete objects/actions.
     selected = []
-    for value, limit in (
+    for group, (value, limit) in enumerate((
         (beat.get("subject", ""), 6),
         (" ".join(str(item) for item in (keywords or []) if str(item).strip()), 4),
         (beat.get("location", ""), 2),
         (beat.get("time_period", ""), 2),
-    ):
+    )):
         for token in terms(value, limit):
-            if token not in selected:
+            # Preserve adjacent keyword phrases (for example "ASML EUV") even
+            # when a subject term already occurs in that phrase.
+            if group == 1 or token.lower() not in {item.lower() for item in selected}:
                 selected.append(token)
     return " ".join(selected[:12])[:600]
 
