@@ -109,6 +109,8 @@ def _render(media, lens, cuts, voice, ass, total, out, bd, music, music_vol, sfx
         music, profile = create_original_music_bed(bd / "original_shorts_music.wav", T, topic, "shorts")
         music_source = "original_generated"
     write_audio_production_report(Path(out).parent, profile, music_source)
+    from core.audio_quality import inspect_narration
+    inspect_narration(voice, Path(out).parent)
     parts = []
     for i, m in enumerate(media):
         d = lens[i] + FADE
