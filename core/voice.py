@@ -746,8 +746,13 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             if require_requested_engine:
                 raise VoiceProviderUnavailable(f"Required narration engine NVIDIA Magpie failed: {magpie_exc}") from magpie_exc
             print("WARNING: " + fallback_reason)
-            wavs = _synth_all_edge(sentences, language, gender, build_dir)
-            engine = "edge"
+            try:
+                wavs = _synth_all_edge(sentences, language, gender, build_dir)
+                engine = "edge"
+            except Exception as edge_exc:
+                fallback_reason += f" Edge TTS also failed ({type(edge_exc).__name__}: {edge_exc}); using offline espeak-ng."
+                wavs = _synth_all_espeak(sentences, language, build_dir)
+                engine = "espeak-ng"
     elif engine == "chatterbox":
         try:
             wavs = _synth_all_chatterbox(sentences, language, build_dir)
