@@ -1273,6 +1273,11 @@ def build_longform(script: dict, job_id: int, build_dir: Path = None, language: 
                 shot_timeline.append(title_shot)
                 shot_cursor += title_duration
                 durations = slate_durations
+        # Evidence screenshots need a readable on-screen interval. Rebalance
+        # within this chapter instead of silently skipping a cited source when
+        # its anchor happened to receive a very short beat allocation.
+        from core.source_evidence import allocate_evidence_beat_durations
+        durations = allocate_evidence_beat_durations(beats, durations)
         for j, (beat, shot_dur) in enumerate(zip(beats, durations)):
             shot = dict(sec)
             shot["title"] = sec.get("title", "") if j == 0 else ""
