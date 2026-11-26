@@ -157,7 +157,7 @@
     ".github/workflows/news-story-review.yml": "2b503ce86ca447152113cf4bda2207131a427ad525b8e09e926f2f60d2d0231d",
     ".github/workflows/news-visual-asset-review.yml": "0d41cfd3f26f0bf000b268720dbe86d342df3c5db4af5c142df3d217d6f25a31",
     ".github/workflows/openvino-ltx-local-gpu.yml": "efc0faf2c88676faaa2e983ac6a29079472bc327e542648e12ea0942bd73d235",
-    ".github/workflows/regenerate-protected-manifest.yml": "ceed39e3a9e99821c6cf4268bb28489e842d03cffa30fc923ed5663396cdd271",
+    ".github/workflows/regenerate-protected-manifest.yml": "f9f91ce505c2ebe4edb383f1304e3417185f3dad9a2a969a1b30a5f9a368bbc6",
     ".github/workflows/release_documentary_auto.yml": "61339b9866d963ffe5c0d97aa544282980a10ada72b3ff50baeea1f0b1be5c4c",
     ".github/workflows/release_documentary_private.yml": "af2ae8b3afbbfe68fa565582cf6d81dfff48c3ca20b65a2b50347acfe05840d2",
     ".github/workflows/release_shorts_private.yml": "7e926ded85642534d58fc9fd7fe0542885629a4e871c5a9c010750d9c2d64eef",
@@ -1923,9 +1923,9 @@
       "upload_lines": []
     },
     "regenerate-protected-manifest.yml": {
-      "sha256": "ceed39e3a9e99821c6cf4268bb28489e842d03cffa30fc923ed5663396cdd271",
+      "sha256": "f9f91ce505c2ebe4edb383f1304e3417185f3dad9a2a969a1b30a5f9a368bbc6",
       "display_name": "Regenerate protected manifest",
-      "on_sha256": "047e1fc2317fae71cac0b7923c55ceb52d1fbc81cea1665e783a80fa5dde7213",
+      "on_sha256": "ce4fdfa9313b5d054f26c9c523b0d92139e6f81ed1aa23e1036459203d60c1fe",
       "triggers": [
         "push"
       ],
