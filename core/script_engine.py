@@ -665,7 +665,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
         correction = ""
         if selected_language == "hinglish" and "Hinglish" in last_error:
             correction = (
-                "\\n\\nLANGUAGE REPAIR REQUIRED: Your last narration was not valid Hinglish. Rewrite every scene's "
+                "\n\nLANGUAGE REPAIR REQUIRED: Your last narration was not valid Hinglish. Rewrite every scene's "
                 "say field so it contains at least two natural Hindi words written in Devanagari AND at least "
                 "two English words/technical terms written in Latin script. Do this in every scene, not only "
                 "once across the whole script. Never transliterate Hindi into Roman letters. Preserve the topic, "
