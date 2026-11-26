@@ -159,7 +159,7 @@ class ProviderCascadeTests(unittest.TestCase):
 
     def test_provider_status_is_a_plain_report(self):
         status = voice.provider_status()
-        self.assertEqual(set(status), {"edge", "chatterbox", "espeak-ng"})
+        self.assertEqual(set(status), {"edge", "chatterbox", "espeak-ng", "nvidia_magpie"})
         self.assertTrue(all(isinstance(value, bool) for value in status.values()))
 
 
