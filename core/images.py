@@ -250,7 +250,8 @@ def _nvidia_flux_image(prompt, path):
             url,
             headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json",
                      "Content-Type": "application/json"},
-            json={"prompt": str(prompt)[:2000]},
+            json={"prompt": str(prompt)[:2000], "mode": "base", "cfg_scale": 3.5,
+                  "width": 1024, "height": 1024, "steps": 50},
             timeout=(20, 180),
         )
         if response.status_code != 200:
