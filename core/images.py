@@ -232,6 +232,62 @@ def _pixabay_image(scene_prompt, path):
         return False
 
 
+def _nvidia_flux_image(prompt, path):
+    """Optional NVIDIA FLUX.1-dev still-image generation; never used unless opted in."""
+    if os.getenv("NVIDIA_IMAGE_ENABLED", "").strip().lower() not in {"1", "true", "yes"}:
+        return False
+    api_key = os.getenv("NVIDIA_API_KEY", "").strip()
+    if not api_key:
+        print("  NVIDIA FLUX skipped: NVIDIA_API_KEY is not configured.")
+        return False
+    model = os.getenv("NVIDIA_IMAGE_MODEL", "black-forest-labs/flux.1-dev").strip()
+    if model != "black-forest-labs/flux.1-dev":
+        print(f"  NVIDIA FLUX skipped: unsupported configured image model '{model}'.")
+        return False
+    url = "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev"
+    try:
+        response = requests.post(
+            url,
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json",
+                     "Content-Type": "application/json"},
+            json={"prompt": str(prompt)[:2000]},
+            timeout=(20, 180),
+        )
+        if response.status_code != 200:
+            detail = " ".join(response.text.split())[:240]
+            print(f"  NVIDIA FLUX HTTP {response.status_code}: {detail}")
+            return False
+        payload = response.json()
+        artifacts = payload.get("artifacts") or []
+        encoded = next((item.get("base64") for item in artifacts
+                        if isinstance(item, dict) and item.get("base64")), None)
+        if not encoded:
+            print("  NVIDIA FLUX returned no image artifact.")
+            return False
+        raw = base64.b64decode(encoded, validate=True)
+        target = Path(path)
+        temporary = target.with_name(target.stem + ".nvidia-tmp" + target.suffix)
+        temporary.write_bytes(raw)
+        if not _ok(temporary):
+            temporary.unlink(missing_ok=True)
+            print("  NVIDIA FLUX returned an invalid or undersized image.")
+            return False
+        os.replace(temporary, target)
+        _write_source_metadata(target, {
+            "provider": "NVIDIA FLUX.1-dev",
+            "model": model,
+            "asset_type": "AI-generated synthetic still",
+            "prompt": str(prompt)[:1000],
+            "license": "Generated output; review NVIDIA API terms and applicable usage rights",
+            "human_review_required": True,
+        })
+        print("  image ok (NVIDIA FLUX.1-dev; synthetic AI still; human review required)")
+        return True
+    except (requests.RequestException, ValueError, OSError) as exc:
+        print(f"  NVIDIA FLUX unavailable: {type(exc).__name__}: {str(exc)[:180]}")
+        return False
+
+
 def generate_image(scene_prompt, path, category="general", search_query=None):
     # A scene explicitly requesting real archival material must never silently
     # fall through to a synthetic image generator.
@@ -274,6 +330,7 @@ def generate_image(scene_prompt, path, category="general", search_query=None):
             return True
     except Exception as exc:
         print(f"  Wikimedia Commons still fallback unavailable: {type(exc).__name__}: {str(exc)[:180]}")
+    if _nvidia_flux_image(full, path): return True
     if _pollinations(full, path): print(f"  image ok (pollinations)"); return True
     print(f"  image failed: {scene_prompt[:50]}"); return False
 
