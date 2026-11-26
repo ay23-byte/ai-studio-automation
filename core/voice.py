@@ -646,6 +646,7 @@ def _synth_all_espeak(sentences, language, build_dir):
     return wavs
 
 def _nvidia_magpie_voice(language, gender):
+    import requests
     override = os.getenv("NVIDIA_TTS_VOICE", "").strip()
     if override:
         return override
@@ -670,7 +671,7 @@ def _nvidia_magpie_voice(language, gender):
     candidates = [voice for voice in voices if "Magpie-Multilingual." + locale in voice]
     if not candidates:
         raise RuntimeError(f"NVIDIA Magpie has no {locale} voices in its available voice list.")
-    gender_terms = ("female", "woman", "aria", "mia", "isabela") if gender == "female" else ("male", "man", "jason", "diego")
+    gender_terms = ("female", "woman", "aria", "mia", "isabela", "sofia", "louise") if gender == "female" else ("male", "man", "jason", "diego", "leo", "pascal", "ray", "siwei", "long", "houzhen")
     matching = [voice for voice in candidates if any(term in voice.lower() for term in gender_terms)]
     return (matching or candidates)[0]
 
