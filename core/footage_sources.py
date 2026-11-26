@@ -326,8 +326,15 @@ def _video_dimensions(path):
 
 
 def clip_size_limit_mb():
-    """Largest file fetched for one scene: ``FOOTAGE_MAX_CLIP_MB`` (250)."""
-    return max(1.0, _env_number("FOOTAGE_MAX_CLIP_MB", 250))
+    """Largest file fetched for one scene: ``FOOTAGE_MAX_CLIP_MB`` (450 MB by default).
+
+    Large archival files are often legitimate, high-quality sources. The 450 MB
+    per-clip ceiling allows more of them through while remaining bounded; the
+    shared downloader still enforces its global byte and wall-clock limits.
+    Set FOOTAGE_MAX_CLIP_MB lower for constrained runners or higher only when
+    the repository-wide MAX_VIDEO_DOWNLOAD_MB limit is also intentionally raised.
+    """
+    return max(1.0, _env_number("FOOTAGE_MAX_CLIP_MB", 450))
 
 
 def _secure_url(url):

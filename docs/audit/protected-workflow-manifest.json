@@ -198,7 +198,7 @@
     "core/footage_engine.py": "949ce746c758bb00f039ebd430a841949f2b84a4638d4d49c10efdca09feae1d",
     "core/footage_licence.py": "6cc615071c80d27aca164c420f534ac8a45b6aebd6cdbe9e7c69ef4ef2b4a7f5",
     "core/footage_report.py": "f998649be059339db3c8a9f763eddf03c2ae82ce352e55642b05c7bd24472f74",
-    "core/footage_sources.py": "c554a7a7b2af20fbf0528f03d5e03ac49b3f450c773bf0ffe3a8a2e573af2648",
+    "core/footage_sources.py": "ff5c4b2f61229d0b96499291d8e124d176d88a4d78e8e56885d01468a031965b",
     "core/footage_validation.py": "d44307173da5b6f8865b98ecbc2dc1e5501671eaac74b12630fb9e6a4e7d4d9a",
     "core/gemini.py": "5cd797a682f028c21b1fa5d93221c96fd79193fd6a0e31912f25a17e42056aae",
     "core/graphic_scenes.py": "bc8f4785120bcc4f34c99120e4dfbbc9869061e00e2a0b178ef14498427cfe36",
