@@ -5,10 +5,31 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core.source_evidence import capture_source_screenshot
+from core.source_evidence import allocate_evidence_beat_durations, capture_source_screenshot
 
 
 class SourceScreenshotRetryTests(unittest.TestCase):
+    def test_evidence_beat_borrows_time_without_shortening_donor_below_reserve(self):
+        beats = [
+            {"visual_type": "stock"},
+            {"visual_type": "chart", "source_refs": ["S1"]},
+            {"visual_type": "stock"},
+        ]
+        before = [12.0, 0.5, 8.0]
+        after = allocate_evidence_beat_durations(beats, before, minimum=4.2, reserve=1.0)
+        self.assertAlmostEqual(sum(after), sum(before))
+        self.assertGreaterEqual(after[1], 4.2)
+        self.assertGreaterEqual(after[0], 1.0)
+        self.assertGreaterEqual(after[2], 1.0)
+
+    def test_multiple_evidence_beats_do_not_borrow_from_each_other(self):
+        beats = [{"visual_type": "document"}, {"visual_type": "timeline"}, {"visual_type": "stock"}]
+        after = allocate_evidence_beat_durations(beats, [0.5, 0.5, 12.0])
+        self.assertGreaterEqual(after[0], 4.2)
+        self.assertGreaterEqual(after[1], 4.2)
+        self.assertGreaterEqual(after[2], 1.0)
+
+
     def test_retries_transient_timeout_and_accepts_real_capture_with_sidecar(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
@@ -21,7 +42,7 @@ class SourceScreenshotRetryTests(unittest.TestCase):
                 from PIL import Image
                 Image.new("RGB", (1600, 900), "white").save(payload["image_path"], format="PNG")
                 Path(payload["metadata_path"]).write_text(
-                    json.dumps({"screenshot_is_real_source_page": True}), encoding="utf-8"
+                    json.dumps({"screenshot_is_real_source_page": True, "http_status": 200, "content_validated": True, "page_title": "Official report"}), encoding="utf-8"
                 )
                 return subprocess.CompletedProcess(command, 0, stdout="captured", stderr="")
 
