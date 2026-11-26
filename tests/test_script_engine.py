@@ -134,7 +134,7 @@ class GeminiFailoverTests(unittest.TestCase):
             self.assertIn("real human host", prompt)
             self.assertIn("brisk but comfortable pace", prompt)
             self.assertIn('"scenes"', prompt)
-            self.assertIn("caption is concise subtitle text in english", prompt)
+            self.assertIn('"caption" is concise subtitle text in english', prompt)
 
     def test_hinglish_prompt_requires_both_scripts_in_every_scene(self):
         prompt = script_engine.SHORTS_PROMPT.format(
