@@ -19,7 +19,7 @@ class GeminiRequestError(RuntimeError):
 
 SHORTS_PROMPT = """Write ONE polished YouTube Shorts script for the channel "{channel_name}" about: "{topic}" (category: {category}).
 
-DELIVERY: Write for a real human host speaking directly to one curious viewer. Use contractions in English, everyday phrasing, varied sentence lengths, natural breath points and smooth spoken transitions. Sound curious, warm, confident and specific—not like an essay, textbook, advertisement or AI summary. Avoid clichés such as “in today’s world”, “let’s dive in”, “in conclusion” and repeated “here’s the thing”. Use rhetorical questions sparingly and answer them with evidence. Keep every line easy to say aloud at a brisk but comfortable pace.\n\nLANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write natural spoken Hindi-English code-mixing using Devanagari for Hindi words and Latin script for English words, technical terms, names and phrases. Mix both naturally within a sentence, as a confident Indian presenter would speak. Do not translate familiar English terms into stiff Hindi, and do not write Hindi words in Roman transliteration. Spoken narration, captions, title, hook and labels must use the selected language consistently.
+DELIVERY: Write for a real human host speaking directly to one curious viewer. Use contractions in English, everyday phrasing, varied sentence lengths, natural breath points and smooth spoken transitions. Sound curious, warm, confident and specific—not like an essay, textbook, advertisement or AI summary. Avoid clichés such as “in today’s world”, “let’s dive in”, “in conclusion” and repeated “here’s the thing”. Use rhetorical questions sparingly and answer them with evidence. Keep every line easy to say aloud at a brisk but comfortable pace.\n\nLANGUAGE: Use the selected language: {language}. If English, write natural English. If Hindi, write natural Hindi in Devanagari. If Hinglish, write natural spoken Hindi-English code-mixing using Devanagari for Hindi words and Latin script for English words, technical terms, names and phrases. Every scene's spoken "say" must contain BOTH scripts: at least two natural Hindi words in Devanagari and at least two English words/technical terms in Latin script. Do not write an entire scene in English or Hindi. Example of the intended rhythm (adapt it naturally to the topic): "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" Use everyday Indian speech, not formal translation. Do not translate familiar English terms into stiff Hindi, and do not write Hindi words in Roman transliteration. The title, hook and labels should be in the selected language; the caption must follow the requested subtitle-language setting.
 
 RULES:
 - 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
@@ -659,8 +659,19 @@ def generate_shorts_script(topic: str, category: str = "finance",
             return script
         last_error = "; ".join(report["issues"])
         print(f"Shorts script failed content QA (attempt {attempt + 1}/{attempts}): {last_error}")
-        request = (prompt + "\n\nYour previous answer was rejected for these reasons: " + last_error
-                   + ". Fix every one of them and return ONLY the corrected JSON object.")
+        correction = ""
+        if selected_language == "hinglish" and "Hinglish narration must genuinely mix" in last_error:
+            correction = (
+                "\\n\\nLANGUAGE REPAIR REQUIRED: Your last narration was not Hinglish. Rewrite every scene's "
+                "say field so it contains at least two natural Hindi words written in Devanagari AND at least "
+                "two English words/technical terms written in Latin script. Do this in every scene, not only "
+                "once across the whole script. Never transliterate Hindi into Roman letters. Preserve the topic, "
+                "facts, 5-6 scene structure, and word limits. Example rhythm: "
+                "\\"जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।\\" "
+                "Captions must follow the configured subtitle language. Return only valid JSON."
+            )
+        request = (prompt + "\\n\\nYour previous answer was rejected for these reasons: " + last_error
+                   + ". Fix every one of them and return ONLY the corrected JSON object." + correction)
     raise ValueError(f"Shorts script failed content QA after {attempts} attempts: {last_error}")
 
 
