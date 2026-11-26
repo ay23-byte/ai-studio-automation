@@ -134,6 +134,17 @@ class GeminiFailoverTests(unittest.TestCase):
             self.assertIn("brisk but comfortable pace", prompt)
             self.assertIn('"scenes"', prompt)
 
+    def test_hinglish_prompt_requires_both_scripts_in_every_scene(self):
+        prompt = script_engine.SHORTS_PROMPT.format(
+            topic="Metals feel colder than wood",
+            category="science",
+            channel_name="Engineering Physics",
+            language="Hinglish",
+        )
+        self.assertIn("Every scene's spoken", prompt)
+        self.assertIn("at least two natural Hindi words in Devanagari", prompt)
+        self.assertIn("at least two English words/technical terms", prompt)
+
     def test_shorts_generator_rejects_unknown_language(self):
         with self.assertRaisesRegex(ValueError, "english, hindi, hinglish"):
             script_engine.generate_shorts_script("Black holes", language="unknown")
