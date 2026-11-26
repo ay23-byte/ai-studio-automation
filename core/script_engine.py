@@ -23,7 +23,7 @@ DELIVERY: Write for a real human host speaking directly to one curious viewer. U
 
 RULES:
 - 5-6 scenes, 10-22 spoken words per scene, 70-110 total spoken words
-- "say" is the exact narration in the selected language; "caption" is concise subtitle text in the same language matching the spoken meaning
+- "say" is the exact narration in the selected language; "caption" is concise subtitle text in {subtitle_language} matching the spoken meaning (translate naturally when needed)
 - Finance topics: education only, no personal advice, no promised returns
 - Last scene: concise educational disclaimer + follow call to action
 - "label": 1-3 short words in the selected language, max 22 characters
@@ -636,7 +636,8 @@ def generate_shorts_script(topic: str, category: str = "finance",
         raise ValueError("Shorts language must be one of: english, hindi, hinglish.")
     prompt = SHORTS_PROMPT.format(
         topic=topic, category=category, channel_name=channel_name or CHANNEL_NAME,
-        language=language_aliases[selected_language])
+        language=language_aliases[selected_language],
+        subtitle_language=str(os.getenv("SHORTS_SUBTITLE_LANGUAGE", "english")).strip().lower())
     prompt = _apply_channel_voice(prompt, channel_name, audience, brand_voice)
     # Content QA with one corrective regeneration: a truncated, off-language or
     # over-length script must never reach narration and rendering.
@@ -662,7 +663,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
         correction = ""
         if selected_language == "hinglish" and "Hinglish" in last_error:
             correction = (
-                "\\n\\nLANGUAGE REPAIR REQUIRED: Your last narration was not Hinglish. Rewrite every scene's "
+                "\n\nLANGUAGE REPAIR REQUIRED: Your last narration was not Hinglish. Rewrite every scene's "
                 "say field so it contains at least two natural Hindi words written in Devanagari AND at least "
                 "two English words/technical terms written in Latin script. Do this in every scene, not only "
                 "once across the whole script. Never transliterate Hindi into Roman letters. Preserve the topic, "
@@ -670,7 +671,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
                 "\\"जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।\\" "
                 "Captions must follow the configured subtitle language. Return only valid JSON."
             )
-        request = (prompt + "\\n\\nYour previous answer was rejected for these reasons: " + last_error
+        request = (prompt + "\n\nYour previous answer was rejected for these reasons: " + last_error
                    + ". Fix every one of them and return ONLY the corrected JSON object." + correction)
     raise ValueError(f"Shorts script failed content QA after {attempts} attempts: {last_error}")
 
