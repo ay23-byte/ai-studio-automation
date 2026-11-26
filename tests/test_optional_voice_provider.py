@@ -183,8 +183,9 @@ class NvidiaMagpieProviderTests(unittest.TestCase):
             self.assertEqual(len(wavs), 1)
             self.assertTrue(wavs[0].read_bytes().startswith(b"RIFF"))
         get.assert_called_once()
-        self.assertEqual(post.call_args.kwargs["data"]["language"], "hi-IN")
-        self.assertEqual(post.call_args.kwargs["data"]["voice"], "Magpie-Multilingual.HI-IN.Leo")
+        form = {key: value[1] for key, value in post.call_args.kwargs["files"].items()}
+        self.assertEqual(form["language"], "hi-IN")
+        self.assertEqual(form["voice"], "Magpie-Multilingual.HI-IN.Leo")
 
     def test_magpie_requires_nvidia_key(self):
         from core.voice import _synth_all_magpie, VoiceProviderUnavailable
