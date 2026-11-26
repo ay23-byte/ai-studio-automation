@@ -15,6 +15,7 @@ openrouter     ``OPENROUTER_API_KEY``      ``OPENROUTER_MODEL``
 mistral        ``MISTRAL_API_KEY``         ``MISTRAL_MODEL``
 github         ``GITHUB_MODELS_TOKEN``     ``GITHUB_MODELS_MODEL``
 ollama         ``OLLAMA_BASE_URL``         ``OLLAMA_MODEL`` (local, free)
+nvidia         ``NVIDIA_API_KEY``          ``NVIDIA_LLM_MODEL``
 custom         ``LLM_FALLBACK_BASE_URL``   ``LLM_FALLBACK_MODEL``
 =============  ==========================  =============================
 
@@ -31,7 +32,7 @@ import time
 
 import requests
 
-DEFAULT_ORDER = "groq,cerebras,openrouter,mistral,github,ollama,custom"
+DEFAULT_ORDER = "groq,cerebras,openrouter,mistral,github,nvidia,ollama,custom"
 
 _PROVIDERS = {
     "groq": {
@@ -57,6 +58,10 @@ _PROVIDERS = {
     "github": {
         "base_url": "https://models.github.ai/inference", "key_env": "GITHUB_MODELS_TOKEN",
         "model_env": "GITHUB_MODELS_MODEL", "default_model": "openai/gpt-4o-mini",
+    },
+    "nvidia": {
+        "base_url": "https://integrate.api.nvidia.com/v1", "key_env": "NVIDIA_API_KEY",
+        "model_env": "NVIDIA_LLM_MODEL", "default_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
     },
     "ollama": {
         "base_url_env": "OLLAMA_BASE_URL", "key_env": None,
