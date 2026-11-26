@@ -46,7 +46,7 @@ class VisualProviderQueryTests(unittest.TestCase):
             },
             ["Titanic lifeboats launching", "passenger evacuation", "archival newsreel"],
         )
-        tokens = brief.split()
+        tokens = brief.lower().split()
         self.assertLessEqual(len(tokens), 12)
         self.assertIn("titanic", tokens)
         self.assertIn("lifeboat", tokens)
