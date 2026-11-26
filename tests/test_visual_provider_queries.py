@@ -50,7 +50,8 @@ class VisualProviderQueryTests(unittest.TestCase):
         self.assertLessEqual(len(tokens), 12)
         self.assertIn("titanic", tokens)
         self.assertIn("lifeboat", tokens)
-        self.assertIn("newfoundland", tokens)
+        self.assertIn("north", tokens)
+        self.assertIn("atlantic", tokens)
         self.assertNotIn("archival", tokens)
         self.assertNotIn("twentieth", tokens)
 
