@@ -690,8 +690,10 @@ def _synth_all_magpie(sentences, language, gender, build_dir):
         response = requests.post(
             endpoint + "/v1/audio/synthesize",
             headers={"Authorization": f"Bearer {api_key}"},
-            data={"text": str(sentence), "language": language_code, "voice": voice_name,
-                  "encoding": "LINEAR_PCM", "sample_rate_hz": "22050"},
+            files={key: (None, value) for key, value in {
+                "text": str(sentence), "language": language_code, "voice": voice_name,
+                "encoding": "LINEAR_PCM", "sample_rate_hz": "22050",
+            }.items()},
             timeout=(20, 180),
         )
         if response.status_code != 200:
