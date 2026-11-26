@@ -670,7 +670,7 @@ def generate_shorts_script(topic: str, category: str = "finance",
                 "two English words/technical terms written in Latin script. Do this in every scene, not only "
                 "once across the whole script. Never transliterate Hindi into Roman letters. Preserve the topic, "
                 "facts, 5-6 scene structure, and word limits. Example rhythm: "
-                "\\"जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।\\" "
+                '"जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
                 "Captions must follow the configured subtitle language. Return only valid JSON."
             )
         request = (prompt + "\n\nYour previous answer was rejected for these reasons: " + last_error
