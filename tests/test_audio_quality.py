@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from core.audio_quality import (
     _clipped_samples, _loudnorm_data, _silence_intervals,
-    assert_audio_quality_ready, inspect_audio, mark_audio_reviewed,
+    assert_audio_quality_ready, inspect_audio, inspect_narration, mark_audio_reviewed,
 )
 from core.editor_longform import _audio_master_filter
 from core.editor_shorts import shorts_audio_master_filter
@@ -77,6 +77,20 @@ class AudioQualityTests(unittest.TestCase):
         report = inspect_audio(self.video)
         self.assertEqual(report["status"], "FAIL")
         self.assertTrue(report["issues"])
+
+    @patch("core.audio_quality.subprocess.run")
+    def test_isolated_narration_noise_floor_is_reported_before_music_mix(self, run):
+        run.return_value = self._completed(
+            "[Parsed_astats_0] Overall\\nNoise floor dB: -31.000000\\n"
+            "RMS level dB: -22.000000\\nPeak level dB: -2.000000\\n"
+        )
+        voice = self.root / "voice.wav"
+        voice.write_bytes(b"voice")
+        report = inspect_narration(voice, self.root)
+        self.assertEqual(report["status"], "REVIEW")
+        self.assertEqual(report["stage"], "isolated_narration_before_background_music")
+        self.assertEqual(report["metrics"]["noise_floor_dbfs"], -31.0)
+        self.assertTrue((self.root / "narration_quality_report.json").is_file())
 
     def test_human_listening_review_is_required_and_persisted(self):
         path = self.root / "audio_quality_report.json"

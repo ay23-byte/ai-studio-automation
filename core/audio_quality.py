@@ -169,6 +169,68 @@ def inspect_audio(video_path: str | Path, target_lufs: float = -14.0,
     }
 
 
+
+def inspect_narration(narration_path: str | Path, output_dir: str | Path | None = None) -> dict[str, Any]:
+    """Measure the isolated narration stem before music can mask hiss or noise.
+
+    This is a screening report, not a substitute for listening. A high estimated
+    noise floor is flagged for regeneration/re-recording review rather than
+    destructively applying stronger denoising to consonants and breaths.
+    """
+    path = Path(narration_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Narration source not found: {path}")
+    result = subprocess.run([
+        ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(path), "-vn",
+        "-af", "astats=metadata=0:reset=0", "-f", "null", "-",
+    ], capture_output=True, text=True, check=False, timeout=600)
+    log = (result.stderr or "") + (result.stdout or "")
+    overall = log.rsplit("Overall", 1)[-1] if "Overall" in log else log
+
+    def metric(name: str) -> float | None:
+        match = re.search(rf"{re.escape(name)}:\\s*(-?inf|-?[\\d.]+)", overall, re.IGNORECASE)
+        return _number(match.group(1)) if match else None
+
+    noise_floor = metric("Noise floor dB")
+    rms = metric("RMS level dB")
+    peak = metric("Peak level dB")
+    issues, warnings = [], []
+    if result.returncode != 0:
+        issues.append("FFmpeg could not inspect the isolated narration stem.")
+    if noise_floor is None:
+        warnings.append("Narration noise-floor estimate is unavailable; listen carefully for hiss, hum and room noise.")
+    elif noise_floor > -35.0:
+        warnings.append(
+            f"Narration noise floor is relatively high ({noise_floor:.1f} dBFS); regenerate or replace noisy TTS/audio."
+        )
+    elif noise_floor > -45.0:
+        warnings.append(
+            f"Narration noise floor deserves a headphone check ({noise_floor:.1f} dBFS)."
+        )
+    if peak is not None and peak >= -0.1:
+        issues.append("Narration stem is at or near full scale; regenerate or reprocess to avoid clipping.")
+    if rms is not None and rms < -45.0:
+        warnings.append("Narration stem is unusually quiet; check the voice provider output and gain staging.")
+
+    report = {
+        "status": "FAIL" if issues else ("REVIEW" if warnings else "PASS"),
+        "source": str(path),
+        "stage": "isolated_narration_before_background_music",
+        "metrics": {"noise_floor_dbfs": noise_floor, "rms_level_dbfs": rms, "peak_level_dbfs": peak},
+        "issues": issues,
+        "warnings": warnings,
+        "action": "Regenerate defective TTS rather than applying aggressive denoising that damages speech.",
+        "human_listening_review_required": True,
+    }
+    if output_dir is not None:
+        root = Path(output_dir)
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "narration_quality_report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    return report
+
+
 def mark_audio_reviewed(build_dir: str | Path, reviewer_notes: str = "") -> dict[str, Any]:
     """Record an explicit human listening review after inspecting the audio report."""
     root = Path(build_dir)
