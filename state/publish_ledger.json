@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-26T23:10:36+00:00",
+  "updated_at": "2026-11-27T05:06:11+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -565,6 +565,21 @@
         "29f2b2d83a49bfb7f98c",
         "717fb85b570b33b07242",
         "d3999f5b2a4771ce7fe5"
+      ],
+      "job_id": 7
+    },
+    {
+      "kind": "news_short",
+      "key": "cf99e8eab933be8b9f72aba1",
+      "created_at": "2026-11-27T05:06:11+00:00",
+      "title": "Indian Rupee weakens against US Dollar amid proposed trade tariff pressure",
+      "status": "built",
+      "updated_at": "2026-11-27T05:06:11+00:00",
+      "topic": "Rupee weakens 24 paise to settle at 92.44 against U.S. dollar",
+      "source_refs": [
+        "33e47e78a17ed546d65d",
+        "36e517e0a48ddb07bae7",
+        "cc5abb7b56d9e0d432fb"
       ],
       "job_id": 7
     }
