@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-27T11:51:16+00:00",
+  "updated_at": "2026-11-27T13:29:27+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -606,6 +606,16 @@
       "source_refs": [
         "61db4f9fc987ab8c27bd"
       ],
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "0c3107ddfe39f54b55ae13d6",
+      "created_at": "2026-11-27T13:29:27+00:00",
+      "title": "Laser light इतना sharp और focused कैसे होता है?",
+      "status": "built",
+      "updated_at": "2026-11-27T13:29:27+00:00",
+      "topic": "How Do Lasers Create Such a Focused Beam of Light?",
       "job_id": 7
     }
   ]
