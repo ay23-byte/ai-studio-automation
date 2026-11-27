@@ -14,6 +14,12 @@ class DailyNewsVoiceConfigurationTests(unittest.TestCase):
         self.assertIn("Install Chatterbox multilingual for Hinglish narration", workflow)
         self.assertIn("NVIDIA_TTS_ENABLED: ${{ (inputs.language || 'hinglish') == 'hinglish' && '0'", workflow)
 
+    def test_general_shorts_and_documentary_keep_hinglish_on_chatterbox(self):
+        shorts = Path(".github/workflows/make_shorts.yml").read_text(encoding="utf-8")
+        longform = Path(".github/workflows/make_longform.yml").read_text(encoding="utf-8")
+        self.assertIn("NVIDIA_TTS_ENABLED: ${{ (inputs.language || 'hinglish') == 'hinglish' && '0'", shorts)
+        self.assertIn("NVIDIA_TTS_ENABLED: ${{ needs.request.outputs.language == 'hinglish' && '0'", longform)
+
     def test_voice_audition_generates_real_samples_for_all_pipelines(self):
         script = Path("scripts/create_pipeline_voice_audition.py").read_text(encoding="utf-8")
         for pipeline in ("general_shorts", "daily_news", "documentary"):
