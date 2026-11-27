@@ -37,9 +37,9 @@ class VoiceFallbackTests(unittest.TestCase):
 
 
     def test_github_actions_rejects_robotic_fallback_by_default(self):
-        with tempfile.TemporaryDirectory() as tmp, \\
-             patch.dict("os.environ", {"TTS_ENGINE": "edge", "GITHUB_ACTIONS": "true"}, clear=True), \\
-             patch.object(voice, "_synth_all_edge", side_effect=RuntimeError("NoAudioReceived")), \\
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict("os.environ", {"TTS_ENGINE": "edge", "GITHUB_ACTIONS": "true"}, clear=True), \
+             patch.object(voice, "_synth_all_edge", side_effect=RuntimeError("NoAudioReceived")), \
              patch.object(voice, "_synth_all_espeak", return_value=[Path(tmp) / "s0.wav"]) as offline:
             with self.assertRaisesRegex(voice.VoiceProviderUnavailable, "Production narration refused"):
                 voice._synthesise_raw("A clear test sentence.", Path(tmp), language="english")
