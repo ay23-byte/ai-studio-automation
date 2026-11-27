@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-27T05:06:11+00:00",
+  "updated_at": "2026-11-27T06:28:26+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -581,6 +581,16 @@
         "36e517e0a48ddb07bae7",
         "cc5abb7b56d9e0d432fb"
       ],
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "bb145c4ad0d95ad1ccbd550d",
+      "created_at": "2026-11-27T06:28:26+00:00",
+      "title": "Nanoscale पर Water ऐसे बदलता है physics!",
+      "status": "built",
+      "updated_at": "2026-11-27T06:28:26+00:00",
+      "topic": "Why Does Water Behave Differently at the Nanoscale?  Hook: At extremely small scales, familiar physics starts behaving differently.",
       "job_id": 7
     }
   ]
