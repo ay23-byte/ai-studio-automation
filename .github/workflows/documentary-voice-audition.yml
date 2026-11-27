@@ -1,7 +1,14 @@
-name: '⚙ Internal — Daily News voice audition'
-
+name: "Internal — Pipeline voice audition"
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/documentary-voice-audition.yml"
+      - ".github/workflows/daily-news-auto-short.yml"
+      - "core/voice.py"
+      - "scripts/create_pipeline_voice_audition.py"
+      - "tests/test_hinglish_voice.py"
 
 permissions:
   contents: read
@@ -9,27 +16,29 @@ permissions:
 jobs:
   voice-audition:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install minimal pipeline dependencies
+      - name: Install FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install --yes ffmpeg
+      - name: Install pipeline and neural voice dependencies
+        run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-ci.txt
-      - name: Install optional Chatterbox engine
-        run: python -m pip install chatterbox-tts
-      - name: Generate same-script Daily News Edge and Chatterbox samples
-        run: python -m scripts.create_daily_news_voice_audition
-      - name: Upload Daily News audition tracks and reports
+          python -m pip install --retries 5 --timeout 120 chatterbox-tts
+      - name: Generate real narration for all three pipelines
+        run: python scripts/create_pipeline_voice_audition.py --output-dir pipeline_voice_audition
+      - name: Upload actual WAV samples and audio reports
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: daily-news-voice-audition
-          path: daily_news_voice_audition/**
+          name: pipeline-voice-audition
+          path: pipeline_voice_audition/**
           if-no-files-found: error
           retention-days: 14
