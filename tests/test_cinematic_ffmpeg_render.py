@@ -32,7 +32,7 @@ class CinematicFFmpegRenderTests(unittest.TestCase):
              "testsrc2=size=640x360:rate=30", "-t", "2", "-an",
              "-c:v", "libx264", "-pix_fmt", "yuv420p", str(self.clip)])
         run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
-             "sine=frequency=440:sample_rate=44100", "-t", "3",
+             "aevalsrc=if(lt(mod(t\\,1)\\,0.72)\\,0.12*sin(2*PI*440*t)\\,0):s=44100:d=3",
              "-c:a", "pcm_s16le", str(self.voice)])
         self.ass.write_text(
             "[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\n"

@@ -268,8 +268,9 @@ def render_review_copy(script_path: str | Path, approval_path: str | Path,
         )
         music_source = "original_generated"
     write_audio_production_report(outdir, profile, music_source)
-    from core.audio_quality import inspect_narration
-    inspect_narration(voice_path, outdir)
+    from core.audio_quality import inspect_narration, assert_narration_screening
+    narration_report = inspect_narration(voice_path, outdir)
+    assert_narration_screening(narration_report)
     audio_graph = (
         f"[1:a]{narration_cleanup_filter()},aresample=44100,"
         f"apad,atrim=duration={mux_duration:.3f}[voice0];[voice0]asplit=2[voice][key];"

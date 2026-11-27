@@ -199,13 +199,13 @@ def inspect_narration(narration_path: str | Path, output_dir: str | Path | None 
         issues.append("FFmpeg could not inspect the isolated narration stem.")
     if noise_floor is None:
         warnings.append("Narration noise-floor estimate is unavailable; listen carefully for hiss, hum and room noise.")
+    elif noise_floor > -25.0:
+        issues.append(
+            f"Narration noise floor is critically high ({noise_floor:.1f} dBFS); regenerate or replace the noisy narration before mixing."
+        )
     elif noise_floor > -35.0:
         warnings.append(
-            f"Narration noise floor is relatively high ({noise_floor:.1f} dBFS); regenerate or replace noisy TTS/audio."
-        )
-    elif noise_floor > -45.0:
-        warnings.append(
-            f"Narration noise floor deserves a headphone check ({noise_floor:.1f} dBFS)."
+            f"Narration noise floor needs a headphone check ({noise_floor:.1f} dBFS); the estimate alone is not sufficient to reject this stem."
         )
     if peak is not None and peak >= -0.1:
         issues.append("Narration stem is at or near full scale; regenerate or reprocess to avoid clipping.")
@@ -228,6 +228,20 @@ def inspect_narration(narration_path: str | Path, output_dir: str | Path | None 
         (root / "narration_quality_report.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+    return report
+
+
+def assert_narration_screening(report: dict[str, Any]) -> dict[str, Any]:
+    """Stop every production renderer when isolated narration has a blocking defect.
+
+    A REVIEW result (for example, an unavailable noise-floor estimate) is retained
+    for human listening. A measurable noisy or clipped stem must not be hidden by
+    background music or carried into the final export.
+    """
+    if not isinstance(report, dict) or report.get("status") == "FAIL":
+        issues = report.get("issues", []) if isinstance(report, dict) else []
+        detail = "; ".join(str(item) for item in issues) or "invalid narration screening report"
+        raise RuntimeError(f"Narration audio screening failed; refusing to mix defective voice: {detail}")
     return report
 
 
