@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-27T06:30:39+00:00",
+  "updated_at": "2026-11-27T11:51:16+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -594,6 +594,19 @@
       "job_id": 7,
       "youtube_id": "KEi3kb4Iuw4",
       "privacy_status": "private"
+    },
+    {
+      "kind": "news_short",
+      "key": "fc7b0e17cda52db666d138ba",
+      "created_at": "2026-11-27T11:51:16+00:00",
+      "title": "Thanksgiving Week Supermoon: Skywatchers Observe Beaver Moon",
+      "status": "built",
+      "updated_at": "2026-11-27T11:51:16+00:00",
+      "topic": "APOD: 2026 November 27 – The Moon Watchers",
+      "source_refs": [
+        "61db4f9fc987ab8c27bd"
+      ],
+      "job_id": 7
     }
   ]
 }
