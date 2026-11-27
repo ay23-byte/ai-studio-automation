@@ -199,13 +199,13 @@ def inspect_narration(narration_path: str | Path, output_dir: str | Path | None 
         issues.append("FFmpeg could not inspect the isolated narration stem.")
     if noise_floor is None:
         warnings.append("Narration noise-floor estimate is unavailable; listen carefully for hiss, hum and room noise.")
-    elif noise_floor > -35.0:
+    elif noise_floor > -25.0:
         issues.append(
-            f"Narration noise floor is too high ({noise_floor:.1f} dBFS); regenerate or replace the noisy narration before mixing."
+            f"Narration noise floor is critically high ({noise_floor:.1f} dBFS); regenerate or replace the noisy narration before mixing."
         )
-    elif noise_floor > -45.0:
+    elif noise_floor > -35.0:
         warnings.append(
-            f"Narration noise floor deserves a headphone check ({noise_floor:.1f} dBFS)."
+            f"Narration noise floor needs a headphone check ({noise_floor:.1f} dBFS); the estimate alone is not sufficient to reject this stem."
         )
     if peak is not None and peak >= -0.1:
         issues.append("Narration stem is at or near full scale; regenerate or reprocess to avoid clipping.")
