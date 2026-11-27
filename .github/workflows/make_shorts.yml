@@ -122,7 +122,9 @@ jobs:
           NVIDIA_LLM_MODEL: ${{ vars.NVIDIA_LLM_MODEL }}
           NVIDIA_IMAGE_MODEL: ${{ vars.NVIDIA_IMAGE_MODEL }}
           NVIDIA_IMAGE_ENABLED: ${{ vars.NVIDIA_IMAGE_ENABLED || '0' }}
-          NVIDIA_TTS_ENABLED: ${{ vars.NVIDIA_TTS_ENABLED || '0' }}
+          # Hinglish stays on the audited Chatterbox multilingual path; the
+          # optional NVIDIA override remains available for explicit English/Hindi.
+          NVIDIA_TTS_ENABLED: ${{ (inputs.language || 'hinglish') == 'hinglish' && '0' || vars.NVIDIA_TTS_ENABLED || '0' }}
           NVIDIA_TTS_MODEL: ${{ vars.NVIDIA_TTS_MODEL }}
           NVIDIA_TTS_VOICE: ${{ vars.NVIDIA_TTS_VOICE }}
           # Model ids are not pinned here. Empty means the built-in chain in core/gemini.py;

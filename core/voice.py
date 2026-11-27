@@ -112,17 +112,30 @@ def _short_error(exc, limit=50):
     return f"{type(cause).__name__}: {' '.join(str(cause).split())[:limit]}"
 
 
-def _speech_chunks(text, max_chars=220):
-    """Group short sentences into natural TTS phrases without splitting sentences."""
+def _speech_chunks(text, max_chars=220, language=None):
+    """Group sentences without mixing language IDs inside a Chatterbox Hinglish chunk.
+
+    A mixed Hindi-English sentence stays intact and uses the Hindi multilingual
+    token; an English-only sentence gets the English token. Aggregating adjacent
+    Hindi and English sentences can otherwise select the wrong pronunciation
+    for the entire phrase.
+    """
     sentences = _sentences(text)
     chunks, current = [], ""
+    current_language = None
+    hinglish = str(language or "").strip().lower() == "hinglish"
     for sentence in sentences:
+        sentence_language = _chatterbox_language_id(sentence, "hinglish") if hinglish else None
         candidate = f"{current} {sentence}".strip()
-        if current and len(candidate) > max_chars:
+        language_changed = bool(current and hinglish and sentence_language != current_language)
+        if current and (len(candidate) > max_chars or language_changed):
             chunks.append(current)
             current = sentence
+            current_language = sentence_language
         else:
             current = candidate
+            if current_language is None:
+                current_language = sentence_language
     if current:
         chunks.append(current)
     return chunks
@@ -363,8 +376,10 @@ def _chatterbox_language_id(text, language):
     if selected == "hindi":
         return "hi"
     devanagari = sum(1 for char in str(text) if "\u0900" <= char <= "\u097f" and char.isalpha())
-    latin = sum(1 for char in str(text) if char.isascii() and char.isalpha())
-    return "hi" if devanagari and devanagari >= max(1, latin * 0.35) else "en"
+    # Any Hindi-script word is enough to require Hindi pronunciation. Latin-heavy
+    # technical vocabulary must not cause the whole mixed phrase to be sent to
+    # the English token, which can misread the Hindi words.
+    return "hi" if devanagari else "en"
 
 
 _LAST_CHATTERBOX_LANGUAGES = []
@@ -713,7 +728,7 @@ def _synth_all_magpie(sentences, language, gender, build_dir):
 def synthesise(text, build_dir, language="hindi", gender="male"):
     build_dir = Path(build_dir)
     build_dir.mkdir(parents=True, exist_ok=True)
-    sentences = _speech_chunks(_apply_pronunciation_map(text))
+    sentences = _speech_chunks(_apply_pronunciation_map(text), language=language)
     if not sentences:
         raise ValueError("No narration text was provided.")
     # Pause after the phrase that was just spoken (not the next phrase).
@@ -830,6 +845,11 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
         "providers_available": provider_status(),
         "language": language,
         "chatterbox_phrase_languages": list(_LAST_CHATTERBOX_LANGUAGES),
+        "hinglish_language_policy": (
+            "Hindi-script phrases use the Hindi multilingual token; English-only phrases use English. "
+            "Keep Hindi words in Devanagari and English terms in Latin script."
+            if str(language).lower() == "hinglish" else None
+        ),
         "gender": gender,
         "chunk_count": len(sentences),
         "characters": completeness["characters"],
