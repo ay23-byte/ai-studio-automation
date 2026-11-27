@@ -136,7 +136,7 @@
     ".github/workflows/archival-video-e2e-validation.yml": "06ba8f01a51ef988d749b03fc1ae81493b484ed993fe0ac3797931f042a0d48b",
     ".github/workflows/avatar-studio-browser.yml": "330c29162b718201f7dc13c2b23c8960d215591fb5a2c3f50de5b6f4bf2b3e0e",
     ".github/workflows/chernobyl-documentary-production.yml": "4bb9abc7058807fa0ca9134c308fecc2a0c1ded587be21503a17ccc64b04cf69",
-    ".github/workflows/daily-news-auto-short.yml": "802374becb91e37f8525474e69a5adc3822f2d12cc0722c64e1fc691bb5d053e",
+    ".github/workflows/daily-news-auto-short.yml": "f683f2dd18a823ddbbe5ea210fed28b8d3b03e2591ebac5e6b9554a1afbf8623",
     ".github/workflows/daily-news-short-artifact-render.yml": "ef03a6e103c29e5197ee1cd429b8c7615cf15123976314b80a20cee9c93ede29",
     ".github/workflows/daily-news-short-asset-prep.yml": "9af024654b4e5f3563387676e59674f1889e1d1655cc7e6909f6803b4aaf46c4",
     ".github/workflows/daily-news-short-render.yml": "f201fddcb4b2013418aef10000a796edd37930229d7628ea1b5897f00e31ffc1",
@@ -567,7 +567,7 @@
       "upload_lines": []
     },
     "daily-news-auto-short.yml": {
-      "sha256": "802374becb91e37f8525474e69a5adc3822f2d12cc0722c64e1fc691bb5d053e",
+      "sha256": "f683f2dd18a823ddbbe5ea210fed28b8d3b03e2591ebac5e6b9554a1afbf8623",
       "display_name": "Daily news Short — build for automatic PRIVATE release",
       "on_sha256": "3f7c51b1ad35af2dd13e9f8fdb1e71512414f1cd5e997696dc782a4de531b085",
       "triggers": [
