@@ -143,7 +143,7 @@
     ".github/workflows/daily-news-shorts.yml": "c161926460b0a6586dadafd9ed24ba2401e5864f45d6ec17951cf949660b3fde",
     ".github/workflows/documentary-audit.yml": "0aea996b844b5e411b186867eff56715b12c78dd0ffad41ab84d76ff89548334",
     ".github/workflows/documentary-e2e-smoke.yml": "32847c33716846f32eee9608b5e63a53c5cde804cb6cf14f1e2e571ea6204bc6",
-    ".github/workflows/documentary-voice-audition.yml": "eca3f4b6816fe229afb01b1ad7d2c9c337b31c9b6756cf3c11068187db930fb1",
+    ".github/workflows/documentary-voice-audition.yml": "49298f1f2a2cb7e642b062c05292a857771ca9589a49ed81dc15e92835beb8cd",
     ".github/workflows/export_documentary_review.yml": "ea2194738b6b423da76050e46ad3a19866d92956f0679a06783ba5e4603091a2",
     ".github/workflows/first-documentary-production-trial.yml": "636070b7465c4dea43c5ffa8d3e5da7767ee6177cd4422ac282403fb871fa520",
     ".github/workflows/footage-live-verification.yml": "6435f55cd32595888c01068d78cfce6e63d58f4512cef7e490101599511d95c1",
@@ -152,8 +152,8 @@
     ".github/workflows/kaggle-wan-video-worker.yml": "47ba1d1aba10392de7d3a124615b926ef4f8d2b67378a96622af1071fdf93215",
     ".github/workflows/live-documentary-production-validation.yml": "d406844413a466028d8801fc3edc0f0fdacb0cbb2c960a92a57df2ec3d63d616",
     ".github/workflows/longform-voice-audition.yml": "92d1d80483658de23b052d470c2462e633bf66b68a9f61f03c31cb49e0218159",
-    ".github/workflows/make_longform.yml": "2310aa321da89656c26c087989469da438b98e5cf5c3a418b37a70fd9e7a36e5",
-    ".github/workflows/make_shorts.yml": "b5a6c2585a115b49b95d8dadee8f1af56a428aa4c5f35b64a0838ea1f69a177f",
+    ".github/workflows/make_longform.yml": "3fe0575463b583a1c2f33beb0ef1ba6116ad3f1346b2cfe297dd8e053ba48e7d",
+    ".github/workflows/make_shorts.yml": "75962d5eacd622dd8fa311e3730c09dab7335563101114f596768c0c8af90721",
     ".github/workflows/manual-live-documentary-e2e.yml": "df1a06e4e83686e95711c88c72cad61ecbbf6964dc6d510f00a8196b1a1d7f0a",
     ".github/workflows/manual-youtube-private-upload.yml": "6645eff4c4e00a172b3787c0474aa75d68a5c908bf9706b7e3638c3b013f40bb",
     ".github/workflows/news-script-draft.yml": "a270fcc86e2772c56bfd7167ca325918206dee7cf491749c92b304ebcef626b2",
@@ -899,9 +899,9 @@
       "upload_lines": []
     },
     "documentary-voice-audition.yml": {
-      "sha256": "eca3f4b6816fe229afb01b1ad7d2c9c337b31c9b6756cf3c11068187db930fb1",
+      "sha256": "49298f1f2a2cb7e642b062c05292a857771ca9589a49ed81dc15e92835beb8cd",
       "display_name": "Internal — Pipeline voice audition",
-      "on_sha256": "54786a06d794c8bb2ae8866879eff399ae834f6c0e4027398ca23a0bfa702987",
+      "on_sha256": "68cc31aa8551b96f694853ed4208a31a67c48d76dabd4db0fc134fe93b89bbc1",
       "triggers": [
         "workflow_dispatch",
         "pull_request"
@@ -1294,7 +1294,7 @@
       "upload_lines": []
     },
     "make_longform.yml": {
-      "sha256": "2310aa321da89656c26c087989469da438b98e5cf5c3a418b37a70fd9e7a36e5",
+      "sha256": "3fe0575463b583a1c2f33beb0ef1ba6116ad3f1346b2cfe297dd8e053ba48e7d",
       "display_name": "2. Build a Documentary — automatic PRIVATE release",
       "on_sha256": "73188074bbf37bedda804c5b218b74850c97697ccd7cd9b84b678dceea3344e8",
       "triggers": [
@@ -1436,7 +1436,7 @@
       "upload_lines": []
     },
     "make_shorts.yml": {
-      "sha256": "b5a6c2585a115b49b95d8dadee8f1af56a428aa4c5f35b64a0838ea1f69a177f",
+      "sha256": "75962d5eacd622dd8fa311e3730c09dab7335563101114f596768c0c8af90721",
       "display_name": "1. Daily general Shorts — build and package",
       "on_sha256": "7b6bebf109a2f8f1729d3f40b49c2c66fd11d9fa3eeb414f20b82d78319adb35",
       "triggers": [
