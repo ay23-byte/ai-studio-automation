@@ -280,8 +280,9 @@ def _render(sections, voice, ass, total, out, bd, music, music_vol, credits_path
             "dialogue_music_separation_note": "The music stem is attenuated and sidechain-ducked; final dialogue/music separation still requires listening review.",
         },
     )
-    from core.audio_quality import inspect_narration
-    inspect_narration(voice, Path(out).parent)
+    from core.audio_quality import inspect_narration, assert_narration_screening
+    narration_report = inspect_narration(voice, Path(out).parent)
+    assert_narration_screening(narration_report)
     valid = []
     for i, sec in enumerate(sections):
         m = sec.get("_media",{}); src = Path(m.get("path","")) if m.get("path") else None
