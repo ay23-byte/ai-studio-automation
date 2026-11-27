@@ -20,7 +20,7 @@ class VoiceFallbackTests(unittest.TestCase):
             def fake_join(wavs, pauses, output, speed=1.0):
                 output.write_bytes(b"RIFF" + b"\x00" * 128)
 
-            with patch.dict("os.environ", {"TTS_ENGINE": "edge", "CI": "true"}), \
+            with patch.dict("os.environ", {"TTS_ENGINE": "edge", "CI": "true", "GITHUB_ACTIONS": "false", "TTS_REJECT_ROBOTIC_FALLBACK": "0"}), \
                  patch.object(voice, "_synth_all_edge", side_effect=RuntimeError("NoAudioReceived")), \
                  patch.object(voice, "_synth_all_espeak", side_effect=fake_espeak) as offline, \
                  patch.object(voice, "_dur", return_value=1.0), \
@@ -34,6 +34,16 @@ class VoiceFallbackTests(unittest.TestCase):
             self.assertEqual(report["actual_engine"], "espeak-ng")
             self.assertIn("NoAudioReceived", report["fallback_reason"])
 
+
+
+    def test_github_actions_rejects_robotic_fallback_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp, \\
+             patch.dict("os.environ", {"TTS_ENGINE": "edge", "GITHUB_ACTIONS": "true"}, clear=True), \\
+             patch.object(voice, "_synth_all_edge", side_effect=RuntimeError("NoAudioReceived")), \\
+             patch.object(voice, "_synth_all_espeak", return_value=[Path(tmp) / "s0.wav"]) as offline:
+            with self.assertRaisesRegex(voice.VoiceProviderUnavailable, "Production narration refused"):
+                voice._synthesise_raw("A clear test sentence.", Path(tmp), language="english")
+            offline.assert_called_once()
 
     def test_required_chatterbox_failure_blocks_edge_fallback(self):
         with tempfile.TemporaryDirectory() as tmp, \
