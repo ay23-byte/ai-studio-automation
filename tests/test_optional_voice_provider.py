@@ -111,7 +111,7 @@ class ProviderCascadeTests(unittest.TestCase):
             def fake_join(wavs, pauses, output, speed=1.0):
                 output.write_bytes(b"RIFF" + b"\x00" * 128)
 
-            with patch.dict("os.environ", {"TTS_ENGINE": "edge"}), \
+            with patch.dict("os.environ", {"TTS_ENGINE": "edge", "GITHUB_ACTIONS": "false", "TTS_REJECT_ROBOTIC_FALLBACK": "0"}), \
                  patch.object(voice, "edge_tts", None), \
                  patch.object(voice, "_synth_all_espeak", side_effect=fake_espeak) as offline, \
                  patch.object(voice, "_dur", return_value=1.0), \
