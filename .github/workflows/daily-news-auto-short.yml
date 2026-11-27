@@ -67,9 +67,13 @@ jobs:
             sleep $((attempt * 10))
           done
 
-      # Edge TTS is the selected neural narrator for this newsroom workflow.
-      # It honors the configured en-IN/hi-IN voice IDs; Chatterbox's current
-      # integration ignores TTS_VOICE and was masking the intended speaker choice.
+      # Hinglish uses Chatterbox multilingual so Hindi-script words and English
+      # technical terms can be code-switched phrase by phrase. Explicit English
+      # and Hindi selections retain their matching Edge neural voices.
+      - name: Install Chatterbox multilingual for Hinglish narration
+        if: ${{ inputs.language == 'hinglish' || github.event_name == 'schedule' }}
+        run: python -m pip install --retries 5 --timeout 120 chatterbox-tts
+
       - name: Preflight image provenance and licence checks
         run: python -m unittest discover -s tests -p "test_image_provenance.py" -v
 
@@ -103,10 +107,14 @@ jobs:
           FOOTAGE_CONTACT: ${{ vars.FOOTAGE_CONTACT }}
           PV2_ANIMATION_MODE: "auto_strict"
           PV2_BLENDER_BACKEND: "bpy"
-          TTS_ENGINE: "edge"
-          TTS_REQUIRE_ENGINE: "edge"
+          TTS_ENGINE: ${{ (inputs.language || 'hinglish') == 'hinglish' && 'chatterbox' || 'edge' }}
+          TTS_REQUIRE_ENGINE: ${{ (inputs.language || 'hinglish') == 'hinglish' && 'chatterbox' || 'edge' }}
+          ALLOW_CHATTERBOX_ON_CI: "true"
+          CHATTERBOX_TORCH_THREADS: "2"
+          CHATTERBOX_TORCH_INTEROP_THREADS: "1"
+          CHATTERBOX_PLAYBACK_SPEED: "1.00"
           TTS_VOICE: ${{ inputs.language == 'english' && 'en-IN-PrabhatNeural' || 'hi-IN-MadhurNeural' }}
-          TTS_PAUSE_SCALE: "1.15"
+          TTS_PAUSE_SCALE: "1.0"
           TTS_REJECT_ROBOTIC_FALLBACK: "1"
           TTS_RATE: "-2%"
           TTS_OPENING_RATE: "-3%"
