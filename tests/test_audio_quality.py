@@ -81,7 +81,7 @@ class AudioQualityTests(unittest.TestCase):
     @patch("core.audio_quality.subprocess.run")
     def test_isolated_narration_noise_floor_is_reported_before_music_mix(self, run):
         run.return_value = self._completed(
-            "[Parsed_astats_0] Overall\nNoise floor dB: -31.000000\n"
+            "[Parsed_astats_0] Overall\nNoise floor dB: -24.000000\n"
             "RMS level dB: -22.000000\nPeak level dB: -2.000000\n"
         )
         voice = self.root / "voice.wav"
@@ -91,8 +91,21 @@ class AudioQualityTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "refusing to mix defective voice"):
             assert_narration_screening(report)
         self.assertEqual(report["stage"], "isolated_narration_before_background_music")
-        self.assertEqual(report["metrics"]["noise_floor_dbfs"], -31.0)
+        self.assertEqual(report["metrics"]["noise_floor_dbfs"], -24.0)
         self.assertTrue((self.root / "narration_quality_report.json").is_file())
+
+    @patch("core.audio_quality.subprocess.run")
+    def test_moderate_noise_floor_is_reviewable_not_a_render_blocker(self, run):
+        run.return_value = self._completed(
+            "[Parsed_astats_0] Overall\\nNoise floor dB: -31.000000\\n"
+            "RMS level dB: -22.000000\\nPeak level dB: -2.000000\\n"
+        )
+        voice = self.root / "moderate_noise_voice.wav"
+        voice.write_bytes(b"voice")
+        report = inspect_narration(voice, self.root)
+        self.assertEqual(report["status"], "REVIEW")
+        self.assertTrue(any("headphone check" in warning for warning in report["warnings"]))
+        self.assertIs(assert_narration_screening(report), report)
 
     @patch("core.audio_quality.subprocess.run")
     def test_unavailable_noise_floor_remains_reviewable_not_a_false_failure(self, run):
