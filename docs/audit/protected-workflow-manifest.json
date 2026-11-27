@@ -145,7 +145,7 @@
     ".github/workflows/documentary-e2e-smoke.yml": "32847c33716846f32eee9608b5e63a53c5cde804cb6cf14f1e2e571ea6204bc6",
     ".github/workflows/documentary-voice-audition.yml": "7e1e7caf30424021b3d2698282abbdfc0ca6df000cff5fd05e5a2ff1e06aae55",
     ".github/workflows/export_documentary_review.yml": "ea2194738b6b423da76050e46ad3a19866d92956f0679a06783ba5e4603091a2",
-    ".github/workflows/first-documentary-production-trial.yml": "4731faece057a662893482edd9f6f33defc3247808a042088ecff61a6a709f4b",
+    ".github/workflows/first-documentary-production-trial.yml": "636070b7465c4dea43c5ffa8d3e5da7767ee6177cd4422ac282403fb871fa520",
     ".github/workflows/footage-live-verification.yml": "6435f55cd32595888c01068d78cfce6e63d58f4512cef7e490101599511d95c1",
     ".github/workflows/footage-provider-api-health.yml": "754234a197b7adee0d278adea9240c4344a106d7360a78b52f6e6cffaac65c09",
     ".github/workflows/footage-source-validation.yml": "dcde0085f71884510876216ec224e6ce92597ac898294b73689f3aebd17345e0",
@@ -963,7 +963,7 @@
       "upload_lines": []
     },
     "first-documentary-production-trial.yml": {
-      "sha256": "4731faece057a662893482edd9f6f33defc3247808a042088ecff61a6a709f4b",
+      "sha256": "636070b7465c4dea43c5ffa8d3e5da7767ee6177cd4422ac282403fb871fa520",
       "display_name": "⚙ Internal — First documentary production trial",
       "on_sha256": "d9dde2fdb974e5b1a16e88a769205f4473880e9db05ae49c05467554db2e2fd3",
       "triggers": [
@@ -991,7 +991,6 @@
         "first-documentary-production-trial"
       ],
       "actions": [
-        "actions/cache@v6",
         "actions/checkout@v7",
         "actions/setup-node@v7",
         "actions/setup-python@v7",
