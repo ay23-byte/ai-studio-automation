@@ -18,6 +18,39 @@ class NewsAutoReleaseBlocked(RuntimeError):
     """A daily-news Short did not satisfy the automatic release contract."""
 
 
+def _quality_report_allows_private_release(quality: dict) -> tuple[bool, str]:
+    """Allow a bounded, explicitly permitted fallback share for PRIVATE review only.
+
+    The renderer changes an otherwise-PASS quality report to REVIEW whenever it
+    uses fallback cards, even when the fallback share is within its configured
+    maximum.  The same report sets upload_blocked only when that maximum is
+    exceeded.  Requiring status == PASS here contradicted that policy and
+    rejected valid, bounded review builds.
+    """
+    if quality.get("upload_blocked"):
+        return False, "The render quality report blocks upload because fallback visuals exceed the allowed share."
+    status = str(quality.get("status") or "").upper()
+    if status == "PASS":
+        return True, ""
+    if status != "REVIEW":
+        return False, f"Automatic release requires technical QA PASS or an explicitly permitted fallback REVIEW; got {quality.get('status')!r}."
+
+    fallback = quality.get("visual_fallback")
+    if not isinstance(fallback, dict) or str(fallback.get("status") or "").upper() != "PASS":
+        return False, "A REVIEW quality report is releasable only when its fallback-visual report explicitly passes the configured share limit."
+    try:
+        count = int(fallback["fallback_card_count"])
+        total = int(fallback["visual_count"])
+        maximum = float(fallback["max_share_allowed"])
+    except (KeyError, TypeError, ValueError):
+        return False, "Fallback-visual review evidence is incomplete or invalid."
+    if total <= 0 or count < 0 or count > total or not 0.0 <= maximum <= 1.0:
+        return False, "Fallback-visual review evidence contains invalid counts or limits."
+    if count / total > maximum + 1e-9:
+        return False, "Fallback-visual share exceeds its configured maximum."
+    return True, "Technical QA passed; bounded fallback visuals remain disclosed for human review."
+
+
 def _probe(video: Path) -> dict:
     from core.ffmpeg_utils import ffprobe_bin
     result = subprocess.run(
@@ -83,11 +116,9 @@ def publish_news_job(job_id: int, *, wait: bool = True) -> dict:
         quality = json.loads(quality_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise NewsAutoReleaseBlocked("The render quality report is missing or invalid.") from exc
-    if str(quality.get("status") or "").upper() != "PASS":
-        raise NewsAutoReleaseBlocked(
-            f"Automatic release requires technical QA PASS; got {quality.get('status')!r}.")
-    if quality.get("upload_blocked"):
-        raise NewsAutoReleaseBlocked("The render quality report blocks upload due to fallback visuals.")
+    allowed, reason = _quality_report_allows_private_release(quality)
+    if not allowed:
+        raise NewsAutoReleaseBlocked(reason)
     if quality.get("video_path") and Path(str(quality["video_path"])).name != video.name:
         raise NewsAutoReleaseBlocked("The quality report refers to a different MP4.")
 
