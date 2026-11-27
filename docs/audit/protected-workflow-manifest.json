@@ -221,7 +221,7 @@
     "core/muapi_video.py": "b02ab5d936d5541d3eff88fa440e042a883eae9da0bc3f91d7e1b0bc7504af5d",
     "core/news_auto.py": "5eaf915bd8d3f0da1ad2368f4abf3a826b52c058ba70034b74958f111a63b48d",
     "core/news_editorial.py": "dc45a218e77624a756a41869bd0c5e01f0bccc954b0fce268afccdefd6ee02e1",
-    "core/news_private_release.py": "d9d8b30e88a4076da3f9cfa288ff03bf429aef4f99082deed8de7d03b93e4eb0",
+    "core/news_private_release.py": "cbc03d69c12598a0bebf887c7a48834dbbffa3f79c1aed7eebe3a950803c44b3",
     "core/news_research.py": "3f445bbf71deba0d41ebf12f25984b25721a8dc07796b1d0308d4e8f73e1f106",
     "core/news_semantic_qa.py": "7c47144060a61bf5c41140109118a82ee0cc985ca90761fd8896d20cf4b6b285",
     "core/news_short_asset_provenance_qa.py": "0bd26e71947dfadb907458424497bf3d2d9ee8377360aa025fb0776dca5460b5",
