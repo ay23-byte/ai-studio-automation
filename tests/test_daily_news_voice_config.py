@@ -12,6 +12,7 @@ class DailyNewsVoiceConfigurationTests(unittest.TestCase):
         self.assertIn("hi-IN-MadhurNeural", workflow)
         self.assertIn("en-IN-PrabhatNeural", workflow)
         self.assertIn("Install Chatterbox multilingual for Hinglish narration", workflow)
+        self.assertIn("NVIDIA_TTS_ENABLED: ${{ (inputs.language || 'hinglish') == 'hinglish' && '0'", workflow)
 
     def test_voice_audition_generates_real_samples_for_all_pipelines(self):
         script = Path("scripts/create_pipeline_voice_audition.py").read_text(encoding="utf-8")
