@@ -793,11 +793,18 @@ def synthesise(text, build_dir, language="hindi", gender="male"):
             wavs = _synth_all_espeak(sentences, language, build_dir)
             engine = "espeak-ng"
 
-    # News releases must never silently fall back to the highly robotic offline voice.
-    # A failed neural provider blocks this news build instead of publishing poor audio.
-    if engine == "espeak-ng" and os.getenv("TTS_REJECT_ROBOTIC_FALLBACK", "").strip().lower() in {"1", "true", "yes"}:
+    # Every GitHub Actions production pipeline must use neural narration. Offline
+    # espeak-ng is useful for local diagnostics, but its robotic delivery is not
+    # acceptable in a published Short or documentary. A workflow may explicitly
+    # opt out only for a non-release diagnostic job with TTS_REJECT_ROBOTIC_FALLBACK=0.
+    reject_robotic = os.getenv("TTS_REJECT_ROBOTIC_FALLBACK", "").strip().lower()
+    reject_robotic = reject_robotic in {"1", "true", "yes"} or (
+        not reject_robotic and is_ci
+    )
+    if engine == "espeak-ng" and reject_robotic:
         raise VoiceProviderUnavailable(
-            "Daily news narration refused: neural TTS was unavailable and the offline robotic voice is disabled.")
+            "Production narration refused: neural TTS was unavailable and the offline robotic voice is disabled. "
+            "Restore a neural provider (Chatterbox, NVIDIA Magpie, or Edge TTS) before rendering.")
 
     # Chatterbox has no native rate argument in this integration. Apply a
     # subtle 4% tempo lift only to that engine; Edge already receives TTS_RATE.
