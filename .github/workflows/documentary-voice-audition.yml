@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/documentary-voice-audition.yml"
       - ".github/workflows/daily-news-auto-short.yml"
+      - ".github/workflows/make_shorts.yml"
+      - ".github/workflows/make_longform.yml"
       - "core/voice.py"
       - "scripts/create_pipeline_voice_audition.py"
       - "tests/test_hinglish_voice.py"
