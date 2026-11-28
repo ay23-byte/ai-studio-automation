@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-28T11:33:06+00:00",
+  "updated_at": "2026-11-28T12:39:51+00:00",
   "entries": [
     {
       "kind": "shorts",
@@ -646,6 +646,16 @@
         "a936414692f423bb1203",
         "a8cba8c6cdcdab0fafa7"
       ],
+      "job_id": 7
+    },
+    {
+      "kind": "shorts",
+      "key": "6f4dbe2bac5454ace3ceca44",
+      "created_at": "2026-11-28T12:39:51+00:00",
+      "title": "Figure Skater की तेज़ Spin का Secret",
+      "status": "built",
+      "updated_at": "2026-11-28T12:39:51+00:00",
+      "topic": "Why Do Figure Skaters Spin Faster When Pulling Their Arms In?",
       "job_id": 7
     }
   ]
