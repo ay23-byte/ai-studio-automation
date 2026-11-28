@@ -77,7 +77,7 @@ class LongformHinglishQualityTests(unittest.TestCase):
 
         self.assertIsNotNone(result)
         self.assertEqual(result["language_quality"]["status"], "PASS")
-        self.assertEqual(result["generation"]["provider"], "groq") if "generation" in result else None
+        self.assertEqual(result["generation"]["provider"], "groq")
         self.assertEqual(complete.call_args.args[0]["name"], "groq")
         self.assertIn("LANGUAGE REPAIR REQUIRED", repair_prompt)
         self.assertIn("every chapter", repair_prompt.lower())
