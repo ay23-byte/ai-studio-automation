@@ -1224,6 +1224,80 @@ def validate_longform_language(script: dict, language: str = "hinglish") -> dict
     return report
 
 
+def _longform_language_repair_prompt(prompt: str, language: str, error: Exception) -> str:
+    """Build a focused repair request after a documentary fails narration-language QA."""
+    selected = str(language or "hinglish").strip().lower()
+    if selected == "hinglish":
+        instruction = (
+            "Rewrite ALL narration in EVERY chapter as conversational Hindi-English code-mixing. "
+            "Use Devanagari for Hindi words and Latin script for English words, technical terms and names. "
+            "Each chapter must contain at least 8% Hindi words in Devanagari and at least 8% English words "
+            "in Latin script; across the complete narration, each must be at least 12%. Do not write "
+            "English paragraphs with only a few Hindi insertions. Blend both languages naturally in "
+            "the same spoken sentences, like a professional Indian presenter. Keep all factual claims, "
+            "source IDs, evidence notes, runtime bounds and storyboard structure. "
+            'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
+            "Correct the language without inventing facts or changing the research."
+        )
+    elif selected == "hindi":
+        instruction = (
+            "Rewrite all narration in natural conversational Hindi using Devanagari. Keep familiar "
+            "technical terms and proper names in Latin script. Preserve all facts, sources, claims, "
+            "runtime bounds and storyboard structure."
+        )
+    else:
+        instruction = (
+            "Rewrite all narration in natural conversational English. Do not use Devanagari. "
+            "Preserve all facts, sources, claims, runtime bounds and storyboard structure."
+        )
+    return (
+        prompt + "\n\nLANGUAGE REPAIR REQUIRED: The previous documentary failed narration-language "
+        "validation: " + str(error) + ". " + instruction +
+        " Return the complete valid JSON documentary, not an outline."
+    )
+
+
+def _try_longform_language_fallback(prompt: str, language: str, category: str,
+                                    research_sources: list, error: Exception):
+    """Use configured text providers (Groq first by default) to repair bad-language scripts.
+
+    Gemini can return HTTP 200 and valid JSON while ignoring the requested language.
+    That is a content-quality failure, not an API failure, so ordinary transport
+    fallback never runs. This quality-aware fallback explicitly gives configured
+    providers a chance before the documentary build is abandoned.
+    """
+    from core import llm
+
+    repair_prompt = _longform_language_repair_prompt(prompt, language, error)
+    failures = []
+    for config in llm.configured_providers():
+        provider = config.get("name", "fallback")
+        try:
+            print(
+                f"Long-form language QA failed; asking {provider} "
+                f"({config.get('model', 'configured model')}) to repair the documentary."
+            )
+            candidate = _parse(llm.complete(
+                config, repair_prompt, json_mode=True, temperature=0.35,
+                max_tokens=int(os.getenv("LLM_FALLBACK_MAX_TOKENS", "32768")),
+            ))
+            candidate["format"] = "longform"
+            candidate["category"] = category
+            candidate["research_sources"] = research_sources
+            validate_longform_language(candidate, language)
+            gemini_policy.record_usage(
+                "script", provider=provider, model=config.get("model"), outcome="ok",
+                failures=failures,
+            )
+            print(f"Long-form language repair passed using {provider}.")
+            return candidate, repair_prompt
+        except (llm.LLMError, ValueError, RuntimeError, TypeError, KeyError) as exc:
+            detail = llm.redact(exc)
+            failures.append(f"{provider}: {detail}")
+            print(f"Long-form language repair from {provider} failed validation: {detail}")
+    return None, repair_prompt
+
+
 def generate_longform_script(topic: str, category: str = "finance",
                               duration_min=5, duration_max=8, language="Hinglish",
                               channel_name: str = "", audience: str = "",
@@ -1293,34 +1367,26 @@ def generate_longform_script(topic: str, category: str = "finance",
         try:
             validate_longform_language(script, requested_language)
         except ValueError as exc:
-            if attempt == 2:
-                raise
-            if requested_language == "hinglish":
-                prompt += (
-                    "\n\nLANGUAGE REPAIR REQUIRED: The previous complete documentary was not natural Hinglish. "
-                    "Rewrite ALL narration in EVERY chapter as conversational Hindi-English code-mixing. "
-                    "Use Devanagari for Hindi words and Latin script for English words, technical terms and names. "
-                    "Each chapter must contain at least 8% Hindi words in Devanagari and at least 8% English words "
-                    "in Latin script; across the complete narration, each must be at least 12%. Do not write "
-                    "English paragraphs with only a few Hindi insertions. Blend both languages naturally in "
-                    "the same spoken sentences, like a professional Indian presenter. Keep all factual claims, "
-                    "source IDs, evidence notes, runtime bounds and storyboard structure. "
-                    'Example rhythm: "जब metal गरम होता है, तो उसकी particles की motion तेज़ हो जाती है।" '
-                    "Correct the language without inventing facts or changing the research."
+            # A valid Gemini response can still be unusable (for example, English-only
+            # narration when Hinglish was requested). API failover does not catch this
+            # because Gemini itself succeeded, so explicitly invoke configured providers.
+            repaired, repair_prompt = _try_longform_language_fallback(
+                prompt, requested_language, category, research_sources, exc
+            )
+            prompt = repair_prompt
+            if repaired is not None:
+                script = repaired
+            elif attempt < 2:
+                print(
+                    f"Long-form language QA failed; no configured provider repaired it. "
+                    f"Retrying the documentary prompt ({attempt + 1}/2): {exc}"
                 )
-            elif requested_language == "hindi":
-                prompt += (
-                    "\n\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
-                    "using Devanagari script. Keep familiar technical terms and proper names in Latin script. "
-                    "Preserve all facts, sources, claims, runtime bounds and storyboard structure."
-                )
+                continue
             else:
-                prompt += (
-                    "\n\nLANGUAGE REPAIR REQUIRED: Rewrite all narration in natural conversational Hindi "
-                    "Do not use Devanagari. Preserve all facts, sources, claims, runtime bounds and storyboard structure."
-                )
-            print(f"Long-form language QA failed; requesting full {requested_language} rewrite {attempt + 1}/2: {exc}")
-            continue
+                raise ValueError(
+                    f"Long-form narration failed language validation after Gemini retries "
+                    f"and configured-provider repair attempts: {exc}"
+                ) from exc
         from core.research_verification import append_source_citations_to_description
         script = append_source_citations_to_description(script)
         script = _repair_longform_visual_anchors(script)
