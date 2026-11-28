@@ -1289,6 +1289,7 @@ def _try_longform_language_fallback(prompt: str, language: str, category: str,
                 "script", provider=provider, model=config.get("model"), outcome="ok",
                 failures=failures,
             )
+            candidate = _stamp_generation(candidate)
             print(f"Long-form language repair passed using {provider}.")
             return candidate, repair_prompt
         except (llm.LLMError, ValueError, RuntimeError, TypeError, KeyError) as exc:
