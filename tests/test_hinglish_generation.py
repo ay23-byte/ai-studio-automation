@@ -56,6 +56,32 @@ class LongformHinglishQualityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Chapter 2 is not genuinely mixed-language"):
             script_engine.validate_longform_language(script, "hinglish")
 
+    def test_longform_language_failure_uses_configured_groq_repair(self):
+        import json
+        from core import llm
+
+        mixed = " ".join(
+            ["जब quantum system की energy बदलती है, तो उसका measurable state भी change होता है।"] * 35
+        )
+        repaired = {"title": "Quantum systems", "sections": [
+            {"title": "Origins", "narration": mixed},
+            {"title": "Mechanism", "narration": mixed},
+        ]}
+        provider = {"name": "groq", "model": "llama-test", "base_url": "https://example.test", "api_key": "test"}
+        with patch.object(llm, "configured_providers", return_value=[provider]), \\
+             patch.object(llm, "complete", return_value=json.dumps(repaired, ensure_ascii=False)) as complete:
+            result, repair_prompt = script_engine._try_longform_language_fallback(
+                "Original documentary prompt", "hinglish", "science", [], 
+                ValueError("English-only chapter")
+            )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result["language_quality"]["status"], "PASS")
+        self.assertEqual(result["generation"]["provider"], "groq") if "generation" in result else None
+        self.assertEqual(complete.call_args.args[0]["name"], "groq")
+        self.assertIn("LANGUAGE REPAIR REQUIRED", repair_prompt)
+        self.assertIn("every chapter", repair_prompt.lower())
+
     def test_english_and_hindi_language_modes_are_also_enforced(self):
         english = {"sections": [{"narration": "The ship crossed the North Atlantic."}]}
         self.assertEqual(script_engine.validate_longform_language(english, "english")["status"], "PASS")
