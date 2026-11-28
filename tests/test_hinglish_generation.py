@@ -68,8 +68,8 @@ class LongformHinglishQualityTests(unittest.TestCase):
             {"title": "Mechanism", "narration": mixed},
         ]}
         provider = {"name": "groq", "model": "llama-test", "base_url": "https://example.test", "api_key": "test"}
-        with patch.object(llm, "configured_providers", return_value=[provider]), \\
-             patch.object(llm, "complete", return_value=json.dumps(repaired, ensure_ascii=False)) as complete:
+        with (patch.object(llm, "configured_providers", return_value=[provider]),
+              patch.object(llm, "complete", return_value=json.dumps(repaired, ensure_ascii=False)) as complete):
             result, repair_prompt = script_engine._try_longform_language_fallback(
                 "Original documentary prompt", "hinglish", "science", [], 
                 ValueError("English-only chapter")
